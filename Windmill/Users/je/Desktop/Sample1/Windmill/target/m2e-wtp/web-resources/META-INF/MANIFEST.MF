@@ -1,0 +1,14 @@
+Manifest-Version: 1.0
+Built-By: je
+Class-Path: standard-1.1.2.jar spring-webmvc-4.3.16.RELEASE.jar spring
+ -aop-4.3.16.RELEASE.jar spring-beans-4.3.16.RELEASE.jar spring-contex
+ t-4.3.16.RELEASE.jar spring-core-4.3.16.RELEASE.jar spring-expression
+ -4.3.16.RELEASE.jar spring-web-4.3.16.RELEASE.jar spring-jdbc-4.3.16.
+ RELEASE.jar spring-tx-4.3.16.RELEASE.jar mybatis-3.4.6.jar mybatis-sp
+ ring-1.3.2.jar commons-lang3-3.5.jar jcl-over-slf4j-1.7.25.jar slf4j-
+ api-1.7.25.jar logback-classic-1.2.3.jar logback-core-1.2.3.jar commo
+ ns-fileupload-1.2.1.jar commons-io-1.4.jar jackson-databind-2.5.4.jar
+  jackson-annotations-2.5.0.jar jackson-core-2.5.4.jar
+Build-Jdk: 1.8.0_231
+Created-By: Maven Integration for Eclipse
+
