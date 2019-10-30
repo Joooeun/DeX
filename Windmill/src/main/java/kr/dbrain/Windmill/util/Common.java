@@ -40,8 +40,8 @@ public class Common {
 			logger.error("[ERROR : system_properties]" + system_properties);
 		}
 
-		ConnectionPath = props.getProperty("Root").replaceAll("[/\\\\]", File.separator) + File.separator + "Connection" + File.separator;
-		srcPath = props.getProperty("Root").replaceAll("[/|\\\\]", File.separator) + File.separator + "src" + File.separator;
+		ConnectionPath = props.getProperty("Root") + File.separator + "Connection" + File.separator;
+		srcPath = props.getProperty("Root") + File.separator + "src" + File.separator;
 		logger.debug("[DEBUG : ConnectionPath]" + ConnectionPath);
 		logger.debug("[DEBUG : srcPath]" + srcPath);
 	}
