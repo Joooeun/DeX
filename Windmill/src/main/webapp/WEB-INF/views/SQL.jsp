@@ -52,7 +52,7 @@
 				sendSql($("#F10").val());
 			} else if (event.keyCode == '122') {
 				sendSql($("#F11").val());
-			} else if (event.keyCode == '123') {
+			} else if (event.keyCode == '가나다라마바사') {
 				sendSql($("#F12").val());
 			}
 		});
@@ -113,6 +113,9 @@
 				}
 				str += '</tr>';
 
+				$("#result_head").html(str);
+				str = '';
+
 				str += '</tr>';
 
 				for (var outter = 1; outter < result.length; outter++) {
@@ -126,7 +129,7 @@
 					str += '</tr>';
 				}
 
-				$("#result_table").html(str);
+				$("#result_body").html(str);
 
 			},
 			error : function() {
@@ -189,6 +192,13 @@
 		});
 	}
 </script>
+<style>
+<!--
+td, th {
+	min-width: 100px
+}
+-->
+</style>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper" style="margin-left: 0">
 	<!-- Content Header (Page header) -->
@@ -230,260 +240,22 @@
 				</div>
 			</div>
 		</div>
-		<div class="row" id="Resultbox" style="display: block;">
+		<div class="row" id="Resultbox" style="display: none;">
 			<div class="col-xs-12">
 				<div class="box">
 					<div class="box-header with-border">
 						<h3 class="box-title">Result</h3>
 					</div>
-					<div class="box-body no-padding" style="max-height: 50%; overflow-y: auto;">
-						<table class="table table-condensed table-hover table-striped table-bordered" id="result_table">
-							<thead>
-								<tr>
-									<th>123</th>
-									<th>123</th>
-									<th>123</th>
-									<th>123</th>
-									<th>123</th>
-									<th>123</th>
-									<th>123</th>
-									<th>123</th>
-									<th>123</th>
-								</tr>
-							</thead>
-							<tbody>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-								<tr>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-									<td>123</td>
-								</tr>
-							</tbody>
+					<div style="overflow-y: hidden; overflow-x: auto;">
+						<table class="table table-condensed table-hover" id="result_head" style="margin: 0;">
+							<tr>
+								<td colspan="100" style="padding: 0; border: none;">
+									<div style="max-height: 200px; overflow: auto">
+										<table class="table table-condensed table-hover table-striped table-bordered" id="result_body" style="margin: 0;">
+										</table>
+									</div>
+								</td>
+							</tr>
 						</table>
 					</div>
 					<div class="box-footer clearfix" hidden="hidden">

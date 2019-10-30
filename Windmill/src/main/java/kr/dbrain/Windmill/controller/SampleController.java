@@ -3,8 +3,6 @@ package kr.dbrain.Windmill.controller;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -15,6 +13,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.servlet.ModelAndView;
 
 import kr.dbrain.Windmill.service.SampleService;
 import kr.dbrain.Windmill.util.Common;
@@ -33,12 +32,15 @@ public class SampleController {
 	}
 
 	@RequestMapping(path = "/index", method = RequestMethod.GET)
-	public String sample(HttpServletRequest request, Model model) {
+	public ModelAndView sample(HttpServletRequest request, ModelAndView mv) {
 		if (!new java.io.File(Common.ConnectionPath).exists()) {
-			return "Setting";
+			mv.setViewName("Setting");
+			return mv;
 		}
+		
+		mv.addObject("sqllist", SQLController.getfiles(Common.srcPath));
 
-		return "index";
+		return mv;
 	}
 
 	@RequestMapping(path = "/index/setting")

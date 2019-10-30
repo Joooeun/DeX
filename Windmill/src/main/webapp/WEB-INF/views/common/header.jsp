@@ -3,7 +3,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Windmill</title>
+<title>Dex</title>
 <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
 <!-- Bootstrap 3.3.4 -->
 <link href="/resources/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
@@ -16,6 +16,11 @@
 <!-- AdminLTE Skins. Choose a skin from the css/skins 
          folder instead of downloading all of them to reduce the load. -->
 <link href="/resources/dist/css/skins/_all-skins.min.css" rel="stylesheet" type="text/css" />
+<style type="text/css">
+body {
+	margin: 0
+}
+</style>
 </head>
 <!-- jQuery 2.1.4 -->
 <script src="/resources/plugins/jQuery/jQuery-2.1.4.min.js"></script>
@@ -29,12 +34,9 @@
 
 				//alert(JSON.stringify(result))
 
-				var str = '';
+				var obj = setMenu(result);
 
-				str = setMenu(result, str);
-
-				//alert(str)
-				$("#SQLList").html(str);
+				$("#SQLList").append(obj);
 
 			},
 			error : function() {
@@ -54,14 +56,15 @@
 
 	});
 
-	function setMenu(result, str) {
+	function setMenu(result) {
+		var str = '';
 
 		for (var i = 0; i < result.length; i++) {
 			var list = result[i];
 
 			if (list.Path == 'Path') {
 				str += '<li class=""><a class="addtree" href="#"><span>' + list.Name + '</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';
-				str += setMenu(list.list, '');
+				str += setMenu(list.list);
 				str += '</ul></li>'
 			} else {
 				str += '<li><a href="/SQL?Path=' + encodeURI(list.Path) + '" target="iframe" id="' + list.Name.split('_')[0] + '"> ' + list.Name.split('.')[0] + '</a></li>';
@@ -88,7 +91,7 @@
 	<div class="wrapper">
 		<header class="main-header">
 			<!-- Logo -->
-			<a href="/resources/index2.html" class="logo"> <!-- mini logo for sidebar mini 50x50 pixels --> <span class="logo-mini"><b>W</b>M</span> <!-- logo for regular state and mobile devices --> <span class="logo-lg"><b>WIND</b> MILL</span>
+			<a href="/index" class="logo"> <!-- mini logo for sidebar mini 50x50 pixels --> <span class="logo-mini"><b>D</b>eX</span> <!-- logo for regular state and mobile devices --> <span class="logo-lg"><b>Dbrain</b> Explorer</span>
 			</a>
 			<!-- Header Navbar: style can be found in header.less -->
 			<nav class="navbar navbar-static-top" role="navigation">
@@ -123,12 +126,13 @@
 					<li class="treeview"><a href="/FILE" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span></a></li>
 					<li class="treeview"><a href="#"> <i class="fa fa-bolt"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></i>
 					</a>
-						<ul class="treeview-menu" id="SQLList">
+						<ul class="treeview-menu" id="SQLList" style="max-height:500px; overflow: auto;">
 						</ul></li>
+					<li class="treeview"><a href="#"> </a></li>
 				</ul>
 			</section>
 			<!-- /.sidebar -->
 		</aside>
 		<div class="content-wrapper" id="framebox">
-			<iframe name="iframe" id="iframe" class="content-wrapper" style="margin: 0; width: 100%; border: none; overflow-x: hidden; overflow: auto;"> </iframe>
+			<iframe name="iframe" id="iframe" style="margin: 0; width: 100%; min-height: 780px; border: none; overflow: auto;"></iframe>
 		</div>

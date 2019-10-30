@@ -206,7 +206,7 @@ public class SQLController {
 		return list;
 	}
 
-	public List<Map<String, ?>> getfiles(String root) {
+	public static List<Map<String, ?>> getfiles(String root) {
 
 		List<Map<String, ?>> list = new ArrayList<>();
 

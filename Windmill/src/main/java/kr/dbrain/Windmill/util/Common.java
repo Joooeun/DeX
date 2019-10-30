@@ -23,7 +23,7 @@ public class Common {
 	public static String srcPath = "";
 
 	public Common() {
-		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + "/system.properties";
+		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator + "system.properties";
 		Setproperties();
 	}
 
@@ -40,8 +40,8 @@ public class Common {
 			logger.error("[ERROR : system_properties]" + system_properties);
 		}
 
-		ConnectionPath = props.getProperty("Root") + "/Connection/";
-		srcPath = props.getProperty("Root") + "/src/";
+		ConnectionPath = props.getProperty("Root").replaceAll("[/\\\\]", File.separator) + File.separator + "Connection" + File.separator;
+		srcPath = props.getProperty("Root").replaceAll("[/|\\\\]", File.separator) + File.separator + "src" + File.separator;
 		logger.debug("[DEBUG : ConnectionPath]" + ConnectionPath);
 		logger.debug("[DEBUG : srcPath]" + srcPath);
 	}
