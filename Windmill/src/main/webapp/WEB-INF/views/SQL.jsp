@@ -71,6 +71,9 @@
 
 			setInterval(excute, $("#refreshtimeout").val() * 1000);
 		}
+		setTimeout(function() {
+			excute();
+		}, 100);
 
 	}
 
@@ -107,20 +110,16 @@
 				var str = '';
 
 				str += '<tr>';
-				str += '<th style="width: 30px;">#</th>';
+				str += '<th>#</th>';
 				for (var title = 0; title < result[0].length; title++) {
 					str += '<th>' + result[0][title] + '</th>';
 				}
 				str += '</tr>';
-
-				$("#result_head").html(str);
-				str = '';
-
-				str += '</tr>';
+				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div style="max-height: 290px; overflow: auto;">' + '<table class="table table-condensed table-hover table-striped" id="result_body" style="margin: 0;">' + '</table>' + '</div>' + '</td>' + '</tr>';
 
 				for (var outter = 1; outter < result.length; outter++) {
 					str += '<tr class="Resultrow" param='+result[outter][0]+'>';
-					str += '<td style="width: 30px;">' + outter + '</td>';
+					str += '<td  width="10px">' + outter + '</td>';
 
 					for (var inner = 0; inner < result[outter].length; inner++) {
 						str += '<td>' + result[outter][inner] + '</td>';
@@ -129,6 +128,26 @@
 					str += '</tr>';
 				}
 
+				$("#result_head").html(str);
+				str = '';
+
+				for (var outter = 1; outter < result.length; outter++) {
+					str += '<tr class="Resultrow" param='+result[outter][0]+'>';
+					str += '<td  width="10px">' + outter + '</td>';
+
+					for (var inner = 0; inner < result[outter].length; inner++) {
+						str += '<td style="border-left:1px solid #cccccc">' + result[outter][inner] + '</td>';
+					}
+
+					str += '</tr>';
+				}
+				
+				str += '<tr>';
+				str += '<th>#</th>';
+				for (var title = 0; title < result[0].length; title++) {
+					str += '<th>' + result[0][title] + '</th>';
+				}
+				str += '</tr>';
 				$("#result_body").html(str);
 
 			},
@@ -193,11 +212,6 @@
 	}
 </script>
 <style>
-<!--
-td, th {
-	min-width: 100px
-}
--->
 </style>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper" style="margin-left: 0">
@@ -217,8 +231,7 @@ td, th {
 				<div class="box box-default ">
 					<div class="box-header with-border">
 						<h3 class="box-title">파라미터 입력</h3>
-						&nbsp;&nbsp;&nbsp;<input id="selectedConnection" type="hidden" value="${Connection}">
-						<select id="connectionlist" onchange="sessionCon(this.value)">
+						&nbsp;&nbsp;&nbsp;<input id="selectedConnection" type="hidden" value="${Connection}"> <select id="connectionlist" onchange="sessionCon(this.value)">
 							<option value="">====Connection====</option>
 						</select>
 					</div>
@@ -246,12 +259,12 @@ td, th {
 					<div class="box-header with-border">
 						<h3 class="box-title">Result</h3>
 					</div>
-					<div style="overflow-y: hidden; overflow-x: auto;">
-						<table class="table table-condensed table-hover" id="result_head" style="margin: 0;">
+					<div style="overflow-y: hidden; overflow-x: auto; max-height: 300px">
+						<table class="table table-condensed table-hover table-striped" id="result_head" style="margin: 0;">
 							<tr>
 								<td colspan="100" style="padding: 0; border: none;">
 									<div style="max-height: 200px; overflow: auto">
-										<table class="table table-condensed table-hover table-striped table-bordered" id="result_body" style="margin: 0;">
+										<table class="table table-hover table-striped table-bordered" id="result_body" style="margin: 0;">
 										</table>
 									</div>
 								</td>

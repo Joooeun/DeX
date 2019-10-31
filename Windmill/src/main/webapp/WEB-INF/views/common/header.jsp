@@ -134,5 +134,5 @@ body {
 			<!-- /.sidebar -->
 		</aside>
 		<div class="content-wrapper" id="framebox">
-			<iframe name="iframe" id="iframe" style="margin: 0; width: 100%; min-height: 780px; border: none; overflow: auto;"></iframe>
+			<iframe name="iframe" id="iframe" style="margin: 0; width: 100%; min-height: 680px; border: none; overflow: auto;"></iframe>
 		</div>
