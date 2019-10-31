@@ -1,4 +1,9 @@
 <%@include file="common/common.jsp"%>
+<style>
+::-webkit-scrollbar {
+	width: 3px;
+}
+</style>
 <script>
 	$(document).ready(function() {
 
@@ -65,6 +70,10 @@
 	});
 
 	function startexcute() {
+		if ($("#connectionlist option:selected").val() == '') {
+			alert("Connection을 선택하세요.");
+			return;
+		}
 
 		excute();
 		if ($("#refreshtimeout").val() > 0) {
@@ -73,16 +82,11 @@
 		}
 		setTimeout(function() {
 			excute();
-		}, 100);
+		}, 500);
 
 	}
 
 	function excute() {
-
-		if ($("#connectionlist option:selected").val() == '') {
-			alert("Connection을 선택하세요.");
-			return;
-		}
 
 		var sql = $("#sql_text").val();
 
@@ -115,14 +119,14 @@
 					str += '<th>' + result[0][title] + '</th>';
 				}
 				str += '</tr>';
-				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div style="max-height: 290px; overflow: auto;">' + '<table class="table table-condensed table-hover table-striped" id="result_body" style="margin: 0;">' + '</table>' + '</div>' + '</td>' + '</tr>';
+				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div id="valuediv" style="max-height: 290px; overflow: auto;">' + '<table class="table table-condensed table-hover table-striped" id="result_body" style="margin: 0;">' + '</table>' + '</div>' + '</td>' + '</tr>';
 
 				for (var outter = 1; outter < result.length; outter++) {
-					str += '<tr class="Resultrow" param='+result[outter][0]+'>';
-					str += '<td  width="10px">' + outter + '</td>';
+					str += '<tr style="visibility: hidden;">';
+					str += '<td style="border:none;">' + outter + '</td>';
 
 					for (var inner = 0; inner < result[outter].length; inner++) {
-						str += '<td>' + result[outter][inner] + '</td>';
+						str += '<td style="border:none;">' + result[outter][inner] + '</td>';
 					}
 
 					str += '</tr>';
@@ -133,7 +137,7 @@
 
 				for (var outter = 1; outter < result.length; outter++) {
 					str += '<tr class="Resultrow" param='+result[outter][0]+'>';
-					str += '<td  width="10px">' + outter + '</td>';
+					str += '<td>' + outter + '</td>';
 
 					for (var inner = 0; inner < result[outter].length; inner++) {
 						str += '<td style="border-left:1px solid #cccccc">' + result[outter][inner] + '</td>';
@@ -141,8 +145,8 @@
 
 					str += '</tr>';
 				}
-				
-				str += '<tr>';
+
+				str += '<tr style="visibility: hidden;">';
 				str += '<th>#</th>';
 				for (var title = 0; title < result[0].length; title++) {
 					str += '<th>' + result[0][title] + '</th>';
@@ -259,11 +263,11 @@
 					<div class="box-header with-border">
 						<h3 class="box-title">Result</h3>
 					</div>
-					<div style="overflow-y: hidden; overflow-x: auto; max-height: 300px">
-						<table class="table table-condensed table-hover table-striped" id="result_head" style="margin: 0;">
+					<div style="overflow-y: hidden; overflow-x: overlay; max-height: 300px">
+						<table class="table table-condensed table-striped" id="result_head" style="margin: 0;">
 							<tr>
 								<td colspan="100" style="padding: 0; border: none;">
-									<div style="max-height: 200px; overflow: auto">
+									<div style="max-height: 200px; overflow: overlay">
 										<table class="table table-hover table-striped table-bordered" id="result_body" style="margin: 0;">
 										</table>
 									</div>

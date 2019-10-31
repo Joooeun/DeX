@@ -126,7 +126,7 @@ body {
 					<li class="treeview"><a href="/FILE" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span></a></li>
 					<li class="treeview"><a href="#"> <i class="fa fa-bolt"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></i>
 					</a>
-						<ul class="treeview-menu" id="SQLList" style="max-height:500px; overflow: auto;">
+						<ul class="treeview-menu" id="SQLList" style="max-height:450px; overflow: auto;">
 						</ul></li>
 					<li class="treeview"><a href="#"> </a></li>
 				</ul>
