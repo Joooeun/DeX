@@ -20,6 +20,39 @@
 body {
 	margin: 0
 }
+
+#sidebar {
+	height: calc(100vh - 120px);
+	overflow-y: auto;
+}
+
+::-webkit-scrollbar {
+	width: 5px;
+	height: 5px;
+	border: 1px solid #fff;
+}
+
+::-webkit-scrollbar:hover {
+	width: 8px;
+	height: 8px;
+	border: 5px solid #fff;
+}
+
+::-webkit-scrollbar-track {
+	background: #efefef;
+	-webkit-border-radius: 10px;
+	border-radius: 10px;
+	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .2)
+}
+
+::-webkit-scrollbar-thumb {
+	height: 50px;
+	width: 50px;
+	background: rgba(0, 0, 0, .2);
+	-webkit-border-radius: 8px;
+	border-radius: 8px;
+	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .1)
+}
 </style>
 </head>
 <!-- jQuery 2.1.4 -->
@@ -34,9 +67,14 @@ body {
 
 				//alert(JSON.stringify(result))
 
-				var obj = setMenu(result);
+				var sidebar = $('#sidebar');
+				var tree = $('<ul id="" class="sidebar-menu tree" data-widget="tree" id="tree"></ul>');
+				var parent = $('<li class="active treeview menu-open"><a href="#"> <i class="fa fa-bolt"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></i>');
 
-				$("#SQLList").append(obj);
+				parent.append(setMenu(result));
+
+				tree.append(parent);
+				sidebar.append(tree);
 
 			},
 			error : function() {
@@ -44,34 +82,159 @@ body {
 			}
 		});
 
-		$(document).on("click", ".addtree", function() {
+		var DataKey = "lte.tree";
 
-			if ($(this).parent().attr('class').includes('active')) {
-				$(this).parent().removeClass('active');
-			} else {
-				$(this).parent().addClass('active');
+		var Default = {
+			animationSpeed : 100,
+			accordion : false,
+			followLink : false,
+			trigger : ".treeview a"
+		};
+
+		var Selector = {
+			tree : ".tree",
+			treeview : ".treeview",
+			treeviewMenu : ".treeview-menu",
+			open : ".menu-open, .active",
+			li : "li",
+			data : '[data-widget="tree"]',
+			active : ".active"
+		};
+
+		var ClassName = {
+			open : "menu-open",
+			tree : "tree"
+		};
+
+		var Event = {
+			collapsed : "collapsed.tree",
+			expanded : "expanded.tree"
+		};
+
+		// Tree Class Definition
+		// =====================
+		var Tree = function(element, options) {
+			this.element = element;
+			this.options = options;
+
+			$(this.element).addClass(ClassName.tree);
+
+			$(Selector.treeview + Selector.active, this.element).addClass(ClassName.open);
+
+			this._setUpListeners();
+		};
+
+		Tree.prototype.toggle = function(link, event) {
+			var treeviewMenu = link.next(Selector.treeviewMenu);
+			var parentLi = link.parent();
+			var isOpen = parentLi.hasClass(ClassName.open);
+
+			if (!parentLi.is(Selector.treeview)) {
+				return;
 			}
 
+			if (!this.options.followLink || link.attr("href") === "#") {
+				event.preventDefault();
+			}
+
+			if (isOpen) {
+				this.collapse(treeviewMenu, parentLi);
+			} else {
+				this.expand(treeviewMenu, parentLi);
+			}
+		};
+
+		Tree.prototype.expand = function(tree, parent) {
+			var expandedEvent = $.Event(Event.expanded);
+
+			if (this.options.accordion) {
+				var openMenuLi = parent.siblings(Selector.open);
+				var openTree = openMenuLi.children(Selector.treeviewMenu);
+				this.collapse(openTree, openMenuLi);
+			}
+
+			parent.addClass(ClassName.open);
+			tree.slideDown(this.options.animationSpeed, function() {
+				$(this.element).trigger(expandedEvent);
+			}.bind(this));
+		};
+
+		Tree.prototype.collapse = function(tree, parentLi) {
+			var collapsedEvent = $.Event(Event.collapsed);
+
+			tree.find(Selector.open).removeClass(ClassName.open);
+			parentLi.removeClass(ClassName.open);
+			tree.slideUp(this.options.animationSpeed, function() {
+				tree.find(Selector.open + " > " + Selector.treeview).slideUp();
+				$(this.element).trigger(collapsedEvent);
+			}.bind(this));
+		};
+
+		// Private
+
+		Tree.prototype._setUpListeners = function() {
+			var that = this;
+
+			$(this.element).on("click", this.options.trigger, function(event) {
+				that.toggle($(this), event);
+			});
+		};
+
+		// Plugin Definition
+		// =================
+		function Plugin(option) {
+			return this.each(function() {
+				var $this = $(this);
+				var data = $this.data(DataKey);
+				console.log(DataKey);
+
+				if (!data) {
+					var options = $.extend({}, Default, $this.data(), typeof option == "object" && option);
+					$this.data(DataKey, new Tree($this, options));
+				}
+			});
+		}
+
+		var old = $.fn.tree;
+
+		$.fn.tree = Plugin;
+		$.fn.tree.Constructor = Tree;
+
+		// No Conflict Mode
+		// ================
+		$.fn.tree.noConflict = function() {
+			$.fn.tree = old;
+			return this;
+		};
+
+		// Tree Data API
+		// =============
+		$(window).on("load", function() {
+			$(Selector.data).each(function() {
+				Plugin.call($(this));
+			});
 		});
 
 	});
 
 	function setMenu(result) {
-		var str = '';
+		var child = $('<ul class="treeview-menu"></ul>');
 
 		for (var i = 0; i < result.length; i++) {
 			var list = result[i];
 
 			if (list.Path == 'Path') {
-				str += '<li class=""><a class="addtree" href="#"><span>' + list.Name + '</span> <i class="fa fa-angle-left pull-right"></i></a><ul class="treeview-menu">';
-				str += setMenu(list.list);
-				str += '</ul></li>'
+				var folder = $('<li class="treeview">\n' + '          <a href="#">\n' + '<span>' + list.Name + '</span><i class="fa fa-angle-left pull-right"></i></a>\n' + '        </li>');
+				folder.append(setMenu(list.list));
+
+				child.append(folder);
 			} else {
-				str += '<li><a href="/SQL?Path=' + encodeURI(list.Path) + '" target="iframe" id="' + list.Name.split('_')[0] + '"> ' + list.Name.split('.')[0] + '</a></li>';
+				var childItem = $('<li><a href="/SQL?Path=' + encodeURI(list.Path) + '" target="iframe" id="' + list.Name.split('_')[0] + '">' + list.Name.split('.')[0] + '</a></li>');
+				child.append(childItem);
 			}
 		}
 
-		return str;
+		return child;
 
 	}
 
@@ -116,7 +279,7 @@ body {
 				</form>
 				<!-- /.search form -->
 				<!-- sidebar menu: : style can be found in sidebar.less -->
-				<ul class="sidebar-menu">
+				<ul class="sidebar-menu" id="sidebar">
 					<li class="header">MAIN NAVIGATION</li>
 					<li class="treeview"><a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span>
 					</a> <!-- <ul class="treeview-menu" id="ConnectionList">
@@ -124,11 +287,6 @@ body {
 							<li><a href="/Connection?DB=1"><i class="fa fa-circle-o"></i> DB2</a></li>
 						</ul> --></li>
 					<li class="treeview"><a href="/FILE" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span></a></li>
-					<li class="treeview"><a href="#"> <i class="fa fa-bolt"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></i>
-					</a>
-						<ul class="treeview-menu" id="SQLList" style="max-height: 450px; overflow: auto;">
-						</ul></li>
-					<li class="treeview"><a href="#"> </a></li>
 				</ul>
 			</section>
 			<!-- /.sidebar -->

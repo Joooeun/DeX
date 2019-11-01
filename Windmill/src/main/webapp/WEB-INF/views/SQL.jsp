@@ -1,7 +1,32 @@
 <%@include file="common/common.jsp"%>
 <style>
 ::-webkit-scrollbar {
-	width: 3px;
+	width: 5px;
+	height: 5px;
+	border: 1px solid #fff;
+	opacity: 0.7;
+}
+
+::-webkit-scrollbar-button:start:decrement, ::-webkit-scrollbar-button:end:increment
+	{
+	display: block;
+	height: 10px;
+}
+
+::-webkit-scrollbar-track {
+	background: #efefef;
+	-webkit-border-radius: 10px;
+	border-radius: 10px;
+	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .2)
+}
+
+::-webkit-scrollbar-thumb {
+	height: 50px;
+	width: 50px;
+	background: rgba(0, 0, 0, .2);
+	-webkit-border-radius: 8px;
+	border-radius: 8px;
+	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .1)
 }
 </style>
 <script>
@@ -119,7 +144,7 @@
 					str += '<th>' + result[0][title] + '</th>';
 				}
 				str += '</tr>';
-				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div id="valuediv" style="max-height: 290px; overflow: auto;">' + '<table class="table table-condensed table-hover table-striped" id="result_body" style="margin: 0;">' + '</table>' + '</div>' + '</td>' + '</tr>';
+				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div id="valuediv" style="height: calc(100vh - 3950px); overflow: auto;">' + '<table class="table table-condensed table-hover table-striped" id="result_body" style="margin: 0;">' + '</table>' + '</div>' + '</td>' + '</tr>';
 
 				for (var outter = 1; outter < result.length; outter++) {
 					str += '<tr style="visibility: hidden;">';
@@ -256,14 +281,14 @@
 				</div>
 			</div>
 		</div>
-		<div class="row" id="Resultbox" style="display: none;">
+		<div class="row" id="Resultbox">
 			<div class="col-xs-12">
 				<div class="box">
 					<div class="box-header with-border">
 						<h3 class="box-title">Result</h3>
 					</div>
-					<div style="overflow-y: hidden; overflow-x: overlay; max-height: 300px">
-						<table class="table table-condensed table-striped" id="result_head" style="margin: 0;">
+					<div style="overflow-y: hidden; overflow-x: overlay;">
+						<table class="table table-condensed table-striped" id="result_head" style="margin: 0; height: calc(100vh - 400px);">
 						</table>
 					</div>
 					<div class="box-footer clearfix" hidden="hidden">
@@ -278,7 +303,7 @@
 				</div>
 			</div>
 		</div>
-		<div class="row" id="Keybox">
+		<div class="row" id="Keybox" style="position: fixed; bottom: 0px; width: 100%">
 			<div class="col-xs-12">
 				<div class="box">
 					<div class="box-header with-border">
