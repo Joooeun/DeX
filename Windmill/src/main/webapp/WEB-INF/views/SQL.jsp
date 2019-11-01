@@ -1,16 +1,9 @@
 <%@include file="common/common.jsp"%>
 <style>
 ::-webkit-scrollbar {
-	width: 5px;
-	height: 5px;
+	width: 2px;
+	height: 8px;
 	border: 1px solid #fff;
-	opacity: 0.7;
-}
-
-::-webkit-scrollbar-button:start:decrement, ::-webkit-scrollbar-button:end:increment
-	{
-	display: block;
-	height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -144,7 +137,7 @@
 					str += '<th>' + result[0][title] + '</th>';
 				}
 				str += '</tr>';
-				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div id="valuediv" style="height: calc(100vh - 3950px); overflow: auto;">' + '<table class="table table-condensed table-hover table-striped" id="result_body" style="margin: 0;">' + '</table>' + '</div>' + '</td>' + '</tr>';
+				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div id="valuediv" style="max-height: calc(100vh - 382px); overflow: auto;">' + '<table class="table table-condensed table-hover table-striped" id="result_body" style="margin: 0;">' + '</table>' + '</div>' + '</td>' + '</tr>';
 
 				for (var outter = 1; outter < result.length; outter++) {
 					str += '<tr style="visibility: hidden;">';
@@ -258,8 +251,7 @@
 				<div class="box box-default ">
 					<div class="box-header with-border">
 						<h3 class="box-title">파라미터 입력</h3>
-						&nbsp;&nbsp;&nbsp;<input id="selectedConnection" type="hidden" value="${Connection}">
-						<select id="connectionlist" onchange="sessionCon(this.value)">
+						&nbsp;&nbsp;&nbsp;<input id="selectedConnection" type="hidden" value="${Connection}"> <select id="connectionlist" onchange="sessionCon(this.value)">
 							<option value="">====Connection====</option>
 						</select>
 					</div>
@@ -287,8 +279,8 @@
 					<div class="box-header with-border">
 						<h3 class="box-title">Result</h3>
 					</div>
-					<div style="overflow-y: hidden; overflow-x: overlay;">
-						<table class="table table-condensed table-striped" id="result_head" style="margin: 0; height: calc(100vh - 400px);">
+					<div style="overflow-y: hidden; overflow-x: auto; height: calc(100vh - 380px);">
+						<table class="table table-condensed table-striped" id="result_head" style="margin: 0;">
 						</table>
 					</div>
 					<div class="box-footer clearfix" hidden="hidden">
@@ -305,7 +297,7 @@
 		</div>
 		<div class="row" id="Keybox" style="position: fixed; bottom: 0px; width: 100%">
 			<div class="col-xs-12">
-				<div class="box">
+				<div class="box box-default ">
 					<div class="box-header with-border">
 						<h3 class="box-title">Short Key</h3>
 					</div>

@@ -21,21 +21,15 @@ body {
 	margin: 0
 }
 
-#sidebar {
-	height: calc(100vh - 120px);
+#slidemenu {
+	max-height: calc(100vh - 250px);
 	overflow-y: auto;
 }
 
 ::-webkit-scrollbar {
-	width: 5px;
-	height: 5px;
-	border: 1px solid #fff;
-}
-
-::-webkit-scrollbar:hover {
-	width: 8px;
-	height: 8px;
-	border: 5px solid #fff;
+	width: 3px;
+	height: 7px;
+	border: 2px solid #fff;
 }
 
 ::-webkit-scrollbar-track {
@@ -68,7 +62,7 @@ body {
 				//alert(JSON.stringify(result))
 
 				var sidebar = $('#sidebar');
-				var tree = $('<ul id="" class="sidebar-menu tree" data-widget="tree" id="tree"></ul>');
+				var tree = $('<ul id="slidemenu" class="sidebar-menu tree" data-widget="tree" id="tree"></ul>');
 				var parent = $('<li class="active treeview menu-open"><a href="#"> <i class="fa fa-bolt"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></i>');
 
 				parent.append(setMenu(result));
