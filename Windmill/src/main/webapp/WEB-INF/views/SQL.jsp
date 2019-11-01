@@ -93,9 +93,9 @@
 		for (var i = 0; i < $(".param").length; i++) {
 			if ($(".paramvalue").eq(i).val() != '') {
 				if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
-					sql = sql.replace(':' + $(".param").eq(i).html(), '\'' + $(".paramvalue").eq(i).val() + '\'');
+					sql = sql.split(':' + $(".param").eq(i).html()).join('\'' + $(".paramvalue").eq(i).val() + '\'');
 				} else if ($(".paramvalue").eq(i).attr('paramtype') == 'number') {
-					sql = sql.replace(':' + $(".param").eq(i).html(), $(".paramvalue").eq(i).val());
+					sql = sql.split(':' + $(".param").eq(i).html()).join($(".paramvalue").eq(i).val());
 				}
 			}
 		}
@@ -215,11 +215,6 @@
 		});
 	}
 </script>
-<style>
-.box-header{
-
-}
-</style>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper" style="margin-left: 0">
 	<!-- Content Header (Page header) -->
@@ -238,7 +233,8 @@
 				<div class="box box-default ">
 					<div class="box-header with-border">
 						<h3 class="box-title">파라미터 입력</h3>
-						&nbsp;&nbsp;&nbsp;<input id="selectedConnection" type="hidden" value="${Connection}"> <select id="connectionlist" onchange="sessionCon(this.value)">
+						&nbsp;&nbsp;&nbsp;<input id="selectedConnection" type="hidden" value="${Connection}">
+						<select id="connectionlist" onchange="sessionCon(this.value)">
 							<option value="">====Connection====</option>
 						</select>
 					</div>
@@ -268,14 +264,6 @@
 					</div>
 					<div style="overflow-y: hidden; overflow-x: overlay; max-height: 300px">
 						<table class="table table-condensed table-striped" id="result_head" style="margin: 0;">
-							<tr>
-								<td colspan="100" style="padding: 0; border: none;">
-									<div style="max-height: 200px; overflow: overlay">
-										<table class="table table-hover table-striped table-bordered" id="result_body" style="margin: 0;">
-										</table>
-									</div>
-								</td>
-							</tr>
 						</table>
 					</div>
 					<div class="box-footer clearfix" hidden="hidden">
