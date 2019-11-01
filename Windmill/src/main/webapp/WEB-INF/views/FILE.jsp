@@ -56,10 +56,10 @@
 		</ol>
 	</section>
 	<section class="content">
-		<select id="connectionlist">
+		<select id="connectionlist" >
 			<option value="">====선택하세요====</option>
 		</select>
-		<div class="box box-primary">
+		<div class="box box-default" style="margin-top:10px;">
 			<!-- /.box-header -->
 			<!-- form start -->
 			<form role="form" onsubmit="return false;">

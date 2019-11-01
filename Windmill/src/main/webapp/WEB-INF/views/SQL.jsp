@@ -216,6 +216,9 @@
 	}
 </script>
 <style>
+.box-header{
+
+}
 </style>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper" style="margin-left: 0">
@@ -243,7 +246,7 @@
 						<div class="box-body">
 							<div class="form-group">
 								<c:forEach var="item" items="${Param}" varStatus="status">
-									<span class="col-sm-1 param" id="param${status.count}">${item.name}</span>
+									<span class="col-sm-1 param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${item.name}</span>
 									<div class="col-sm-2" style="margin: 2px 0; padding: 0 15px 0 0;">
 										<input type="text" class="form-control paramvalue" paramtype="${item.type}" value="${item.value}" style="padding: 0 2px;">
 									</div>

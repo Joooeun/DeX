@@ -91,7 +91,7 @@ body {
 	<div class="wrapper">
 		<header class="main-header">
 			<!-- Logo -->
-			<a href="/index" class="logo"> <!-- mini logo for sidebar mini 50x50 pixels --> <span class="logo-mini"><b>D</b>eX</span> <!-- logo for regular state and mobile devices --> <span class="logo-lg"><b>Dbrain</b> Explorer</span>
+			<a href="/index" class="logo"> <!-- mini logo for sidebar mini 50x50 pixels --> <span class="logo-mini"><b>D</b>eX</span> <!-- logo for regular state and mobile devices --> <span class="logo-lg"><b>Data</b> Explorer</span>
 			</a>
 			<!-- Header Navbar: style can be found in header.less -->
 			<nav class="navbar navbar-static-top" role="navigation">
@@ -126,7 +126,7 @@ body {
 					<li class="treeview"><a href="/FILE" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span></a></li>
 					<li class="treeview"><a href="#"> <i class="fa fa-bolt"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></i>
 					</a>
-						<ul class="treeview-menu" id="SQLList" style="max-height:450px; overflow: auto;">
+						<ul class="treeview-menu" id="SQLList" style="max-height: 450px; overflow: auto;">
 						</ul></li>
 					<li class="treeview"><a href="#"> </a></li>
 				</ul>
@@ -134,5 +134,5 @@ body {
 			<!-- /.sidebar -->
 		</aside>
 		<div class="content-wrapper" id="framebox">
-			<iframe name="iframe" id="iframe" style="margin: 0; width: 100%; min-height: 680px; border: none; overflow: auto;"></iframe>
+			<iframe class="content-wrapper" name="iframe" id="iframe" style="margin: 0; width: 100%; border: none; overflow: auto;" src="/index2"></iframe>
 		</div>

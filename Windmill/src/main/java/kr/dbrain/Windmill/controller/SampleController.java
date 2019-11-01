@@ -37,7 +37,7 @@ public class SampleController {
 			mv.setViewName("Setting");
 			return mv;
 		}
-		
+
 		mv.addObject("sqllist", SQLController.getfiles(Common.srcPath));
 
 		return mv;
@@ -61,6 +61,12 @@ public class SampleController {
 		Common.Setproperties();
 
 		return "redirect:/index";
+	}
+
+	@RequestMapping(path = "/index2")
+	public ModelAndView index2(HttpServletRequest request, ModelAndView mv) {
+
+		return mv;
 	}
 
 }

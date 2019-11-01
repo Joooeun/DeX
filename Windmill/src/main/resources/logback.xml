@@ -12,7 +12,7 @@
   <logger name="org.springframework" level="error" additivity="false">
     <appender-ref ref="console" />
   </logger>
-  <logger name="kr.dbrain.Windmill" level="info" additivity="false">
+  <logger name="kr.dbrain.Windmill" level="debug" additivity="false">
     <appender-ref ref="console" />
   </logger>
 </configuration>

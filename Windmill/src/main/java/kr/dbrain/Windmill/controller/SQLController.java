@@ -130,17 +130,18 @@ public class SQLController {
 		prop.put("user", map.get("USER"));
 		prop.put("password", map.get("PW"));
 		prop.put("clientProgramName", "DeX");
-		
+
 		Connection con = null;
 
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
 
 		String sql = request.getParameter("sql");
+		logger.debug("[DEBUG] sql : " + sql);
 
 		try {
 			con = DriverManager.getConnection("jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB"), prop);
-			
+
 			con.setAutoCommit(false);
 
 			pstmt = con.prepareStatement(sql);

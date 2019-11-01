@@ -62,7 +62,7 @@
 		<select id="connectionlist" onchange="ConnectionDetail(this.value)">
 			<option>====선택하세요====</option>
 		</select>
-		<div class="box box-primary">
+		<div class="box box-default" style="margin-top:10px;">
 			<div class="box-header with-border">
 				<h3 class="box-title">Connection Detail</h3>
 			</div>
