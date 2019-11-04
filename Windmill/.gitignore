@@ -1,1 +1,8 @@
 /target/
+.classpath 
+.git 
+.project 
+.settings 
+.springBeans 
+target 
+.DS_Store
