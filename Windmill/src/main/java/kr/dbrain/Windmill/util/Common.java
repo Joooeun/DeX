@@ -13,10 +13,8 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import kr.dbrain.Windmill.controller.SQLController;
-
 public class Common {
-	private static final Logger logger = LoggerFactory.getLogger(SQLController.class);
+	private static final Logger logger = LoggerFactory.getLogger(Common.class);
 
 	public static String system_properties = "";
 	public static String ConnectionPath = "";
