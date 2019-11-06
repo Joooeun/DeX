@@ -280,7 +280,8 @@ body {
 							<li><a href="/Connection?DB=2"><i class="fa fa-circle-o"></i> DB1</a></li>
 							<li><a href="/Connection?DB=1"><i class="fa fa-circle-o"></i> DB2</a></li>
 						</ul> --></li>
-					<li class="treeview"><a href="/FILE" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span></a></li>
+					<li class="treeview"><a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span></a></li>
+					<li class="treeview"><a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileUpload</span></a></li>
 				</ul>
 			</section>
 			<!-- /.sidebar -->

@@ -1,9 +1,10 @@
 package kr.dbrain.Windmill.controller;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Map;
 
@@ -34,8 +35,8 @@ public class FileController {
 
 	Common com = new Common();
 
-	@RequestMapping(path = "/FILE", method = RequestMethod.GET)
-	public ModelAndView FILEf(HttpServletRequest request, ModelAndView mv, HttpSession session) {
+	@RequestMapping(path = "/FileRead", method = RequestMethod.GET)
+	public ModelAndView FileRead(HttpServletRequest request, ModelAndView mv, HttpSession session) {
 
 		return mv;
 	}
@@ -89,6 +90,69 @@ public class FileController {
 		map.put("result", filestr);
 
 		if (session.isConnected()) {
+			sftpChannel.disconnect();
+			channel.disconnect();
+			session.disconnect();
+		}
+
+		return map;
+
+	}
+
+	@RequestMapping(path = "/FileUpload", method = RequestMethod.GET)
+	public ModelAndView FileUpload(HttpServletRequest request, ModelAndView mv, HttpSession session) {
+
+		return mv;
+	}
+
+	@ResponseBody
+	@RequestMapping(path = "/FILE/uploadfile")
+	public Map<String, String> uploadfile(HttpServletRequest request, Model model, HttpSession session1) throws ClassNotFoundException, JSchException {
+
+		Map<String, String> map = com.ConnectionConf(request.getParameter("Connection"));
+
+		// 1. JSch 객체를 생성한다.
+		JSch jsch = new JSch();
+		// 2. 세션 객체를 생성한다(사용자 이름, 접속할 호스트, 포트를 인자로 전달한다.)
+		Session session = jsch.getSession(map.get("USER"), map.get("IP"), Integer.parseInt(map.get("PORT")));
+		// 4. 세션과 관련된 정보를 설정한다.
+		session.setConfig("StrictHostKeyChecking", "no");
+		// 4. 패스워드를 설정한다.
+		session.setPassword(map.get("PW"));
+		// 5. 접속한다.
+		session.connect();
+
+		// 6. sftp 채널을 연다.
+		Channel channel = session.openChannel("sftp");
+		// 7. 채널에 연결한다.
+		channel.connect();
+		// 8. 채널을 FTP용 채널 객체로 캐스팅한다.
+		ChannelSftp sftpChannel = (ChannelSftp) channel;
+		FileInputStream in = null;
+		try {
+			File origin = new File(request.getParameter("FilePath"));
+			FileWriter fw = new FileWriter(origin);
+			fw.write(request.getParameter("Content"));
+			fw.close();
+
+			in = new FileInputStream(origin);
+			sftpChannel.cd(request.getParameter("FilePath"));
+			sftpChannel.put(in, origin.getName());
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				in.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+
+		if (session.isConnected()) {
+			sftpChannel.exit();
 			sftpChannel.disconnect();
 			channel.disconnect();
 			session.disconnect();
