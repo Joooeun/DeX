@@ -107,9 +107,12 @@ public class FileController {
 
 	@ResponseBody
 	@RequestMapping(path = "/FILE/uploadfile")
-	public Map<String, String> uploadfile(HttpServletRequest request, Model model, HttpSession session1) throws ClassNotFoundException, JSchException {
+	public String uploadfile(HttpServletRequest request, Model model, HttpSession session1) throws ClassNotFoundException, JSchException {
 
+		String result = "";
 		Map<String, String> map = com.ConnectionConf(request.getParameter("Connection"));
+
+		String path = request.getParameter("FilePath");
 
 		// 1. JSch 객체를 생성한다.
 		JSch jsch = new JSch();
@@ -124,23 +127,24 @@ public class FileController {
 
 		// 6. sftp 채널을 연다.
 		Channel channel = session.openChannel("sftp");
-		// 7. 채널에 연결한다.
+		// 7. 채널에 연결한다.m
 		channel.connect();
 		// 8. 채널을 FTP용 채널 객체로 캐스팅한다.
 		ChannelSftp sftpChannel = (ChannelSftp) channel;
 		FileInputStream in = null;
 		try {
-			File origin = new File(request.getParameter("FilePath"));
+			File origin = new File(Common.srcPath + path.substring(path.lastIndexOf("/")) + ".temp");
 			FileWriter fw = new FileWriter(origin);
 			fw.write(request.getParameter("Content"));
 			fw.close();
 
 			in = new FileInputStream(origin);
-			sftpChannel.cd(request.getParameter("FilePath"));
-			sftpChannel.put(in, origin.getName());
-
+			sftpChannel.cd(path.substring(0, path.lastIndexOf("/")));
+			sftpChannel.put(in, path.substring(path.lastIndexOf("/") + 1));
+			result = "success";
 		} catch (Exception e) {
 			e.printStackTrace();
+			result = e.toString();
 		} finally {
 			try {
 				in.close();
@@ -148,17 +152,15 @@ public class FileController {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-		}
-		
+			if (session.isConnected()) {
+				sftpChannel.exit();
+				sftpChannel.disconnect();
+				channel.disconnect();
+				session.disconnect();
+			}
 
-		if (session.isConnected()) {
-			sftpChannel.exit();
-			sftpChannel.disconnect();
-			channel.disconnect();
-			session.disconnect();
 		}
-
-		return map;
+		return result;
 
 	}
 

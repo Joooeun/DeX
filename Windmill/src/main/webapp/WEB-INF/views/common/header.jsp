@@ -287,5 +287,7 @@ body {
 			<!-- /.sidebar -->
 		</aside>
 		<div class="content-wrapper" id="framebox">
-			<iframe class="content-wrapper" name="iframe" id="iframe" style="margin: 0; width: 100%; border: none; overflow: auto;" src="/index2"></iframe>
+			<iframe name="iframe" id="iframe"
+				style="margin: 0; width: 100%; height: calc(100vh - 110px); border: none; overflow: auto;"
+				src="/index2"></iframe>
 		</div>

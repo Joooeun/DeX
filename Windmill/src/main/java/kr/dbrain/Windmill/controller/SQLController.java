@@ -158,7 +158,7 @@ public class SQLController {
 			row = new ArrayList<>();
 			for (int index = 0; index < colcnt; index++) {
 
-				column = rsmd.getColumnName(index + 1);
+				column = rsmd.getColumnLabel(index + 1);
 
 				row.add(column);
 

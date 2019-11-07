@@ -52,10 +52,10 @@ public class SampleController {
 		try {
 			fw = new FileWriter(propfile);
 
-			fw.write("Root=" + request.getParameter("path"));
+			fw.write("Root=" + request.getParameter("path").replace("\\", "/"));
 			fw.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+
 			e.printStackTrace();
 		}
 		Common.Setproperties();

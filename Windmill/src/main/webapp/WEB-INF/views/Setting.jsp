@@ -79,7 +79,7 @@ to {
 				<span>Data Explorer</span>
 			</div>
 			<div>
-				<input type="text" placeholder="enter Path..." name="path">
+				<input type="url" placeholder="enter Path..." name="path">
 			</div>
 			<div style="padding: 5px;">
 				<!-- <span>Dbrain</span> -->
