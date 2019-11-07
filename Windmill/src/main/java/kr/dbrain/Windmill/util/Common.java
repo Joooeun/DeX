@@ -19,6 +19,7 @@ public class Common {
 	public static String system_properties = "";
 	public static String ConnectionPath = "";
 	public static String srcPath = "";
+	public static String tempPath = "";
 
 	public Common() {
 		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator + "system.properties";
@@ -40,8 +41,10 @@ public class Common {
 
 		ConnectionPath = props.getProperty("Root") + File.separator + "Connection" + File.separator;
 		srcPath = props.getProperty("Root") + File.separator + "src" + File.separator;
+		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
 		logger.debug("[DEBUG : ConnectionPath]" + ConnectionPath);
 		logger.debug("[DEBUG : srcPath]" + srcPath);
+
 	}
 
 	public Map<String, String> ConnectionConf(String ConnectionName) {

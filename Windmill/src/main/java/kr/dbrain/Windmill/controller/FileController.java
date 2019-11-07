@@ -109,6 +109,15 @@ public class FileController {
 	@RequestMapping(path = "/FILE/uploadfile")
 	public String uploadfile(HttpServletRequest request, Model model, HttpSession session1) throws ClassNotFoundException, JSchException {
 
+		File Folder = new File(Common.tempPath);
+		if (!Folder.exists()) {
+			try {
+				Folder.mkdir();
+			} catch (Exception e) {
+				e.getStackTrace();
+			}
+		}
+
 		String result = "";
 		Map<String, String> map = com.ConnectionConf(request.getParameter("Connection"));
 
@@ -132,8 +141,9 @@ public class FileController {
 		// 8. 채널을 FTP용 채널 객체로 캐스팅한다.
 		ChannelSftp sftpChannel = (ChannelSftp) channel;
 		FileInputStream in = null;
+		File origin = null;
 		try {
-			File origin = new File(Common.srcPath + path.substring(path.lastIndexOf("/")) + ".temp");
+			origin = new File(Common.tempPath + path.substring(path.lastIndexOf("/")) + ".temp");
 			FileWriter fw = new FileWriter(origin);
 			fw.write(request.getParameter("Content"));
 			fw.close();
@@ -141,6 +151,7 @@ public class FileController {
 			in = new FileInputStream(origin);
 			sftpChannel.cd(path.substring(0, path.lastIndexOf("/")));
 			sftpChannel.put(in, path.substring(path.lastIndexOf("/") + 1));
+
 			result = "success";
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -148,6 +159,7 @@ public class FileController {
 		} finally {
 			try {
 				in.close();
+				origin.delete();
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
