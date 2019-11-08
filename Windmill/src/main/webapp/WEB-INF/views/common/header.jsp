@@ -26,7 +26,7 @@ body {
 	overflow-y: auto;
 }
 
-/* ::-webkit-scrollbar { */
+::-webkit-scrollbar {
 	width: 3px;
 	height: 7px;
 	border: 2px solid #fff;
