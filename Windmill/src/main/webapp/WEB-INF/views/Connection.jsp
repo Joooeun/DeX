@@ -6,7 +6,7 @@
 			type : 'post',
 			url : "/Connection/list",
 			data : {
-				TYPE : "DB"
+				TYPE : ""
 			},
 			success : function(result) {
 				for (var i = 0; i < result.length; i++) {
@@ -34,14 +34,44 @@
 			},
 			success : function(result) {
 
+				$('#TYPE').val(result.TYPE);
 				$('#IP').val(result.IP);
 				$('#PORT').val(result.PORT);
-				$('#DB').val(result.DB);
+				if (result.TYPE == 'DB') {
+					$("#form_DB").css("display", "block");
+					$('#DB').val(result.DB);
+				} else {
+					$("#form_DB").css("display", "none");
+				}
+
 				$('#USER').val(result.USER);
 				$('#PW').val(result.PW);
 			},
 			error : function() {
 				alert("시스템 에러");
+			}
+		});
+	}
+
+	function save() {
+		$.ajax({
+			type : 'post',
+			url : '/Connection/save',
+			data : {
+				file : $("#connectionlist").val(),
+				TYPE : $('#TYPE').val(),
+				IP : $('#IP').val(),
+				PORT : $('#PORT').val(),
+				DB : $('#DB').val(),
+				USER : $('#USER').val(),
+				PW : $('#PW').val()
+
+			},
+			success : function(result) {
+				alert("저장 되었습니다.");
+			},
+			error : function() {
+				alert("저장되지 않았습니다.");
 			}
 		});
 	}
@@ -62,7 +92,7 @@
 		<select id="connectionlist" onchange="ConnectionDetail(this.value)">
 			<option>====선택하세요====</option>
 		</select>
-		<div class="box box-default" style="margin-top:10px;">
+		<div class="box box-default" style="margin-top: 10px;">
 			<div class="box-header with-border">
 				<h3 class="box-title">Connection Detail</h3>
 			</div>
@@ -70,25 +100,40 @@
 			<!-- form start -->
 			<form role="form">
 				<div class="box-body">
-					<div class="form-group">
-						<label for="IP">IP</label> <input type="text" class="form-control" id="IP" placeholder="IP">
+					<div class="form-group row">
+						<div class="col-md-4" style="margin: 2px 0;">
+							<label for="TYPE">TYPE</label>
+							<input type="text" class="form-control" id="TYPE" placeholder="TYPE">
+						</div>
 					</div>
-					<div class="form-group">
-						<label for="PORT">PORT</label> <input type="text" class="form-control" id="PORT" placeholder="PORT">
+					<div class="form-group row">
+						<div class="col-md-4" style="margin: 2px 0;">
+							<label for="IP">IP</label>
+							<input type="text" class="form-control" id="IP" placeholder="IP">
+						</div>
+						<div class="col-md-4" style="margin: 2px 0;">
+							<label for="PORT">PORT</label>
+							<input type="text" class="form-control" id="PORT" placeholder="PORT">
+						</div>
+						<div class="col-md-4" style="margin: 2px 0;" id="form_DB">
+							<label for="DB">DB</label>
+							<input type="text" class="form-control" id="DB" placeholder="DB">
+						</div>
 					</div>
-					<div class="form-group">
-						<label for="DB">DB</label> <input type="text" class="form-control" id="DB" placeholder="DB">
-					</div>
-					<div class="form-group">
-						<label for="USER">USER</label> <input type="text" class="form-control" id="USER" placeholder="USER">
-					</div>
-					<div class="form-group">
-						<label for="PW">PW</label> <input type="text" class="form-control" id="PW" placeholder="PW">
+					<div class="form-group row">
+						<div class="col-md-4" style="margin: 2px 0;">
+							<label for="USER">USER</label>
+							<input type="text" class="form-control" id="USER" placeholder="USER">
+						</div>
+						<div class="col-md-4" style="margin: 2px 0;">
+							<label for="PW">PW</label>
+							<input type="text" class="form-control" id="PW" placeholder="PW">
+						</div>
 					</div>
 				</div>
 				<!-- /.box-body -->
 				<div class="box-footer">
-					<button type="button" class="btn btn-primary">Submit</button>
+					<button type="button" class="btn btn-primary" onclick="save()">Submit</button>
 				</div>
 			</form>
 		</div>

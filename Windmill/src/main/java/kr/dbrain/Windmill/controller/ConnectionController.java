@@ -1,5 +1,8 @@
 package kr.dbrain.Windmill.controller;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -53,6 +56,35 @@ public class ConnectionController {
 	public void sessionCon(HttpServletRequest request, HttpSession session) {
 
 		session.setAttribute("Connection", request.getParameter("Connection"));
+
+		return;
+	}
+
+	@ResponseBody
+	@RequestMapping(path = "/Connection/save")
+	public void save(HttpServletRequest request, HttpSession session) {
+
+		String propFile = com.ConnectionPath + request.getParameter("file");
+		File file = new File(propFile + ".properties");
+
+		try {
+			String str = "#" + request.getParameter("TYPE") + "\n";
+			FileWriter fw = new FileWriter(file);
+			str += "TYPE=" + request.getParameter("TYPE") + "\n";
+			str += "IP=" + request.getParameter("IP") + "\n";
+			str += "PORT=" + request.getParameter("PORT") + "\n";
+			if (request.getParameter("TYPE").equals("DB")) {
+				str += "DB=" + request.getParameter("DB") + "\n";
+			}
+			str += "USER=" + request.getParameter("USER") + "\n";
+			str += "PW=" + request.getParameter("PW");
+
+			fw.write(str);
+			fw.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
 		return;
 	}

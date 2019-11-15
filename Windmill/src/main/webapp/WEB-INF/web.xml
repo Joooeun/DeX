@@ -49,6 +49,7 @@
     <url-pattern>*.ttf</url-pattern>
     <url-pattern>*.woff</url-pattern>
     <url-pattern>*.png</url-pattern>
+    <url-pattern>*.gif</url-pattern>
     <url-pattern>*.xml</url-pattern>
   </servlet-mapping>
   <filter>

@@ -93,15 +93,13 @@
 			return;
 		}
 
+		$("#excutebtn").attr('disabled', true);
+		$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></tr></td>');
+
 		excute();
 		if ($("#refreshtimeout").val() > 0) {
-
 			setInterval(excute, $("#refreshtimeout").val() * 1000);
 		}
-		setTimeout(function() {
-			excute();
-		}, 500);
-
 	}
 
 	function excute() {
@@ -171,9 +169,11 @@
 				}
 				str += '</tr>';
 				$("#result_body").html(str);
+				$("#excutebtn").attr('disabled', false);
 
 			},
 			error : function() {
+				$("#excutebtn").attr('disabled', false);
 				alert("시스템 에러");
 			}
 		});
@@ -251,7 +251,9 @@
 				<div class="box box-default ">
 					<div class="box-header with-border">
 						<h3 class="box-title">파라미터 입력</h3>
-						&nbsp;&nbsp;&nbsp;<input id="selectedConnection" type="hidden" value="${Connection}"> <select id="connectionlist" onchange="sessionCon(this.value)">
+						&nbsp;&nbsp;&nbsp;
+						<input id="selectedConnection" type="hidden" value="${Connection}">
+						<select id="connectionlist" onchange="sessionCon(this.value)">
 							<option value="">====Connection====</option>
 						</select>
 					</div>
@@ -259,13 +261,15 @@
 						<div class="box-body">
 							<div class="form-group">
 								<c:forEach var="item" items="${Param}" varStatus="status">
-									<span class="col-sm-1 param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${item.name}</span>
-									<div class="col-sm-2" style="margin: 2px 0; padding: 0 15px 0 0;">
+									<span class="col-sm-2 col-md-2 col-lg-1 param text-center" id="param${status.count}"
+										style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+									<div class="col-sm-3 col-md-2 col-lg-2" style="margin: 2px 0;">
 										<input type="text" class="form-control paramvalue" paramtype="${item.type}" value="${item.value}" style="padding: 0 2px;">
 									</div>
 								</c:forEach>
-								<div class="col-sm-1 pull-right">
-									<input type="hidden" id="sendvalue" name="sendvalue"> <input type="button" class="form-control" value="실행" onclick="startexcute();">
+								<div class="col-sm-2 col-md-1 pull-right">
+									<input type="hidden" id="sendvalue" name="sendvalue">
+									<input id="excutebtn" type="button" class="form-control" value="실행" onclick="startexcute();">
 								</div>
 							</div>
 						</div>
@@ -280,17 +284,8 @@
 						<h3 class="box-title">Result</h3>
 					</div>
 					<div style="overflow-y: hidden; overflow-x: auto; height: calc(100vh - 380px);">
-						<table class="table table-condensed table-striped" id="result_head" style="margin: 0;">
+						<table class="table table-condensed" id="result_head" style="margin: 0;">
 						</table>
-					</div>
-					<div class="box-footer clearfix" hidden="hidden">
-						<ul class="pagination pagination-sm no-margin pull-right">
-							<li><a href="#"><<</a></li>
-							<li><a href="#">1</a></li>
-							<li><a href="#">2</a></li>
-							<li><a href="#">3</a></li>
-							<li><a href="#">>></a></li>
-						</ul>
 					</div>
 				</div>
 			</div>
@@ -313,6 +308,7 @@
 			</div>
 		</div>
 		<textarea rows="10" cols="200" id="sql_text" hidden="hidden">${sql}</textarea>
-		<input id="Path" value="${Path}" type="hidden"> <input id="refreshtimeout" value="${refreshtimeout}" type="hidden">
+		<input id="Path" value="${Path}" type="hidden">
+		<input id="refreshtimeout" value="${refreshtimeout}" type="hidden">
 	</section>
 </div>

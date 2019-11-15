@@ -61,14 +61,12 @@ public class Common {
 
 			props.load(new java.io.BufferedInputStream(fis));
 
+			map.put("TYPE", props.getProperty("TYPE"));
 			map.put("IP", props.getProperty("IP"));
 			map.put("PORT", props.getProperty("PORT"));
 			map.put("USER", props.getProperty("USER"));
 			map.put("PW", props.getProperty("PW"));
-
-			if (props.getProperty("TYPE").equals("DB")) {
-				map.put("DB", props.getProperty("DB"));
-			}
+			map.put("DB", props.getProperty("DB"));
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -98,7 +96,7 @@ public class Common {
 					logger.debug("[DEBUG]" + tempFile.getPath());
 					props.load(new java.io.BufferedInputStream(fis));
 
-					if (props.getProperty("TYPE").equals(type)) {
+					if (props.getProperty("TYPE").equals(type) || type.equals("")) {
 						String tempFileName = tempFile.getName();
 						dblist.add(tempFileName);
 					}

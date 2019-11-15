@@ -73,7 +73,7 @@
 				</div>
 			</form>
 		</div>
-		<div class="box box-success" id="resultbox" style="display: none;">
+		<div class="box box-default" id="resultbox" style="display: none;">
 			<div class="box-body">
 				<pre id="result" style="border: none; background: 0, 0, 0, 0; min-height: 450px; overflow: auto"></pre>
 			</div>
