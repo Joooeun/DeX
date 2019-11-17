@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -133,6 +134,7 @@ public class SQLController {
 
 		Connection con = null;
 
+		CallableStatement callStmt1 = null;
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
 
@@ -147,6 +149,10 @@ public class SQLController {
 			pstmt = con.prepareStatement(sql);
 
 			// pstmt.setString(1, "");
+
+			callStmt1 = con.prepareCall(sql);
+			callStmt1.execute();
+			rs = callStmt1.getResultSet();
 
 			rs = pstmt.executeQuery();
 			ResultSetMetaData rsmd = rs.getMetaData();
