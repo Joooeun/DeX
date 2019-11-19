@@ -109,9 +109,9 @@
 		for (var i = 0; i < $(".param").length; i++) {
 			if ($(".paramvalue").eq(i).val() != '') {
 				if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
-					sql = sql.split(':' + $(".param").eq(i).html()).join('\'' + $(".paramvalue").eq(i).val() + '\'');
+					sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
 				} else if ($(".paramvalue").eq(i).attr('paramtype') == 'number') {
-					sql = sql.split(':' + $(".param").eq(i).html()).join($(".paramvalue").eq(i).val());
+					sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 				}
 			}
 		}
@@ -261,7 +261,7 @@
 						<div class="box-body">
 							<div class="form-group">
 								<c:forEach var="item" items="${Param}" varStatus="status">
-									<span class="col-sm-2 col-md-2 col-lg-1 param text-center" id="param${status.count}"
+									<span class="col-sm-2 col-md-2 col-lg-1 param text-center" id="param${status.count}" paramtitle="${item.name}"
 										style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
 									<div class="col-sm-3 col-md-2 col-lg-2" style="margin: 2px 0;">
 										<input type="text" class="form-control paramvalue" paramtype="${item.type}" value="${item.value}" style="padding: 0 2px;">

@@ -146,15 +146,15 @@ public class SQLController {
 
 			con.setAutoCommit(false);
 
-			pstmt = con.prepareStatement(sql);
+			if (sql.startsWith("CALL")) {
+				callStmt1 = con.prepareCall(sql);
+				callStmt1.execute();
+				rs = callStmt1.getResultSet();
+			} else {
+				pstmt = con.prepareStatement(sql);
+				rs = pstmt.executeQuery();
+			}
 
-			// pstmt.setString(1, "");
-
-			callStmt1 = con.prepareCall(sql);
-			callStmt1.execute();
-			rs = callStmt1.getResultSet();
-
-			rs = pstmt.executeQuery();
 			ResultSetMetaData rsmd = rs.getMetaData();
 			int colcnt = rsmd.getColumnCount();
 
