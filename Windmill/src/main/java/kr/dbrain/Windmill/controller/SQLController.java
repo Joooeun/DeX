@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -21,6 +22,8 @@ import java.util.Properties;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.reflect.TypeLiteral;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
@@ -137,6 +140,7 @@ public class SQLController {
 		CallableStatement callStmt1 = null;
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
+		ResultSet rs1 = null;
 
 		String sql = request.getParameter("sql");
 		logger.debug("[DEBUG] sql : " + sql);
@@ -147,40 +151,76 @@ public class SQLController {
 			con.setAutoCommit(false);
 
 			if (sql.startsWith("CALL")) {
+
+				String prcdname = "";
+				prcdname = sql.substring(sql.indexOf("CALL") + 4, sql.indexOf("("));
+				if (prcdname.contains(".")) {
+					prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
+				}
+
+				int paramcnt = StringUtils.countMatches(sql, ",") + 1;
+				List<Integer> typelst = new ArrayList<>();
+				pstmt = con.prepareStatement("SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
+						+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt
+						+ ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal");
+				rs1 = pstmt.executeQuery();
+
+				while (rs1.next()) {
+					switch (rs1.getString("TYPENAME")) {
+					case "VARCHAR":
+						typelst.add(java.sql.Types.VARCHAR);
+						break;
+					case "INTEGER":
+						typelst.add(java.sql.Types.INTEGER);
+						break;
+					case "TIMESTAMP":
+						typelst.add(java.sql.Types.TIMESTAMP);
+						break;
+					}
+				}
+
 				callStmt1 = con.prepareCall(sql);
+				for (int i = 0; i < typelst.size(); i++) {
+					callStmt1.registerOutParameter(i + 1, typelst.get(i));
+				}
+
 				callStmt1.execute();
-				rs = callStmt1.getResultSet();
+				for (int i = 0; i < typelst.size(); i++) {
+					List<String> element = new ArrayList<String>();
+					element.add(callStmt1.getString(i + 1) + "");
+					list.add(element);
+				}
 			} else {
 				pstmt = con.prepareStatement(sql);
 				rs = pstmt.executeQuery();
-			}
 
-			ResultSetMetaData rsmd = rs.getMetaData();
-			int colcnt = rsmd.getColumnCount();
+				ResultSetMetaData rsmd = rs.getMetaData();
+				int colcnt = rsmd.getColumnCount();
 
-			List<String> row;
-			String column;
-
-			row = new ArrayList<>();
-			for (int index = 0; index < colcnt; index++) {
-
-				column = rsmd.getColumnLabel(index + 1);
-
-				row.add(column);
-
-			}
-			list.add(row);
-
-			while (rs.next()) {
+				List<String> row;
+				String column;
 
 				row = new ArrayList<>();
 				for (int index = 0; index < colcnt; index++) {
-					column = rsmd.getColumnName(index + 1);
-					row.add(rs.getString(column));
+
+					column = rsmd.getColumnLabel(index + 1);
+
+					row.add(column);
 
 				}
 				list.add(row);
 
+				while (rs.next()) {
+
+					row = new ArrayList<>();
+					for (int index = 0; index < colcnt; index++) {
+						column = rsmd.getColumnName(index + 1);
+						row.add(rs.getString(column));
+
+					}
+					list.add(row);
+
+				}
 			}
 
 		} catch (SQLException e1) {
@@ -193,6 +233,11 @@ public class SQLController {
 			if (rs != null)
 				try {
 					rs.close();
+				} catch (SQLException ex) {
+				}
+			if (rs1 != null)
+				try {
+					rs1.close();
 				} catch (SQLException ex) {
 				}
 			if (pstmt != null)
@@ -232,7 +277,6 @@ public class SQLController {
 				}
 
 			} else if (tempFile.isDirectory()) {
-
 				Map<String, Object> element = new HashMap<>();
 
 				element.put("Name", tempFile.getName());
