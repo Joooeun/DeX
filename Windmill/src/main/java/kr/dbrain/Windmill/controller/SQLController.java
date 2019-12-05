@@ -160,8 +160,8 @@ public class SQLController {
 
 				int paramcnt = StringUtils.countMatches(sql, ",") + 1;
 				List<Integer> typelst = new ArrayList<>();
-				pstmt = con.prepareStatement("SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
-						+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt
+				pstmt = con.prepareStatement("SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
+						+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt
 						+ ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal");
 				rs1 = pstmt.executeQuery();
 
