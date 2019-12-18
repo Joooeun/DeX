@@ -6,13 +6,13 @@
       <pattern>▶ %-5level %d{HH:mm:ss.SSS} [%class{0}][%method:%line] - %msg%n</pattern>
     </encoder>
   </appender>
-  <root level="debug">
+  <root level="info">
     <appender-ref ref="console" />
   </root>
   <logger name="org.springframework" level="error" additivity="false">
     <appender-ref ref="console" />
   </logger>
-  <logger name="kr.dbrain.Windmill" level="info" additivity="false">
+  <logger name="kr.dbrain.Grace" level="info" additivity="false">
     <appender-ref ref="console" />
   </logger>
 </configuration>
