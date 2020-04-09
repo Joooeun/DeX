@@ -23,12 +23,15 @@
 
 		for (var i = 0; i < result.length; i++) {
 			var list = result[i];
-
-			if (list.Path == 'Path') {
+			
+			if (list.Path.includes('Path')) {
 
 				var child2 = $('<ul class="nav nav-pills nav-stacked"></ul>');
-				var folder = $('<div class="col-md-3"><div class="box box-solid"></div></div>');
-				if (parent.html() == '') {
+				var folder;
+				if (list.Path.substring(4) == 0) {
+					folder = $('<div class="col-md-4"><div class="box box-solid"></div></div>');
+				} else {
+
 					folder = $('<div class="col-md-12"><div class="box box-solid"></div></div>');
 				}
 				var folder2 = $('<div class="box-header with-border"><h3 class="box-title">' + list.Name + '</h3><div class="box-tools"><button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button></div></div>');
@@ -59,6 +62,8 @@
 		</ol>
 	</section>
 	<section class="content">
-		<div class="row" id="menus"><p></p></div>
+		<div class="row" id="menus">
+			<p></p>
+		</div>
 	</section>
 </div>

@@ -33,12 +33,12 @@ public class SampleController {
 
 	@RequestMapping(path = "/index", method = RequestMethod.GET)
 	public ModelAndView sample(HttpServletRequest request, ModelAndView mv) {
-		if (!new java.io.File(Common.ConnectionPath).exists()) {
+		if (!new File(Common.ConnectionPath).exists()) {
 			mv.setViewName("Setting");
 			return mv;
 		}
 
-		mv.addObject("sqllist", SQLController.getfiles(Common.srcPath));
+		mv.addObject("sqllist", SQLController.getfiles(Common.srcPath, 0));
 
 		return mv;
 	}

@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -23,7 +22,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.reflect.TypeLiteral;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
@@ -116,9 +114,9 @@ public class SQLController {
 	@RequestMapping(path = "/SQL/list")
 	public List<Map<String, ?>> list(HttpServletRequest request, Model model, HttpSession session) throws IOException {
 
-		List<Map<String, ?>> lsit = getfiles(Common.srcPath);
+		List<Map<String, ?>> list = getfiles(Common.srcPath, 0);
 
-		return lsit;
+		return list;
 	}
 
 	@ResponseBody
@@ -160,9 +158,7 @@ public class SQLController {
 
 				int paramcnt = StringUtils.countMatches(sql, ",") + 1;
 				List<Integer> typelst = new ArrayList<>();
-				pstmt = con.prepareStatement("SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
-						+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt
-						+ ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal");
+				pstmt = con.prepareStatement("SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME " + " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal");
 				rs1 = pstmt.executeQuery();
 
 				while (rs1.next()) {
@@ -258,7 +254,7 @@ public class SQLController {
 		return list;
 	}
 
-	public static List<Map<String, ?>> getfiles(String root) {
+	public static List<Map<String, ?>> getfiles(String root, int depth) {
 
 		List<Map<String, ?>> list = new ArrayList<>();
 
@@ -280,8 +276,8 @@ public class SQLController {
 				Map<String, Object> element = new HashMap<>();
 
 				element.put("Name", tempFile.getName());
-				element.put("list", getfiles(tempFile.getPath()));
-				element.put("Path", "Path");
+				element.put("Path", "Path" + depth);
+				element.put("list", getfiles(tempFile.getPath(), depth + 1));
 
 				list.add(element);
 			}

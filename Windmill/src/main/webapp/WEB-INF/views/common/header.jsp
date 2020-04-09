@@ -88,12 +88,11 @@ body {
 	});
 
 	function setMenu(result, parent) {
-		
 
 		for (var i = 0; i < result.length; i++) {
 			var list = result[i];
 
-			if (list.Path == 'Path') {
+			if (list.Path.includes('Path')) {
 				var folder = $('<li class="treeview">\n' + '          <a class="addtree" href="#">\n' + '<span>' + list.Name + '</span><i class="fa fa-angle-left pull-right"></i></a>\n' + '        </li>');
 				var child = $('<ul class="treeview-menu"></ul>');
 				folder.append(setMenu(list.list, child));
@@ -125,14 +124,12 @@ body {
 	<div class="wrapper">
 		<header class="main-header">
 			<!-- Logo -->
-			<a href="/index" class="logo"> <!-- mini logo for sidebar mini 50x50 pixels --> <span class="logo-mini"><b>D</b>eX</span> <!-- logo for regular state and mobile devices -->
-				<span class="logo-lg"><b>Data</b> Explorer</span>
+			<a href="/index" class="logo"> <!-- mini logo for sidebar mini 50x50 pixels --> <span class="logo-mini"><b>D</b>eX</span> <!-- logo for regular state and mobile devices --> <span class="logo-lg"><b>Data</b> Explorer</span>
 			</a>
 			<!-- Header Navbar: style can be found in header.less -->
 			<nav class="navbar navbar-static-top" role="navigation">
 				<!-- Sidebar toggle button-->
-				<a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button"> <span class="sr-only">Toggle navigation</span> <span
-					class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span>
+				<a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span>
 				</a>
 			</nav>
 		</header>
@@ -143,8 +140,7 @@ body {
 				<!-- search form -->
 				<form class="sidebar-form" onsubmit="return Search()">
 					<div class="input-group">
-						<input type="text" name="q" class="form-control" placeholder="Search..." id="search" />
-						<span class="input-group-btn">
+						<input type="text" name="q" class="form-control" placeholder="Search..." id="search" /> <span class="input-group-btn">
 							<button type="button" name='search' id='search-btn' class="btn btn-flat" onclick="Search()">
 								<i class="fa fa-search"></i>
 							</button>
@@ -160,8 +156,10 @@ body {
 							<li><a href="/Connection?DB=2"><i class="fa fa-circle-o"></i> DB1</a></li>
 							<li><a href="/Connection?DB=1"><i class="fa fa-circle-o"></i> DB2</a></li>
 						</ul> --></li>
-					<li class="treeview"><a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span></a></li>
-					<li class="treeview"><a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileUpload</span></a></li>
+					<li class="treeview"><a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span>
+					</a></li>
+					<li class="treeview"><a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileUpload</span>
+					</a></li>
 				</ul>
 			</section>
 			<!-- /.sidebar -->
