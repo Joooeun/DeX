@@ -1,30 +1,44 @@
 <%@include file="common/common.jsp"%>
 <script>
-	$(document).ready(function() {
+	$(document).ready(
+			function() {
+				$.ajax({
+					type : 'post',
+					url : "/Connection/list",
+					data : {
+						TYPE : ""
+					},
+					success : function(result) {
+						for (var i = 0; i < result.length; i++) {
+							$('#connectionlist').append(
+									"<option value='" + result[i].split('.')[0]
+											+ "'>" + result[i].split('.')[0]
+											+ "</option>");
+						}
 
-		$.ajax({
-			type : 'post',
-			url : "/Connection/list",
-			data : {
-				TYPE : ""
-			},
-			success : function(result) {
-				for (var i = 0; i < result.length; i++) {
-					$('#connectionlist').append("<option value='" + result[i].split('.')[0] + "'>" + result[i].split('.')[0] + "</option>");
-				}
+					},
+					error : function() {
+						alert("시스템 에러");
+					}
+				});
 
-			},
-			error : function() {
-				alert("시스템 에러");
-			}
-		});
-
-	});
+			});
 
 	function ConnectionDetail(value) {
 
-		if (value == '')
+		if (value == 'create') {
+			$('#name_input').css("display", "block");
+			$("#form_DB").css("display", "block");
+			$('#TYPE').val('');
+			$('#IP').val('');
+			$('#PORT').val('');
+			$('#DB').val('');
+			$('#USER').val('');
+			$('#PW').val('');
 			return;
+		} else {
+			$('#name_input').css("display", "none");
+		}
 
 		$.ajax({
 			type : 'post',
@@ -54,11 +68,18 @@
 	}
 
 	function save() {
+
+		var filename = $("#connectionlist").val();
+
+		if (filename == 'create') {
+			filename = $('#NAME').val();
+		}
+
 		$.ajax({
 			type : 'post',
 			url : '/Connection/save',
 			data : {
-				file : $("#connectionlist").val(),
+				file : filename,
 				TYPE : $('#TYPE').val(),
 				IP : $('#IP').val(),
 				PORT : $('#PORT').val(),
@@ -90,7 +111,8 @@
 	</section>
 	<section class="content">
 		<select id="connectionlist" onchange="ConnectionDetail(this.value)">
-			<option>====선택하세요====</option>
+			<option value="" selected disabled hidden>==선택하세요==</option>
+			<option id="create_option" value="create">새로 만들기</option>
 		</select>
 		<div class="box box-default" style="margin-top: 10px;">
 			<div class="box-header with-border">
@@ -100,34 +122,37 @@
 			<!-- form start -->
 			<form role="form">
 				<div class="box-body">
+
 					<div class="form-group row">
+						<div class="col-md-4" style="margin: 2px 0; display: none;" id="name_input">
+							<label for="TYPE">NAME</label> <input type="text" class="form-control" id="NAME" placeholder="NAME">
+						</div>
 						<div class="col-md-4" style="margin: 2px 0;">
 							<label for="TYPE">TYPE</label>
-							<input type="text" class="form-control" id="TYPE" placeholder="TYPE">
+							<select class="form-control" id="TYPE">
+								<option value="" selected disabled hidden>TYPE</option>
+								<option value="DB">DB</option>
+								<option value="HOST">HOST</option>
+							</select>
 						</div>
 					</div>
 					<div class="form-group row">
 						<div class="col-md-4" style="margin: 2px 0;">
-							<label for="IP">IP</label>
-							<input type="text" class="form-control" id="IP" placeholder="IP">
+							<label for="IP">IP</label> <input type="text" class="form-control" id="IP" placeholder="IP">
 						</div>
 						<div class="col-md-4" style="margin: 2px 0;">
-							<label for="PORT">PORT</label>
-							<input type="text" class="form-control" id="PORT" placeholder="PORT">
+							<label for="PORT">PORT</label> <input type="text" class="form-control" id="PORT" placeholder="PORT">
 						</div>
 						<div class="col-md-4" style="margin: 2px 0;" id="form_DB">
-							<label for="DB">DB</label>
-							<input type="text" class="form-control" id="DB" placeholder="DB">
+							<label for="DB">DB</label> <input type="text" class="form-control" id="DB" placeholder="DB">
 						</div>
 					</div>
 					<div class="form-group row">
 						<div class="col-md-4" style="margin: 2px 0;">
-							<label for="USER">USER</label>
-							<input type="text" class="form-control" id="USER" placeholder="USER">
+							<label for="USER">USER</label> <input type="text" class="form-control" id="USER" placeholder="USER">
 						</div>
 						<div class="col-md-4" style="margin: 2px 0;">
-							<label for="PW">PW</label>
-							<input type="text" class="form-control" id="PW" placeholder="PW">
+							<label for="PW">PW</label> <input type="text" class="form-control" id="PW" placeholder="PW">
 						</div>
 					</div>
 				</div>

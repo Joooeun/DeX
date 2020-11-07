@@ -46,6 +46,7 @@ public class SampleController {
 	@RequestMapping(path = "/index/setting")
 	public String setting(HttpServletRequest request, Model model) {
 
+		System.out.println(Common.system_properties);
 		File propfile = new File(Common.system_properties);
 
 		FileWriter fw;
@@ -55,9 +56,9 @@ public class SampleController {
 			fw.write("Root=" + request.getParameter("path").replace("\\", "/"));
 			fw.close();
 		} catch (IOException e) {
-
 			e.printStackTrace();
 		}
+		
 		Common.Setproperties();
 
 		return "redirect:/index";
