@@ -67,6 +67,8 @@ public class Common {
 			map.put("USER", props.getProperty("USER"));
 			map.put("PW", props.getProperty("PW"));
 			map.put("DB", props.getProperty("DB"));
+			map.put("DBTYPE", props.getProperty("DBTYPE"));
+			
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block

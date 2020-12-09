@@ -1,28 +1,24 @@
 <%@include file="common/common.jsp"%>
 <script>
-	$(document).ready(
-			function() {
-				$.ajax({
-					type : 'post',
-					url : "/Connection/list",
-					data : {
-						TYPE : ""
-					},
-					success : function(result) {
-						for (var i = 0; i < result.length; i++) {
-							$('#connectionlist').append(
-									"<option value='" + result[i].split('.')[0]
-											+ "'>" + result[i].split('.')[0]
-											+ "</option>");
-						}
+	$(document).ready(function() {
+		$.ajax({
+			type : 'post',
+			url : "/Connection/list",
+			data : {
+				TYPE : ""
+			},
+			success : function(result) {
+				for (var i = 0; i < result.length; i++) {
+					$('#connectionlist').append("<option value='" + result[i].split('.')[0] + "'>" + result[i].split('.')[0] + "</option>");
+				}
 
-					},
-					error : function() {
-						alert("시스템 에러");
-					}
-				});
+			},
+			error : function() {
+				alert("시스템 에러");
+			}
+		});
 
-			});
+	});
 
 	function ConnectionDetail(value) {
 
@@ -35,6 +31,7 @@
 			$('#DB').val('');
 			$('#USER').val('');
 			$('#PW').val('');
+			$('#DBTYPE').val('');
 			return;
 		} else {
 			$('#name_input').css("display", "none");
@@ -60,6 +57,8 @@
 
 				$('#USER').val(result.USER);
 				$('#PW').val(result.PW);
+				$('#DBTYPE').val(result.DBTYPE);
+				$('#DBTYPE').val(result.DBTYPE).prop("selected", true);
 			},
 			error : function() {
 				alert("시스템 에러");
@@ -85,7 +84,8 @@
 				PORT : $('#PORT').val(),
 				DB : $('#DB').val(),
 				USER : $('#USER').val(),
-				PW : $('#PW').val()
+				PW : $('#PW').val(),
+				DBTYPE : $('#DBTYPE').val()
 
 			},
 			success : function(result) {
@@ -125,11 +125,10 @@
 
 					<div class="form-group row">
 						<div class="col-md-4" style="margin: 2px 0; display: none;" id="name_input">
-							<label for="TYPE">NAME</label> <input type="text" class="form-control" id="NAME" placeholder="NAME">
+							<label for="NAME">NAME</label> <input type="text" class="form-control" id="NAME" placeholder="NAME">
 						</div>
 						<div class="col-md-4" style="margin: 2px 0;">
-							<label for="TYPE">TYPE</label>
-							<select class="form-control" id="TYPE">
+							<label for="TYPE">TYPE</label> <select class="form-control" id="TYPE">
 								<option value="" selected disabled hidden>TYPE</option>
 								<option value="DB">DB</option>
 								<option value="HOST">HOST</option>
@@ -148,6 +147,13 @@
 						</div>
 					</div>
 					<div class="form-group row">
+						<div class="col-md-4" style="margin: 2px 0;">
+							<label for="DBTYPE">DB TYPE</label> <select class="form-control" id="DBTYPE">
+								<option value="" selected disabled hidden>DB TYPE</option>
+								<option value="ORACLE">ORACLE</option>
+								<option value="DB2">DB2</option>
+							</select>
+						</div>
 						<div class="col-md-4" style="margin: 2px 0;">
 							<label for="USER">USER</label> <input type="text" class="form-control" id="USER" placeholder="USER">
 						</div>

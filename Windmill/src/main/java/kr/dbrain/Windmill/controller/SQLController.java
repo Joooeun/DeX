@@ -121,13 +121,35 @@ public class SQLController {
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/excute")
-	public List<List<String>> excute(HttpServletRequest request, Model model, HttpSession session) throws ClassNotFoundException {
+	public List<List<String>> excute(HttpServletRequest request, Model model, HttpSession session)
+			throws ClassNotFoundException {
+		
+		System.out.println("sql실행.");
 
 		List<List<String>> list = new ArrayList<List<String>>();
 		Map<String, String> map = com.ConnectionConf(request.getParameter("Connection"));
 
 		Properties prop = new Properties();
-		Class.forName("com.ibm.db2.jcc.DB2Driver");
+
+		String dbtype = map.get("DBTYPE");
+		String driver = "com.ibm.db2.jcc.DB2Driver";
+		String jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
+
+		switch (dbtype) {
+		case "DB2":
+			driver = "com.ibm.db2.jcc.DB2Driver";
+			jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
+			break;
+		case "ORACLE":
+			driver = "oracle.jdbc.driver.OracleDriver";
+			jdbc = "jdbc:oracle:thin:@" + map.get("IP") + ":" + map.get("PORT") + ":" + map.get("DB");
+			break;
+
+		default:
+			break;
+		}
+
+		Class.forName(driver);
 
 		prop.put("user", map.get("USER"));
 		prop.put("password", map.get("PW"));
@@ -141,10 +163,10 @@ public class SQLController {
 		ResultSet rs1 = null;
 
 		String sql = request.getParameter("sql");
-		logger.debug("[DEBUG] sql : " + sql);
+		System.out.println("[DEBUG] sql : " + sql);
 
 		try {
-			con = DriverManager.getConnection("jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB"), prop);
+			con = DriverManager.getConnection(jdbc, prop);
 
 			con.setAutoCommit(false);
 
@@ -158,8 +180,13 @@ public class SQLController {
 
 				int paramcnt = StringUtils.countMatches(sql, ",") + 1;
 				List<Integer> typelst = new ArrayList<>();
-				pstmt = con.prepareStatement("SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME " + " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal");
+				pstmt = con.prepareStatement("SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
+						+ prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
+						+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
+						+ prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt
+						+ ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal");
 				rs1 = pstmt.executeQuery();
+				System.out.println(pstmt);
 
 				while (rs1.next()) {
 					switch (rs1.getString("TYPENAME")) {
