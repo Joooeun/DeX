@@ -77,7 +77,8 @@ public class ConnectionController {
 				str += "DB=" + request.getParameter("DB") + "\n";
 			}
 			str += "USER=" + request.getParameter("USER") + "\n";
-			str += "PW=" + request.getParameter("PW");
+			str += "PW=" + request.getParameter("PW") + "\n";
+			str += "DBTYPE=" + request.getParameter("DBTYPE");
 
 			fw.write(str);
 			fw.close();

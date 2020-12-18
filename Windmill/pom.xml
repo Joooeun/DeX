@@ -128,14 +128,9 @@
 			<artifactId>db2-spring-framework</artifactId>
 			<version>0.0.1</version>
 		</dependency>
-		
-		<dependency>
-			<groupId>commons-dbcp</groupId>
-			<artifactId>commons-dbcp</artifactId>
-			<version>1.4</version>
-		</dependency>
-		
+
 	</dependencies>
+
 
 	<!-- 빌드 -->
 	<build>
@@ -175,5 +170,5 @@
 			</plugins>
 		</pluginManagement>
 	</build>
-<!-- 커밋 푸시 테스트 -->
+
 </project>
