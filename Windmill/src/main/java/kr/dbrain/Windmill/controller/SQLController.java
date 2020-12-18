@@ -21,12 +21,14 @@ import java.util.Properties;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -109,12 +111,22 @@ public class SQLController {
 
 		return mv;
 	}
+	
+	@RequestMapping(path = "/search_all_data", method = RequestMethod.GET)
+	public ModelAndView test(HttpServletRequest request, ModelAndView mv, HttpSession session) {
+
+		mv.addObject("Connection", session.getAttribute("Connection"));
+		
+		return mv;
+	}
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/list")
 	public List<Map<String, ?>> list(HttpServletRequest request, Model model, HttpSession session) throws IOException {
 
 		List<Map<String, ?>> list = getfiles(Common.srcPath, 0);
+		
+		//list.add(index, element);
 
 		return list;
 	}
@@ -126,12 +138,12 @@ public class SQLController {
 		List<List<String>> list = new ArrayList<List<String>>();
 		Map<String, String> map = com.ConnectionConf(request.getParameter("Connection"));
 
-		Properties prop = new Properties();
-		Class.forName("com.ibm.db2.jcc.DB2Driver");
-
-		prop.put("user", map.get("USER"));
-		prop.put("password", map.get("PW"));
-		prop.put("clientProgramName", "DeX");
+//		Properties prop = new Properties();
+//		Class.forName("com.ibm.db2.jcc.DB2Driver");
+//
+//		prop.put("user", map.get("USER"));
+//		prop.put("password", map.get("PW"));
+//		prop.put("clientProgramName", "DeX");
 
 		Connection con = null;
 
@@ -144,80 +156,263 @@ public class SQLController {
 		logger.debug("[DEBUG] sql : " + sql);
 
 		try {
-			con = DriverManager.getConnection("jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB"), prop);
+			
 
-			con.setAutoCommit(false);
+			
+			if(map.get("PORT").equals("1521")) {	//접속정보가 오라클일 때 ! (포트번호가 1521인 걸로 확인)
 
-			if (sql.startsWith("CALL")) {
+				BasicDataSource dataSource = new BasicDataSource();
+				dataSource.setDriverClassName("oracle.jdbc.driver.OracleDriver");
+				dataSource.setUrl("jdbc:oracle:thin:@"+map.get("IP")+":1521:"+map.get("DB"));
+				dataSource.setUsername(map.get("USER"));
+				dataSource.setPassword(map.get("PW"));
+				
+				con = dataSource.getConnection();
+				con.setAutoCommit(false);
+				
+				
+				if (sql.startsWith("CALL")) {
 
-				String prcdname = "";
-				prcdname = sql.substring(sql.indexOf("CALL") + 4, sql.indexOf("("));
-				if (prcdname.contains(".")) {
-					prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
-				}
-
-				int paramcnt = StringUtils.countMatches(sql, ",") + 1;
-				List<Integer> typelst = new ArrayList<>();
-				pstmt = con.prepareStatement("SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME " + " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal");
-				rs1 = pstmt.executeQuery();
-
-				while (rs1.next()) {
-					switch (rs1.getString("TYPENAME")) {
-					case "VARCHAR":
-						typelst.add(java.sql.Types.VARCHAR);
-						break;
-					case "INTEGER":
-						typelst.add(java.sql.Types.INTEGER);
-						break;
-					case "TIMESTAMP":
-						typelst.add(java.sql.Types.TIMESTAMP);
-						break;
+					String prcdname = "";
+					prcdname = sql.substring(sql.indexOf("CALL") + 4, sql.indexOf("("));
+					if (prcdname.contains(".")) {
+						prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
 					}
-				}
 
-				callStmt1 = con.prepareCall(sql);
-				for (int i = 0; i < typelst.size(); i++) {
-					callStmt1.registerOutParameter(i + 1, typelst.get(i));
-				}
+					int paramcnt = StringUtils.countMatches(sql, ",") + 1;
+					List<Integer> typelst = new ArrayList<>();
+					//TODO : Db2와 Oracle에서와 차이점으로 인해 추후 오류가 발생할 것. 
+					pstmt = con.prepareStatement("SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME " + " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal");
+					rs1 = pstmt.executeQuery();
 
-				callStmt1.execute();
-				for (int i = 0; i < typelst.size(); i++) {
-					List<String> element = new ArrayList<String>();
-					element.add(callStmt1.getString(i + 1) + "");
-					list.add(element);
-				}
-			} else {
-				pstmt = con.prepareStatement(sql);
-				rs = pstmt.executeQuery();
+					while (rs1.next()) {
+						switch (rs1.getString("TYPENAME")) {
+						case "VARCHAR2":
+							typelst.add(java.sql.Types.VARCHAR);
+							break;
+						case "INTEGER":
+							typelst.add(java.sql.Types.INTEGER);
+							break;
+						case "DATE":
+							typelst.add(java.sql.Types.DATE);
+							break;
+						}
+					}
 
-				ResultSetMetaData rsmd = rs.getMetaData();
-				int colcnt = rsmd.getColumnCount();
+					callStmt1 = con.prepareCall(sql);
+					for (int i = 0; i < typelst.size(); i++) {
+						callStmt1.registerOutParameter(i + 1, typelst.get(i));
+					}
 
-				List<String> row;
-				String column;
+					callStmt1.execute();
+					for (int i = 0; i < typelst.size(); i++) {
+						List<String> element = new ArrayList<String>();
+						element.add(callStmt1.getString(i + 1) + "");
+						list.add(element);
+					}
+				} else {
+					pstmt = con.prepareStatement(sql);
+					rs = pstmt.executeQuery();
 
-				row = new ArrayList<>();
-				for (int index = 0; index < colcnt; index++) {
+					ResultSetMetaData rsmd = rs.getMetaData();
+					int colcnt = rsmd.getColumnCount();
 
-					column = rsmd.getColumnLabel(index + 1);
-
-					row.add(column);
-
-				}
-				list.add(row);
-
-				while (rs.next()) {
+					List<String> row;
+					String column;
 
 					row = new ArrayList<>();
 					for (int index = 0; index < colcnt; index++) {
-						column = rsmd.getColumnName(index + 1);
-						row.add(rs.getString(column));
+
+						column = rsmd.getColumnLabel(index + 1);
+
+						row.add(column);
 
 					}
 					list.add(row);
 
+					while (rs.next()) {
+
+						row = new ArrayList<>();
+						for (int index = 0; index < colcnt; index++) {
+							column = rsmd.getColumnName(index + 1);
+							row.add(rs.getString(column));
+
+						}
+						list.add(row);
+
+					}
 				}
+				
+			}else {	//오라클 접속 정보가 아닐때 ->DB2일때
+				
+				
+				Properties prop = new Properties();
+				Class.forName("com.ibm.db2.jcc.DB2Driver");
+		
+				prop.put("user", map.get("USER"));
+				prop.put("password", map.get("PW"));
+				prop.put("clientProgramName", "DeX");
+				
+				con = DriverManager.getConnection("jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB"), prop);
+				
+				con.setAutoCommit(false);
+	
+				if (sql.startsWith("CALL")) {
+	
+					String prcdname = "";
+					prcdname = sql.substring(sql.indexOf("CALL") + 4, sql.indexOf("("));
+					if (prcdname.contains(".")) {
+						prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
+					}
+	
+					int paramcnt = StringUtils.countMatches(sql, ",") + 1;
+					List<Integer> typelst = new ArrayList<>();
+					pstmt = con.prepareStatement("SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME " + " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal");
+					rs1 = pstmt.executeQuery();
+	
+					while (rs1.next()) {
+						switch (rs1.getString("TYPENAME")) {
+						case "VARCHAR":
+							typelst.add(java.sql.Types.VARCHAR);
+							break;
+						case "INTEGER":
+							typelst.add(java.sql.Types.INTEGER);
+							break;
+						case "TIMESTAMP":
+							typelst.add(java.sql.Types.TIMESTAMP);
+							break;
+						}
+					}
+	
+					callStmt1 = con.prepareCall(sql);
+					for (int i = 0; i < typelst.size(); i++) {
+						callStmt1.registerOutParameter(i + 1, typelst.get(i));
+					}
+	
+					callStmt1.execute();
+					for (int i = 0; i < typelst.size(); i++) {
+						List<String> element = new ArrayList<String>();
+						element.add(callStmt1.getString(i + 1) + "");
+						list.add(element);
+					}
+				} else {
+					pstmt = con.prepareStatement(sql);
+					rs = pstmt.executeQuery();
+	
+					ResultSetMetaData rsmd = rs.getMetaData();
+					int colcnt = rsmd.getColumnCount();
+	
+					List<String> row;
+					String column;
+	
+					row = new ArrayList<>();
+					for (int index = 0; index < colcnt; index++) {
+	
+						column = rsmd.getColumnLabel(index + 1);
+	
+						row.add(column);
+	
+					}
+					list.add(row);
+	
+					while (rs.next()) {
+	
+						row = new ArrayList<>();
+						for (int index = 0; index < colcnt; index++) {
+							column = rsmd.getColumnName(index + 1);
+							row.add(rs.getString(column));
+	
+						}
+						list.add(row);
+	
+					}
+				}
+				
+				
+				
+//				BasicDataSource dataSource = new BasicDataSource();
+//				dataSource.setDriverClassName("com.ibm.db2.jcc.DB2Driver");
+//				dataSource.setUrl("jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB"));
+//				dataSource.setUsername(map.get("USER"));
+//				dataSource.setPassword(map.get("PW"));
+//				
+//				con = dataSource.getConnection();
+//				con.setAutoCommit(false);
+//				
+//				if (sql.startsWith("CALL")) {
+//
+//					String prcdname = "";
+//					prcdname = sql.substring(sql.indexOf("CALL") + 4, sql.indexOf("("));
+//					if (prcdname.contains(".")) {
+//						prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
+//					}
+//
+//					int paramcnt = StringUtils.countMatches(sql, ",") + 1;
+//					List<Integer> typelst = new ArrayList<>();
+//					pstmt = con.prepareStatement("SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME " + " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal");
+//					rs1 = pstmt.executeQuery();
+//
+//					while (rs1.next()) {
+//						switch (rs1.getString("TYPENAME")) {
+//						case "VARCHAR":
+//							typelst.add(java.sql.Types.VARCHAR);
+//							break;
+//						case "INTEGER":
+//							typelst.add(java.sql.Types.INTEGER);
+//							break;
+//						case "TIMESTAMP":
+//							typelst.add(java.sql.Types.TIMESTAMP);
+//							break;
+//						}
+//					}
+//
+//					callStmt1 = con.prepareCall(sql);
+//					for (int i = 0; i < typelst.size(); i++) {
+//						callStmt1.registerOutParameter(i + 1, typelst.get(i));
+//					}
+//
+//					callStmt1.execute();
+//					for (int i = 0; i < typelst.size(); i++) {
+//						List<String> element = new ArrayList<String>();
+//						element.add(callStmt1.getString(i + 1) + "");
+//						list.add(element);
+//					}
+//				} else {
+//					pstmt = con.prepareStatement(sql);
+//					rs = pstmt.executeQuery();
+//
+//					ResultSetMetaData rsmd = rs.getMetaData();
+//					int colcnt = rsmd.getColumnCount();
+//
+//					List<String> row;
+//					String column;
+//
+//					row = new ArrayList<>();
+//					for (int index = 0; index < colcnt; index++) {
+//
+//						column = rsmd.getColumnLabel(index + 1);
+//
+//						row.add(column);
+//
+//					}
+//					list.add(row);
+//
+//					while (rs.next()) {
+//
+//						row = new ArrayList<>();
+//						for (int index = 0; index < colcnt; index++) {
+//							column = rsmd.getColumnName(index + 1);
+//							row.add(rs.getString(column));
+//
+//						}
+//						list.add(row);
+//
+//					}
+//				}
 			}
+			
+			
+			
 
 		} catch (SQLException e1) {
 			List<String> element = new ArrayList<String>();
