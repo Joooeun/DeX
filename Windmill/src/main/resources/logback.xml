@@ -6,7 +6,7 @@
       <pattern>▶ %-5level %d{HH:mm:ss.SSS} [%class{0}][%method:%line] - %msg%n</pattern>
     </encoder>
   </appender>
-  <root level="info">
+  <root level="debug">
     <appender-ref ref="console" />
   </root>
   <logger name="org.springframework" level="error" additivity="false">

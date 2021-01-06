@@ -45,7 +45,6 @@
 				if ($(".paramvalue").eq(0).val() != '' && $(".paramvalue").length > 0) {
 					excute();
 				}
-
 			},
 			error : function() {
 				alert("시스템 에러");
@@ -135,14 +134,19 @@
 					str += '<th>' + result[0][title] + '</th>';
 				}
 				str += '</tr>';
-				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div id="valuediv" style="max-height: calc(100vh - 382px); overflow: auto;">' + '<table class="table table-condensed table-hover table-striped" id="result_body" style="margin: 0;">' + '</table>' + '</div>' + '</td>' + '</tr>';
+				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div id="valuediv" style="max-height: calc(100vh - 382px); overflow: auto;">'
+						+ '<table class="table table-condensed table-hover table-striped" id="result_body" style="margin: 0; font-size: 14px;">' + '</table>' + '</div>' + '</td>' + '</tr>';
 
 				for (var outter = 1; outter < result.length; outter++) {
 					str += '<tr style="visibility: hidden;">';
 					str += '<td style="border:none;">' + outter + '</td>';
 
 					for (var inner = 0; inner < result[outter].length; inner++) {
-						str += '<td style="border:none;">' + result[outter][inner] + '</td>';
+						var cellstr = result[outter][inner];
+						if (result[outter].length > 15 && cellstr.length > 10) {
+							cellstr = cellstr.substr(0, 10) + '...'
+						}
+						str += '<td style="border:none;">' + cellstr + '</td>';
 					}
 
 					str += '</tr>';
@@ -156,7 +160,11 @@
 					str += '<td>' + outter + '</td>';
 
 					for (var inner = 0; inner < result[outter].length; inner++) {
-						str += '<td style="border-left:1px solid #cccccc">' + result[outter][inner] + '</td>';
+						var cellstr = result[outter][inner];
+						if (result[outter].length > 15 && cellstr.length > 10) {
+							cellstr = cellstr.substr(0, 10) + '...'
+						}
+						str += '<td style="border-left:1px solid #cccccc">' + cellstr + '</td>';
 					}
 
 					str += '</tr>';
@@ -174,7 +182,7 @@
 			},
 			error : function() {
 				$("#excutebtn").attr('disabled', false);
-				alert("시스템 에러");
+				alert(error);
 			}
 		});
 
@@ -251,25 +259,25 @@
 				<div class="box box-default ">
 					<div class="box-header with-border">
 						<h3 class="box-title">파라미터 입력</h3>
-						&nbsp;&nbsp;&nbsp;
-						<input id="selectedConnection" type="hidden" value="${Connection}">
+						&nbsp;&nbsp;&nbsp; <input id="selectedConnection" type="hidden" value="${Connection}">
 						<select id="connectionlist" onchange="sessionCon(this.value)">
 							<option value="">====Connection====</option>
 						</select>
 					</div>
+					<c:if test="${sql eq ''}">
+						<textarea class="col-sm-12" id="sql_text">${sql}</textarea>
+					</c:if>
 					<form role="form-horizontal" name="ParamForm">
 						<div class="box-body">
 							<div class="form-group">
 								<c:forEach var="item" items="${Param}" varStatus="status">
-									<span class="col-sm-2 col-md-2 col-lg-1 param text-center" id="param${status.count}" paramtitle="${item.name}"
-										style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
-									<div class="col-sm-3 col-md-2 col-lg-2" style="margin: 2px 0;">
+									<span class="col-sm-2 col-md-2 col-lg-1 param text-center" id="param${status.count}" paramtitle="${item.name}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+									<div class="col-sm-3 col-md-2 col-lg-2" style="margin: 2px 0">
 										<input type="text" class="form-control paramvalue" paramtype="${item.type}" value="${item.value}" style="padding: 0 2px;">
 									</div>
 								</c:forEach>
 								<div class="col-sm-2 col-md-1 pull-right">
-									<input type="hidden" id="sendvalue" name="sendvalue">
-									<input id="excutebtn" type="button" class="form-control" value="실행" onclick="startexcute();">
+									<input type="hidden" id="sendvalue" name="sendvalue"> <input id="excutebtn" type="button" class="form-control" value="실행" onclick="startexcute();">
 								</div>
 							</div>
 						</div>
@@ -284,7 +292,7 @@
 						<h3 class="box-title">Result</h3>
 					</div>
 					<div style="overflow-y: hidden; overflow-x: auto; height: calc(100vh - 380px);">
-						<table class="table table-condensed" id="result_head" style="margin: 0;">
+						<table class="table table-condensed" id="result_head" style="margin: 0; font-size: 14px">
 						</table>
 					</div>
 				</div>
@@ -307,8 +315,10 @@
 				</div>
 			</div>
 		</div>
-		<textarea rows="10" cols="200" id="sql_text" hidden="hidden">${sql}</textarea>
-		<input id="Path" value="${Path}" type="hidden">
-		<input id="refreshtimeout" value="${refreshtimeout}" type="hidden">
+		<c:if test="${sql != ''}">
+			<textarea rows="10" cols="200" id="sql_text" hidden="hidden">${sql}</textarea>
+			<input id="Path" value="${Path}" type="hidden">
+			<input id="refreshtimeout" value="${refreshtimeout}" type="hidden">
+		</c:if>
 	</section>
 </div>

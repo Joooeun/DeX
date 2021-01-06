@@ -110,12 +110,12 @@ public class SQLController {
 
 		return mv;
 	}
-	
+
 	@RequestMapping(path = "/search_all_data", method = RequestMethod.GET)
 	public ModelAndView test(HttpServletRequest request, ModelAndView mv, HttpSession session) {
 
 		mv.addObject("Connection", session.getAttribute("Connection"));
-		
+
 		return mv;
 	}
 
@@ -131,7 +131,7 @@ public class SQLController {
 	@ResponseBody
 	@RequestMapping(path = "/SQL/excute")
 	public List<List<String>> excute(HttpServletRequest request, Model model, HttpSession session) throws ClassNotFoundException {
-		
+
 		System.out.println("sql실행.");
 
 		List<List<String>> list = new ArrayList<List<String>>();
@@ -139,9 +139,11 @@ public class SQLController {
 
 		Properties prop = new Properties();
 
-		String dbtype = map.get("DBTYPE");
+		String dbtype = map.get("DBTYPE") == null ? "DB2" : map.get("DBTYPE");
 		String driver = "com.ibm.db2.jcc.DB2Driver";
 		String jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
+
+		String callcheckstr = "";
 
 		switch (dbtype) {
 		case "DB2":
@@ -187,13 +189,30 @@ public class SQLController {
 				}
 
 				int paramcnt = StringUtils.countMatches(sql, ",") + 1;
+				switch (dbtype) {
+				case "DB2":
+					callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
+							+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim()
+							+ "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
+					break;
+				case "ORACLE":
+					callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n" + " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
+					break;
+
+				default:
+					break;
+				}
+
 				List<Integer> typelst = new ArrayList<>();
-				pstmt = con.prepareStatement("SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '"+ prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "	+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '"+ prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt	+ ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal");
+				pstmt = con.prepareStatement(callcheckstr);
 				rs1 = pstmt.executeQuery();
 				System.out.println(pstmt);
 
 				while (rs1.next()) {
 					switch (rs1.getString("TYPENAME")) {
+					case "VARCHAR2":
+						typelst.add(java.sql.Types.VARCHAR);
+						break;
 					case "VARCHAR":
 						typelst.add(java.sql.Types.VARCHAR);
 						break;
@@ -202,6 +221,9 @@ public class SQLController {
 						break;
 					case "TIMESTAMP":
 						typelst.add(java.sql.Types.TIMESTAMP);
+						break;
+					case "DATE":
+						typelst.add(java.sql.Types.DATE);
 						break;
 					}
 				}
@@ -241,8 +263,9 @@ public class SQLController {
 
 					row = new ArrayList<>();
 					for (int index = 0; index < colcnt; index++) {
-						column = rsmd.getColumnName(index + 1);
-						row.add(rs.getString(column));
+						// column = rsmd.getColumnName(index + 1);
+						row.add(rs.getObject(index + 1) == null ? "NULL" : rs.getObject(index + 1).toString());
+						// System.out.println(rs.getObject(index+1));
 
 					}
 					list.add(row);

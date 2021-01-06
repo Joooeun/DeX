@@ -72,7 +72,9 @@ public class FileController {
 		map.clear();
 		try {
 			// Change to output directory
-			String cdDir = fileName.substring(0, fileName.lastIndexOf("/") + 1);
+			String cdDir = fileName.substring(0, fileName.lastIndexOf("/"));
+			System.out.println(cdDir);
+			sftpChannel.cd("/");
 			sftpChannel.cd(cdDir);
 
 			File file = new File(fileName);

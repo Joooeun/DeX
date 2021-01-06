@@ -52,40 +52,47 @@ body {
 <!-- jQuery 2.1.4 -->
 <script src="/resources/plugins/jQuery/jQuery-2.1.4.min.js"></script>
 <script>
-	$(document).ready(function() {
+	$(document)
+			.ready(
+					function() {
 
-		$.ajax({
-			type : 'post',
-			url : '/SQL/list',
-			success : function(result) {
+						$
+								.ajax({
+									type : 'post',
+									url : '/SQL/list',
+									success : function(result) {
 
-				//alert(JSON.stringify(result))
+										//alert(JSON.stringify(result))
 
-				var sidebar = $('#tree');
-				var parent = $('<li class="active treeview menu-open"><a class="addtree" href="#"> <i class="fa fa-bolt"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></a></i>');
-				var child = $('<ul class="treeview-menu" id="sidemenu"></ul>');
+										var sidebar = $('#tree');
+										var parent = $('<li class="active treeview menu-open"><a class="addtree" href="#"> <i class="fa fa-bolt"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></a></i>');
+										var child = $('<ul class="treeview-menu" id="sidemenu"></ul>');
 
-				child.append(setMenu(result, child));
-				parent.append(child);
-				sidebar.append(parent);
+										child.append(setMenu(result, child));
+										parent.append(child);
+										sidebar.append(parent);
 
-			},
-			error : function() {
-				alert("시스템 에러");
-			}
-		});
+									},
+									error : function() {
+										alert("시스템 에러");
+									}
+								});
 
-		$(document).on("click", ".addtree", function() {
+						$(document).on(
+								"click",
+								".addtree",
+								function() {
 
-			if ($(this).parent().attr('class').includes('active')) {
-				$(this).parent().removeClass('active');
-			} else {
-				$(this).parent().addClass('active');
-			}
+									if ($(this).parent().attr('class')
+											.includes('active')) {
+										$(this).parent().removeClass('active');
+									} else {
+										$(this).parent().addClass('active');
+									}
 
-		});
+								});
 
-	});
+					});
 
 	function setMenu(result, parent) {
 
@@ -93,13 +100,21 @@ body {
 			var list = result[i];
 
 			if (list.Path.includes('Path')) {
-				var folder = $('<li class="treeview">\n' + '          <a class="addtree" href="#">\n' + '<span>' + list.Name + '</span><i class="fa fa-angle-left pull-right"></i></a>\n' + '        </li>');
+				var folder = $('<li class="treeview">\n'
+						+ '          <a class="addtree" href="#">\n'
+						+ '<span>'
+						+ list.Name
+						+ '</span><i class="fa fa-angle-left pull-right"></i></a>\n'
+						+ '        </li>');
 				var child = $('<ul class="treeview-menu"></ul>');
 				folder.append(setMenu(list.list, child));
 
 				parent.append(folder);
 			} else {
-				var childItem = $('<li><a href="/SQL?Path=' + encodeURI(list.Path) + '" target="iframe" id="' + list.Name.split('_')[0] + '">' + list.Name.split('.')[0] + '</a></li>');
+				var childItem = $('<li><a href="/SQL?Path='
+						+ encodeURI(list.Path) + '" target="iframe" id="'
+						+ list.Name.split('_')[0] + '">'
+						+ list.Name.split('.')[0] + '</a></li>');
 				parent.append(childItem);
 			}
 		}

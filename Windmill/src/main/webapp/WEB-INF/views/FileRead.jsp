@@ -29,7 +29,7 @@
 			type : 'post',
 			url : '/FILE/readfile',
 			data : {
-				FilePath : $("#FilePath").val(),
+				FilePath : $("#FilePath").val().split("\\").join("/"),
 				Connection : $("#connectionlist").val()
 			},
 			success : function(result) {
