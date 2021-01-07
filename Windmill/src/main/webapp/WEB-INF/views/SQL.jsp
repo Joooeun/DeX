@@ -106,12 +106,10 @@
 		var sql = $("#sql_text").val();
 
 		for (var i = 0; i < $(".param").length; i++) {
-			if ($(".paramvalue").eq(i).val() != '') {
-				if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
-					sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
-				} else if ($(".paramvalue").eq(i).attr('paramtype') == 'number') {
-					sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
-				}
+			if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
+				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
+			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'number') {
+				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 			}
 		}
 
