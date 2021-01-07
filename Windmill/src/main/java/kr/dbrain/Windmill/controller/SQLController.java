@@ -2,8 +2,10 @@ package kr.dbrain.Windmill.controller;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -48,7 +50,8 @@ public class SQLController {
 		mv.addObject("title", file.getName().replaceAll("\\..*", ""));
 
 		FileReader filereader = new FileReader(file);
-		BufferedReader bufReader = new BufferedReader(filereader);
+//		BufferedReader bufReader = new BufferedReader(filereader);
+		BufferedReader bufReader = new BufferedReader(new InputStreamReader(new FileInputStream(file),"UTF-8"));
 		String line = "";
 		String sql = "";
 		while ((line = bufReader.readLine()) != null) {
