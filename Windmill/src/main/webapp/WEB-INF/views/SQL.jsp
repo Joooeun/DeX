@@ -141,9 +141,9 @@
 
 					for (var inner = 0; inner < result[outter].length; inner++) {
 						var cellstr = result[outter][inner];
-						if (result[outter].length > 15 && cellstr.length > 10) {
-							cellstr = cellstr.substr(0, 10) + '...'
-						}
+// 						if (result[outter].length > 15 && cellstr.length > 10) {
+// 							cellstr = cellstr.substr(0, 10) + '...'
+// 						}
 						str += '<td style="border:none;">' + cellstr + '</td>';
 					}
 
@@ -159,9 +159,9 @@
 
 					for (var inner = 0; inner < result[outter].length; inner++) {
 						var cellstr = result[outter][inner];
-						if (result[outter].length > 15 && cellstr.length > 10) {
-							cellstr = cellstr.substr(0, 10) + '...'
-						}
+// 						if (result[outter].length > 15 && cellstr.length > 10) {
+// 							cellstr = cellstr.substr(0, 10) + '...'
+// 						}
 						str += '<td style="border-left:1px solid #cccccc">' + cellstr + '</td>';
 					}
 
