@@ -51,7 +51,7 @@ public class SQLController {
 
 		FileReader filereader = new FileReader(file);
 //		BufferedReader bufReader = new BufferedReader(filereader);
-		BufferedReader bufReader = new BufferedReader(new InputStreamReader(new FileInputStream(file),"UTF-8"));
+		BufferedReader bufReader = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
 		String line = "";
 		String sql = "";
 		while ((line = bufReader.readLine()) != null) {
@@ -267,7 +267,8 @@ public class SQLController {
 					row = new ArrayList<>();
 					for (int index = 0; index < colcnt; index++) {
 						// column = rsmd.getColumnName(index + 1);
-						row.add(rs.getObject(index + 1) == null ? "NULL" : rs.getObject(index + 1).toString());
+						//타입별 get함수 다르게 변경필
+						row.add(rs.getObject(index + 1) == null ? "NULL" : (rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs.getString(index + 1) : rs.getObject(index + 1).toString()));
 						// System.out.println(rs.getObject(index+1));
 
 					}
