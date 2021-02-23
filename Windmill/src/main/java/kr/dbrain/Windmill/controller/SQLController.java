@@ -268,8 +268,13 @@ public class SQLController {
 					for (int index = 0; index < colcnt; index++) {
 						// column = rsmd.getColumnName(index + 1);
 						//타입별 get함수 다르게 변경필
-						row.add(rs.getObject(index + 1) == null ? "NULL" : (rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs.getString(index + 1) : rs.getObject(index + 1).toString()));
-						// System.out.println(rs.getObject(index+1));
+						try {
+							row.add(rs.getObject(index + 1) == null ? "NULL" : (rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs.getString(index + 1) : rs.getObject(index + 1).toString()));
+							// System.out.println(rs.getObject(index+1));
+						} catch (Exception e) {
+							row.add(e.toString());
+						}
+						
 
 					}
 					list.add(row);
