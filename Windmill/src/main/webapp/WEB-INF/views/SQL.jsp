@@ -23,8 +23,35 @@
 }
 </style>
 <script>
-	$(document).ready(function() {
 
+var ctx;
+
+var myChart;
+
+var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#F2626B','#FEBA4F','#FFEA7F','#89E077','#83C3FF','#C381FD', '#525252' ]
+//var graphcolor = [ '#f22613', '#e74c3c', '#f62459', '#663399', '#9a12b3', '#bf55ec', '#19b5fe', '#1e8bc3', '#1f3a93', '#89c4f4', '#03c9a9', '#26c281', '#16a085', '#2eec71', '#f2784b', '#f89406', '#f9bf3b']
+//var graphcolor = ['#1a1c2c','#5d275d','#b13e53','#ef7d57','#ffcd75','#a7f070','#38b764','#257179','#29366f','#3b5dc9','#41a6f6','#73eff7','#f4f4f4','#94b0c2','#566c86','#333c57'];
+
+	$(document).ready(function() {
+		
+		ctx = document.getElementById('myChart');
+		myChart = myChart = new Chart(ctx, {
+		    type: 'line',
+		    data: {
+		    	  labels: [''],
+		    	  datasets: [{
+		    	    label: 'My First Dataset',
+		    	    data: [65, 59, 80, 81, 56, 55, 40],
+		    	    fill: false,
+		    	    borderColor: 'rgb(75, 192, 192)',
+		    	    tension: 0.1
+		    	  }]
+		    	},
+		    	options: {
+		    		maintainAspectRatio: false,
+		          }
+		});
+		
 		$.ajax({
 			type : 'post',
 			url : "/Connection/list",
@@ -132,7 +159,7 @@
 					str += '<th>' + result[0][title] + '</th>';
 				}
 				str += '</tr>';
-				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div id="valuediv" style="max-height: calc(100vh - 382px); overflow: auto;">'
+				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div id="valuediv" style="max-height: calc(100vh - 395px); overflow: auto;">'
 						+ '<table class="table table-condensed table-hover table-striped" id="result_body" style="margin: 0; font-size: 14px;">' + '</table>' + '</div>' + '</td>' + '</tr>';
 
 				for (var outter = 1; outter < result.length; outter++) {
@@ -141,9 +168,9 @@
 
 					for (var inner = 0; inner < result[outter].length; inner++) {
 						var cellstr = result[outter][inner];
-// 						if (result[outter].length > 15 && cellstr.length > 10) {
-// 							cellstr = cellstr.substr(0, 10) + '...'
-// 						}
+						// 						if (result[outter].length > 15 && cellstr.length > 10) {
+						// 							cellstr = cellstr.substr(0, 10) + '...'
+						// 						}
 						str += '<td style="border:none;">' + cellstr + '</td>';
 					}
 
@@ -159,9 +186,9 @@
 
 					for (var inner = 0; inner < result[outter].length; inner++) {
 						var cellstr = result[outter][inner];
-// 						if (result[outter].length > 15 && cellstr.length > 10) {
-// 							cellstr = cellstr.substr(0, 10) + '...'
-// 						}
+						// 						if (result[outter].length > 15 && cellstr.length > 10) {
+						// 							cellstr = cellstr.substr(0, 10) + '...'
+						// 						}
 						str += '<td style="border-left:1px solid #cccccc">' + cellstr + '</td>';
 					}
 
@@ -176,6 +203,8 @@
 				str += '</tr>';
 				$("#result_body").html(str);
 				$("#excutebtn").attr('disabled', false);
+				
+				chart(result);
 
 			},
 			error : function() {
@@ -238,6 +267,99 @@
 			}
 		});
 	}
+
+	function chart(result) {
+		
+		myChart.destroy();
+		
+		var chardata = transpose(result)
+		
+		var labels = chardata[0].slice(1, chardata[0].length);
+
+		var datasets=[];
+		var maxdata=0;
+		
+		for (var i = 1; i < chardata.length; i++) {
+			var data = chardata[i].slice(1, chardata[i].length).map((x)=>{return parseInt(x)});
+			if(maxdata<Math.max(...data)){
+				maxdata=Math.max(...data);
+			}
+		}
+		
+		
+		for (var i = 1; i < chardata.length; i++) {
+			
+			var label = chardata[i][0];
+			var data = chardata[i].slice(1, chardata[i].length).map((x)=>{return parseInt(x)});
+			
+			if(maxdata<Math.max(...data)){
+				maxdata=Math.max(...data);
+			}
+			
+			datasets.push({label : label,
+				data :data,
+				fill:false,
+				borderColor : graphcolor[i-1],
+				/* backgroundColor :  graphcolor[i]+"80", */
+				tension : 0.1,
+				hidden: Math.max(...data)<maxdata/10
+				})
+		}
+		
+		
+		const datas = {
+			labels : labels,
+			datasets : datasets
+		};
+
+		myChart = new Chart(ctx, {
+		    type: 'line',
+		    data: datas,
+		    options: {
+		    	maintainAspectRatio: false,
+	          }
+		});
+	}
+	
+	function random_rgba() {
+	    var o = Math.round, r = Math.random, s = 255;
+	    //return 'rgba(' + o(r()*s) + ',' + o(r()*s) + ',' + o(r()*s) + ',' + r().toFixed(1) + ')';
+	    return 'rgb(' + o(r()*s) + ',' + o(r()*s) + ',' + o(r()*s) + ')';
+	}
+
+	
+	function transpose(a) {
+
+		  // Calculate the width and height of the Array
+		  var w = a.length || 0;
+		  var h = a[0] instanceof Array ? a[0].length : 0;
+
+		  // In case it is a zero matrix, no transpose routine needed.
+		  if(h === 0 || w === 0) { return []; }
+
+		  /**
+		   * @var {Number} i Counter
+		   * @var {Number} j Counter
+		   * @var {Array} t Transposed data is stored in this array.
+		   */
+		  var i, j, t = [];
+
+		  // Loop through every item in the outer array (height)
+		  for(i=0; i<h; i++) {
+
+		    // Insert a new row (array)
+		    t[i] = [];
+
+		    // Loop through every item per item in outer array (width)
+		    for(j=0; j<w; j++) {
+
+		      // Save transposed data.
+		      t[i][j] = a[j][i];
+		    }
+		  }
+
+		  return t;
+		}
 </script>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper" style="margin-left: 0">
@@ -275,7 +397,7 @@
 									</div>
 								</c:forEach>
 								<div class="col-sm-2 col-md-1 pull-right">
-									<input type="hidden" id="sendvalue" name="sendvalue"> <input id="excutebtn" type="button" class="form-control" value="실행" onclick="startexcute();">
+									<input type="hidden" id="sendvalue" name="sendvalue"> <input id="excutebtn" type="submit" class="form-control" value="실행" onclick="startexcute();">
 								</div>
 							</div>
 						</div>
@@ -287,18 +409,33 @@
 			<div class="col-xs-12">
 				<div class="box">
 					<div class="box-header with-border">
-						<h3 class="box-title">Result</h3>
-					</div>
-					<div style="overflow-y: hidden; overflow-x: auto; height: calc(100vh - 380px);">
-						<table class="table table-condensed" id="result_head" style="margin: 0; font-size: 14px">
-						</table>
+						<!-- Nav tabs -->
+						<ul class="nav nav-tabs" role="tablist">
+							<li role="presentation" class="active"><a href="#result" aria-controls="result" role="tab" data-toggle="tab">Result</a></li>
+							<li role="presentation"><a href="#chart" aria-controls="chart" role="tab" data-toggle="tab">Chart</a></li>
+						</ul>
+						<!-- Tab panes -->
+						<div class="tab-content">
+							<div role="tabpanel" class="tab-pane active" id="result">
+								<div style="overflow-y: hidden; overflow-x: auto; height: calc(100vh - 395px);">
+									<table class="table table-condensed" id="result_head" style="margin: 0; font-size: 14px">
+									</table>
+								</div>
+							</div>
+							<div role="tabpanel" class="tab-pane" id="chart">
+
+								<div style="overflow-y: auto; overflow-x: auto; height: calc(100vh - 370px); width: 100%;">
+									<canvas id="myChart" width="100%" height="100%"></canvas>
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
 		</div>
-		<div class="row" id="Keybox" style="position: fixed; bottom: 0px; width: 100%">
+		<div class="row" id="Keybox">
 			<div class="col-xs-12">
-				<div class="box box-default ">
+				<div class="box box-default" style="margin-bottom: 0px">
 					<div class="box-header with-border">
 						<h3 class="box-title">Short Key</h3>
 					</div>
@@ -315,7 +452,7 @@
 		</div>
 		<c:if test="${sql != ''}">
 			<textarea rows="10" cols="200" id="sql_text" hidden="hidden">${sql}</textarea>
-			<input id="Path" value="${Path}" type="hidden">
+			<input id="Path" name="Path" value="${Path}" type="hidden">
 			<input id="refreshtimeout" value="${refreshtimeout}" type="hidden">
 		</c:if>
 	</section>

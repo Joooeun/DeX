@@ -4,6 +4,7 @@
 <link href="/resources/dist/css/skins/_all-skins.min.css" rel="stylesheet" type="text/css" />
 </head>
 <script src="/resources/plugins/jQuery/jQuery-2.1.4.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/resources/bootstrap/js/bootstrap.js"></script>
 <script type="text/javascript">
 	document.onkeydown = function(e) {

@@ -18,6 +18,8 @@ public class Common {
 
 	public static String system_properties = "";
 	public static String ConnectionPath = "";
+	public static String Id = "";
+	public static String Pw = "";
 	public static String srcPath = "";
 	public static String tempPath = "";
 
@@ -40,9 +42,13 @@ public class Common {
 		}
 
 		ConnectionPath = props.getProperty("Root") + File.separator + "Connection" + File.separator;
+		Id = props.getProperty("ID");
+		Pw = props.getProperty("PW");
 		srcPath = props.getProperty("Root") + File.separator + "src" + File.separator;
 		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
 		logger.debug("[DEBUG : ConnectionPath]" + ConnectionPath);
+		logger.debug("[DEBUG : Id]" + Id);
+		logger.debug("[DEBUG : Pw]" + Pw);
 		logger.debug("[DEBUG : srcPath]" + srcPath);
 
 	}
@@ -136,5 +142,23 @@ public class Common {
 	public void setSrcPath(String srcPath) {
 		this.srcPath = srcPath;
 	}
+
+	public static String getId() {
+		return Id;
+	}
+
+	public static void setId(String id) {
+		Id = id;
+	}
+
+	public static String getPw() {
+		return Pw;
+	}
+
+	public static void setPw(String pw) {
+		Pw = pw;
+	}
+	
+	
 
 }

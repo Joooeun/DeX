@@ -5,6 +5,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +29,30 @@ public class SampleController {
 
 	@RequestMapping(path = "/", method = RequestMethod.GET)
 	public String sample() {
+		return "redirect:/index";
+	}
+
+	@RequestMapping(path = "/Login")
+	public ModelAndView login(HttpServletRequest request, ModelAndView mv) {
+
+		return mv;
+	}
+
+	@RequestMapping(path = "/index/login")
+	public String login(HttpServletRequest request, Model model) {
+
+		HttpSession session = request.getSession();
+		session.setMaxInactiveInterval(180);
+		
+		//System.out.println(request.getParameter("id")+" / "+Common.Id+" / "+request.getParameter("pw")+" / "+Common.Pw);
+
+		if (request.getParameter("id").equals(Common.Id) && request.getParameter("pw").equals(Common.Pw)) {
+			session.setAttribute("memberId", "member");
+			System.out.println("로그인 됨.");
+		}
+		
+		System.out.println("session : " + session.getAttribute("memberId"));
+
 		return "redirect:/index";
 	}
 
@@ -68,6 +93,23 @@ public class SampleController {
 	public ModelAndView index2(HttpServletRequest request, ModelAndView mv) {
 
 		return mv;
+	}
+
+	@RequestMapping(path = "/index3")
+	public ModelAndView index3(HttpServletRequest request, ModelAndView mv) {
+
+		return mv;
+	}
+
+	@RequestMapping(value = "/userRemove")
+	public String userRemove(HttpServletRequest request) {
+		
+		System.out.println("logout");
+
+		HttpSession session = request.getSession();
+		session.invalidate();
+
+		return "redirect:/index";
 	}
 
 }
