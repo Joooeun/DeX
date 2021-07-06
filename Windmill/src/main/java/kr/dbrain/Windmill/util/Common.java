@@ -1,8 +1,15 @@
 package kr.dbrain.Windmill.util;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -10,18 +17,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.servlet.http.HttpSession;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import crypt.AES256Cipher;
 
 public class Common {
 	private static final Logger logger = LoggerFactory.getLogger(Common.class);
 
 	public static String system_properties = "";
 	public static String ConnectionPath = "";
-	public static String Id = "";
-	public static String Pw = "";
 	public static String srcPath = "";
 	public static String tempPath = "";
+	public static int Timeout = 180;
 
 	public Common() {
 		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator + "system.properties";
@@ -30,7 +43,7 @@ public class Common {
 
 	public static void Setproperties() {
 
-		logger.debug("[DEBUG : system_properties]" + system_properties);
+//		logger.debug("[DEBUG : system_properties]" + system_properties);
 
 		Properties props = new Properties();
 		FileInputStream fis;
@@ -42,14 +55,11 @@ public class Common {
 		}
 
 		ConnectionPath = props.getProperty("Root") + File.separator + "Connection" + File.separator;
-		Id = props.getProperty("ID");
-		Pw = props.getProperty("PW");
 		srcPath = props.getProperty("Root") + File.separator + "src" + File.separator;
 		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
-		logger.debug("[DEBUG : ConnectionPath]" + ConnectionPath);
-		logger.debug("[DEBUG : Id]" + Id);
-		logger.debug("[DEBUG : Pw]" + Pw);
-		logger.debug("[DEBUG : srcPath]" + srcPath);
+		Timeout = Integer.parseInt(props.getProperty("Timeout") == null ? "60" : props.getProperty("Timeout"));
+		logger.debug("[DEBUG : Timeout]" + props.getProperty("Timeout"));
+//		logger.debug("[DEBUG : srcPath]" + srcPath);
 
 	}
 
@@ -61,11 +71,10 @@ public class Common {
 		try {
 			String propFile = ConnectionPath + ConnectionName;
 			Properties props = new Properties();
-			FileInputStream fis;
 
-			fis = new FileInputStream(propFile + ".properties");
+			String propStr = FileRead(new File(propFile + ".properties"));
 
-			props.load(new java.io.BufferedInputStream(fis));
+			props.load(new ByteArrayInputStream(propStr.getBytes()));
 
 			map.put("TYPE", props.getProperty("TYPE"));
 			map.put("IP", props.getProperty("IP"));
@@ -74,7 +83,6 @@ public class Common {
 			map.put("PW", props.getProperty("PW"));
 			map.put("DB", props.getProperty("DB"));
 			map.put("DBTYPE", props.getProperty("DBTYPE"));
-			
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -85,7 +93,7 @@ public class Common {
 
 	public List<String> ConnectionnList(String type) {
 
-		logger.debug("[DEBUG]" + type);
+//		logger.debug("[DEBUG]" + type);
 		List<String> dblist = new ArrayList<>();
 
 		try {
@@ -95,14 +103,13 @@ public class Common {
 			Arrays.sort(fileList);
 			for (File tempFile : fileList) {
 				if (tempFile.isFile() && tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".properties")) {
-					FileInputStream fis;
 
-					fis = new FileInputStream(tempFile);
+					String propStr = FileRead(tempFile);
 
 					Properties props = new Properties();
 
-					logger.debug("[DEBUG]" + tempFile.getPath());
-					props.load(new java.io.BufferedInputStream(fis));
+//					logger.debug("[DEBUG]" + tempFile.getPath());
+					props.load(new ByteArrayInputStream(propStr.getBytes()));
 
 					if (props.getProperty("TYPE").equals(type) || type.equals("")) {
 						String tempFileName = tempFile.getName();
@@ -117,6 +124,29 @@ public class Common {
 		}
 
 		return dblist;
+	}
+
+	public String FileRead(File file) throws IOException {
+		String str = "";
+
+		BufferedReader bufReader = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
+		String line = "";
+
+		while ((line = bufReader.readLine()) != null) {
+			str += line + "\r\n";
+		}
+		bufReader.close();
+
+		AES256Cipher a256 = AES256Cipher.getInstance();
+
+		try {
+			str = a256.AES_Decode(str);
+		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalBlockSizeException
+				| BadPaddingException e) {
+			// TODO Auto-generated catch block
+			logger.warn("임호화 에러 ");
+		}
+		return str;
 	}
 
 	public String getSystem_properties() {
@@ -142,23 +172,5 @@ public class Common {
 	public void setSrcPath(String srcPath) {
 		this.srcPath = srcPath;
 	}
-
-	public static String getId() {
-		return Id;
-	}
-
-	public static void setId(String id) {
-		Id = id;
-	}
-
-	public static String getPw() {
-		return Pw;
-	}
-
-	public static void setPw(String pw) {
-		Pw = pw;
-	}
-	
-	
 
 }

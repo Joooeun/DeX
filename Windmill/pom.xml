@@ -124,9 +124,9 @@
 			<version>2.5.4</version>
 		</dependency>
 		<dependency>
-			<groupId>com.ibm.db2.jcc</groupId>
-			<artifactId>db2-spring-framework</artifactId>
-			<version>0.0.1</version>
+			<groupId>com.ibm.db2</groupId>
+			<artifactId>jcc</artifactId>
+			<version>11.5.0.0</version>
 		</dependency>
 
 	</dependencies>

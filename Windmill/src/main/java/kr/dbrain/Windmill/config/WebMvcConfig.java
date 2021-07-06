@@ -1,14 +1,12 @@
 package kr.dbrain.Windmill.config;
 
-import java.util.List;
-
 import javax.servlet.http.HttpSessionListener;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ComponentScan.Filter;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -40,6 +38,6 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
 
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
-		registry.addInterceptor(loginInterceptor).addPathPatterns("/**").excludePathPatterns("/Login", "/index/login", "userRemove");
+		registry.addInterceptor(loginInterceptor).addPathPatterns("/**").excludePathPatterns("/Login", "/index/login", "userRemove", "image");
 	}
 }

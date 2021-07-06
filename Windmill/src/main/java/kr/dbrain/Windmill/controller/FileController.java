@@ -17,6 +17,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -35,8 +36,11 @@ public class FileController {
 
 	Common com = new Common();
 
-	@RequestMapping(path = "/FileRead", method = RequestMethod.GET)
-	public ModelAndView FileRead(HttpServletRequest request, ModelAndView mv, HttpSession session) {
+	@RequestMapping(path = "/FileRead")
+	public ModelAndView FileRead(HttpServletRequest request, ModelAndView mv, HttpSession session) throws IOException {
+		
+		System.out.println("sdfsdf :"+request.getParameter("Path"));
+		mv.addObject("Path", request.getParameter("Path"));
 
 		return mv;
 	}

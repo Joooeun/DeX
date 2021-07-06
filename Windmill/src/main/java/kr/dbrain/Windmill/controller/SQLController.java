@@ -1,11 +1,7 @@
 package kr.dbrain.Windmill.controller;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -49,23 +45,14 @@ public class SQLController {
 		mv.addObject("Path", file.getParent());
 		mv.addObject("title", file.getName().replaceAll("\\..*", ""));
 
-		FileReader filereader = new FileReader(file);
-//		BufferedReader bufReader = new BufferedReader(filereader);
-		BufferedReader bufReader = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
-		String line = "";
-		String sql = "";
-		while ((line = bufReader.readLine()) != null) {
-			sql += line + "\r\n";
-		}
-		bufReader.close();
+		String sql = com.FileRead(file);
 
 		file = new File(request.getParameter("Path").replace(".sql", ".properties"));
 		List<Map<String, String>> ShortKey = new ArrayList<>();
 		List<Map<String, String>> Param = new ArrayList<>();
 		if (file.exists()) {
-			filereader = new FileReader(file);
-			bufReader = new BufferedReader(filereader);
-			line = "";
+
+			String properties = com.FileRead(file);
 
 			int num = 0;
 
@@ -75,7 +62,8 @@ public class SQLController {
 				values = request.getParameter("sendvalue").split("\\s*\\&");
 			}
 
-			while ((line = bufReader.readLine()) != null) {
+			for (String line : properties.split("\r\n")) {
+
 				if (line.startsWith("#")) {
 					continue;
 				}
@@ -103,7 +91,7 @@ public class SQLController {
 				}
 
 			}
-			bufReader.close();
+
 		}
 
 		mv.addObject("sql", sql);
@@ -153,7 +141,7 @@ public class SQLController {
 			break;
 		case "ORACLE":
 			driver = "oracle.jdbc.driver.OracleDriver";
-			jdbc = "jdbc:oracle:thin:@" + map.get("IP") + ":" + map.get("PORT") + ":" + map.get("DB");
+			jdbc = "jdbc:oracle:thin:@" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
 			break;
 
 		default:
@@ -169,7 +157,6 @@ public class SQLController {
 		Connection con = null;
 
 		String sql = request.getParameter("sql");
-		logger.debug("[DEBUG] sql : " + sql);
 
 		try {
 			con = DriverManager.getConnection(jdbc, prop);
@@ -178,7 +165,7 @@ public class SQLController {
 
 			if (sql.startsWith("CALL")) {
 				list = callprocedure(sql, dbtype, con);
-			} else if (sql.startsWith("INSERT")) {
+			} else if (sql.toUpperCase().startsWith("INSERT")||sql.toUpperCase().startsWith("UPDATE")||sql.toUpperCase().startsWith("DELETE")) {
 				list = updatequery(sql, dbtype, con);
 			} else {
 				list = excutequery(sql, dbtype, con);

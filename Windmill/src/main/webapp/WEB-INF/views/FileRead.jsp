@@ -1,6 +1,10 @@
 <%@include file="common/common.jsp"%>
 <script>
 	$(document).ready(function() {
+		
+		if($("#FilePath").val().length>0){
+			//readfile()
+		}
 
 		$.ajax({
 			type : 'post',
@@ -65,7 +69,7 @@
 			<form role="form" onsubmit="return false;">
 				<div class="box-body">
 					<div class="form-group">
-						<label for="Path">Path</label> <input type="text" class="form-control" id="FilePath" placeholder="Path">
+						<label for="Path">Path</label> <input type="text" class="form-control" id="FilePath" placeholder="Path" value="${Path}">
 					</div>
 					<div class="form-group">
 						<button type="button" class="btn btn-primary" onclick="readfile()">Submit</button>

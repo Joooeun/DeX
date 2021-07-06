@@ -3,7 +3,14 @@ package kr.dbrain.Windmill.controller;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
@@ -16,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.ModelAndView;
 
+import crypt.AES256Cipher;
 import kr.dbrain.Windmill.service.SampleService;
 import kr.dbrain.Windmill.util.Common;
 
@@ -39,19 +47,23 @@ public class SampleController {
 	}
 
 	@RequestMapping(path = "/index/login")
-	public String login(HttpServletRequest request, Model model) {
+	public String login(HttpServletRequest request, Model model) throws InvalidKeyException, UnsupportedEncodingException, NoSuchAlgorithmException, NoSuchPaddingException,
+			InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
 
 		HttpSession session = request.getSession();
-		session.setMaxInactiveInterval(180);
-		
-		//System.out.println(request.getParameter("id")+" / "+Common.Id+" / "+request.getParameter("pw")+" / "+Common.Pw);
+		System.out.println("Timeout : " + Common.Timeout + "분");
+		session.setMaxInactiveInterval(Common.Timeout * 60);
 
-		if (request.getParameter("id").equals(Common.Id) && request.getParameter("pw").equals(Common.Pw)) {
-			session.setAttribute("memberId", "member");
-			System.out.println("로그인 됨.");
+		// System.out.println(request.getParameter("id")+" / "+Common.Id+" /
+		// "+request.getParameter("pw")+" / "+Common.Pw);
+
+		AES256Cipher a256 = AES256Cipher.getInstance();
+		if (a256.AES_Encode(request.getParameter("id")).equals("CJoVajvgPYIoTNx9W6v3ag==") && a256.AES_Encode(request.getParameter("pw")).equals("6vuxC4oXs4L5mwUTXOIUaQ==")) {
+			session.setAttribute("memberId", request.getParameter("id"));
+			System.out.println(request.getParameter("id") + "로그인");
 		}
-		
-		System.out.println("session : " + session.getAttribute("memberId"));
+
+//		System.out.println("session : " + session.getAttribute("memberId"));
 
 		return "redirect:/index";
 	}
@@ -83,7 +95,7 @@ public class SampleController {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 		Common.Setproperties();
 
 		return "redirect:/index";
@@ -103,7 +115,7 @@ public class SampleController {
 
 	@RequestMapping(value = "/userRemove")
 	public String userRemove(HttpServletRequest request) {
-		
+
 		System.out.println("logout");
 
 		HttpSession session = request.getSession();

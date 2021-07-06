@@ -248,10 +248,43 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 		}
 
 		$("#sendvalue").val(str);
+		
+		if(value.includes("FileRead")){
+			 var myForm = document.popForm;
+			 var url = "/FileRead";
+			 var dualScreenLeft = window.screenLeft != undefined ? window.screenLeft : screen.left;
+		     var dualScreenTop = window.screenTop != undefined ? window.screenTop : screen.top;
+		     var width = window.innerWidth ? window.innerWidth : document.documentElement.clientWidth ? document.documentElement.clientWidth : screen.width;
+		     var height = window.innerHeight ? window.innerHeight : document.documentElement.clientHeight ? document.documentElement.clientHeight : screen.height;
+			 var left = ((width / 2) - (800 / 2)) + dualScreenLeft;
+		     var top = ((height / 2) - (700 / 2)) + dualScreenTop;
+			    
+			 var w = window.open("" ,"FileRead",
+					 "width=800, height=700, top=" + top + ", left=" + left+",  toolbar=no, menubar=no, scrollbars=no, resizable=yes" );
+			 w.document.title="FileRead";
+			 myForm.action =url;
+			 myForm.method="post";
 
+			 myForm.target="FileRead";
+			 
+			 var pathval = "";
+			 for (var i = 0; i < colnum.length; i++) {
+			 	nCheck = /^\d{1,2}/;
+			 	if( colnum[i].match(nCheck)){
+			 		pathval+=$(".Resultrow.success").children('td').eq(colnum[i]).html();
+			 	}else{
+			 		pathval+=colnum[i];
+			 	}
+			 }
+			 myForm.Path.value = pathval;
+			 
+			 myForm.submit();
+			
+		}else{
 		document.ParamForm.action = "/SQL?Path=" + encodeURI($("#Path").val() + "/" + value.split('&')[0] + ".sql");
 		document.ParamForm.method = "POST";
 		document.ParamForm.submit();
+		}
 
 	}
 
@@ -392,7 +425,7 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 							<div class="form-group">
 								<c:forEach var="item" items="${Param}" varStatus="status">
 									<span class="col-sm-2 col-md-2 col-lg-1 param text-center" id="param${status.count}" paramtitle="${item.name}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
-									<div class="col-sm-3 col-md-2 col-lg-2" style="margin: 2px 0">
+									<div class="col-sm-3 col-md-2 col-lg-2" style="margin:2px 0">
 										<input type="text" class="form-control paramvalue" paramtype="${item.type}" value="${item.value}" style="padding: 0 2px;">
 									</div>
 								</c:forEach>
@@ -401,6 +434,9 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 								</div>
 							</div>
 						</div>
+					</form>
+					<form name="popForm">
+						<input type="hidden" name="Path" />
 					</form>
 				</div>
 			</div>

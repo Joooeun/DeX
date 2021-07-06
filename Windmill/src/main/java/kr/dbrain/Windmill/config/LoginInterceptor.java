@@ -1,6 +1,7 @@
 package kr.dbrain.Windmill.config;
 
 import java.io.IOException;
+import java.util.Date;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -22,20 +23,22 @@ public class LoginInterceptor implements HandlerInterceptor {
 
 		HttpSession session = request.getSession();
 
+		System.out.println(new Date().toLocaleString()+" / "+new Date(session.getLastAccessedTime()).toLocaleString() + " / " + session.getMaxInactiveInterval());
+
 		String memberId = (String) session.getAttribute("memberId");
 
-		if (memberId != null) {
+		if (memberId != null && memberId.equals("radius")) {
 			return true;
 		} else {
 			try {
-				java.io.PrintWriter out = response.getWriter();  
-			    out.println("<html>");  
-			    out.println("<script>");  
-			    out.println("window.parent.location.href = '/Login'");  
-			    out.println("</script>");  
-			    out.println("</html>"); 
-			    out.flush();
-			    
+				java.io.PrintWriter out = response.getWriter();
+				out.println("<html>");
+				out.println("<script>");
+				out.println("window.parent.location.href = '/Login'");
+				out.println("</script>");
+				out.println("</html>");
+				out.flush();
+
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
