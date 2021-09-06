@@ -54,7 +54,7 @@
 <div class="content-wrapper" style="margin-left: 0">
 	<!-- Content Header (Page header) -->
 	<section class="content-header">
-		<h1>파일쓰기</h1>
+		<h1>FileUpload</h1>
 		<ol class="breadcrumb">
 			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
 			<li class="active"><a href="#">파일쓰기</a></li>

@@ -4,18 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Dex</title>
-<meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
-<!-- Bootstrap 3.3.4 -->
-<link href="/resources/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
-<!-- Font Awesome Icons -->
-<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
-<!-- Ionicons -->
-<link href="/resources/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" type="text/css" />
-<!-- Theme style -->
-<link href="/resources/dist/css/AdminLTE.min.css" rel="stylesheet" type="text/css" />
-<!-- AdminLTE Skins. Choose a skin from the css/skins 
-         folder instead of downloading all of them to reduce the load. -->
-<link href="/resources/dist/css/skins/_all-skins.min.css" rel="stylesheet" type="text/css" />
+<%@include file="common.jsp"%>
 <style type="text/css">
 body {
 	margin: 0
@@ -49,8 +38,7 @@ body {
 }
 </style>
 </head>
-<!-- jQuery 2.1.4 -->
-<script src="/resources/plugins/jQuery/jQuery-2.1.4.min.js"></script>
+
 <script>
 	$(document).ready(function() {
 
@@ -83,6 +71,24 @@ body {
 				$(this).parent().addClass('active');
 			}
 
+		});
+
+		/**
+		 * Remove a Tab
+		 */
+		$('#pageTab').on('click', ' li a .close', function() {
+			var tabId = $(this).parents('li').children('a').attr('href');
+			$(this).parents('li').remove('li');
+			$(tabId).remove();
+			$('#pageTab a:first').tab('show');
+		});
+
+		/**
+		 * Click Tab to show its content 
+		 */
+		$("#pageTab").on("click", "a", function(e) {
+			e.preventDefault();
+			$(this).tab('show');
 		});
 
 	});
@@ -120,12 +126,64 @@ body {
 
 		return false;
 	}
+
+	var pageImages = [];
+	var pageNum = 1;
+
+	function setFrame(frameid) {
+
+		var text = $('#' + frameid).contents().find('.content-header>h1').text().trim();
+
+		if (text == '') {
+			return;
+		} else {
+			console.log("frameid", frameid, text)
+			//console.log('text : ', $('#' + frameid).contents().find('.content-header>h1').text(), frameid)
+			var newtab = true;
+			for (var i = 0; i < $('#pageTab a').length; i++) {
+				//console.log('text2 : ', text, $('#pageTab a:eq(' + i + ')').text().replace(/x$/, ''))
+				if (text == $('#pageTab a:eq(' + i + ')').text().replace(/x$/, '')) {
+
+					newtab = false;
+					$('#pageTab a:eq(' + i + ')').tab('show');
+					break;
+				}
+
+			}
+			if (!newtab) {
+				return false;
+			}
+
+		}
+		var pageid = pageNum++;
+		$('#pageTab').append(
+				'<li><a href="#tab' + pageid+'" data-toggle="tab">' + text
+						+ '<button class="close" type="button" title="Remove this page" style="padding-left:3px"><i class="fa fa-close"></button></a></li>')
+		$('#pageTabContent>div:last').attr("id", 'tab' + pageid);
+		$('#pageTab a:last').tab('show');
+		$('#pageTabContent').append(
+				'<div class="tab-pane active" id="newpage"><iframe name="iframe' + pageid + '" id="iframe' + pageid
+						+ '" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" onLoad="setFrame(\'iframe' + pageid + '\')"></iframe></div>')
+
+		$('.sidebar-menu a:not(\'.addtree\')').attr("target", 'iframe' + pageid);
+		//alert($('#iframe' + (pageNum == 1 ? '' : pageNum - 1)).contents().find('.ParamForm').length)
+		//$('.iframe').contents().find('.ParamForm').attr("target", 'iframe' + pageid)
+		//console.log($('#iframe').contents().find('.content-header>h1').text())
+
+	}
 </script>
+
 <body class="sidebar-mini skin-purple-light">
+	<script type="text/javascript" src="/resources/js/common.js"></script>
+
 	<div class="wrapper">
 		<header class="main-header">
 			<!-- Logo -->
-			<a href="/index" class="logo"> <!-- mini logo for sidebar mini 50x50 pixels --> <span class="logo-mini"><b>D</b>eX</span> <!-- logo for regular state and mobile devices --> <span class="logo-lg"><b>Data</b> Explorer</span>
+			<a href="/index" class="logo"> <!-- mini logo for sidebar mini 50x50 pixels --> <span class="logo-mini">
+					<b>D</b>eX
+				</span> <!-- logo for regular state and mobile devices --> <span class="logo-lg">
+					<b>Data</b> Explorer
+				</span>
 			</a>
 			<!-- Header Navbar: style can be found in header.less -->
 			<nav class="navbar navbar-static-top" role="navigation">
@@ -146,7 +204,8 @@ body {
 				<!-- search form -->
 				<form class="sidebar-form" onsubmit="return Search()">
 					<div class="input-group">
-						<input type="text" name="q" class="form-control" placeholder="Search..." id="search" /> <span class="input-group-btn">
+						<input type="text" name="q" class="form-control" placeholder="Search..." id="search" />
+						<span class="input-group-btn">
 							<button type="button" name='search' id='search-btn' class="btn btn-flat" onclick="Search()">
 								<i class="fa fa-search"></i>
 							</button>
@@ -171,5 +230,17 @@ body {
 			<!-- /.sidebar -->
 		</aside>
 		<div class="content-wrapper" id="framebox">
-			<iframe name="iframe" id="iframe" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" src="/index2"></iframe>
+			<ul id="pageTab" class="nav nav-tabs">
+				<li class="active"><a href="#page1" data-toggle="tab">전체메뉴</a></li>
+			</ul>
+			<div id="pageTabContent" class="tab-content">
+				<div class="tab-pane active" id="page1">
+					<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" src="/index2"></iframe>
+				</div>
+				<div class="tab-pane" id="newpage">
+					<iframe name="iframe" id="iframe" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" onload="setFrame('iframe')"></iframe>
+				</div>
+
+			</div>
+
 		</div>

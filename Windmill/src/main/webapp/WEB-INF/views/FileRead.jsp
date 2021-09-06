@@ -53,7 +53,7 @@
 <div class="content-wrapper" style="margin-left: 0">
 	<!-- Content Header (Page header) -->
 	<section class="content-header">
-		<h1>파일읽기</h1>
+		<h1>FileRead</h1>
 		<ol class="breadcrumb">
 			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
 			<li class="active"><a href="#">파일읽기</a></li>

@@ -54,9 +54,7 @@
 </script>
 <div class="content-wrapper" style="margin-left: 0">
 	<section class="content-header">
-		<h1>
-			<small>전체메뉴</small>
-		</h1>
+		
 		<ol class="breadcrumb">
 			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
 		</ol>
