@@ -23,11 +23,11 @@ public class LoginInterceptor implements HandlerInterceptor {
 
 		HttpSession session = request.getSession();
 
-		System.out.println(new Date().toLocaleString()+" / "+new Date(session.getLastAccessedTime()).toLocaleString() + " / " + session.getMaxInactiveInterval());
+//		logger.info(new Date()+ " / " + session.getMaxInactiveInterval());
 
 		String memberId = (String) session.getAttribute("memberId");
 
-		if (memberId != null && memberId.equals("radius")) {
+		if (memberId != null) {
 			return true;
 		} else {
 			try {
@@ -48,13 +48,15 @@ public class LoginInterceptor implements HandlerInterceptor {
 	}
 
 	@Override
-	public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+	public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler,
+			ModelAndView modelAndView) throws Exception {
 		// TODO Auto-generated method stub
 
 	}
 
 	@Override
-	public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+	public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)
+			throws Exception {
 		// TODO Auto-generated method stub
 
 	}

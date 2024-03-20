@@ -16,7 +16,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
 
 @Configuration
 @EnableWebMvc
-@ComponentScan(basePackages = { "kr.dbrain.Windmill" }, useDefaultFilters = false, includeFilters = @Filter({ org.springframework.stereotype.Controller.class }))
+@ComponentScan(basePackages = { "kr.dbrain.Windmill" }, useDefaultFilters = false, includeFilters = @Filter({
+		org.springframework.stereotype.Controller.class }))
 public class WebMvcConfig extends WebMvcConfigurerAdapter {
 
 	@Autowired
@@ -38,6 +39,7 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
 
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
-		registry.addInterceptor(loginInterceptor).addPathPatterns("/**").excludePathPatterns("/Login", "/index/login", "userRemove", "image");
+		registry.addInterceptor(loginInterceptor).addPathPatterns("/**").excludePathPatterns("/Login", "/index/login",
+				"/Setting", "/", "/index","/index/setting", "userRemove", "image");
 	}
 }

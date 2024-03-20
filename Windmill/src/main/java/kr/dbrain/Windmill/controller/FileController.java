@@ -39,7 +39,7 @@ public class FileController {
 	@RequestMapping(path = "/FileRead")
 	public ModelAndView FileRead(HttpServletRequest request, ModelAndView mv, HttpSession session) throws IOException {
 		
-		System.out.println("sdfsdf :"+request.getParameter("Path"));
+		System.out.println("PATH :"+request.getParameter("Path"));
 		mv.addObject("Path", request.getParameter("Path"));
 
 		return mv;
@@ -77,7 +77,7 @@ public class FileController {
 		try {
 			// Change to output directory
 			String cdDir = fileName.substring(0, fileName.lastIndexOf("/"));
-			System.out.println(cdDir);
+//			System.out.println(cdDir);
 			sftpChannel.cd("/");
 			sftpChannel.cd(cdDir);
 
