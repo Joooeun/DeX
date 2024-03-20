@@ -110,6 +110,16 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 			$(".Resultrow").removeClass('success');
 			$(this).addClass('success');
 		});
+		
+		$(document).on("change", "#newline", function() {
+			if($(this).prop('checked')){
+				$("#result_head td xmp").css('display', 'block');
+				$("#result_head td span").css('display', 'none');
+			}else{
+				$("#result_head td xmp").css('display', 'none');
+				$("#result_head td span").css('display', 'block');
+			}
+		});
 
 	});
 
@@ -117,15 +127,28 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 		if ($("#connectionlist option:selected").val() == '') {
 			alert("Connection을 선택하세요.");
 			return;
-		}
+		}else{
+			$("#excutebtn").attr('disabled', true);
+			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></tr></td>');
 
-		$("#excutebtn").attr('disabled', true);
-		$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></tr></td>');
-
-		excute();
-		if ($("#refreshtimeout").val() > 0) {
-			setInterval(excute, $("#refreshtimeout").val() * 1000);
+			excute();
+			if ($("#refreshtimeout").val() > 0) {
+				setInterval(excute, $("#refreshtimeout").val() * 1000);
+			}
 		}
+	}
+	
+	function commit() {
+		$.ajax({
+			type : 'post',
+			url : '/SQL/commit',
+			data : {
+				Connection : $("#connectionlist").val()
+			},
+			error : function() {
+				alert("시스템 에러");
+			}
+		});
 	}
 
 	function excute() {
@@ -145,22 +168,28 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 			url : '/SQL/excute',
 			data : {
 				sql : sql,
+				autocommit : true,
+				/* autocommit : $("#autocommit").prop('checked'), */
 				Connection : $("#connectionlist").val()
 			},
 			success : function(result) {
 
 				$("#Resultbox").css("display", "block");
+				
+				
+				var newline = $("#newline").prop('checked');
 
 				var str = '';
 
 				str += '<tr>';
 				str += '<th>#</th>';
 				for (var title = 0; title < result[0].length; title++) {
-					str += '<th>' + result[0][title] + '</th>';
+					str += '<th  style="border-left:1px solid #cccccc">' + result[0][title] + '</th>';
 				}
 				str += '</tr>';
 				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div id="valuediv" style="max-height: calc(100vh - 395px); overflow: auto;">'
 						+ '<table class="table table-condensed table-hover table-striped" id="result_body" style="margin: 0; font-size: 14px;">' + '</table>' + '</div>' + '</td>' + '</tr>';
+
 
 				for (var outter = 1; outter < result.length; outter++) {
 					str += '<tr style="visibility: hidden;">';
@@ -171,7 +200,14 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 						// 						if (result[outter].length > 15 && cellstr.length > 10) {
 						// 							cellstr = cellstr.substr(0, 10) + '...'
 						// 						}
-						str += '<td style="border:none;">' + cellstr + '</td>';
+						
+						if(newline){
+							
+						str += `<td style="border-left:1px solid #cccccc"><xmp>\${forxmp(cellstr)}</xmp><span style="display:none">\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
+						}else{
+							
+						str += `<td style="border-left:1px solid #cccccc"><xmp style="display:none">\${forxmp(cellstr)}</xmp><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
+						}
 					}
 
 					str += '</tr>';
@@ -181,6 +217,8 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 				str = '';
 
 				for (var outter = 1; outter < result.length; outter++) {
+					
+					
 					str += '<tr class="Resultrow" param='+result[outter][0]+'>';
 					str += '<td>' + outter + '</td>';
 
@@ -189,16 +227,22 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 						// 						if (result[outter].length > 15 && cellstr.length > 10) {
 						// 							cellstr = cellstr.substr(0, 10) + '...'
 						// 						}
-						str += '<td style="border-left:1px solid #cccccc">' + cellstr + '</td>';
+						if(newline){
+							
+							str += `<td style="border-left:1px solid #cccccc"><xmp>\${forxmp(cellstr)}</xmp><span style="display:none">\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
+							}else{
+								
+							str += `<td style="border-left:1px solid #cccccc"><xmp style="display:none">\${forxmp(cellstr)}</xmp><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
+							}
 					}
 
 					str += '</tr>';
 				}
 
-				str += '<tr style="visibility: hidden;">';
+				str += '<tr style=" visibility: hidden;">';
 				str += '<th>#</th>';
 				for (var title = 0; title < result[0].length; title++) {
-					str += '<th>' + result[0][title] + '</th>';
+					str += '<th style="border-left:1px solid #cccccc;">' + result[0][title] + '</th>';
 				}
 				str += '</tr>';
 				$("#result_body").html(str);
@@ -232,7 +276,19 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 		});
 
 	}
-
+	
+	function ConvertSystemSourcetoHtml(str){
+	 str = str.replace(/</g,"&lt;");
+	 str = str.replace(/>/g,"&gt;");
+	 str = str.replace(/\"/g,"&quot;");
+	 str = str.replace(/\'/g,"&#39;");
+	 return str;
+	}
+	
+	function forxmp(str){
+		str = str.replace(/\x00/g,"");
+	 return str;
+	}
 	
 
 	function readfile() {
@@ -340,6 +396,7 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 
 		  return t;
 		}
+	
 </script>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper" style="margin-left: 0">
@@ -357,25 +414,38 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 				<div class="box box-default ">
 					<div class="box-header with-border">
 						<h3 class="box-title">파라미터 입력</h3>
-						&nbsp;&nbsp;&nbsp; <input id="selectedConnection" type="hidden" value="${Connection}">
-						<select id="connectionlist" onchange="sessionCon(this.value)">
+						&nbsp;&nbsp;&nbsp; <input id="selectedConnection" type="hidden"
+							value="${Connection}"> <select id="connectionlist"
+							onchange="sessionCon(this.value)">
 							<option value="">====Connection====</option>
 						</select>
 					</div>
 					<c:if test="${sql eq ''}">
 						<textarea class="col-sm-12" id="sql_text">${sql}</textarea>
 					</c:if>
-					<form role="form-horizontal" name="ParamForm">
+					<form role="form-horizontal" name="ParamForm" action="javascript:;" onsubmit="startexcute()">
 						<div class="box-body">
 							<div class="form-group">
 								<c:forEach var="item" items="${Param}" varStatus="status">
-									<span class="col-sm-2 col-md-2 col-lg-1 param text-center" id="param${status.count}" paramtitle="${item.name}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+									<span class="col-sm-2 col-md-2 col-lg-1 param text-center"
+										id="param${status.count}" paramtitle="${item.name}"
+										style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
 									<div class="col-sm-3 col-md-2 col-lg-2" style="margin: 2px 0">
-										<input type="text" class="form-control paramvalue" paramtype="${item.type}" value="${item.value}" style="padding: 0 2px;">
+										<input type="text" class="form-control paramvalue"
+											paramtype="${item.type}"
+											value="${item.name=='memberId' ? memberId : item.value}"
+											style="padding: 0 2px;"
+											<c:if test="${item.name=='memberId'}">readonly </c:if>>
 									</div>
 								</c:forEach>
+
 								<div class="col-sm-2 col-md-1 pull-right">
-									<input type="hidden" id="sendvalue" name="sendvalue"> <input id="excutebtn" type="submit" class="form-control" value="실행" onclick="startexcute();">
+									<input type="hidden" id="sendvalue" name="sendvalue"> <input
+										id="excutebtn" type="submit" class="form-control" value="실행"> 
+										<!-- <label><span
+										style="font-size: small;">auto commit</span> <input
+										id="autocommit" type="checkbox" checked="checked" /> </label> -->
+
 								</div>
 							</div>
 						</div>
@@ -392,20 +462,29 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 					<div class="box-header with-border">
 						<!-- Nav tabs -->
 						<ul class="nav nav-tabs" role="tablist">
-							<li role="presentation" class="active"><a href="#result" aria-controls="result" role="tab" data-toggle="tab">Result</a></li>
-							<li role="presentation"><a href="#chart" aria-controls="chart" role="tab" data-toggle="tab">Chart</a></li>
+							<li role="presentation" class="active"><a href="#result"
+								aria-controls="result" role="tab" data-toggle="tab">Result</a></li>
+							<li role="presentation"><a href="#chart"
+								aria-controls="chart" role="tab" data-toggle="tab">Chart</a></li>
+							<li style="float: right;"><label> <input
+									type="checkbox" id="newline" />개행보기
+							</label></li>
 						</ul>
+
 						<!-- Tab panes -->
 						<div class="tab-content">
 							<div role="tabpanel" class="tab-pane active" id="result">
-								<div style="overflow-y: hidden; overflow-x: auto; height: calc(100vh - 395px);">
-									<table class="table table-condensed" id="result_head" style="margin: 0; font-size: 14px">
+								<div
+									style="overflow-y: hidden; overflow-x: auto; height: calc(100vh - 395px);">
+									<table class="table table-condensed" id="result_head"
+										style="margin: 0; font-size: 14px">
 									</table>
 								</div>
 							</div>
 							<div role="tabpanel" class="tab-pane" id="chart">
 
-								<div style="overflow-y: auto; overflow-x: auto; height: calc(100vh - 370px); width: 100%;">
+								<div
+									style="overflow-y: auto; overflow-x: auto; height: calc(100vh - 370px); width: 100%;">
 									<canvas id="myChart" width="100%" height="100%"></canvas>
 								</div>
 							</div>
@@ -423,8 +502,10 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 					<div class="box-body">
 						<div class="form-group">
 							<c:forEach var="item" items="${ShortKey}">
-								<button type="button" class="btn btn-default" onclick="sendSql('${item.menu}&${item.column}')">${item.keytitle}</button>
-								<input type="hidden" id="${item.key}" value="${item.menu}&${item.column}">
+								<button type="button" class="btn btn-default"
+									onclick="sendSql('${item.menu}&${item.column}')">${item.keytitle}</button>
+								<input type="hidden" id="${item.key}"
+									value="${item.menu}&${item.column}">
 							</c:forEach>
 						</div>
 					</div>

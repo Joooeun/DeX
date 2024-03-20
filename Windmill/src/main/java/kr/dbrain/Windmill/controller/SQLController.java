@@ -114,16 +114,18 @@ public class SQLController {
 	@RequestMapping(path = "/SQL/list")
 	public List<Map<String, ?>> list(HttpServletRequest request, Model model, HttpSession session) throws IOException {
 
-		List<Map<String, ?>> list = getfiles(Common.srcPath, 0);
+		String id = (String) session.getAttribute("memberId");
+
+		Map<String, String> map = com.UserConf(id);
+		List<Map<String, ?>> list = getfiles(Common.srcPath + (id.equals("admin") ? "" : "/" + map.get("MENU")), 0);
 
 		return list;
 	}
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/excute")
-	public List<List<String>> excute(HttpServletRequest request, Model model, HttpSession session) throws ClassNotFoundException {
-
-		System.out.println("sql실행.");
+	public List<List<String>> excute(HttpServletRequest request, Model model, HttpSession session)
+			throws ClassNotFoundException {
 
 		List<List<String>> list = new ArrayList<List<String>>();
 		Map<String, String> map = com.ConnectionConf(request.getParameter("Connection"));
@@ -162,15 +164,22 @@ public class SQLController {
 
 		String sql = request.getParameter("sql");
 
+		logger.info(session.getAttribute("memberId") + " ip : " + com.getIp(request)
+				+ " sql excute\nstart============================================\n" + sql
+				+ "\nend==============================================");
+
 		try {
+
 			con = DriverManager.getConnection(jdbc, prop);
 
 			con.setAutoCommit(false);
 
 			if (sql.startsWith("CALL")) {
 				list = callprocedure(sql, dbtype, con);
-			} else if (sql.toUpperCase().startsWith("INSERT")||sql.toUpperCase().startsWith("UPDATE")||sql.toUpperCase().startsWith("DELETE")) {
+			} else if (sql.toUpperCase().startsWith("INSERT") || sql.toUpperCase().startsWith("UPDATE")
+					|| sql.toUpperCase().startsWith("DELETE")) {
 				list = updatequery(sql, dbtype, con);
+
 			} else {
 				list = excutequery(sql, dbtype, con);
 			}
@@ -182,29 +191,18 @@ public class SQLController {
 			list.add(element);
 			e1.printStackTrace();
 		} finally {
-//			if (rs != null)
-//				try {
-//					rs.close();
-//				} catch (SQLException ex) {
-//				}
-//			if (rs1 != null)
-//				try {
-//					rs1.close();
-//				} catch (SQLException ex) {
-//				}
-//			if (pstmt != null)
-//				try {
-//					pstmt.close();
-//				} catch (SQLException ex) {
-//				}
-			if (con != null)
+			if (con != null) {
+
 				try {
 					con.commit();
 					con.close();
 
 				} catch (SQLException ex) {
-					logger.error("[ERROR]" + ex.toString());
+					logger.error(ex.toString());
 				}
+			} else {
+
+			}
 		}
 
 		return list;
@@ -243,7 +241,9 @@ public class SQLController {
 				// column = rsmd.getColumnName(index + 1);
 				// 타입별 get함수 다르게 변경필
 				try {
-					row.add(rs.getObject(index + 1) == null ? "NULL" : (rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs.getString(index + 1) : rs.getObject(index + 1).toString()));
+					row.add(rs.getObject(index + 1) == null ? "NULL"
+							: (rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs.getString(index + 1)
+									: rs.getObject(index + 1).toString()));
 					// System.out.println(rs.getObject(index+1));
 				} catch (Exception e) {
 					row.add(e.toString());
@@ -305,12 +305,15 @@ public class SQLController {
 		int paramcnt = StringUtils.countMatches(sql, ",") + 1;
 		switch (dbtype) {
 		case "DB2":
-			callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
-					+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = "
-					+ paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
+			callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim()
+					+ "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
+					+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
+					+ prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt
+					+ ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
 			break;
 		case "ORACLE":
-			callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n" + " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
+			callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n"
+					+ " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
 			break;
 
 		default:
