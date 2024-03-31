@@ -7,11 +7,9 @@
 <title>Dex</title>
 <%@include file="common.jsp"%>
 <style type="text/css">
-
-
 @font-face {
-  font-family: "D2Coding"; /* 사용하고 싶은 font-family명을 지정 */
-  src: url("/resources/bootstrap/fonts/D2Coding.ttf") format('truetype');
+	font-family: "D2Coding"; /* 사용하고 싶은 font-family명을 지정 */
+	src: url("/resources/bootstrap/fonts/D2Coding.ttf") format('truetype');
 }
 
 body {
@@ -201,6 +199,8 @@ body {
 
 		$('.sidebar-menu a:not(\'.addtree\')')
 				.attr("target", 'iframe' + pageid);
+
+		$('#iframe_1').contents().find('#menus a').attr("target", 'iframe' + pageid);
 		//alert($('#iframe' + (pageNum == 1 ? '' : pageNum - 1)).contents().find('.ParamForm').length)
 		//$('.iframe').contents().find('.ParamForm').attr("target", 'iframe' + pageid)
 		//console.log($('#iframe').contents().find('.content-header>h1').text())
