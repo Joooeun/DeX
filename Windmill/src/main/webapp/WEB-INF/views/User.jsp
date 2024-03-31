@@ -20,7 +20,63 @@
 						alert("시스템 에러");
 					}
 				});
+
+				$.ajax({
+					type : 'post',
+					url : "/Connection/list",
+					data : {
+						TYPE : "DB"
+					},
+					success : function(result) {
+
+						for (var i = 0; i < result.length; i++) {
+
+							if (result[i].split('.')[0] == $(
+									'#selectedConnection').val()) {
+								$('#CONNECTION').append(
+										"<option value=\""
+												+ result[i].split('.')[0]
+												+ "\"  selected=\"selected\">"
+												+ result[i].split('.')[0]
+												+ "</option>");
+							} else {
+								$('#CONNECTION').append(
+										"<option value='"
+												+ result[i].split('.')[0]
+												+ "'>"
+												+ result[i].split('.')[0]
+												+ "</option>");
+							}
+						}
+
+						if ($(".paramvalue").eq(0).val() != ''
+								&& $(".paramvalue").length > 0) {
+							excute();
+						}
+					},
+					error : function() {
+						alert("시스템 에러");
+					}
+				});
+
 			});
+
+	function getSelectValues(select) {
+		var result = [];
+		var options = select && select.options;
+		var opt;
+
+		for (var i = 0, iLen = options.length; i < iLen; i++) {
+			opt = options[i];
+
+			if (opt.selected) {
+				result.push(opt.value || opt.text);
+			}
+		}
+
+		return result;
+	}
+
 	function UserDetail(value) {
 		if (value == 'create') {
 			$('#id_input').css("display", "block");
@@ -28,6 +84,7 @@
 			$('#IP').val('');
 			$('#PW').val('');
 			$('#MENU').val('');
+			$('#CONNECTION').val('');
 			return;
 		} else {
 			$('#id_input').css("display", "none");
@@ -42,7 +99,14 @@
 
 				$('#IP').val(result.IP);
 				$('#PW').val(result.PW);
-				$('#MENU').val(result.MENU);
+				
+				for ( var it of result.MENU.split(',')) {
+					$('#MENU option[value='+it+']').attr("selected","selected");
+				}
+				for ( var it of result.CONNECTION.split(',')) {
+					$('#CONNECTION option[value='+it+']').attr("selected","selected");
+				}
+
 			},
 			error : function() {
 				alert("시스템 에러");
@@ -54,6 +118,10 @@
 		if (filename == 'create') {
 			filename = $('#ID').val();
 		}
+		console
+				.log(getSelectValues(document.getElementById('MENU'))
+						.toString())
+
 		$.ajax({
 			type : 'post',
 			url : '/User/save',
@@ -62,7 +130,10 @@
 				ID : $('#ID').val(),
 				IP : $('#IP').val(),
 				PW : $('#PW').val(),
-				MENU : $('#MENU').val(),
+				MENU : getSelectValues(document.getElementById('MENU'))
+						.toString(),
+				CONNECTION : getSelectValues(
+						document.getElementById('CONNECTION')).toString(),
 			},
 			success : function(result) {
 				alert("저장 되었습니다.");
@@ -105,24 +176,30 @@
 
 					</div>
 					<div class="form-group row">
-						<div class="col-md-4" style="margin: 2px 0;">
+						<div class="col-md-3" style="margin: 2px 0;">
 							<label for="IP">IP</label> <input type="text"
 								class="form-control" id="IP" placeholder="IP">
 						</div>
-						<div class="col-md-4" style="margin: 2px 0;">
+						<div class="col-md-3" style="margin: 2px 0;">
 							<label for="PW">PW</label> <input type="text"
 								class="form-control" id="PW" placeholder="PW">
 						</div>
 
 
 
-						<div class="col-md-4" style="margin: 2px 0;">
-							<label for="MENU">MENU</label> <select class="form-control"
-								id="MENU">
-								<option value="" selected disabled hidden>==선택하세요==</option>
+						<div class="col-md-3" style="margin: 2px 0;">
+							<label for="MENU">MENU</label> <select multiple
+								class="form-control" id="MENU">
 								<c:forEach var="item" items="${MENU}">
-									<option id="create_option" value="${item.Name}">${item.Name}</option>
+									<option value="${item.Name}">${item.Name}</option>
 								</c:forEach>
+							</select>
+						</div>
+
+						<div class="col-md-3" style="margin: 2px 0;">
+							<label for="MENU">CONNECTION</label> <select multiple
+								class="form-control" id="CONNECTION">
+
 							</select>
 						</div>
 

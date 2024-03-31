@@ -102,6 +102,7 @@ public class Common {
 			map.put("IP", props.getProperty("IP"));
 			map.put("PW", props.getProperty("PW"));
 			map.put("MENU", props.getProperty("MENU"));
+			map.put("CONNECTION", props.getProperty("CONNECTION"));
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block

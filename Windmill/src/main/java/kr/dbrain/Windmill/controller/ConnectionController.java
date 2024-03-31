@@ -3,8 +3,11 @@ package kr.dbrain.Windmill.controller;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -47,6 +50,17 @@ public class ConnectionController {
 	public List<String> Connection_list(HttpServletRequest request, Model model, HttpSession session) {
 
 		List<String> dblist = com.ConnectionnList(request.getParameter("TYPE"));
+		String id = (String) session.getAttribute("memberId");
+
+		if (!id.equals("admin")) {
+			Map<String, String> map = com.UserConf(id);
+			List<String> strList = new ArrayList<>(Arrays.asList(map.get("CONNECTION").split(",")));
+
+			
+			return dblist.stream().filter(con ->
+			strList.contains(con.split("\\.")[0])).collect(Collectors.toList());
+
+		}
 
 		return dblist;
 	}

@@ -117,7 +117,14 @@ public class SQLController {
 		String id = (String) session.getAttribute("memberId");
 
 		Map<String, String> map = com.UserConf(id);
-		List<Map<String, ?>> list = getfiles(Common.srcPath + (id.equals("admin") ? "" : "/" + map.get("MENU")), 0);
+		List<Map<String, ?>> list = getfiles(Common.srcPath, 0);
+
+		if (!id.equals("admin")) {
+			List<String> strList = new ArrayList<>(Arrays.asList(map.get("MENU").split(",")));
+
+			return list.stream().filter(menu -> strList.contains(menu.get("Name"))).collect(Collectors.toList());
+
+		}
 
 		return list;
 	}

@@ -44,6 +44,7 @@ public class UserController {
 
 		List<Map<String, ?>> list = getfiles(Common.srcPath, 0);
 		mv.addObject("MENU", list);
+		
 
 		return mv;
 	}
@@ -94,6 +95,7 @@ public class UserController {
 			str += "IP=" + request.getParameter("IP") + "\n";
 			str += "PW=" + request.getParameter("PW") + "\n";
 			str += "MENU=" + request.getParameter("MENU") + "\n";
+			str += "CONNECTION=" + request.getParameter("CONNECTION") + "\n";
 
 			fw.write(str);
 			fw.close();
