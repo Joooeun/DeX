@@ -21,6 +21,10 @@
 	border-radius: 8px;
 	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .1)
 }
+
+#result_head {
+	font-family: "D2Coding" !important;
+}
 </style>
 <script>
 
@@ -203,10 +207,10 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 						
 						if(newline){
 							
-						str += `<td style="border-left:1px solid #cccccc"><xmp>\${forxmp(cellstr)}</xmp><span style="display:none">\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
+							str += `<td style="border-left:1px solid #ffffff; border-color:#00000000;"><xmp>\${forxmp(cellstr)}</xmp><span style="display:none">\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
 						}else{
 							
-						str += `<td style="border-left:1px solid #cccccc"><xmp style="display:none">\${forxmp(cellstr)}</xmp><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
+							str += `<td style="border-left:1px solid #ffffff; border-color:#00000000;"><xmp style="display:none">\${forxmp(cellstr)}</xmp><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
 						}
 					}
 
@@ -228,12 +232,11 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 						// 							cellstr = cellstr.substr(0, 10) + '...'
 						// 						}
 						if(newline){
-							
 							str += `<td style="border-left:1px solid #cccccc"><xmp>\${forxmp(cellstr)}</xmp><span style="display:none">\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
-							}else{
-								
+						}else{
+							
 							str += `<td style="border-left:1px solid #cccccc"><xmp style="display:none">\${forxmp(cellstr)}</xmp><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
-							}
+						}
 					}
 
 					str += '</tr>';
@@ -242,7 +245,7 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 				str += '<tr style=" visibility: hidden;">';
 				str += '<th>#</th>';
 				for (var title = 0; title < result[0].length; title++) {
-					str += '<th style="border-left:1px solid #cccccc;">' + result[0][title] + '</th>';
+					str += '<th style="border-left:1px solid #ffffff;">' + result[0][title] + '</th>';
 				}
 				str += '</tr>';
 				$("#result_body").html(str);
@@ -423,7 +426,8 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 					<c:if test="${sql eq ''}">
 						<textarea class="col-sm-12" id="sql_text">${sql}</textarea>
 					</c:if>
-					<form role="form-horizontal" name="ParamForm" action="javascript:;" onsubmit="startexcute()">
+					<form role="form-horizontal" name="ParamForm">
+						<!-- action="javascript:;" onsubmit="startexcute()" -->
 						<div class="box-body">
 							<div class="form-group">
 								<c:forEach var="item" items="${Param}" varStatus="status">
@@ -441,8 +445,11 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 
 								<div class="col-sm-2 col-md-1 pull-right">
 									<input type="hidden" id="sendvalue" name="sendvalue"> <input
-										id="excutebtn" type="submit" class="form-control" value="실행"> 
-										<!-- <label><span
+										id="excutebtn" type="submit" class="form-control" value="실행"
+										onclick="startexcute();">
+									<!-- <input
+										id="excutebtn" type="submit" class="form-control" value="실행">  -->
+									<!-- <label><span
 										style="font-size: small;">auto commit</span> <input
 										id="autocommit" type="checkbox" checked="checked" /> </label> -->
 

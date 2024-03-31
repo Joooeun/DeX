@@ -9,12 +9,18 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.text.DecimalFormat;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -134,6 +140,8 @@ public class SQLController {
 	public List<List<String>> excute(HttpServletRequest request, Model model, HttpSession session)
 			throws ClassNotFoundException {
 
+		Instant start = Instant.now();
+
 		List<List<String>> list = new ArrayList<List<String>>();
 		Map<String, String> map = com.ConnectionConf(request.getParameter("Connection"));
 
@@ -171,15 +179,11 @@ public class SQLController {
 
 		String sql = request.getParameter("sql");
 
-		logger.info(session.getAttribute("memberId") + " ip : " + com.getIp(request)
-				+ " sql excute\nstart============================================\n" + sql
-				+ "\nend==============================================");
-
 		try {
 
 			con = DriverManager.getConnection(jdbc, prop);
-
 			con.setAutoCommit(false);
+			
 
 			if (sql.startsWith("CALL")) {
 				list = callprocedure(sql, dbtype, con);
@@ -191,13 +195,27 @@ public class SQLController {
 				list = excutequery(sql, dbtype, con);
 			}
 
+			Instant end = Instant.now();
+			Duration timeElapsed = Duration.between(start, end);
+
+			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
+					" sql 실행 성공 / rows : " + (list.size() - 1) + " / 소요시간 : "
+							+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
+							+ "\nstart============================================\n" + sql
+							+ "\nend==============================================");
+
 		} catch (SQLException e1) {
 			List<String> element = new ArrayList<String>();
 			element.add(e1.toString());
 
+			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
+					" sql 실행 실패\nstart============================================\n" + sql
+							+ "\nend==============================================");
+
 			list.add(element);
 			e1.printStackTrace();
 		} finally {
+
 			if (con != null) {
 
 				try {
@@ -223,6 +241,7 @@ public class SQLController {
 		ResultSet rs = null;
 
 		pstmt = con.prepareStatement(sql);
+		pstmt.setMaxRows(200);
 		rs = pstmt.executeQuery();
 
 		ResultSetMetaData rsmd = rs.getMetaData();

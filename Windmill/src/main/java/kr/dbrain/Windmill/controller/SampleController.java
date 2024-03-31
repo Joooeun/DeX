@@ -68,11 +68,11 @@ public class SampleController {
 			if (map.get("PW").equals(request.getParameter("pw"))) {
 
 				session.setAttribute("memberId", request.getParameter("id"));
-				logger.info(request.getParameter("id") + " 로그인 성공. 접속 ip : " + com.getIp(request));
+				com.userLog(request.getParameter("id"), com.getIp(request), " 로그인 성공");
 				return "redirect:/index";
 
 			} else {
-				logger.info(request.getParameter("id") + " 로그인 실패. 접속 ip : " + com.getIp(request));
+				com.userLog(request.getParameter("id"), com.getIp(request), " 로그인 실패");
 				model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
 				return "/common/messageRedirect";
 			}
@@ -85,7 +85,7 @@ public class SampleController {
 
 		} else {
 
-			logger.info(request.getParameter("id") + " 로그인 실패... 접속 ip : " + com.getIp(request));
+			com.userLog(request.getParameter("id"), com.getIp(request), " 로그인 실패..");
 			model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
 			return "/common/messageRedirect";
 		}
@@ -160,7 +160,5 @@ public class SampleController {
 
 		return "redirect:/index";
 	}
-
-	
 
 }

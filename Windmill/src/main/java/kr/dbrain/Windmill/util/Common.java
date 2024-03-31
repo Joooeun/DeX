@@ -1,13 +1,17 @@
 package kr.dbrain.Windmill.util;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +32,7 @@ public class Common {
 	public static String srcPath = "";
 	public static String UserPath = "";
 	public static String tempPath = "";
+	public static String RootPath = "";
 	public static int Timeout = 180;
 
 	public Common() {
@@ -49,6 +54,7 @@ public class Common {
 			logger.error("system_properties : " + system_properties);
 		}
 
+		RootPath = props.getProperty("Root") + File.separator;
 		ConnectionPath = props.getProperty("Root") + File.separator + "Connection" + File.separator;
 		srcPath = props.getProperty("Root") + File.separator + "src" + File.separator;
 		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
@@ -197,7 +203,7 @@ public class Common {
 		map.put("method", str3);
 		return map;
 	}
-	
+
 	public String getIp(HttpServletRequest request) {
 		String ip = request.getHeader("X-Forwarded-For");
 		logger.debug(">>>> X-FORWARDED-FOR : " + ip);
@@ -222,6 +228,45 @@ public class Common {
 		}
 		logger.debug(">>>> Result : IP Address : " + ip);
 		return ip;
+	}
+
+	public void userLog(String user, String ip, String msg) {
+		Date nowDate = new Date();
+
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
+		String strNowDate = simpleDateFormat.format(nowDate);
+
+		try {
+
+			String path = RootPath + "log";
+			File folder = new File(path);
+
+			if (!folder.exists()) {
+				try {
+					logger.info("폴더생성여부 : " + folder.mkdirs());
+				} catch (Exception e) {
+					e.getStackTrace();
+				}
+			}
+
+			path += File.separator + user + "_" + strNowDate + ".log";
+
+			File file = new File(path);
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+
+			FileWriter fw = new FileWriter(file, true);
+			BufferedWriter writer = new BufferedWriter(fw);
+			SimpleDateFormat simpleDateFormat2 = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+			String strNowDate2 = simpleDateFormat2.format(nowDate);
+
+			writer.write(strNowDate2 + " " + ip + " " + msg);
+			writer.newLine();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public String getSystem_properties() {
@@ -254,6 +299,14 @@ public class Common {
 
 	public void setSrcPath(String srcPath) {
 		this.srcPath = srcPath;
+	}
+
+	public static String getRootPath() {
+		return RootPath;
+	}
+
+	public static void setRootPath(String rootPath) {
+		RootPath = rootPath;
 	}
 
 }
