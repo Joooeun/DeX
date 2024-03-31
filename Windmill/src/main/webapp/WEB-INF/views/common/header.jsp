@@ -7,8 +7,15 @@
 <title>Dex</title>
 <%@include file="common.jsp"%>
 <style type="text/css">
+
+
+@font-face {
+  font-family: "D2Coding"; /* 사용하고 싶은 font-family명을 지정 */
+  src: url("/resources/bootstrap/fonts/D2Coding.ttf") format('truetype');
+}
+
 body {
-	margin: 0
+	margin: 0;
 }
 
 #sidemenu {
