@@ -107,9 +107,55 @@ public class SampleController {
 
 	@RequestMapping(path = "/index", method = RequestMethod.GET)
 	public ModelAndView sample(HttpServletRequest request, ModelAndView mv) {
-		if (!new File(Common.ConnectionPath).exists()) {
+
+		if (!new File(Common.RootPath).exists()) {
+			logger.info(Common.RootPath + " 경로가 존재하지 않습니다.");
 			mv.setViewName("Setting");
 			return mv;
+		}
+
+		String path = Common.ConnectionPath;
+		File folder = new File(path);
+
+		if (!folder.exists()) {
+			try {
+				logger.info("Connection 폴더생성여부 : " + folder.mkdirs());
+			} catch (Exception e) {
+				e.getStackTrace();
+			}
+		}
+
+		path = Common.srcPath;
+		folder = new File(path);
+
+		if (!folder.exists()) {
+			try {
+				logger.info("src 폴더생성여부 : " + folder.mkdirs());
+			} catch (Exception e) {
+				e.getStackTrace();
+			}
+		}
+
+		path = Common.UserPath;
+		folder = new File(path);
+
+		if (!folder.exists()) {
+			try {
+				logger.info("user 폴더생성여부 : " + folder.mkdirs());
+			} catch (Exception e) {
+				e.getStackTrace();
+			}
+		}
+
+		path = Common.UserPath;
+		folder = new File(path);
+
+		if (!folder.exists()) {
+			try {
+				logger.info("user 폴더생성여부 : " + folder.mkdirs());
+			} catch (Exception e) {
+				e.getStackTrace();
+			}
 		}
 
 		mv.addObject("sqllist", SQLController.getfiles(Common.srcPath, 0));

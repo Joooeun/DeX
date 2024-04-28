@@ -9,13 +9,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,6 +92,10 @@ public class SQLController {
 					ShortKey.add(map);
 				} else if (line.split("=")[0].equals("REFRESHTIMEOUT")) {
 					mv.addObject("refreshtimeout", line.split("=")[1]);
+				} else if (line.split("=")[0].equals("LIMIT")) {
+					mv.addObject("limit", line.split("=")[1]);
+				} else if (line.split("=")[0].equals("NEWLINE")) {
+					mv.addObject("newline", line.split("=")[1]);
 				}
 
 			}
@@ -103,6 +105,7 @@ public class SQLController {
 		mv.addObject("sql", sql);
 		mv.addObject("Param", Param);
 		mv.addObject("ShortKey", ShortKey);
+		mv.addObject("Excute", request.getParameter("excute") == null ? false : request.getParameter("excute"));
 		mv.addObject("Connection", session.getAttribute("Connection"));
 
 		return mv;
@@ -183,7 +186,6 @@ public class SQLController {
 
 			con = DriverManager.getConnection(jdbc, prop);
 			con.setAutoCommit(false);
-			
 
 			if (sql.startsWith("CALL")) {
 				list = callprocedure(sql, dbtype, con);
@@ -192,7 +194,7 @@ public class SQLController {
 				list = updatequery(sql, dbtype, con);
 
 			} else {
-				list = excutequery(sql, dbtype, con);
+				list = excutequery(sql, dbtype, con, Integer.parseInt(request.getParameter("limit")));
 			}
 
 			Instant end = Instant.now();
@@ -209,7 +211,8 @@ public class SQLController {
 			element.add(e1.toString());
 
 			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					" sql 실행 실패\nstart============================================\n" + sql
+					" sql 실행 실패\nstart============================================\n" + sql + "\n" + e1.getMessage()
+
 							+ "\nend==============================================");
 
 			list.add(element);
@@ -233,7 +236,7 @@ public class SQLController {
 		return list;
 	}
 
-	public List<List<String>> excutequery(String sql, String dbtype, Connection con) throws SQLException {
+	public List<List<String>> excutequery(String sql, String dbtype, Connection con, int limit) throws SQLException {
 
 		List<List<String>> list = new ArrayList<List<String>>();
 
@@ -241,7 +244,10 @@ public class SQLController {
 		ResultSet rs = null;
 
 		pstmt = con.prepareStatement(sql);
-		pstmt.setMaxRows(200);
+
+		if (limit > 0) {
+			pstmt.setMaxRows(limit);
+		}
 		rs = pstmt.executeQuery();
 
 		ResultSetMetaData rsmd = rs.getMetaData();

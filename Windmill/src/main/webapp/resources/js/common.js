@@ -79,7 +79,7 @@ function sendSql(value) {
 
 		window.open(pathval.replace("?", "?param="), '_blank')
 	} else {
-		document.ParamForm.action = "/SQL?Path=" + encodeURI($("#Path").val() + "/" + value.split('&')[0] + ".sql");
+		document.ParamForm.action = "/SQL?excute=true&Path=" + encodeURI($("#Path").val() + "/" + value.split('&')[0] + ".sql");
 		document.ParamForm.method = "POST";
 		document.ParamForm.target = target;
 		document.ParamForm.submit();

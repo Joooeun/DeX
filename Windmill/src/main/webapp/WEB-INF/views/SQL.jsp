@@ -1,8 +1,8 @@
 <%@include file="common/common.jsp"%>
 <style>
 ::-webkit-scrollbar {
-	width: 2px;
-	height: 8px;
+	width: 7px;
+	height: 7px;
 	border: 1px solid #fff;
 }
 
@@ -14,8 +14,6 @@
 }
 
 ::-webkit-scrollbar-thumb {
-	height: 50px;
-	width: 50px;
 	background: rgba(0, 0, 0, .2);
 	-webkit-border-radius: 8px;
 	border-radius: 8px;
@@ -24,6 +22,26 @@
 
 #result_head {
 	font-family: "D2Coding" !important;
+}
+
+.tableWrapper {
+	height: calc(100vh - 395px);
+	overflow: auto;
+}
+
+#result_head th:last-child, #result_head td:last-child {
+	border-right: 0px !important;
+}
+
+#result_head th {
+	position: sticky;
+	top: 0px;
+	border-left: 1px solid #cccccc;
+	background-color: #ffffff;
+}
+
+#result_head td {
+	border-left: 1px solid #cccccc
 }
 </style>
 <script>
@@ -36,7 +54,13 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 //var graphcolor = [ '#f22613', '#e74c3c', '#f62459', '#663399', '#9a12b3', '#bf55ec', '#19b5fe', '#1e8bc3', '#1f3a93', '#89c4f4', '#03c9a9', '#26c281', '#16a085', '#2eec71', '#f2784b', '#f89406', '#f9bf3b']
 //var graphcolor = ['#1a1c2c','#5d275d','#b13e53','#ef7d57','#ffcd75','#a7f070','#38b764','#257179','#29366f','#3b5dc9','#41a6f6','#73eff7','#f4f4f4','#94b0c2','#566c86','#333c57'];
 
+var sql_text = "";
+
 	$(document).ready(function() {
+		
+		sql_text = $("#sql_org").val();
+		$("#sql_org").remove();
+		
 		
 		ctx = document.getElementById('myChart');
 		myChart = myChart = new Chart(ctx, {
@@ -72,8 +96,13 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 						$('#connectionlist').append("<option value='" + result[i].split('.')[0] + "'>" + result[i].split('.')[0] + "</option>");
 					}
 				}
+				
+				var shortkey= ${Excute};
 
-				if ($(".paramvalue").eq(0).val() != '' && $(".paramvalue").length > 0) {
+
+				if (shortkey && $("#connectionlist option:selected").val() != '') {
+					
+					alert("Sdfsdfsdf")
 					excute();
 				}
 			},
@@ -128,12 +157,13 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 	});
 
 	function startexcute() {
+		
+		
 		if ($("#connectionlist option:selected").val() == '') {
 			alert("Connection을 선택하세요.");
 			return;
-		}else{
-			$("#excutebtn").attr('disabled', true);
-			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></tr></td>');
+		} else{
+			
 
 			excute();
 			if ($("#refreshtimeout").val() > 0) {
@@ -156,12 +186,21 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 	}
 
 	function excute() {
-
-		var sql = $("#sql_text").val();
+		
+		$("#excutebtn").attr('disabled', true);
+		if(!$("#refreshtimeout").val() ){
+			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></tr></td>');
+		}
+		
+		var sql = $("#sql_text").val() ?? sql_text;
 
 		for (var i = 0; i < $(".param").length; i++) {
 			if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
 				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
+			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'text') {
+				
+				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join( $(".paramvalue").eq(i).val().replace(/'/g, "''"));
+				
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'number') {
 				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 			}
@@ -174,12 +213,12 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 				sql : sql,
 				autocommit : true,
 				/* autocommit : $("#autocommit").prop('checked'), */
-				Connection : $("#connectionlist").val()
+				Connection : $("#connectionlist").val(),
+				limit: $("#limit").val()
 			},
 			success : function(result) {
 
 				$("#Resultbox").css("display", "block");
-				
 				
 				var newline = $("#newline").prop('checked');
 
@@ -188,37 +227,10 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 				str += '<tr>';
 				str += '<th>#</th>';
 				for (var title = 0; title < result[0].length; title++) {
-					str += '<th  style="border-left:1px solid #cccccc">' + result[0][title] + '</th>';
+					str += '<th>' + result[0][title] + '</th>';
 				}
 				str += '</tr>';
-				str += '<tr>' + '<td colspan="100" style="padding: 0; border: none;">' + '<div id="valuediv" style="max-height: calc(100vh - 395px); overflow: auto;">'
-						+ '<table class="table table-condensed table-hover table-striped" id="result_body" style="margin: 0; font-size: 14px;">' + '</table>' + '</div>' + '</td>' + '</tr>';
 
-
-				for (var outter = 1; outter < result.length; outter++) {
-					str += '<tr style="visibility: hidden;">';
-					str += '<td style="border:none;">' + outter + '</td>';
-
-					for (var inner = 0; inner < result[outter].length; inner++) {
-						var cellstr = result[outter][inner];
-						// 						if (result[outter].length > 15 && cellstr.length > 10) {
-						// 							cellstr = cellstr.substr(0, 10) + '...'
-						// 						}
-						
-						if(newline){
-							
-							str += `<td style="border-left:1px solid #ffffff; border-color:#00000000;"><xmp>\${forxmp(cellstr)}</xmp><span style="display:none">\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
-						}else{
-							
-							str += `<td style="border-left:1px solid #ffffff; border-color:#00000000;"><xmp style="display:none">\${forxmp(cellstr)}</xmp><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
-						}
-					}
-
-					str += '</tr>';
-				}
-
-				$("#result_head").html(str);
-				str = '';
 
 				for (var outter = 1; outter < result.length; outter++) {
 					
@@ -232,23 +244,17 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 						// 							cellstr = cellstr.substr(0, 10) + '...'
 						// 						}
 						if(newline){
-							str += `<td style="border-left:1px solid #cccccc"><xmp>\${forxmp(cellstr)}</xmp><span style="display:none">\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
+							str += `<td><xmp>\${forxmp(cellstr)}</xmp><span style="display:none">\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
 						}else{
 							
-							str += `<td style="border-left:1px solid #cccccc"><xmp style="display:none">\${forxmp(cellstr)}</xmp><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
+							str += `<td><xmp style="display:none">\${forxmp(cellstr)}</xmp><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
 						}
 					}
 
 					str += '</tr>';
 				}
 
-				str += '<tr style=" visibility: hidden;">';
-				str += '<th>#</th>';
-				for (var title = 0; title < result[0].length; title++) {
-					str += '<th style="border-left:1px solid #ffffff;">' + result[0][title] + '</th>';
-				}
-				str += '</tr>';
-				$("#result_body").html(str);
+				$("#result_head").html(str);
 				$("#excutebtn").attr('disabled', false);
 				
 				chart(result);
@@ -431,15 +437,36 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 						<div class="box-body">
 							<div class="form-group">
 								<c:forEach var="item" items="${Param}" varStatus="status">
-									<span class="col-sm-2 col-md-2 col-lg-1 param text-center"
-										id="param${status.count}" paramtitle="${item.name}"
-										style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+
+									<c:if test="${item.name!='memberId'}">
+										<span class="col-sm-2 col-md-2 col-lg-1 param text-center"
+											id="param${status.count}" paramtitle="${item.name}"
+											style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+									</c:if>
+
+
 									<div class="col-sm-3 col-md-2 col-lg-2" style="margin: 2px 0">
-										<input type="text" class="form-control paramvalue"
-											paramtype="${item.type}"
-											value="${item.name=='memberId' ? memberId : item.value}"
-											style="padding: 0 2px;"
-											<c:if test="${item.name=='memberId'}">readonly </c:if>>
+
+										<c:choose>
+											<c:when test="${item.type == 'text'}">
+												<textarea class="paramvalue" rows="10" cols="200"
+													paramtype="${item.type}"
+													value="${item.name=='memberId' ? memberId : item.value}"
+													style="padding: 0 2px;"></textarea>
+
+											</c:when>
+
+											<c:otherwise>
+												<input type="${item.name=='memberId' ? 'hidden' : 'text'}"
+													class="form-control paramvalue" paramtype="${item.type}"
+													value="${item.name=='memberId' ? memberId : item.value}"
+													style="padding: 0 2px;"
+													<c:if test="${item.name=='memberId'}">readonly </c:if>>
+											</c:otherwise>
+										</c:choose>
+
+
+
 									</div>
 								</c:forEach>
 
@@ -474,17 +501,21 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 							<li role="presentation"><a href="#chart"
 								aria-controls="chart" role="tab" data-toggle="tab">Chart</a></li>
 							<li style="float: right;"><label> <input
-									type="checkbox" id="newline" />개행보기
+									type="checkbox" id="newline"
+									<c:if test="${newline=='true'}"> checked </c:if> /> 개행보기
+							</label></li>
+							<li style="float: right; margin-right: 5px"><label>limit
+									<input type="text" size="3" maxlength="3" id="limit"
+									value="${empty limit ? 0 :  limit}" />
 							</label></li>
 						</ul>
 
 						<!-- Tab panes -->
 						<div class="tab-content">
 							<div role="tabpanel" class="tab-pane active" id="result">
-								<div
-									style="overflow-y: hidden; overflow-x: auto; height: calc(100vh - 395px);">
-									<table class="table table-condensed" id="result_head"
-										style="margin: 0; font-size: 14px">
+								<div class="tableWrapper">
+									<table class="table table-condensed table-hover table-striped"
+										id="result_head" style="margin: 0; font-size: 14px">
 									</table>
 								</div>
 							</div>
@@ -520,7 +551,7 @@ var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#
 			</div>
 		</div>
 		<c:if test="${sql != ''}">
-			<textarea rows="10" cols="200" id="sql_text" hidden="hidden">${sql}</textarea>
+			<input id="sql_org" type="hidden" value="${sql}">
 			<input id="Path" name="Path" value="${Path}" type="hidden">
 			<input id="refreshtimeout" value="${refreshtimeout}" type="hidden">
 		</c:if>

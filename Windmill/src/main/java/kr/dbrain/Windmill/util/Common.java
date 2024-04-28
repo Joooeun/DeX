@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,6 +116,54 @@ public class Common {
 			e.printStackTrace();
 		}
 		return map;
+	}
+
+	public Map<String, String> SqlConf(String sqlPath) {
+		Map<String, String> map = new HashMap<>();
+
+		map.put("sql", sqlPath);
+
+		try {
+			String propFile = srcPath + sqlPath+".properties";
+			Properties props = new Properties();
+
+			String propStr = FileRead(new File(propFile));
+
+			props.load(new ByteArrayInputStream(propStr.getBytes()));
+
+			map.put("SHORTKEY", props.getProperty("SHORTKEY"));
+			map.put("LIMIT", props.getProperty("LIMIT"));
+			map.put("REFRESHTIMEOUT", props.getProperty("REFRESHTIMEOUT"));
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return map;
+	}
+
+	public void sqlConfSave(String sqlPath, Map<String, String> conf) {
+
+		String propFile = srcPath + sqlPath + ".properties";
+		File file = new File(propFile);
+
+		try {
+			String str = "#" + sqlPath + "\n";
+			FileWriter fw = new FileWriter(file);
+
+			for (Map.Entry<String, String> entry : conf.entrySet()) {
+				String key = entry.getKey();
+				String val = entry.getValue();
+				str += key + "=" + val + "\n";
+			}
+
+			fw.write(str);
+			fw.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
 	}
 
 	public List<String> ConnectionnList(String type) {
