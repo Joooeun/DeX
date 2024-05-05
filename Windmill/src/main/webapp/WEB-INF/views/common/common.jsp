@@ -7,6 +7,12 @@
 <script src="/resources/plugins/jQuery/jQuery-2.1.4.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/resources/bootstrap/js/bootstrap.js"></script>
+
+
+<link href="/resources/plugins/datatables/datatables.min.css" rel="stylesheet">
+ 
+<script src="/resources/plugins/datatables/datatables.min.js"></script>
+
 <script src="/resources/js/common.js"></script>
 <script type="text/javascript">
 	document.onkeydown = function(e) {

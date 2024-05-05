@@ -102,7 +102,6 @@ var sql_text = "";
 
 				if (shortkey && $("#connectionlist option:selected").val() != '') {
 					
-					alert("Sdfsdfsdf")
 					excute();
 				}
 			},
@@ -222,20 +221,21 @@ var sql_text = "";
 				
 				var newline = $("#newline").prop('checked');
 
-				var str = '';
+				var str = '<thead>';
 
 				str += '<tr>';
 				str += '<th>#</th>';
 				for (var title = 0; title < result[0].length; title++) {
 					str += '<th>' + result[0][title] + '</th>';
 				}
-				str += '</tr>';
+				str += '</tr></thead><tbody>';
 
 
 				for (var outter = 1; outter < result.length; outter++) {
 					
 					
-					str += '<tr class="Resultrow" param='+result[outter][0]+'>';
+					//str += '<tr class="Resultrow" param='+result[outter][0]+'>';
+					str += '<tr class="Resultrow sorting">';
 					str += '<td>' + outter + '</td>';
 
 					for (var inner = 0; inner < result[outter].length; inner++) {
@@ -253,8 +253,16 @@ var sql_text = "";
 
 					str += '</tr>';
 				}
+				str += '</tbody>';
 
 				$("#result_head").html(str);
+				
+				$('#result_head').DataTable( {
+					destroy: true,
+				    paging: false,
+				    searching: false
+				} );
+				
 				$("#excutebtn").attr('disabled', false);
 				
 				chart(result);
@@ -551,7 +559,7 @@ var sql_text = "";
 			</div>
 		</div>
 		<c:if test="${sql != ''}">
-			<input id="sql_org" type="hidden" value="${sql}">
+			<textarea id="sql_org" hidden>${sql}</textarea>
 			<input id="Path" name="Path" value="${Path}" type="hidden">
 			<input id="refreshtimeout" value="${refreshtimeout}" type="hidden">
 		</c:if>
