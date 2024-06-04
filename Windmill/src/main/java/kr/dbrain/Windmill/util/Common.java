@@ -34,7 +34,7 @@ public class Common {
 	public static String UserPath = "";
 	public static String tempPath = "";
 	public static String RootPath = "";
-	public static int Timeout = 180;
+	public static int Timeout = 15;
 
 	public Common() {
 		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator
@@ -60,7 +60,7 @@ public class Common {
 		srcPath = props.getProperty("Root") + File.separator + "src" + File.separator;
 		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
 		UserPath = props.getProperty("Root") + File.separator + "user" + File.separator;
-		Timeout = Integer.parseInt(props.getProperty("Timeout") == null ? "60" : props.getProperty("Timeout"));
+		Timeout = Integer.parseInt(props.getProperty("Timeout") == null ? "15" : props.getProperty("Timeout"));
 		logger.debug("Timeout : " + props.getProperty("Timeout"));
 
 	}
@@ -124,7 +124,7 @@ public class Common {
 		map.put("sql", sqlPath);
 
 		try {
-			String propFile = srcPath + sqlPath+".properties";
+			String propFile = srcPath + sqlPath + ".properties";
 			Properties props = new Properties();
 
 			String propStr = FileRead(new File(propFile));
@@ -307,10 +307,10 @@ public class Common {
 
 			FileWriter fw = new FileWriter(file, true);
 			BufferedWriter writer = new BufferedWriter(fw);
-			SimpleDateFormat simpleDateFormat2 = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+			SimpleDateFormat simpleDateFormat2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			String strNowDate2 = simpleDateFormat2.format(nowDate);
 
-			writer.write(strNowDate2 + " " + ip + " " + msg);
+			writer.write(strNowDate2 + " id : " + user + " / ip :  " + ip + "\n" + msg);
 			writer.newLine();
 			writer.close();
 		} catch (IOException e) {

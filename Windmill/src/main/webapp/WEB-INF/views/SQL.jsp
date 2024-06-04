@@ -102,6 +102,7 @@ var sql_text = "";
 
 				if (shortkey && $("#connectionlist option:selected").val() != '') {
 					
+					
 					excute();
 				}
 			},
@@ -156,19 +157,17 @@ var sql_text = "";
 	});
 
 	function startexcute() {
-		
-		
 		if ($("#connectionlist option:selected").val() == '') {
 			alert("Connection을 선택하세요.");
-			return;
-		} else{
 			
-
+		} else{
 			excute();
 			if ($("#refreshtimeout").val() > 0) {
 				setInterval(excute, $("#refreshtimeout").val() * 1000);
 			}
 		}
+		
+		return false;
 	}
 	
 	function commit() {
@@ -197,9 +196,9 @@ var sql_text = "";
 			if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
 				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'text') {
-				
-				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join( $(".paramvalue").eq(i).val().replace(/'/g, "''"));
-				
+				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join( $(".paramvalue").eq(i).val().replace(/'/g, "''"));		
+			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'sql') {
+				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'number') {
 				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 			}
@@ -254,11 +253,14 @@ var sql_text = "";
 					str += '</tr>';
 				}
 				str += '</tbody>';
-
-				$("#result_head").html(str);
 				
+				if ( $.fn.DataTable.isDataTable( '#result_head' ) ) {
+			        $('#result_head').DataTable().destroy();
+			        $('#result_head').empty(); 	
+			    };
+
+			    $("#result_head").html(str);
 				$('#result_head').DataTable( {
-					destroy: true,
 				    paging: false,
 				    searching: false
 				} );
@@ -438,57 +440,66 @@ var sql_text = "";
 						</select>
 					</div>
 					<c:if test="${sql eq ''}">
-						<textarea class="col-sm-12" id="sql_text">${sql}</textarea>
+						<textarea class="col-sm-12 col-xs-12" id="sql_text"
+							style="margin: 0 0 10px 0">${sql}</textarea>
 					</c:if>
 					<form role="form-horizontal" name="ParamForm">
-						<!-- action="javascript:;" onsubmit="startexcute()" -->
+
+						<!-- onsubmit="startexcute()" -->
+
 						<div class="box-body">
-							<div class="form-group">
-								<c:forEach var="item" items="${Param}" varStatus="status">
 
-									<c:if test="${item.name!='memberId'}">
-										<span class="col-sm-2 col-md-2 col-lg-1 param text-center"
-											id="param${status.count}" paramtitle="${item.name}"
-											style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
-									</c:if>
-
-
-									<div class="col-sm-3 col-md-2 col-lg-2" style="margin: 2px 0">
-
-										<c:choose>
-											<c:when test="${item.type == 'text'}">
-												<textarea class="paramvalue" rows="10" cols="200"
+							<c:forEach var="item" items="${Param}" varStatus="status">
+								<c:choose>
+									<c:when test="${item.type == 'text' || item.type == 'sql'}">
+										<div class="col-xs-12">
+											<div class="form-group">
+												<span class="param" id="param${status.count}"
+													paramtitle="${item.name}"
+													style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+												<textarea class="paramvalue col-xs-12" rows="10"
 													paramtype="${item.type}"
 													value="${item.name=='memberId' ? memberId : item.value}"
 													style="padding: 0 2px;"></textarea>
-
-											</c:when>
-
-											<c:otherwise>
-												<input type="${item.name=='memberId' ? 'hidden' : 'text'}"
-													class="form-control paramvalue" paramtype="${item.type}"
-													value="${item.name=='memberId' ? memberId : item.value}"
-													style="padding: 0 2px;"
-													<c:if test="${item.name=='memberId'}">readonly </c:if>>
-											</c:otherwise>
-										</c:choose>
+											</div>
+										</div>
 
 
+									</c:when>
 
-									</div>
-								</c:forEach>
+									<c:otherwise>
+										<div class="col-sm-3">
+											<div class="form-group">
+												<c:if test="${item.name!='memberId'}">
+													<span class="param" id="param${status.count}"
+														paramtitle="${item.name}"
+														style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+												</c:if>
+												<div style="margin: 2px 0">
+													<input type="${item.name=='memberId' ? 'hidden' : 'text'}"
+														class="form-control paramvalue" paramtype="${item.type}"
+														value="${item.name=='memberId' ? memberId : item.value}"
+														style="padding: 0 2px;"
+														onKeypress="javascript:if(event.keyCode==13) {startexcute()}"
+														<c:if test="${item.required=='required'}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if>
+														<c:if test="${item.name=='memberId'}">readonly </c:if>>
+												</div>
+											</div>
+										</div>
 
-								<div class="col-sm-2 col-md-1 pull-right">
-									<input type="hidden" id="sendvalue" name="sendvalue"> <input
-										id="excutebtn" type="submit" class="form-control" value="실행"
-										onclick="startexcute();">
-									<!-- <input
+									</c:otherwise>
+								</c:choose>
+							</c:forEach>
+
+							<div class="col-sm-2 col-md-1 pull-right">
+								<input type="hidden" id="sendvalue" name="sendvalue"> <input
+									id="excutebtn" type="button" class="form-control" value="실행" onclick="startexcute();">
+								<!-- <input
 										id="excutebtn" type="submit" class="form-control" value="실행">  -->
-									<!-- <label><span
+								<!-- <label><span
 										style="font-size: small;">auto commit</span> <input
 										id="autocommit" type="checkbox" checked="checked" /> </label> -->
 
-								</div>
 							</div>
 						</div>
 					</form>

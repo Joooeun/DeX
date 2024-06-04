@@ -58,7 +58,7 @@ body {
 										//alert(JSON.stringify(result))
 
 										var sidebar = $('#tree');
-										var parent = $('<li class="active treeview menu-open"><a class="addtree" href="#"> <i class="fa fa-bolt"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></a></i>');
+										var parent = $('<li class="active treeview menu-open"><a class="addtree" href="#"> <i class="fa fa-code"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></a></i>');
 										var child = $('<ul class="treeview-menu" id="sidemenu"></ul>');
 
 										child.append(setMenu(result, child));
@@ -269,7 +269,7 @@ body {
 						</ul> --></li>
 
 						<li class="treeview"><a href="/User" target="iframe"> <i
-								class="fa fa-database"></i> <span>User</span>
+								class="fa fa-user"></i> <span>User</span>
 
 						</a></li>
 					</c:if>

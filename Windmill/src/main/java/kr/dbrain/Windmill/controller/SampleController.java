@@ -55,7 +55,7 @@ public class SampleController {
 
 		HttpSession session = request.getSession();
 		System.out.println("Timeout : " + Common.Timeout + " min");
-		session.setMaxInactiveInterval(Common.Timeout * 5);
+		session.setMaxInactiveInterval(Common.Timeout * 60);
 
 		List<String> userList = com.UserList();
 

@@ -101,10 +101,10 @@
 				$('#PW').val(result.PW);
 				
 				for ( var it of result.MENU.split(',')) {
-					$('#MENU option[value='+it+']').attr("selected","selected");
+					$("#MENU option[value='"+it+"']").attr("selected","selected");
 				}
 				for ( var it of result.CONNECTION.split(',')) {
-					$('#CONNECTION option[value='+it+']').attr("selected","selected");
+					$("#CONNECTION option[value='"+it+"']").attr("selected","selected");
 				}
 
 			},

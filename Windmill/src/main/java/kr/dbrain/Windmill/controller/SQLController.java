@@ -42,71 +42,82 @@ public class SQLController {
 	Common com = new Common();
 
 	@RequestMapping(path = "/SQL")
-	public ModelAndView SQLmain(HttpServletRequest request, ModelAndView mv, HttpSession session) throws IOException {
+	public ModelAndView SQLmain(HttpServletRequest request, ModelAndView mv, HttpSession session) {
 
-		File file = new File(request.getParameter("Path"));
+		try {
+			File file = new File(request.getParameter("Path"));
 
-		mv.addObject("Path", file.getParent());
-		mv.addObject("title", file.getName().replaceAll("\\..*", ""));
+			mv.addObject("Path", file.getParent());
+			mv.addObject("title", file.getName().replaceAll("\\..*", ""));
 
-		String sql = com.FileRead(file);
+			String sql = com.FileRead(file);
 
-		file = new File(request.getParameter("Path").replace(".sql", ".properties"));
-		List<Map<String, String>> ShortKey = new ArrayList<>();
-		List<Map<String, String>> Param = new ArrayList<>();
-		if (file.exists()) {
+			file = new File(request.getParameter("Path").replace(".sql", ".properties"));
+			List<Map<String, String>> ShortKey = new ArrayList<>();
+			List<Map<String, String>> Param = new ArrayList<>();
+			if (file.exists()) {
 
-			String properties = com.FileRead(file);
+				String properties = com.FileRead(file);
 
-			int num = 0;
+				int num = 0;
 
-			String values[] = null;
+				String values[] = null;
 
-			if (request.getParameter("sendvalue") != null) {
-				values = request.getParameter("sendvalue").split("\\s*\\&");
-			}
-
-			for (String line : properties.split("\r\n")) {
-
-				if (line.startsWith("#")) {
-					continue;
+				if (request.getParameter("sendvalue") != null) {
+					values = request.getParameter("sendvalue").split("\\s*\\&");
 				}
-				Map<String, String> map = new HashMap<>();
-				if (line.split("=")[0].equals("PARAM")) {
-					map.put("name", line.split("=")[1].split("\\&")[0]);
-					map.put("type", line.split("=")[1].split("\\&")[1]);
 
-					if (values != null && values.length > num) {
-						map.put("value", values[num++].replaceAll("\\s*$", ""));
-					} else {
-						map.put("value", "");
+				for (String line : properties.split("\r\n")) {
+
+					if (line.startsWith("#")) {
+						continue;
+					}
+					Map<String, String> map = new HashMap<>();
+					if (line.split("=")[0].equals("PARAM")) {
+						map.put("name", line.split("=")[1].split("\\&")[0]);
+						map.put("type", line.split("=")[1].split("\\&")[1]);
+						if (line.split("=")[1].split("\\&").length > 2) {
+							map.put("required", line.split("=")[1].split("\\&")[2]);
+						}
+
+						if (values != null && values.length > num) {
+							map.put("value", values[num++].replaceAll("\\s*$", ""));
+						} else {
+							map.put("value", "");
+						}
+
+						Param.add(map);
+
+					} else if (line.split("=")[0].equals("SHORTKEY")) {
+						map.put("key", line.split("=")[1].split("\\&")[0]);
+						map.put("keytitle", line.split("=")[1].split("\\&")[1]);
+						map.put("menu", line.split("=")[1].split("\\&")[2]);
+						map.put("column", line.split("=")[1].split("\\&")[3]);
+						ShortKey.add(map);
+					} else if (line.split("=")[0].equals("REFRESHTIMEOUT")) {
+						mv.addObject("refreshtimeout", line.split("=")[1]);
+					} else if (line.split("=")[0].equals("LIMIT")) {
+						mv.addObject("limit", line.split("=")[1]);
+					} else if (line.split("=")[0].equals("NEWLINE")) {
+						mv.addObject("newline", line.split("=")[1]);
 					}
 
-					Param.add(map);
-
-				} else if (line.split("=")[0].equals("SHORTKEY")) {
-					map.put("key", line.split("=")[1].split("\\&")[0]);
-					map.put("keytitle", line.split("=")[1].split("\\&")[1]);
-					map.put("menu", line.split("=")[1].split("\\&")[2]);
-					map.put("column", line.split("=")[1].split("\\&")[3]);
-					ShortKey.add(map);
-				} else if (line.split("=")[0].equals("REFRESHTIMEOUT")) {
-					mv.addObject("refreshtimeout", line.split("=")[1]);
-				} else if (line.split("=")[0].equals("LIMIT")) {
-					mv.addObject("limit", line.split("=")[1]);
-				} else if (line.split("=")[0].equals("NEWLINE")) {
-					mv.addObject("newline", line.split("=")[1]);
 				}
 
 			}
 
-		}
+			mv.addObject("sql", sql);
+			mv.addObject("Param", Param);
+			mv.addObject("ShortKey", ShortKey);
+			mv.addObject("Excute", request.getParameter("excute") == null ? false : request.getParameter("excute"));
+			mv.addObject("Connection", session.getAttribute("Connection"));
 
-		mv.addObject("sql", sql);
-		mv.addObject("Param", Param);
-		mv.addObject("ShortKey", ShortKey);
-		mv.addObject("Excute", request.getParameter("excute") == null ? false : request.getParameter("excute"));
-		mv.addObject("Connection", session.getAttribute("Connection"));
+		} catch (IOException e) {
+
+			mv.addObject("params", com.showMessageAndRedirect("에러가 발생했습니다. 다시 시도해 주세요.", mv.getViewName(), "GET"));
+			mv.setViewName("common/messageRedirect");
+
+		}
 
 		return mv;
 	}
@@ -201,8 +212,8 @@ public class SQLController {
 			Duration timeElapsed = Duration.between(start, end);
 
 			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					" sql 실행 성공 / rows : " + (list.size() - 1) + " / 소요시간 : "
-							+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
+					"DB : " + request.getParameter("Connection") + " / sql 실행 성공 / rows : " + (list.size() - 1)
+							+ " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis())
 							+ "\nstart============================================\n" + sql
 							+ "\nend==============================================");
 
@@ -211,7 +222,7 @@ public class SQLController {
 			element.add(e1.toString());
 
 			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					" sql 실행 실패\nstart============================================\n" + sql + "\n" + e1.getMessage()
+					"sql 실행 실패\nstart============================================\n" + sql + "\n" + e1.getMessage()
 
 							+ "\nend==============================================");
 
