@@ -1,5 +1,4 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-	pageEncoding="UTF-8"%>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <!DOCTYPE html>
 <html>
 <head>
@@ -200,7 +199,8 @@ body {
 		$('.sidebar-menu a:not(\'.addtree\')')
 				.attr("target", 'iframe' + pageid);
 
-		$('#iframe_1').contents().find('#menus a').attr("target", 'iframe' + pageid);
+		$('#iframe_1').contents().find('#menus a').attr("target",
+				'iframe' + pageid);
 		//alert($('#iframe' + (pageNum == 1 ? '' : pageNum - 1)).contents().find('.ParamForm').length)
 		//$('.iframe').contents().find('.ParamForm').attr("target", 'iframe' + pageid)
 		//console.log($('#iframe').contents().find('.content-header>h1').text())
@@ -214,23 +214,23 @@ body {
 	<div class="wrapper">
 		<header class="main-header">
 			<!-- Logo -->
-			<a href="/index" class="logo"> <!-- mini logo for sidebar mini 50x50 pixels -->
-				<span class="logo-mini"> <b>D</b>eX
-			</span> <!-- logo for regular state and mobile devices --> <span
-				class="logo-lg"> <b>Data</b> Explorer
+			<a href="/index" class="logo"> <!-- mini logo for sidebar mini 50x50 pixels --> <span class="logo-mini"> <b>D</b>eX
+			</span> <!-- logo for regular state and mobile devices --> <span class="logo-lg"> <b>Data</b> Explorer
 			</span>
 			</a>
 			<!-- Header Navbar: style can be found in header.less -->
 			<nav class="navbar navbar-static-top" role="navigation">
 				<!-- Sidebar toggle button-->
-				<a href="#" class="sidebar-toggle" data-toggle="offcanvas"
-					role="button"> <span class="sr-only">Toggle navigation</span> <span
-					class="icon-bar"></span> <span class="icon-bar"></span> <span
-					class="icon-bar"></span>
+				<a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span>
 				</a>
 				<div class="navbar-custom-menu">
 					<ul class="nav navbar-nav">
-						<li><a href="/userRemove"><i class="fa fa-sign-out"></i></a></li>
+						<li>
+							<a>${memberId}</a>
+						</li>
+						<li>
+							<a href="/userRemove"><i class="fa fa-sign-out"></i></a>
+						</li>
 					</ul>
 				</div>
 			</nav>
@@ -242,11 +242,8 @@ body {
 				<!-- search form -->
 				<form class="sidebar-form" onsubmit="return Search()">
 					<div class="input-group">
-						<input type="text" name="q" class="form-control"
-							placeholder="Search..." id="search" /> <span
-							class="input-group-btn">
-							<button type="button" name='search' id='search-btn'
-								class="btn btn-flat" onclick="Search()">
+						<input type="text" name="q" class="form-control" placeholder="Search..." id="search" /> <span class="input-group-btn">
+							<button type="button" name='search' id='search-btn' class="btn btn-flat" onclick="Search()">
 								<i class="fa fa-search"></i>
 							</button>
 						</span>
@@ -260,47 +257,50 @@ body {
 
 
 					<c:if test="${memberId eq 'admin'}">
-						<li class="treeview"><a href="/Connection" target="iframe">
-								<i class="fa fa-database"></i> <span>Connection</span>
+						<li class="treeview">
+							<a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span>
 
-						</a> <!-- <ul class="treeview-menu" id="ConnectionList">
+							</a>
+							<!-- <ul class="treeview-menu" id="ConnectionList">
 							<li><a href="/Connection?DB=2"><i class="fa fa-circle-o"></i> DB1</a></li>
 							<li><a href="/Connection?DB=1"><i class="fa fa-circle-o"></i> DB2</a></li>
-						</ul> --></li>
+						</ul> -->
+						</li>
 
-						<li class="treeview"><a href="/User" target="iframe"> <i
-								class="fa fa-user"></i> <span>User</span>
+						<li class="treeview">
+							<a href="/User" target="iframe"> <i class="fa fa-user"></i> <span>User</span>
 
-						</a></li>
+							</a>
+						</li>
 					</c:if>
 
 
 
 
-					<li class="treeview"><a href="/FileRead" target="iframe">
-							<i class="fa fa-file-text-o"></i> <span>FileRead</span>
-					</a></li>
-					<li class="treeview"><a href="/FileUpload" target="iframe">
-							<i class="fa fa-file-text-o"></i> <span>FileUpload</span>
-					</a></li>
+					<li class="treeview">
+						<a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span>
+						</a>
+					</li>
+					<li class="treeview">
+						<a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileUpload</span>
+						</a>
+					</li>
 				</ul>
 			</section>
 			<!-- /.sidebar -->
 		</aside>
 		<div class="content-wrapper" id="framebox">
 			<ul id="pageTab" class="nav nav-tabs">
-				<li class="active"><a href="#page1" data-toggle="tab">전체메뉴</a></li>
+				<li class="active">
+					<a href="#page1" data-toggle="tab">전체메뉴</a>
+				</li>
 			</ul>
 			<div id="pageTabContent" class="tab-content">
 				<div class="tab-pane active" id="page1">
-					<iframe name="iframe_1" id="iframe_1"
-						style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;"
-						src="/index2"></iframe>
+					<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" src="/index2"></iframe>
 				</div>
 				<div class="tab-pane" id="newpage">
-					<iframe name="iframe" id="iframe" class="tab_frame"
-						style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;"
-						onload="setFrame('iframe')"></iframe>
+					<iframe name="iframe" id="iframe" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" onload="setFrame('iframe')"></iframe>
 				</div>
 
 			</div>

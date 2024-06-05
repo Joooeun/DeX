@@ -178,6 +178,10 @@ public class SQLController {
 			driver = "org.postgresql.Driver";
 			jdbc = "jdbc:postgresql://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
 			break;
+		case "Tibero":
+			driver = "com.tmax.tibero.jdbc.TbDriver";
+			jdbc = "jdbc:tibero:thin:@" + map.get("IP") + ":" + map.get("PORT") + ":" + map.get("DB");
+			break;
 
 		default:
 			break;
@@ -198,22 +202,26 @@ public class SQLController {
 			con = DriverManager.getConnection(jdbc, prop);
 			con.setAutoCommit(false);
 
+			String row = "";
+
 			if (sql.startsWith("CALL")) {
 				list = callprocedure(sql, dbtype, con);
-			} else if (sql.toUpperCase().startsWith("INSERT") || sql.toUpperCase().startsWith("UPDATE")
-					|| sql.toUpperCase().startsWith("DELETE")) {
-				list = updatequery(sql, dbtype, con);
-
-			} else {
+			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH")
+					|| sql.toUpperCase().startsWith("VALUE")) {
 				list = excutequery(sql, dbtype, con, Integer.parseInt(request.getParameter("limit")));
+//				row = "select rows : " + (list.size() - 1);
+				row = "";
+			} else {
+				list = updatequery(sql, dbtype, con);
+				row = " / " + sql.toUpperCase().split("\\s")[0] + " rows : " + list.get(0).get(1).toString();
 			}
 
 			Instant end = Instant.now();
 			Duration timeElapsed = Duration.between(start, end);
 
 			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					"DB : " + request.getParameter("Connection") + " / sql 실행 성공 / rows : " + (list.size() - 1)
-							+ " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis())
+					"DB : " + request.getParameter("Connection") + " / sql 실행 성공" + row + " / 소요시간 : "
+							+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
 							+ "\nstart============================================\n" + sql
 							+ "\nend==============================================");
 
@@ -222,7 +230,9 @@ public class SQLController {
 			element.add(e1.toString());
 
 			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					"sql 실행 실패\nstart============================================\n" + sql + "\n" + e1.getMessage()
+					"DB : " + request.getParameter("Connection")
+							+ " / sql 실행 실패\nstart============================================\n" + sql + "\n"
+							+ e1.getMessage()
 
 							+ "\nend==============================================");
 

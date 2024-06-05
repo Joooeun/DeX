@@ -241,7 +241,7 @@ var sql_text = "";
 
 					for (var inner = 0; inner < result[outter].length; inner++) {
 						var cellstr = result[outter][inner];
-						str += `<td>\${ConvertSystemSourcetoHtml(cellstr)}</td>`;
+						str += `<td><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
 					}
 
 					str += '</tr>';
@@ -257,7 +257,7 @@ var sql_text = "";
 				$('#result_head').DataTable( {
 				    paging: false,
 				    searching: false,
-				    layout: {
+				    /* layout: {
 				        topEnd: {
 				        	buttons: [
 				                {
@@ -268,14 +268,14 @@ var sql_text = "";
 				            ]
 				        
 				        }
-				    },
-				    columnDefs: [
+				    }, */
+				  /*   columnDefs: [
 				        {   
 				            "render": function(data, type, row){
 				                return data.split("\n ").join("<br/>");
 				            }
 				        },
-				    ]
+				    ] */
 				} );
 				
 				$("#excutebtn").attr('disabled', false);

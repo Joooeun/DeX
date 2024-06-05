@@ -150,6 +150,7 @@
 								<option value="" selected disabled hidden>DB TYPE</option>
 								<option value="ORACLE">ORACLE</option>
 								<option value="DB2">DB2</option>
+								<option value="Tibero">Tibero</option>
 							</select>
 						</div>
 						<div class="col-md-4" style="margin: 2px 0;">
