@@ -20,7 +20,7 @@
 	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .1)
 }
 
-#result_head {
+#result_head td {
 	font-family: "D2Coding" !important;
 }
 
@@ -42,6 +42,10 @@
 
 #result_head td {
 	border-left: 1px solid #cccccc
+}
+
+.newline {
+	white-space: pre;
 }
 </style>
 <script>
@@ -146,11 +150,9 @@ var sql_text = "";
 		
 		$(document).on("change", "#newline", function() {
 			if($(this).prop('checked')){
-				$("#result_head td xmp").css('display', 'block');
-				$("#result_head td span").css('display', 'none');
+				$("#result_head td").addClass('newline');
 			}else{
-				$("#result_head td xmp").css('display', 'none');
-				$("#result_head td span").css('display', 'block');
+				$("#result_head td").removeClass('newline')
 			}
 		});
 
@@ -208,7 +210,7 @@ var sql_text = "";
 			type : 'post',
 			url : '/SQL/excute',
 			data : {
-				sql : sql,
+				sql : sql.trim(),
 				autocommit : true,
 				/* autocommit : $("#autocommit").prop('checked'), */
 				Connection : $("#connectionlist").val(),
@@ -239,15 +241,7 @@ var sql_text = "";
 
 					for (var inner = 0; inner < result[outter].length; inner++) {
 						var cellstr = result[outter][inner];
-						// 						if (result[outter].length > 15 && cellstr.length > 10) {
-						// 							cellstr = cellstr.substr(0, 10) + '...'
-						// 						}
-						if(newline){
-							str += `<td><xmp>\${forxmp(cellstr)}</xmp><span style="display:none">\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
-						}else{
-							
-							str += `<td><xmp style="display:none">\${forxmp(cellstr)}</xmp><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
-						}
+						str += `<td>\${ConvertSystemSourcetoHtml(cellstr)}</td>`;
 					}
 
 					str += '</tr>';
@@ -262,7 +256,26 @@ var sql_text = "";
 			    $("#result_head").html(str);
 				$('#result_head').DataTable( {
 				    paging: false,
-				    searching: false
+				    searching: false,
+				    layout: {
+				        topEnd: {
+				        	buttons: [
+				                {
+				                    extend: 'excel',
+				                    text: '<i class="fa fa-floppy-o"></i>',
+				                    title: `${title}_${memberId}_` + dateFormat()
+				                }
+				            ]
+				        
+				        }
+				    },
+				    columnDefs: [
+				        {   
+				            "render": function(data, type, row){
+				                return data.split("\n ").join("<br/>");
+				            }
+				        },
+				    ]
 				} );
 				
 				$("#excutebtn").attr('disabled', false);
@@ -416,6 +429,25 @@ var sql_text = "";
 		  return t;
 		}
 	
+	function dateFormat() {
+		
+		let date = new Date();
+		
+        let month = date.getMonth() + 1;
+        let day = date.getDate();
+        let hour = date.getHours();
+        let minute = date.getMinutes();
+        let second = date.getSeconds();
+
+        month = month >= 10 ? month : '0' + month;
+        day = day >= 10 ? day : '0' + day;
+        hour = hour >= 10 ? hour : '0' + hour;
+        minute = minute >= 10 ? minute : '0' + minute;
+        second = second >= 10 ? second : '0' + second;
+
+        return date.getFullYear() +  month + day + '_' + hour +  minute + second;
+}
+	
 </script>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper" style="margin-left: 0">
@@ -423,8 +455,12 @@ var sql_text = "";
 	<section class="content-header">
 		<h1>${title}</h1>
 		<ol class="breadcrumb">
-			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
-			<li class="active"><a href="#" onclick="readfile()">SQL</a></li>
+			<li>
+				<a href="#"><i class="icon ion-ios-home"></i> Home</a>
+			</li>
+			<li class="active">
+				<a href="#" onclick="readfile()">SQL</a>
+			</li>
 		</ol>
 	</section>
 	<section class="content">
@@ -433,15 +469,12 @@ var sql_text = "";
 				<div class="box box-default ">
 					<div class="box-header with-border">
 						<h3 class="box-title">파라미터 입력</h3>
-						&nbsp;&nbsp;&nbsp; <input id="selectedConnection" type="hidden"
-							value="${Connection}"> <select id="connectionlist"
-							onchange="sessionCon(this.value)">
+						&nbsp;&nbsp;&nbsp; <input id="selectedConnection" type="hidden" value="${Connection}"> <select id="connectionlist" onchange="sessionCon(this.value)">
 							<option value="">====Connection====</option>
 						</select>
 					</div>
 					<c:if test="${sql eq ''}">
-						<textarea class="col-sm-12 col-xs-12" id="sql_text"
-							style="margin: 0 0 10px 0">${sql}</textarea>
+						<textarea class="col-sm-12 col-xs-12" id="sql_text" style="margin: 0 0 10px 0">${sql}</textarea>
 					</c:if>
 					<form role="form-horizontal" name="ParamForm">
 
@@ -454,13 +487,8 @@ var sql_text = "";
 									<c:when test="${item.type == 'text' || item.type == 'sql'}">
 										<div class="col-xs-12">
 											<div class="form-group">
-												<span class="param" id="param${status.count}"
-													paramtitle="${item.name}"
-													style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
-												<textarea class="paramvalue col-xs-12" rows="10"
-													paramtype="${item.type}"
-													value="${item.name=='memberId' ? memberId : item.value}"
-													style="padding: 0 2px;"></textarea>
+												<span class="param" id="param${status.count}" paramtitle="${item.name}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+												<textarea class="paramvalue col-xs-12" rows="10" paramtype="${item.type}" value="${item.name=='memberId' ? memberId : item.value}" style="padding: 0 2px;"></textarea>
 											</div>
 										</div>
 
@@ -471,18 +499,11 @@ var sql_text = "";
 										<div class="col-sm-3">
 											<div class="form-group">
 												<c:if test="${item.name!='memberId'}">
-													<span class="param" id="param${status.count}"
-														paramtitle="${item.name}"
-														style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+													<span class="param" id="param${status.count}" paramtitle="${item.name}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
 												</c:if>
 												<div style="margin: 2px 0">
-													<input type="${item.name=='memberId' ? 'hidden' : 'text'}"
-														class="form-control paramvalue" paramtype="${item.type}"
-														value="${item.name=='memberId' ? memberId : item.value}"
-														style="padding: 0 2px;"
-														onKeypress="javascript:if(event.keyCode==13) {startexcute()}"
-														<c:if test="${item.required=='required'}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if>
-														<c:if test="${item.name=='memberId'}">readonly </c:if>>
+													<input type="${item.name=='memberId' ? 'hidden' : 'text'}" class="form-control paramvalue" paramtype="${item.type}" value="${item.name=='memberId' ? memberId : item.value}" style="padding: 0 2px;"
+														onKeypress="javascript:if(event.keyCode==13) {startexcute()}" <c:if test="${item.required=='required'}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.name=='memberId'}">readonly </c:if>>
 												</div>
 											</div>
 										</div>
@@ -492,8 +513,7 @@ var sql_text = "";
 							</c:forEach>
 
 							<div class="col-sm-2 col-md-1 pull-right">
-								<input type="hidden" id="sendvalue" name="sendvalue"> <input
-									id="excutebtn" type="button" class="form-control" value="실행" onclick="startexcute();">
+								<input type="hidden" id="sendvalue" name="sendvalue"> <input id="excutebtn" type="button" class="form-control" value="실행" onclick="startexcute();">
 								<!-- <input
 										id="excutebtn" type="submit" class="form-control" value="실행">  -->
 								<!-- <label><span
@@ -515,33 +535,38 @@ var sql_text = "";
 					<div class="box-header with-border">
 						<!-- Nav tabs -->
 						<ul class="nav nav-tabs" role="tablist">
-							<li role="presentation" class="active"><a href="#result"
-								aria-controls="result" role="tab" data-toggle="tab">Result</a></li>
-							<li role="presentation"><a href="#chart"
-								aria-controls="chart" role="tab" data-toggle="tab">Chart</a></li>
-							<li style="float: right;"><label> <input
-									type="checkbox" id="newline"
-									<c:if test="${newline=='true'}"> checked </c:if> /> 개행보기
-							</label></li>
-							<li style="float: right; margin-right: 5px"><label>limit
-									<input type="text" size="3" maxlength="3" id="limit"
-									value="${empty limit ? 0 :  limit}" />
-							</label></li>
+							<li role="presentation" class="active">
+								<a href="#result" aria-controls="result" role="tab" data-toggle="tab">Result</a>
+							</li>
+							<li role="presentation">
+								<a href="#chart" aria-controls="chart" role="tab" data-toggle="tab">Chart</a>
+							</li>
+							<!-- <li style="float: right; al"><i class="fa fa-floppy-o"></i></li> -->
+							<li style="float: right; margin-right: 5px">
+								<label style="margin: 0 3px 0 3px;">
+									limit&nbsp; <input type="text" size="3" maxlength="3" id="limit" value="${empty limit ? 0 :  limit}" />
+								</label>
+								<label style="margin: 0 3px 0 3px;">
+									<input type="checkbox" id="newline" <c:if test="${newline=='true'}"> checked </c:if> /> 개행보기
+								</label>
+								<!-- <label style="margin: 0 3px 0 3px;">
+									<a><i class="fa fa-floppy-o"></i> 저장</a>
+								</label> -->
+							</li>
+
 						</ul>
 
 						<!-- Tab panes -->
 						<div class="tab-content">
 							<div role="tabpanel" class="tab-pane active" id="result">
 								<div class="tableWrapper">
-									<table class="table table-condensed table-hover table-striped"
-										id="result_head" style="margin: 0; font-size: 14px">
+									<table class="table table-striped table-bordered table-hover" id="result_head" style="margin: 0; font-size: 14px">
 									</table>
 								</div>
 							</div>
 							<div role="tabpanel" class="tab-pane" id="chart">
 
-								<div
-									style="overflow-y: auto; overflow-x: auto; height: calc(100vh - 370px); width: 100%;">
+								<div style="overflow-y: auto; overflow-x: auto; height: calc(100vh - 370px); width: 100%;">
 									<canvas id="myChart" width="100%" height="100%"></canvas>
 								</div>
 							</div>
@@ -559,10 +584,8 @@ var sql_text = "";
 					<div class="box-body">
 						<div class="form-group">
 							<c:forEach var="item" items="${ShortKey}">
-								<button type="button" class="btn btn-default"
-									onclick="sendSql('${item.menu}&${item.column}')">${item.keytitle}</button>
-								<input type="hidden" id="${item.key}"
-									value="${item.menu}&${item.column}">
+								<button type="button" class="btn btn-default" onclick="sendSql('${item.menu}&${item.column}')">${item.keytitle}</button>
+								<input type="hidden" id="${item.key}" value="${item.menu}&${item.column}">
 							</c:forEach>
 						</div>
 					</div>
