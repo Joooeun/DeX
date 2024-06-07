@@ -1,4 +1,4 @@
-package kr.dbrain.Windmill.controller;
+package kr.Windmill.controller;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
-import kr.dbrain.Windmill.util.Common;
+import kr.Windmill.util.Common;
 
 @Controller
 public class UserController {

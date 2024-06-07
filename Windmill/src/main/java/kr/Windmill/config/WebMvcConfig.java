@@ -1,4 +1,4 @@
-package kr.dbrain.Windmill.config;
+package kr.Windmill.config;
 
 import javax.servlet.http.HttpSessionListener;
 
@@ -16,7 +16,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
 
 @Configuration
 @EnableWebMvc
-@ComponentScan(basePackages = { "kr.dbrain.Windmill" }, useDefaultFilters = false, includeFilters = @Filter({
+@ComponentScan(basePackages = { "kr.Windmill" }, useDefaultFilters = false, includeFilters = @Filter({
 		org.springframework.stereotype.Controller.class }))
 public class WebMvcConfig extends WebMvcConfigurerAdapter {
 

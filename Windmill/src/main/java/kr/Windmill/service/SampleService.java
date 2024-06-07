@@ -1,4 +1,4 @@
-package kr.dbrain.Windmill.service;
+package kr.Windmill.service;
 
 import java.util.List;
 import java.util.Map;

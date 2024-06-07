@@ -142,6 +142,15 @@ var sql_text = "";
 				sendSql($("#F12").val());
 			}
 		});
+		
+		
+		document.getElementById('sql_text').addEventListener('keydown', function (e){
+		    if (e.ctrlKey && e.keyCode == 13) {
+				startexcute()
+			}
+			
+		}, false);
+
 
 		$(document).on("click", ".Resultrow", function() {
 			$(".Resultrow").removeClass('success');
@@ -221,43 +230,51 @@ var sql_text = "";
 				$("#Resultbox").css("display", "block");
 				
 				var newline = $("#newline").prop('checked');
+				if( result.length>0){
+					var str = '<thead>';
 
-				var str = '<thead>';
-
-				str += '<tr>';
-				str += '<th>#</th>';
-				for (var title = 0; title < result[0].length; title++) {
-					str += '<th>' + result[0][title] + '</th>';
-				}
-				str += '</tr></thead><tbody>';
-
-
-				for (var outter = 1; outter < result.length; outter++) {
-					
-					
-					//str += '<tr class="Resultrow" param='+result[outter][0]+'>';
-					str += '<tr class="Resultrow sorting">';
-					str += '<td>' + outter + '</td>';
-
-					for (var inner = 0; inner < result[outter].length; inner++) {
-						var cellstr = result[outter][inner];
-						str += `<td><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
+					str += '<tr>';
+					str += '<th>#</th>';
+					for (var title = 0; title < result[0].length; title++) {
+						str += '<th>' + result[0][title] + '</th>';
 					}
+					str += '</tr></thead><tbody>';
 
-					str += '</tr>';
+
+					for (var outter = 1; outter < result.length; outter++) {
+						
+						
+						//str += '<tr class="Resultrow" param='+result[outter][0]+'>';
+						str += '<tr class="Resultrow sorting">';
+						str += '<td>' + outter + '</td>';
+
+						for (var inner = 0; inner < result[outter].length; inner++) {
+							var cellstr = result[outter][inner];
+							str += `<td><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
+						}
+
+						str += '</tr>';
+					}
+					str += '</tbody>';
+					
+					
+				    chart(result);
+				    
+				}else{
+					
+					var str = '<thead><tr><th>#</th></tr></thead><tbody></tbody>';
 				}
-				str += '</tbody>';
-				
+				    
 				if ( $.fn.DataTable.isDataTable( '#result_head' ) ) {
 			        $('#result_head').DataTable().destroy();
 			        $('#result_head').empty(); 	
 			    };
-
+			    
 			    $("#result_head").html(str);
-				$('#result_head').DataTable( {
+				/* $('#result_head').DataTable( {
 				    paging: false,
 				    searching: false,
-				    /* layout: {
+				     layout: {
 				        topEnd: {
 				        	buttons: [
 				                {
@@ -268,19 +285,23 @@ var sql_text = "";
 				            ]
 				        
 				        }
-				    }, */
-				  /*   columnDefs: [
+				    }, 
+				  columnDefs: [
 				        {   
 				            "render": function(data, type, row){
 				                return data.split("\n ").join("<br/>");
 				            }
 				        },
-				    ] */
-				} );
+				    ] 
+				} ); */
+					
+				
+
+
 				
 				$("#excutebtn").attr('disabled', false);
 				
-				chart(result);
+				
 
 			},
 			error : function(error) {
@@ -474,7 +495,7 @@ var sql_text = "";
 						</select>
 					</div>
 					<c:if test="${sql eq ''}">
-						<textarea class="col-sm-12 col-xs-12" id="sql_text" style="margin: 0 0 10px 0">${sql}</textarea>
+						<textarea class="col-sm-12 col-xs-12" id="sql_text" style="margin: 0 0 10px 0" rows="5">${sql}</textarea>
 					</c:if>
 					<form role="form-horizontal" name="ParamForm">
 
@@ -488,7 +509,7 @@ var sql_text = "";
 										<div class="col-xs-12">
 											<div class="form-group">
 												<span class="param" id="param${status.count}" paramtitle="${item.name}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
-												<textarea class="paramvalue col-xs-12" rows="10" paramtype="${item.type}" value="${item.name=='memberId' ? memberId : item.value}" style="padding: 0 2px;"></textarea>
+												<textarea id="sql_text" class="paramvalue col-xs-12" rows="10" paramtype="${item.type}" value="${item.name=='memberId' ? memberId : item.value}" style="padding: 0 2px;"></textarea>
 											</div>
 										</div>
 

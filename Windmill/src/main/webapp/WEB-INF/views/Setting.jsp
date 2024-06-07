@@ -81,10 +81,6 @@ to {
 			<div>
 				<input type="text" placeholder="enter Path..." name="path">
 			</div>
-			<!-- <div style="padding: 5px;">
-				<span>Dbrain</span>
-				<img src="/resources/logo.png" width="250px" style="margin: 15px 0;">
-			</div> -->
 		</form>
 	</div>
 </body>

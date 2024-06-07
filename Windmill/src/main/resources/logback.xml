@@ -64,7 +64,7 @@
 		additivity="false">
 		<appender-ref ref="console" />
 	</logger>
-	<logger name="kr.dbrain.Grace" level="info" additivity="false">
+	<logger name="kr.Windmill" level="info" additivity="false">
 		<appender-ref ref="info" />
 	</logger>
 </configuration>

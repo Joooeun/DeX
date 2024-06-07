@@ -1,4 +1,4 @@
-package kr.dbrain.Windmill.controller;
+package kr.Windmill.controller;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -27,7 +27,7 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
-import kr.dbrain.Windmill.util.Common;
+import kr.Windmill.util.Common;
 
 @Controller
 public class FileController {

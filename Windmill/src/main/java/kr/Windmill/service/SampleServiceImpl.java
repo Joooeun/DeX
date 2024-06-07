@@ -1,4 +1,4 @@
-package kr.dbrain.Windmill.service;
+package kr.Windmill.service;
 
 
 import java.util.List;
@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import kr.dbrain.Windmill.mapper.SampleMapper;
+import kr.Windmill.mapper.SampleMapper;
 
 @Service
 @Transactional

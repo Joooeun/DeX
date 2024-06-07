@@ -1,4 +1,4 @@
-package kr.dbrain.Windmill.config;
+package kr.Windmill.config;
 
 import java.io.IOException;
 import java.util.Date;

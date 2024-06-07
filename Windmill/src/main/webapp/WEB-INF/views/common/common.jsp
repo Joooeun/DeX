@@ -10,14 +10,16 @@
 
 
 <link href="/resources/plugins/datatables/datatables.min.css" rel="stylesheet">
- 
+
 <script src="/resources/plugins/datatables/datatables.min.js"></script>
 
 <script src="/resources/js/common.js"></script>
 <script type="text/javascript">
 	document.onkeydown = function(e) {
+
 		var evtK = (e) ? e.which : window.event.keyCode;
-		var isCtrl = ((typeof isCtrl != 'undefiend' && isCtrl) || ((e && evtK == 17) || (!e && event.ctrlKey))) ? true : false;
+		var isCtrl = ((typeof isCtrl != 'undefiend' && isCtrl) || ((e && evtK == 17) || (!e && event.ctrlKey))) ? true
+				: false;
 
 		if ((isCtrl && evtK == 82) || evtK == 116) {
 			if (e) {
@@ -31,5 +33,5 @@
 			location.reload(location.href);
 			return false;
 		}
-	}	
+	}
 </script>

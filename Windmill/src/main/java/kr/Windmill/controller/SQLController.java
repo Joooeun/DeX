@@ -1,4 +1,4 @@
-package kr.dbrain.Windmill.controller;
+package kr.Windmill.controller;
 
 import java.io.File;
 import java.io.IOException;
@@ -33,7 +33,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
-import kr.dbrain.Windmill.util.Common;
+import kr.Windmill.util.Common;
 
 @Controller
 public class SQLController {
@@ -204,7 +204,7 @@ public class SQLController {
 
 			String row = "";
 
-			if (sql.startsWith("CALL")) {
+			if (sql.toUpperCase().startsWith("CALL")) {
 				list = callprocedure(sql, dbtype, con);
 			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH")
 					|| sql.toUpperCase().startsWith("VALUE")) {
@@ -376,7 +376,6 @@ public class SQLController {
 		List<Integer> typelst = new ArrayList<>();
 		pstmt = con.prepareStatement(callcheckstr);
 		rs = pstmt.executeQuery();
-		System.out.println(pstmt);
 
 		while (rs.next()) {
 			switch (rs.getString("TYPENAME")) {
@@ -404,11 +403,50 @@ public class SQLController {
 		}
 
 		callStmt1.execute();
-		for (int i = 0; i < typelst.size(); i++) {
-			List<String> element = new ArrayList<String>();
-			element.add(callStmt1.getString(i + 1) + "");
-			list.add(element);
+
+		ResultSet rs2 = null;
+		rs2 = callStmt1.getResultSet();
+
+		if (rs2 != null) {
+			ResultSetMetaData rsmd = rs2.getMetaData();
+			int colcnt = rsmd.getColumnCount();
+
+			List<String> row;
+			String column;
+
+			row = new ArrayList<>();
+			for (int index = 0; index < colcnt; index++) {
+
+				column = rsmd.getColumnLabel(index + 1);
+
+				row.add(column);
+
+			}
+			list.add(row);
+
+			while (rs2.next()) {
+
+				row = new ArrayList<>();
+				for (int index = 0; index < colcnt; index++) {
+					try {
+						row.add(rs2.getObject(index + 1) == null ? "NULL"
+								: (rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1)
+										: rs2.getObject(index + 1).toString()));
+					} catch (Exception e) {
+						row.add(e.toString());
+					}
+				}
+				list.add(row);
+
+			}
+		} else {
+			for (int i = 0; i < typelst.size(); i++) {
+				List<String> element = new ArrayList<String>();
+				element.add(callStmt1.getString(i + 1) + "");
+				list.add(element);
+			}
 		}
+
 		return list;
 	}
 

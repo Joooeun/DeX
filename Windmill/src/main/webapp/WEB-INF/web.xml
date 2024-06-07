@@ -10,7 +10,7 @@
   </context-param>
   <context-param>
     <param-name>contextConfigLocation</param-name>
-    <param-value>kr.dbrain.Windmill.config.AppConfig</param-value>
+    <param-value>kr.Windmill.config.AppConfig</param-value>
   </context-param>
   <servlet>
     <servlet-name>default</servlet-name>
@@ -34,7 +34,7 @@
     </init-param>
     <init-param>
       <param-name>contextConfigLocation</param-name>
-      <param-value>kr.dbrain.Windmill.config.WebMvcConfig</param-value>
+      <param-value>kr.Windmill.config.WebMvcConfig</param-value>
     </init-param>
     <load-on-startup>1</load-on-startup>
   </servlet>

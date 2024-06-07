@@ -1,4 +1,4 @@
-package kr.dbrain.Windmill.util;
+package kr.Windmill.util;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;

@@ -1,4 +1,4 @@
-package kr.dbrain.Windmill.config;
+package kr.Windmill.config;
 
 import javax.naming.NamingException;
 import javax.sql.DataSource;
@@ -18,10 +18,10 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 @Configuration
-@ComponentScan( basePackages = { "kr.dbrain.Windmill" },
+@ComponentScan( basePackages = { "kr.Windmill" },
                 excludeFilters = @Filter({ org.springframework.stereotype.Controller.class }))
 @EnableTransactionManagement
-@MapperScan("kr.dbrain.Windmill.mapper")
+@MapperScan("kr.Windmill.mapper")
 public class AppConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(AppConfig.class);
@@ -51,7 +51,7 @@ public class AppConfig {
         
         SqlSessionFactoryBean sessionFactoryBean = new SqlSessionFactoryBean();
         sessionFactoryBean.setDataSource(dataSource());
-        sessionFactoryBean.setTypeAliasesPackage("kr.dbrain.Windmill.vo");
+        sessionFactoryBean.setTypeAliasesPackage("kr.Windmill.vo");
         sessionFactoryBean.setConfiguration(mybatisConfig);        
         return sessionFactoryBean;
     }
