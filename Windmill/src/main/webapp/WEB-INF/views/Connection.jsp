@@ -93,12 +93,14 @@
 <div class="content-wrapper" style="margin-left: 0">
 	<!-- Content Header (Page header) -->
 	<section class="content-header">
-		<h1>
-			Connection관리
-		</h1>
+		<h1>Connection관리</h1>
 		<ol class="breadcrumb">
-			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
-			<li class="active"><a href="#">Connection관리</a></li>
+			<li>
+				<a href="#"><i class="icon ion-ios-home"></i> Home</a>
+			</li>
+			<li class="active">
+				<a href="#">Connection관리</a>
+			</li>
 		</ol>
 	</section>
 	<section class="content">
@@ -112,17 +114,16 @@
 			</div>
 			<!-- /.box-header -->
 			<!-- form start -->
-			<form role="form">
+			<form role="form-horizontal" onsubmit="save()">
 				<div class="box-body">
 					<div class="form-group row">
-						<div class="col-md-4" style="margin: 2px 0; display: none;"
-							id="name_input">
-							<label for="NAME">NAME</label> <input type="text"
-								class="form-control" id="NAME" placeholder="NAME">
+						<div class="col-md-4" style="margin: 2px 0; display: none;" id="name_input">
+							<label for="NAME">NAME</label>
+							<input type="text" class="form-control" id="NAME" placeholder="NAME" name="NAME">
 						</div>
 						<div class="col-md-4" style="margin: 2px 0;">
-							<label for="TYPE">TYPE</label> <select class="form-control"
-								id="TYPE">
+							<label for="TYPE">TYPE</label>
+							<select class="form-control" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." id="TYPE" name="TYPE">
 								<option value="" selected disabled hidden>TYPE</option>
 								<option value="DB">DB</option>
 								<option value="HOST">HOST</option>
@@ -131,22 +132,22 @@
 					</div>
 					<div class="form-group row">
 						<div class="col-md-4" style="margin: 2px 0;">
-							<label for="IP">IP</label> <input type="text"
-								class="form-control" id="IP" placeholder="IP">
+							<label for="IP">IP</label>
+							<input type="text" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." class="form-control" id="IP" placeholder="IP" name="IP">
 						</div>
 						<div class="col-md-4" style="margin: 2px 0;">
-							<label for="PORT">PORT</label> <input type="text"
-								class="form-control" id="PORT" placeholder="PORT">
+							<label for="PORT">PORT</label>
+							<input type="text" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." class="form-control" id="PORT" placeholder="PORT" name="PORT">
 						</div>
 						<div class="col-md-4" style="margin: 2px 0;" id="form_DB">
-							<label for="DB">DB</label> <input type="text"
-								class="form-control" id="DB" placeholder="DB">
+							<label for="DB">DB</label>
+							<input type="text" class="form-control" id="DB" placeholder="DB" name="DB">
 						</div>
 					</div>
 					<div class="form-group row">
 						<div class="col-md-4" style="margin: 2px 0;">
-							<label for="DBTYPE">DB TYPE</label> <select class="form-control"
-								id="DBTYPE">
+							<label for="DBTYPE">DB TYPE</label>
+							<select class="form-control" id="DBTYPE" name="DBTYPE">
 								<option value="" selected disabled hidden>DB TYPE</option>
 								<option value="ORACLE">ORACLE</option>
 								<option value="DB2">DB2</option>
@@ -154,18 +155,18 @@
 							</select>
 						</div>
 						<div class="col-md-4" style="margin: 2px 0;">
-							<label for="USER">USER</label> <input type="text"
-								class="form-control" id="USER" placeholder="USER">
+							<label for="USER">USER</label>
+							<input type="text" class="form-control" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." id="USER" placeholder="USER" name="USER">
 						</div>
 						<div class="col-md-4" style="margin: 2px 0;">
-							<label for="PW">PW</label> <input type="text"
-								class="form-control" id="PW" placeholder="PW">
+							<label for="PW">PW</label>
+							<input type="text" class="form-control" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." id="PW" placeholder="PW" name="PW">
 						</div>
 					</div>
 				</div>
 				<!-- /.box-body -->
 				<div class="box-footer">
-					<button type="button" class="btn btn-primary" onclick="save()">Submit</button>
+					<button type="submit" class="btn btn-primary form-control">저장</button>
 				</div>
 			</form>
 		</div>

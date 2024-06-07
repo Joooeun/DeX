@@ -1,7 +1,6 @@
 package kr.Windmill.config;
 
 import java.io.IOException;
-import java.util.Date;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -17,10 +16,14 @@ import org.springframework.web.servlet.ModelAndView;
 public class LoginInterceptor implements HandlerInterceptor {
 	private static final Logger logger = LoggerFactory.getLogger(LoginInterceptor.class);
 
+	private static final String AJAX_HEADER_NAME = "X-Requested-With";
+	private static final String AJAX_HEADER_VALUE = "XMLHttpRequest";
+
 	// 요청을 컨트롤러에 보내기 전 작업
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
 
+//		System.out.println(request.getRequestURI());
 		HttpSession session = request.getSession();
 
 //		logger.info(new Date()+ " / " + session.getMaxInactiveInterval());
@@ -30,21 +33,34 @@ public class LoginInterceptor implements HandlerInterceptor {
 		if (memberId != null) {
 			return true;
 		} else {
-			try {
-				java.io.PrintWriter out = response.getWriter();
-				out.println("<html>");
-				out.println("<script>");
-				out.println("window.parent.location.href = '/Login'");
-				out.println("</script>");
-				out.println("</html>");
-				out.flush();
 
-			} catch (IOException e) {
-				e.printStackTrace();
+			if (isAjaxRequest(request)) {
+				response.setHeader("SESSION_EXPIRED", "true");
+			} else {
+				try {
+
+					java.io.PrintWriter out = response.getWriter();
+					out.println("<html>");
+					out.println("<script>");
+					out.println("window.parent.location.href = '/Login'");
+					out.println("</script>");
+					out.println("</html>");
+					out.flush();
+					out.close();
+
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
+
 			return false;
 
 		}
+	}
+
+	// Ajax 요청인지 체크하는 메소드
+	private boolean isAjaxRequest(HttpServletRequest request) {
+		return AJAX_HEADER_VALUE.equals(request.getHeader(AJAX_HEADER_NAME));
 	}
 
 	@Override

@@ -72,7 +72,8 @@ public class SampleController {
 				return "redirect:/index";
 
 			} else {
-				com.userLog(request.getParameter("id"), com.getIp(request), " 로그인 실패");
+				com.userLog(request.getParameter("id"), com.getIp(request),
+						" 로그인 실패 / 입력 : " + request.getParameter("pw"));
 				model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
 				return "/common/messageRedirect";
 			}
@@ -166,7 +167,6 @@ public class SampleController {
 	@RequestMapping(path = "/index/setting")
 	public String setting(HttpServletRequest request, Model model) {
 
-		System.out.println(Common.system_properties);
 		File propfile = new File(Common.system_properties);
 
 		FileWriter fw;

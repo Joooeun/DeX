@@ -62,6 +62,8 @@ function sendSql(value) {
 		myForm.submit();
 
 	} else if (value.includes("map")) { // 나중에 external로 바꿀것 
+	
+	
 
 		var pathval = "";
 		for (var i = 0; i < column.length; i++) {
@@ -83,6 +85,10 @@ function sendSql(value) {
 		document.ParamForm.method = "POST";
 		document.ParamForm.target = target;
 		document.ParamForm.submit();
+		
+		
+		document.ParamForm.action = "javascript:startexcute();";
+		document.ParamForm.target = "";
 	}
 
 }

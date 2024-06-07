@@ -143,13 +143,26 @@ var sql_text = "";
 			}
 		});
 		
+		document.querySelectorAll(".formtextarea").forEach((element) => {
+		  element.addEventListener("keydown", function (e){
+			    if (e.ctrlKey && e.keyCode == 13) {
+					
+			    	if(document.ParamForm.checkValidity())
+				    	document.ParamForm.submit();
+			    	e.preventDefault();
+				}
+			})
+		})
 		
-		document.getElementById('sql_text').addEventListener('keydown', function (e){
-		    if (e.ctrlKey && e.keyCode == 13) {
-				startexcute()
-			}
-			
-		}, false);
+		document.querySelectorAll(".paramvalue input").forEach((element) => {
+		  element.addEventListener("keydown", function (e){
+			    if (e.keyCode == 13) {
+					
+			    	document.ParamForm.submit();
+			    	e.preventDefault();
+				}
+			})
+		})
 
 
 		$(document).on("click", ".Resultrow", function() {
@@ -167,6 +180,10 @@ var sql_text = "";
 
 	});
 
+	
+	function formsubmit(){
+		
+	}
 	function startexcute() {
 		if ($("#connectionlist option:selected").val() == '') {
 			alert("Connection을 선택하세요.");
@@ -195,7 +212,6 @@ var sql_text = "";
 	}
 
 	function excute() {
-		
 		$("#excutebtn").attr('disabled', true);
 		if(!$("#refreshtimeout").val() ){
 			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></tr></td>');
@@ -225,13 +241,21 @@ var sql_text = "";
 				Connection : $("#connectionlist").val(),
 				limit: $("#limit").val()
 			},
-			success : function(result) {
+			success : function(result, status, jqXHR ) {
+				
+				if (jqXHR.getResponseHeader("SESSION_EXPIRED") === "true") {
+		            alert("세션이 만료되었습니다.");
+		            window.parent.location.href = "/Login";
+		        }
 
 				$("#Resultbox").css("display", "block");
 				
 				var newline = $("#newline").prop('checked');
+				
+				var str = '';
+				
 				if( result.length>0){
-					var str = '<thead>';
+					str = '<thead>';
 
 					str += '<tr>';
 					str += '<th>#</th>';
@@ -495,9 +519,9 @@ var sql_text = "";
 						</select>
 					</div>
 					<c:if test="${sql eq ''}">
-						<textarea class="col-sm-12 col-xs-12" id="sql_text" style="margin: 0 0 10px 0" rows="5">${sql}</textarea>
+						<textarea class="col-sm-12 col-xs-12 formtextarea" id="sql_text" style="margin: 0 0 10px 0" rows="5">${sql}</textarea>
 					</c:if>
-					<form role="form-horizontal" name="ParamForm">
+					<form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:startexcute();">
 
 						<!-- onsubmit="startexcute()" -->
 
@@ -509,7 +533,7 @@ var sql_text = "";
 										<div class="col-xs-12">
 											<div class="form-group">
 												<span class="param" id="param${status.count}" paramtitle="${item.name}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
-												<textarea id="sql_text" class="paramvalue col-xs-12" rows="10" paramtype="${item.type}" value="${item.name=='memberId' ? memberId : item.value}" style="padding: 0 2px;"></textarea>
+												<textarea class="paramvalue col-xs-12 formtextarea" rows="10" paramtype="${item.type}" value="${item.name=='memberId' ? memberId : item.value}" style="padding: 0 2px;"></textarea>
 											</div>
 										</div>
 
@@ -524,7 +548,7 @@ var sql_text = "";
 												</c:if>
 												<div style="margin: 2px 0">
 													<input type="${item.name=='memberId' ? 'hidden' : 'text'}" class="form-control paramvalue" paramtype="${item.type}" value="${item.name=='memberId' ? memberId : item.value}" style="padding: 0 2px;"
-														onKeypress="javascript:if(event.keyCode==13) {startexcute()}" <c:if test="${item.required=='required'}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.name=='memberId'}">readonly </c:if>>
+														<c:if test="${item.required=='required'}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.name=='memberId'}">readonly </c:if>>
 												</div>
 											</div>
 										</div>
@@ -534,7 +558,9 @@ var sql_text = "";
 							</c:forEach>
 
 							<div class="col-sm-2 col-md-1 pull-right">
-								<input type="hidden" id="sendvalue" name="sendvalue"> <input id="excutebtn" type="button" class="form-control" value="실행" onclick="startexcute();">
+								<input type="hidden" id="sendvalue" name="sendvalue"> <input id="excutebtn" type="submit" class="form-control" value="실행">
+								<!-- ="startexcute();" -->
+
 								<!-- <input
 										id="excutebtn" type="submit" class="form-control" value="실행">  -->
 								<!-- <label><span
