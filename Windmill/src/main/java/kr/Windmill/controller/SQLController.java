@@ -76,8 +76,21 @@ public class SQLController {
 					if (line.split("=")[0].equals("PARAM")) {
 						map.put("name", line.split("=")[1].split("\\&")[0]);
 						map.put("type", line.split("=")[1].split("\\&")[1]);
-						if (line.split("=")[1].split("\\&").length > 2) {
-							map.put("required", line.split("=")[1].split("\\&")[2]);
+
+						List vowelsList = Arrays.asList(line.split("=")[1].split("\\&"));
+
+						if (vowelsList.contains("required")) {
+							map.put("required", "required");
+						}
+
+						if (vowelsList.contains("disabled")) {
+							map.put("disabled", "disabled");
+						}
+						if (vowelsList.contains("readonly")) {
+							map.put("readonly", "readonly");
+						}
+						if (vowelsList.contains("hidden")) {
+							map.put("hidden", "hidden");
 						}
 
 						if (values != null && values.length > num) {
@@ -93,6 +106,10 @@ public class SQLController {
 						map.put("keytitle", line.split("=")[1].split("\\&")[1]);
 						map.put("menu", line.split("=")[1].split("\\&")[2]);
 						map.put("column", line.split("=")[1].split("\\&")[3]);
+
+						List vowelsList = Arrays.asList(line.split("=")[1].split("\\&"));
+						map.put("autoExecute", String.valueOf(!vowelsList.contains("disableAutoExecute")));
+
 						ShortKey.add(map);
 					} else if (line.split("=")[0].equals("REFRESHTIMEOUT")) {
 						mv.addObject("refreshtimeout", line.split("=")[1]);
@@ -100,6 +117,8 @@ public class SQLController {
 						mv.addObject("limit", line.split("=")[1]);
 					} else if (line.split("=")[0].equals("NEWLINE")) {
 						mv.addObject("newline", line.split("=")[1]);
+					} else if (line.split("=")[0].equals("DB")) {
+						mv.addObject("DB", line.split("=")[1]);
 					}
 
 				}

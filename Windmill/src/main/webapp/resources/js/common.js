@@ -62,8 +62,8 @@ function sendSql(value) {
 		myForm.submit();
 
 	} else if (value.includes("map")) { // 나중에 external로 바꿀것 
-	
-	
+
+
 
 		var pathval = "";
 		for (var i = 0; i < column.length; i++) {
@@ -71,7 +71,7 @@ function sendSql(value) {
 				pathval += $(".Resultrow.success").children('td').eq(column[i]).children('span').html();
 			} else if (column[i].match(/^\d{1,2}A/)) {
 				for (var j = 0; j < $(".Resultrow").length; j++) {//$(".Resultrow").length
-					pathval += $(".Resultrow").eq(j).children('td').eq(column[i].substr(0, column[i].length-1)).children('span').html()+"/";
+					pathval += $(".Resultrow").eq(j).children('td').eq(column[i].substr(0, column[i].length - 1)).children('span').html() + "/";
 				}
 			} else {
 				pathval += column[i];
@@ -81,12 +81,12 @@ function sendSql(value) {
 
 		window.open(pathval.replace("?", "?param="), '_blank')
 	} else {
-		document.ParamForm.action = "/SQL?excute=true&Path=" + encodeURI($("#Path").val() + "/" + value.split('&')[0] + ".sql");
+		document.ParamForm.action = "/SQL?excute=" + value.split('&')[2] + "&Path=" + encodeURI($("#Path").val() + "/" + value.split('&')[0] + ".sql");
 		document.ParamForm.method = "POST";
 		document.ParamForm.target = target;
 		document.ParamForm.submit();
-		
-		
+
+
 		document.ParamForm.action = "javascript:startexcute();";
 		document.ParamForm.target = "";
 	}

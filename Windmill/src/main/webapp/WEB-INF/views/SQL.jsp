@@ -47,6 +47,11 @@
 .newline {
 	white-space: pre;
 }
+
+.form-group.required .param:after {
+	content: "*";
+	color: red;
+}
 </style>
 <script>
 
@@ -91,22 +96,25 @@ var sql_text = "";
 				TYPE : "DB"
 			},
 			success : function(result) {
+				
+				
+				if("${DB}"==""){
+					for (var i = 0; i < result.length; i++) {
 
-				for (var i = 0; i < result.length; i++) {
-
-					if (result[i].split('.')[0] == $('#selectedConnection').val()) {
-						$('#connectionlist').append("<option value=\"" + result[i].split('.')[0] + "\"  selected=\"selected\">" + result[i].split('.')[0] + "</option>");
-					} else {
-						$('#connectionlist').append("<option value='" + result[i].split('.')[0] + "'>" + result[i].split('.')[0] + "</option>");
+						if (result[i].split('.')[0] == $('#selectedConnection').val()) {
+							$('#connectionlist').append("<option value=\"" + result[i].split('.')[0] + "\"  selected=\"selected\">" + result[i].split('.')[0] + "</option>");
+						} else {
+							$('#connectionlist').append("<option value='" + result[i].split('.')[0] + "'>" + result[i].split('.')[0] + "</option>");
+						}
 					}
+				}else{
+					$('#connectionlist').append("<option value=\"${DB}\"  selected=\"selected\">${DB}</option>");
 				}
 				
-				var shortkey= ${Excute};
+				var shortkey = ${Excute};
 
 
 				if (shortkey && $("#connectionlist option:selected").val() != '') {
-					
-					
 					excute();
 				}
 			},
@@ -219,15 +227,15 @@ var sql_text = "";
 		
 		var sql = $("#sql_text").val() ?? sql_text;
 
-		for (var i = 0; i < $(".param").length; i++) {
+		for (var i = 0; i < $(".paramvalue").length; i++) {
 			if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
-				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
+				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'text') {
-				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join( $(".paramvalue").eq(i).val().replace(/'/g, "''"));		
+				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join( $(".paramvalue").eq(i).val().replace(/'/g, "''"));		
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'sql') {
-				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
+				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'number') {
-				sql = sql.split(':' + $(".param").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
+				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 			}
 		}
 
@@ -295,7 +303,7 @@ var sql_text = "";
 			    };
 			    
 			    $("#result_head").html(str);
-				/* $('#result_head').DataTable( {
+				$('#result_head').DataTable( {
 				    paging: false,
 				    searching: false,
 				     layout: {
@@ -308,16 +316,13 @@ var sql_text = "";
 				                }
 				            ]
 				        
-				        }
-				    }, 
-				  columnDefs: [
-				        {   
-				            "render": function(data, type, row){
-				                return data.split("\n ").join("<br/>");
-				            }
 				        },
-				    ] 
-				} ); */
+				        topStart: [
+				            'info'
+				          ]
+				        
+				    }
+				} );
 					
 				
 
@@ -337,20 +342,23 @@ var sql_text = "";
 	}
 
 	function sessionCon(value) {
+		
+		if("${DB}"==""){
 
-		$.ajax({
-			type : 'post',
-			url : '/Connection/sessionCon',
-			data : {
-				Connection : value
-			},
-			success : function(result) {
-				//alert("성공")
-			},
-			error : function() {
-				//alert("시스템 에러");
-			}
-		});
+			$.ajax({
+				type : 'post',
+				url : '/Connection/sessionCon',
+				data : {
+					Connection : value
+				},
+				success : function(result) {
+					//alert("성공")
+				},
+				error : function() {
+					//alert("시스템 에러");
+				}
+			});
+		}
 
 	}
 	
@@ -532,8 +540,8 @@ var sql_text = "";
 									<c:when test="${item.type == 'text' || item.type == 'sql'}">
 										<div class="col-xs-12">
 											<div class="form-group">
-												<span class="param" id="param${status.count}" paramtitle="${item.name}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
-												<textarea class="paramvalue col-xs-12 formtextarea" rows="10" paramtype="${item.type}" value="${item.name=='memberId' ? memberId : item.value}" style="padding: 0 2px;"></textarea>
+												<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+												<textarea class="paramvalue col-xs-12 formtextarea" paramtitle="${item.name}" rows="10" paramtype="${item.type}" style="padding: 0 2px;">${item.name=='memberId' ? memberId : item.value}</textarea>
 											</div>
 										</div>
 
@@ -542,13 +550,14 @@ var sql_text = "";
 
 									<c:otherwise>
 										<div class="col-sm-3">
-											<div class="form-group">
-												<c:if test="${item.name!='memberId'}">
-													<span class="param" id="param${status.count}" paramtitle="${item.name}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+											<div class="form-group ${item.required}">
+												<c:if test="${item.name != 'memberId' && item.hidden !='hidden'}">
+													<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
 												</c:if>
 												<div style="margin: 2px 0">
-													<input type="${item.name=='memberId' ? 'hidden' : 'text'}" class="form-control paramvalue" paramtype="${item.type}" value="${item.name=='memberId' ? memberId : item.value}" style="padding: 0 2px;"
-														<c:if test="${item.required=='required'}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.name=='memberId'}">readonly </c:if>>
+													<input type="${item.name=='memberId' || item.hidden=='hidden' ? 'hidden' : 'text'}" class="form-control paramvalue" paramtitle="${item.name}" paramtype="${item.type}" value="${item.name == 'memberId' ? memberId : item.value}"
+														style="padding: 0 2px;" <c:if test="${item.required=='required'}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.disabled=='disabled'}">disabled</c:if>
+														<c:if test="${item.name=='memberId' || item.readonly=='readonly'}">readonly </c:if>>
 												</div>
 											</div>
 										</div>
@@ -631,7 +640,7 @@ var sql_text = "";
 					<div class="box-body">
 						<div class="form-group">
 							<c:forEach var="item" items="${ShortKey}">
-								<button type="button" class="btn btn-default" onclick="sendSql('${item.menu}&${item.column}')">${item.keytitle}</button>
+								<button type="button" class="btn btn-default" onclick="sendSql('${item.menu}&${item.column}&${item.disableAutoExecute}')">${item.keytitle}</button>
 								<input type="hidden" id="${item.key}" value="${item.menu}&${item.column}">
 							</c:forEach>
 						</div>
