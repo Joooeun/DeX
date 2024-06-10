@@ -640,7 +640,7 @@ var sql_text = "";
 					<div class="box-body">
 						<div class="form-group">
 							<c:forEach var="item" items="${ShortKey}">
-								<button type="button" class="btn btn-default" onclick="sendSql('${item.menu}&${item.column}&${item.disableAutoExecute}')">${item.keytitle}</button>
+								<button type="button" class="btn btn-default" onclick="sendSql('${item.menu}&${item.column}&${item.autoExecute}')">${item.keytitle}</button>
 								<input type="hidden" id="${item.key}" value="${item.menu}&${item.column}">
 							</c:forEach>
 						</div>
