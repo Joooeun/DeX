@@ -33,6 +33,7 @@ public class Common {
 	public static String UserPath = "";
 	public static String tempPath = "";
 	public static String RootPath = "";
+	public static String LogCode = "";
 	public static int Timeout = 15;
 
 	public Common() {
@@ -60,7 +61,8 @@ public class Common {
 		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
 		UserPath = props.getProperty("Root") + File.separator + "user" + File.separator;
 		Timeout = Integer.parseInt(props.getProperty("Timeout") == null ? "15" : props.getProperty("Timeout"));
-		logger.debug("Timeout : " + props.getProperty("Timeout"));
+		LogCode = props.getProperty("LogCode");
+		logger.info("RootPath : " + RootPath + " / Timeout : " + Timeout + " / LogCode : " + LogCode);
 
 	}
 

@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -119,6 +121,8 @@ public class SQLController {
 						mv.addObject("newline", line.split("=")[1]);
 					} else if (line.split("=")[0].equals("DB")) {
 						mv.addObject("DB", line.split("=")[1]);
+					} else if (line.split("=")[0].equals("DESC")) {
+						mv.addObject("desc", line.split("=")[1]);
 					}
 
 				}
@@ -224,36 +228,88 @@ public class SQLController {
 			String row = "";
 
 			if (sql.toUpperCase().startsWith("CALL")) {
-				list = callprocedure(sql, dbtype, con);
+				list.addAll(callprocedure(sql, dbtype, con));
+				Instant end = Instant.now();
+				Duration timeElapsed = Duration.between(start, end);
+
+				com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
+						"DB : " + request.getParameter("Connection") + " / sql 실행 성공" + row + " / 소요시간 : "
+								+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
+								+ "\nstart============================================\n" + sql
+								+ "\nend==============================================");
 			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH")
 					|| sql.toUpperCase().startsWith("VALUE")) {
-				list = excutequery(sql, dbtype, con, Integer.parseInt(request.getParameter("limit")));
-//				row = "select rows : " + (list.size() - 1);
+				list.addAll(excutequery(sql, dbtype, con, Integer.parseInt(request.getParameter("limit"))));
 				row = "";
+				Instant end = Instant.now();
+				Duration timeElapsed = Duration.between(start, end);
+
+				com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
+						"DB : " + request.getParameter("Connection") + " / sql 실행 성공" + row + " / 소요시간 : "
+								+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
+								+ "\nstart============================================\n" + sql
+								+ "\nend==============================================");
 			} else {
-				list = updatequery(sql, dbtype, con);
-				row = " / " + sql.toUpperCase().split("\\s")[0] + " rows : " + list.get(0).get(1).toString();
+
+				List<String> headRow;
+				headRow = new ArrayList<>();
+				headRow.add("Result");
+				headRow.add("Query");
+				list.add(headRow);
+
+				String logcode = "";
+				String sqlOrg = sql.trim();
+				if (sqlOrg.toUpperCase().contains(com.LogCode)) {
+
+					Pattern pattern = Pattern.compile("^.*" + com.LogCode + ".*(\\s.*)*$",
+							Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
+					Matcher matcher = pattern.matcher(sqlOrg);
+
+					while (matcher.find()) {
+						logcode = matcher.group();
+						sqlOrg = sqlOrg.replace(logcode, "");
+						continue;
+					}
+				}
+
+				for (String singleSql : sqlOrg.split(";")) {
+
+					if (singleSql.trim().length() == 0) {
+						continue;
+					}
+
+					sql = singleSql.trim() + ";";
+
+					Instant singleStart = Instant.now();
+
+					List<List<String>> singleList = updatequery(sql.trim(), dbtype, con);
+
+					list.addAll(singleList);
+
+					Duration timeElapsed = Duration.between(singleStart, Instant.now());
+
+					row = " / " + sql.toUpperCase().split("\\s")[0] + " rows : " + singleList.get(0).get(0).toString();
+					com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
+							"DB : " + request.getParameter("Connection") + " / sql 실행 성공" + row + " / 소요시간 : "
+									+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
+									+ "\nstart============================================\n" + sql + "\n" + logcode
+									+ "\nend==============================================\n");
+
+				}
+
 			}
-
-			Instant end = Instant.now();
-			Duration timeElapsed = Duration.between(start, end);
-
-			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					"DB : " + request.getParameter("Connection") + " / sql 실행 성공" + row + " / 소요시간 : "
-							+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
-							+ "\nstart============================================\n" + sql
-							+ "\nend==============================================");
 
 		} catch (SQLException e1) {
 			List<String> element = new ArrayList<String>();
 			element.add(e1.toString());
+			element.add(sql);
 
 			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
 					"DB : " + request.getParameter("Connection")
 							+ " / sql 실행 실패\nstart============================================\n" + sql + "\n"
 							+ e1.getMessage()
 
-							+ "\nend==============================================");
+							+ "\nend==============================================\n");
 
 			list.add(element);
 			e1.printStackTrace();
@@ -341,15 +397,9 @@ public class SQLController {
 		rowcnt = pstmt.executeUpdate();
 
 		List<String> row;
-		String column;
 
 		row = new ArrayList<>();
-		row.add("Updated Rows");
-		row.add(rowcnt + "");
-
-		list.add(row);
-		row = new ArrayList<>();
-		row.add("Query");
+		row.add("Updated Rows : " + rowcnt);
 		row.add(sql);
 
 		list.add(row);

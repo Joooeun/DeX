@@ -171,9 +171,10 @@ public class SampleController {
 
 		FileWriter fw;
 		try {
-			fw = new FileWriter(propfile);
 
-			fw.write("Root=" + request.getParameter("path").replace("\\", "/"));
+			String propStr = com.FileRead(propfile);
+			fw = new FileWriter(propfile);
+			fw.write(propStr.replaceAll("Root.*", "Root=" + request.getParameter("path").replace("\\", "/")));
 			fw.close();
 		} catch (IOException e) {
 			e.printStackTrace();

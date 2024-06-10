@@ -520,6 +520,7 @@ var sql_text = "";
 	<!-- Content Header (Page header) -->
 	<section class="content-header">
 		<h1>${title}</h1>
+		<span>${desc}</span>
 		<ol class="breadcrumb">
 			<li>
 				<a href="#"><i class="icon ion-ios-home"></i> Home</a>
