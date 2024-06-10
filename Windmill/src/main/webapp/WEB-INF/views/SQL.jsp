@@ -220,14 +220,18 @@ var sql_text = "";
 	}
 
 	function excute() {
-		$("#excutebtn").attr('disabled', true);
-		if(!$("#refreshtimeout").val() ){
-			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></tr></td>');
-		}
 		
 		var sql = $("#sql_text").val() ?? sql_text;
 
 		for (var i = 0; i < $(".paramvalue").length; i++) {
+			
+			if ($(".paramvalue").eq(i).attr('required') == 'required'&&$(".paramvalue").eq(i).val()=="") {
+				alert($(".paramvalue").eq(i).attr('paramtitle')+"을 입력하세요.")
+				return;
+				
+			}
+			
+			
 			if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'text') {
@@ -238,6 +242,12 @@ var sql_text = "";
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 			}
 		}
+		
+		$("#excutebtn").attr('disabled', true);
+		if(!$("#refreshtimeout").val() ){
+			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></tr></td>');
+		}
+		
 
 		$.ajax({
 			type : 'post',
@@ -317,9 +327,12 @@ var sql_text = "";
 				            ]
 				        
 				        },
-				        topStart: [
-				            'info'
-				          ]
+				        topStart: {
+				            info: {
+				                text: 'total : _TOTAL_ records'
+				            }
+				        },
+				          bottomStart: null
 				        
 				    }
 				} );
@@ -557,7 +570,7 @@ var sql_text = "";
 												<div style="margin: 2px 0">
 													<input type="${item.name=='memberId' || item.hidden=='hidden' ? 'hidden' : 'text'}" class="form-control paramvalue" paramtitle="${item.name}" paramtype="${item.type}" value="${item.name == 'memberId' ? memberId : item.value}"
 														style="padding: 0 2px;" <c:if test="${item.required=='required'}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.disabled=='disabled'}">disabled</c:if>
-														<c:if test="${item.name=='memberId' || item.readonly=='readonly'}">readonly </c:if>>
+														<c:if test="${item.name=='memberId' || item.readonly=='readonly'}">readonly</c:if>>
 												</div>
 											</div>
 										</div>
