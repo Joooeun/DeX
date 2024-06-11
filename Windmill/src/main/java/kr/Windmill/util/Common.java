@@ -313,6 +313,7 @@ public class Common {
 
 			writer.write(strNowDate2 + " id : " + user + " / ip :  " + ip + "\n" + msg);
 			writer.newLine();
+			writer.newLine();
 			writer.close();
 		} catch (IOException e) {
 			e.printStackTrace();

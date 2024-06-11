@@ -97,7 +97,6 @@ var sql_text = "";
 			},
 			success : function(result) {
 				
-				
 				if("${DB}"==""){
 					for (var i = 0; i < result.length; i++) {
 
@@ -222,6 +221,7 @@ var sql_text = "";
 	function excute() {
 		
 		var sql = $("#sql_text").val() ?? sql_text;
+		var log = "";
 
 		for (var i = 0; i < $(".paramvalue").length; i++) {
 			
@@ -240,6 +240,8 @@ var sql_text = "";
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'number') {
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
+			}else if ($(".paramvalue").eq(i).attr('paramtype') == 'log') {
+				log += "\n"+$(".paramvalue").eq(i).attr('paramtitle')+" : "+$(".paramvalue").eq(i).val();
 			}
 		}
 		
@@ -254,6 +256,7 @@ var sql_text = "";
 			url : '/SQL/excute',
 			data : {
 				sql : sql.trim(),
+				log : log,
 				autocommit : true,
 				/* autocommit : $("#autocommit").prop('checked'), */
 				Connection : $("#connectionlist").val(),

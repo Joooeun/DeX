@@ -216,39 +216,33 @@ public class SQLController {
 		prop.put("password", map.get("PW"));
 		prop.put("clientProgramName", "DeX");
 
-		Connection con = null;
-
 		String sql = request.getParameter("sql");
+		String log = "";
 
 		try {
-
-			con = DriverManager.getConnection(jdbc, prop);
-			con.setAutoCommit(false);
 
 			String row = "";
 
 			if (sql.toUpperCase().startsWith("CALL")) {
-				list.addAll(callprocedure(sql, dbtype, con));
+				list.addAll(callprocedure(sql, dbtype, jdbc, prop));
 				Instant end = Instant.now();
 				Duration timeElapsed = Duration.between(start, end);
 
-				com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-						"DB : " + request.getParameter("Connection") + " / sql 실행 성공" + row + " / 소요시간 : "
-								+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
-								+ "\nstart============================================\n" + sql
-								+ "\nend==============================================");
+				log = " / sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis())
+						+ request.getParameter("log") + "\nstart============================================\n" + sql
+						+ "\nend==============================================";
+
 			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH")
 					|| sql.toUpperCase().startsWith("VALUE")) {
-				list.addAll(excutequery(sql, dbtype, con, Integer.parseInt(request.getParameter("limit"))));
+				list.addAll(excutequery(sql, dbtype, jdbc, prop, Integer.parseInt(request.getParameter("limit"))));
 				row = "";
 				Instant end = Instant.now();
 				Duration timeElapsed = Duration.between(start, end);
 
-				com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-						"DB : " + request.getParameter("Connection") + " / sql 실행 성공" + row + " / 소요시간 : "
-								+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
-								+ "\nstart============================================\n" + sql
-								+ "\nend==============================================");
+				log = " / sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis())
+						+ request.getParameter("log") + "\nstart============================================\n" + sql
+						+ "\nend==============================================";
+
 			} else {
 
 				List<String> headRow;
@@ -257,20 +251,9 @@ public class SQLController {
 				headRow.add("Query");
 				list.add(headRow);
 
-				String logcode = "";
 				String sqlOrg = sql.trim();
-				if (sqlOrg.toUpperCase().contains(com.LogCode)) {
 
-					Pattern pattern = Pattern.compile("^.*" + com.LogCode + ".*(\\s.*)*$",
-							Pattern.CASE_INSENSITIVE | Pattern.MULTILINE);
-					Matcher matcher = pattern.matcher(sqlOrg);
-
-					while (matcher.find()) {
-						logcode = matcher.group();
-						sqlOrg = sqlOrg.replace(logcode, "");
-						continue;
-					}
-				}
+				log = request.getParameter("log");
 
 				for (String singleSql : sqlOrg.split(";")) {
 
@@ -282,202 +265,70 @@ public class SQLController {
 
 					Instant singleStart = Instant.now();
 
-					List<List<String>> singleList = updatequery(sql.trim(), dbtype, con);
+					List<List<String>> singleList = updatequery(sql.trim(), dbtype, jdbc, prop);
 
 					list.addAll(singleList);
 
 					Duration timeElapsed = Duration.between(singleStart, Instant.now());
 
 					row = " / " + sql.toUpperCase().split("\\s")[0] + " rows : " + singleList.get(0).get(0).toString();
-					com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-							"DB : " + request.getParameter("Connection") + " / sql 실행 성공" + row + " / 소요시간 : "
-									+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
-									+ "\nstart============================================\n" + sql + "\n" + logcode
-									+ "\nend==============================================\n");
+
+					log += "\nsql 실행 성공" + row + " / 소요시간 : "
+							+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
+							+ "\nstart============================================\n" + sql
+							+ "\nend==============================================\n";
 
 				}
 
 			}
+
+			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
+					"DB : " + request.getParameter("Connection") + log);
 
 		} catch (SQLException e1) {
 			List<String> element = new ArrayList<String>();
 			element.add(e1.toString());
 			element.add(sql);
 
-			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					"DB : " + request.getParameter("Connection")
-							+ " / sql 실행 실패\nstart============================================\n" + sql + "\n"
-							+ e1.getMessage()
+			if (log.length() > 0) {
+				com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
+						"DB : " + request.getParameter("Connection") + log);
+			}
 
-							+ "\nend==============================================\n");
+			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
+					"DB : " + request.getParameter("Connection") + " / sql 실행 실패" + request.getParameter("log")
+							+ "\nstart============================================\n" + sql + "\n\n" + e1.getMessage()
+							+ "\nend==============================================");
 
 			list.add(element);
 			e1.printStackTrace();
-		} finally {
-
-			if (con != null) {
-
-				try {
-					con.commit();
-					con.close();
-
-				} catch (SQLException ex) {
-					logger.error(ex.toString());
-				}
-			} else {
-
-			}
 		}
 
 		return list;
 	}
 
-	public List<List<String>> excutequery(String sql, String dbtype, Connection con, int limit) throws SQLException {
+	public List<List<String>> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit)
+			throws SQLException {
 
-		List<List<String>> list = new ArrayList<List<String>>();
+		Connection con = null;
+		try {
+			con = DriverManager.getConnection(jdbc, prop);
 
-		PreparedStatement pstmt = null;
-		ResultSet rs = null;
+			con.setAutoCommit(false);
 
-		pstmt = con.prepareStatement(sql);
+			List<List<String>> list = new ArrayList<List<String>>();
 
-		if (limit > 0) {
-			pstmt.setMaxRows(limit);
-		}
-		rs = pstmt.executeQuery();
+			PreparedStatement pstmt = null;
+			ResultSet rs = null;
 
-		ResultSetMetaData rsmd = rs.getMetaData();
-		int colcnt = rsmd.getColumnCount();
+			pstmt = con.prepareStatement(sql);
 
-		List<String> row;
-		String column;
-
-		row = new ArrayList<>();
-		for (int index = 0; index < colcnt; index++) {
-
-			column = rsmd.getColumnLabel(index + 1);
-
-			row.add(column);
-
-		}
-		list.add(row);
-
-		while (rs.next()) {
-
-			row = new ArrayList<>();
-			for (int index = 0; index < colcnt; index++) {
-				// column = rsmd.getColumnName(index + 1);
-				// 타입별 get함수 다르게 변경필
-				try {
-					row.add(rs.getObject(index + 1) == null ? "NULL"
-							: (rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs.getString(index + 1)
-									: rs.getObject(index + 1).toString()));
-					// System.out.println(rs.getObject(index+1));
-				} catch (Exception e) {
-					row.add(e.toString());
-				}
-
+			if (limit > 0) {
+				pstmt.setMaxRows(limit);
 			}
-			list.add(row);
+			rs = pstmt.executeQuery();
 
-		}
-
-		return list;
-
-	}
-
-	public List<List<String>> updatequery(String sql, String dbtype, Connection con) throws SQLException {
-
-		List<List<String>> list = new ArrayList<List<String>>();
-
-		PreparedStatement pstmt = null;
-		int rowcnt = 0;
-
-		pstmt = con.prepareStatement(sql);
-		rowcnt = pstmt.executeUpdate();
-
-		List<String> row;
-
-		row = new ArrayList<>();
-		row.add("Updated Rows : " + rowcnt);
-		row.add(sql);
-
-		list.add(row);
-
-		return list;
-
-	}
-
-	public List<List<String>> callprocedure(String sql, String dbtype, Connection con) throws SQLException {
-
-		List<List<String>> list = new ArrayList<List<String>>();
-
-		CallableStatement callStmt1 = null;
-		PreparedStatement pstmt = null;
-		ResultSet rs = null;
-
-		String callcheckstr = "";
-
-		String prcdname = "";
-		prcdname = sql.substring(sql.indexOf("CALL") + 4, sql.indexOf("("));
-		if (prcdname.contains(".")) {
-			prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
-		}
-
-		int paramcnt = StringUtils.countMatches(sql, ",") + 1;
-		switch (dbtype) {
-		case "DB2":
-			callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim()
-					+ "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
-					+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
-					+ prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt
-					+ ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
-			break;
-		case "ORACLE":
-			callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n"
-					+ " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
-			break;
-
-		default:
-			break;
-		}
-
-		List<Integer> typelst = new ArrayList<>();
-		pstmt = con.prepareStatement(callcheckstr);
-		rs = pstmt.executeQuery();
-
-		while (rs.next()) {
-			switch (rs.getString("TYPENAME")) {
-			case "VARCHAR2":
-				typelst.add(java.sql.Types.VARCHAR);
-				break;
-			case "VARCHAR":
-				typelst.add(java.sql.Types.VARCHAR);
-				break;
-			case "INTEGER":
-				typelst.add(java.sql.Types.INTEGER);
-				break;
-			case "TIMESTAMP":
-				typelst.add(java.sql.Types.TIMESTAMP);
-				break;
-			case "DATE":
-				typelst.add(java.sql.Types.DATE);
-				break;
-			}
-		}
-
-		callStmt1 = con.prepareCall(sql);
-		for (int i = 0; i < typelst.size(); i++) {
-			callStmt1.registerOutParameter(i + 1, typelst.get(i));
-		}
-
-		callStmt1.execute();
-
-		ResultSet rs2 = null;
-		rs2 = callStmt1.getResultSet();
-
-		if (rs2 != null) {
-			ResultSetMetaData rsmd = rs2.getMetaData();
+			ResultSetMetaData rsmd = rs.getMetaData();
 			int colcnt = rsmd.getColumnCount();
 
 			List<String> row;
@@ -493,30 +344,218 @@ public class SQLController {
 			}
 			list.add(row);
 
-			while (rs2.next()) {
+			while (rs.next()) {
 
 				row = new ArrayList<>();
 				for (int index = 0; index < colcnt; index++) {
+					// column = rsmd.getColumnName(index + 1);
+					// 타입별 get함수 다르게 변경필
 					try {
-						row.add(rs2.getObject(index + 1) == null ? "NULL"
-								: (rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1)
-										: rs2.getObject(index + 1).toString()));
+						row.add(rs.getObject(index + 1) == null ? "NULL"
+								: (rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs.getString(index + 1)
+										: rs.getObject(index + 1).toString()));
+						// System.out.println(rs.getObject(index+1));
 					} catch (Exception e) {
 						row.add(e.toString());
 					}
+
 				}
 				list.add(row);
 
 			}
-		} else {
-			for (int i = 0; i < typelst.size(); i++) {
-				List<String> element = new ArrayList<String>();
-				element.add(callStmt1.getString(i + 1) + "");
-				list.add(element);
+
+			return list;
+
+		} finally {
+			if (con != null) {
+
+				try {
+					con.commit();
+					con.close();
+
+				} catch (SQLException ex) {
+					logger.error(ex.toString());
+				}
+			} else {
+
 			}
 		}
 
-		return list;
+	}
+
+	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop) throws SQLException {
+
+		Connection con = null;
+		try {
+			con = DriverManager.getConnection(jdbc, prop);
+
+			con.setAutoCommit(false);
+
+			List<List<String>> list = new ArrayList<List<String>>();
+
+			PreparedStatement pstmt = null;
+			int rowcnt = 0;
+
+			pstmt = con.prepareStatement(sql);
+			rowcnt = pstmt.executeUpdate();
+
+			List<String> row;
+
+			row = new ArrayList<>();
+			row.add("Updated Rows : " + rowcnt);
+			row.add(sql);
+
+			list.add(row);
+
+			return list;
+
+		} finally {
+			if (con != null) {
+
+				try {
+					con.commit();
+					con.close();
+
+				} catch (SQLException ex) {
+					logger.error(ex.toString());
+				}
+			} else {
+
+			}
+		}
+
+	}
+
+	public List<List<String>> callprocedure(String sql, String dbtype, String jdbc, Properties prop)
+			throws SQLException {
+
+		Connection con = null;
+		try {
+			con = DriverManager.getConnection(jdbc, prop);
+
+			con.setAutoCommit(false);
+
+			List<List<String>> list = new ArrayList<List<String>>();
+
+			CallableStatement callStmt1 = null;
+			PreparedStatement pstmt = null;
+			ResultSet rs = null;
+
+			String callcheckstr = "";
+
+			String prcdname = "";
+			prcdname = sql.substring(sql.indexOf("CALL") + 4, sql.indexOf("("));
+			if (prcdname.contains(".")) {
+				prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
+			}
+
+			int paramcnt = StringUtils.countMatches(sql, ",") + 1;
+			switch (dbtype) {
+			case "DB2":
+				callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
+						+ prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
+						+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
+						+ prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt
+						+ ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
+				break;
+			case "ORACLE":
+				callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n"
+						+ " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
+				break;
+
+			default:
+				break;
+			}
+
+			List<Integer> typelst = new ArrayList<>();
+			pstmt = con.prepareStatement(callcheckstr);
+			rs = pstmt.executeQuery();
+
+			while (rs.next()) {
+				switch (rs.getString("TYPENAME")) {
+				case "VARCHAR2":
+					typelst.add(java.sql.Types.VARCHAR);
+					break;
+				case "VARCHAR":
+					typelst.add(java.sql.Types.VARCHAR);
+					break;
+				case "INTEGER":
+					typelst.add(java.sql.Types.INTEGER);
+					break;
+				case "TIMESTAMP":
+					typelst.add(java.sql.Types.TIMESTAMP);
+					break;
+				case "DATE":
+					typelst.add(java.sql.Types.DATE);
+					break;
+				}
+			}
+
+			callStmt1 = con.prepareCall(sql);
+			for (int i = 0; i < typelst.size(); i++) {
+				callStmt1.registerOutParameter(i + 1, typelst.get(i));
+			}
+
+			callStmt1.execute();
+
+			ResultSet rs2 = null;
+			rs2 = callStmt1.getResultSet();
+
+			if (rs2 != null) {
+				ResultSetMetaData rsmd = rs2.getMetaData();
+				int colcnt = rsmd.getColumnCount();
+
+				List<String> row;
+				String column;
+
+				row = new ArrayList<>();
+				for (int index = 0; index < colcnt; index++) {
+
+					column = rsmd.getColumnLabel(index + 1);
+
+					row.add(column);
+
+				}
+				list.add(row);
+
+				while (rs2.next()) {
+
+					row = new ArrayList<>();
+					for (int index = 0; index < colcnt; index++) {
+						try {
+							row.add(rs2.getObject(index + 1) == null ? "NULL"
+									: (rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1)
+											: rs2.getObject(index + 1).toString()));
+						} catch (Exception e) {
+							row.add(e.toString());
+						}
+					}
+					list.add(row);
+
+				}
+			} else {
+				for (int i = 0; i < typelst.size(); i++) {
+					List<String> element = new ArrayList<String>();
+					element.add(callStmt1.getString(i + 1) + "");
+					list.add(element);
+				}
+			}
+
+			return list;
+		} finally {
+			if (con != null) {
+
+				try {
+					con.commit();
+					con.close();
+
+				} catch (SQLException ex) {
+					logger.error(ex.toString());
+				}
+			} else {
+
+			}
+		}
 	}
 
 	public static List<Map<String, ?>> getfiles(String root, int depth) {
