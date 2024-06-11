@@ -18,11 +18,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.apache.commons.lang3.StringUtils;
@@ -143,6 +142,19 @@ public class SQLController {
 		}
 
 		return mv;
+	}
+
+	@RequestMapping(path = "HTML")
+	public void LinkHTML(HttpServletRequest request, HttpServletResponse response, ModelAndView mv) throws IOException {
+
+		File file = new File(request.getParameter("Path"));
+		String html = com.FileRead(file);
+
+		java.io.PrintWriter out = response.getWriter();
+		out.println(html);
+		out.flush();
+		out.close();
+
 	}
 
 	@RequestMapping(path = "/search_all_data", method = RequestMethod.GET)
@@ -569,6 +581,12 @@ public class SQLController {
 			if (tempFile.isFile()) {
 
 				if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".sql")) {
+					Map<String, Object> element = new HashMap<>();
+					element.put("Name", tempFile.getName());
+					element.put("Path", tempFile.getPath());
+
+					list.add(element);
+				} else if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".htm")) {
 					Map<String, Object> element = new HashMap<>();
 					element.put("Name", tempFile.getName());
 					element.put("Path", tempFile.getPath());

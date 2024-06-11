@@ -23,7 +23,7 @@
 
 		for (var i = 0; i < result.length; i++) {
 			var list = result[i];
-			
+
 			if (list.Path.includes('Path')) {
 
 				var child2 = $('<ul class="nav nav-pills nav-stacked"></ul>');
@@ -34,7 +34,9 @@
 
 					folder = $('<div class="col-md-12"><div class="box box-solid"></div></div>');
 				}
-				var folder2 = $('<div class="box-header with-border"><h3 class="box-title">' + list.Name + '</h3><div class="box-tools"><button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button></div></div>');
+				var folder2 = $('<div class="box-header with-border"><h3 class="box-title">'
+						+ list.Name
+						+ '</h3><div class="box-tools"><button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button></div></div>');
 				var child1 = $('<div class="box-body no-padding"></div>');
 
 				child1.append(setMenu(list.list, child2));
@@ -42,8 +44,20 @@
 				folder.append(folder2);
 
 				parent.append(folder);
+			} else if (list.Name.includes('.htm')) {
+
+				var childItem = $('<li><a href="/HTML?Path='
+						+ encodeURI(list.Path) + '" target="iframe" id="'
+						+ list.Name.split('_')[0] + '">'
+						+ list.Name.split('.')[0] + '</a></li>');
+				parent.append(childItem);
+
 			} else {
-				var childItem = $('<li><a href="/SQL?Path=' + encodeURI(list.Path) + '" target="iframe" id="' + list.Name.split('_')[0] + '">' + list.Name.split('.')[0] + '</a></li>');
+
+				var childItem = $('<li><a href="/SQL?Path='
+						+ encodeURI(list.Path) + '" target="iframe" id="'
+						+ list.Name.split('_')[0] + '">'
+						+ list.Name.split('.')[0] + '</a></li>');
 				parent.append(childItem);
 			}
 		}
@@ -54,9 +68,11 @@
 </script>
 <div class="content-wrapper" style="margin-left: 0">
 	<section class="content-header">
-		
+
 		<ol class="breadcrumb">
-			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
+			<li>
+				<a href="#"><i class="icon ion-ios-home"></i> Home</a>
+			</li>
 		</ol>
 	</section>
 	<section class="content">

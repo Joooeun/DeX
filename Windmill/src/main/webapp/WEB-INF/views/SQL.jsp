@@ -1,8 +1,8 @@
 <%@include file="common/common.jsp"%>
 <style>
 ::-webkit-scrollbar {
-	width: 7px;
-	height: 7px;
+	width: 10px;
+	height: 10px;
 	border: 1px solid #fff;
 }
 
@@ -25,7 +25,8 @@
 }
 
 .tableWrapper {
-	height: calc(100vh - 395px);
+	min-height: calc(( 100vh)*0.2);
+	max-height: calc(( 100vh)* 0.6);
 	overflow: auto;
 }
 
@@ -275,7 +276,7 @@ var sql_text = "";
 				
 				var str = '';
 				
-				if( result.length>0){
+				if(result.length > 0){
 					str = '<thead>';
 
 					str += '<tr>';
@@ -341,8 +342,10 @@ var sql_text = "";
 				} );
 					
 				
-
-
+				if(newline){
+					
+					$("#result_head td").addClass('newline');
+				}
 				
 				$("#excutebtn").attr('disabled', false);
 				
@@ -658,7 +661,7 @@ var sql_text = "";
 						<div class="form-group">
 							<c:forEach var="item" items="${ShortKey}">
 								<button type="button" class="btn btn-default" onclick="sendSql('${item.menu}&${item.column}&${item.autoExecute}')">${item.keytitle}</button>
-								<input type="hidden" id="${item.key}" value="${item.menu}&${item.column}">
+								<input type="hidden" id="${item.key}" value="${item.menu}&${item.column}&${item.autoExecute}">
 							</c:forEach>
 						</div>
 					</div>

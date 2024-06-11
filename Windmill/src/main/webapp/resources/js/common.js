@@ -81,7 +81,13 @@ function sendSql(value) {
 
 		window.open(pathval.replace("?", "?param="), '_blank')
 	} else {
-		document.ParamForm.action = "/SQL?excute=" + value.split('&')[2] + "&Path=" + encodeURI($("#Path").val() + "/" + value.split('&')[0] + ".sql");
+		if (value.split('&')[0].includes('.htm')) {
+
+			document.ParamForm.action = "/HTML?Path=" + value.split('&')[0];
+		} else {
+
+			document.ParamForm.action = "/SQL?excute=" + value.split('&')[2] + "&Path=" + encodeURI($("#Path").val() + "/" + value.split('&')[0] + ".sql");
+		}
 		document.ParamForm.method = "POST";
 		document.ParamForm.target = target;
 		document.ParamForm.submit();
