@@ -25,7 +25,7 @@ function sendSql(value) {
 		if (i > 0) {
 			str += '&';
 		}
-		str += $(".Resultrow.success").children('td').eq(column[i]).children('span').html();
+		str += $(".Resultrow.success").children('td').eq(column[i]).children('span').text();
 	}
 
 	$("#sendvalue").val(str);

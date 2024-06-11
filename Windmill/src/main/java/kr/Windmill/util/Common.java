@@ -357,37 +357,6 @@ public class Common {
 		}
 	}
 
-	public String getReplace(String srcString) {
-
-		String rtnStr = null;
-		try {
-			StringBuffer strTxt = new StringBuffer("");
-			char chrBuff;
-			int len = srcString.length();
-
-			for (int i = 0; i < len; i++) {
-				chrBuff = (char) srcString.charAt(i);
-
-				switch (chrBuff) {
-				case '<':
-					strTxt.append("&lt;");
-					break;
-				case '>':
-					strTxt.append("&gt;");
-					break;
-				default:
-					strTxt.append(chrBuff);
-				}
-			}
-
-			rtnStr = strTxt.toString();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
-		return rtnStr;
-	}
-
 	public String getSystem_properties() {
 		return system_properties;
 	}
