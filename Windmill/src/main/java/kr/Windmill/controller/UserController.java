@@ -44,7 +44,6 @@ public class UserController {
 
 		List<Map<String, ?>> list = getfiles(Common.srcPath, 0);
 		mv.addObject("MENU", list);
-		
 
 		return mv;
 	}
@@ -99,6 +98,35 @@ public class UserController {
 
 			fw.write(str);
 			fw.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return;
+	}
+
+	@ResponseBody
+	@RequestMapping(path = "/User/changePW")
+	public void changePW(HttpServletRequest request, HttpSession session) {
+
+		Map<String, String> map = com.UserConf(session.getAttribute("memberId").toString());
+
+		String propFile = com.UserPath + session.getAttribute("memberId");
+		File file = new File(propFile);
+
+		try {
+
+			String str = "#" + session.getAttribute("memberId") + "\n";
+			FileWriter fw = new FileWriter(file);
+			str += "IP=" + map.get("IP") + "\n";
+			str += "PW=" + request.getParameter("PW") + "\n";
+			str += "MENU=" + map.get("MENU") + "\n";
+			str += "CONNECTION=" + map.get("CONNECTION") + "\n";
+
+			fw.write(str);
+			fw.close();
+
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

@@ -124,6 +124,14 @@ body {
 				folder.append(setMenu(list.list, child));
 
 				parent.append(folder);
+			} else if (list.Name.includes('.htm')) {
+
+				var childItem = $('<li><a href="/HTML?Path='
+						+ encodeURI(list.Path) + '" target="iframe" id="'
+						+ list.Name.split('_')[0] + '">'
+						+ list.Name.split('.')[0] + '</a></li>');
+				parent.append(childItem);
+
 			} else {
 				var childItem = $('<li><a href="/SQL?Path='
 						+ encodeURI(list.Path) + '" target="iframe" id="'
@@ -160,7 +168,6 @@ body {
 		if (text == '') {
 			return;
 		} else {
-			console.log("frameid", frameid, text)
 			//console.log('text : ', $('#' + frameid).contents().find('.content-header>h1').text(), frameid)
 			var newtab = true;
 			for (var i = 0; i < $('#pageTab a').length; i++) {
@@ -180,6 +187,7 @@ body {
 
 		}
 		var pageid = pageNum++;
+
 		$('#pageTab')
 				.append(
 						'<li><a href="#tab' + pageid+'" data-toggle="tab">'
@@ -206,6 +214,58 @@ body {
 		//console.log($('#iframe').contents().find('.content-header>h1').text())
 
 	}
+	function changePWModal() {
+		$('#changePWModal').modal({
+			keyboard : false
+		})
+	}
+
+	function save() {
+		if ($('#PW').val() != $('#newPW').val()) {
+			alert("비밀번호가 일치하지 않습니다.")
+		} else {
+			var lowerCaseLetters = /[a-z]|[A-Z]/g;
+			var numbers = /[0-9]/g;
+
+			if ($('#PW').val().match(lowerCaseLetters)) {
+			} else {
+				alert("영문");
+				return;
+			}
+
+			if ($('#PW').val().match(numbers)) {
+			} else {
+				alert("숫자");
+				return;
+			}
+
+			if ($('#PW').val().length >= 8) {
+			} else {
+				alert("8자 이상");
+				return;
+			}
+
+			$.ajax({
+				type : 'post',
+				url : '/User/changePW',
+				data : {
+					PW : $('#PW').val(),
+				},
+				success : function(result) {
+					alert("저장 되었습니다.");
+					$('#changePWModal').modal('hide')
+					$('#PW').val("")
+					$('#newPW').val("")
+
+				},
+				error : function() {
+					alert("저장되지 않았습니다.");
+				}
+			});
+
+		}
+
+	}
 </script>
 
 <body class="sidebar-mini skin-purple-light">
@@ -226,7 +286,7 @@ body {
 				<div class="navbar-custom-menu">
 					<ul class="nav navbar-nav">
 						<li>
-							<a>${memberId}</a>
+							<a href="javascript:changePWModal()">${memberId}</a>
 						</li>
 						<li>
 							<a href="/userRemove"><i class="fa fa-sign-out"></i></a>
@@ -305,4 +365,33 @@ body {
 
 			</div>
 
+		</div>
+		<!-- Modal -->
+
+		<div class="modal fade" id="changePWModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+			<div class="modal-dialog" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+						<h4 class="modal-title" id="myModalLabel">비밀번호 변경</h4>
+					</div>
+					<div class="modal-body">
+						<div class="form-group">
+							<label for="PW">새 비밀번호</label>
+							<input type="password" class="form-control" id="PW" placeholder="새 비밀번호" maxlength="16">
+						</div>
+
+						<div class="form-group">
+							<label for="PW">새 비밀번호 확인</label>
+							<input type="password" class="form-control" id="newPW" placeholder="새 비밀번호 확인"  maxlength="16">
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
+						<button type="button" class="btn btn-primary" onclick="save()">저장</button>
+					</div>
+				</div>
+			</div>
 		</div>
