@@ -320,6 +320,74 @@ public class Common {
 		}
 	}
 
+	public void userLog(String user, String msg) {
+		Date nowDate = new Date();
+
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
+		String strNowDate = simpleDateFormat.format(nowDate);
+
+		try {
+
+			String path = RootPath + "log";
+			File folder = new File(path);
+
+			if (!folder.exists()) {
+				try {
+					logger.info("폴더생성여부 : " + folder.mkdirs());
+				} catch (Exception e) {
+					e.getStackTrace();
+				}
+			}
+
+			path += File.separator + user + "_" + strNowDate + ".log";
+
+			File file = new File(path);
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+
+			FileWriter fw = new FileWriter(file, true);
+			BufferedWriter writer = new BufferedWriter(fw);
+
+			writer.write("\n" + msg);
+			writer.newLine();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public String getReplace(String srcString) {
+
+		String rtnStr = null;
+		try {
+			StringBuffer strTxt = new StringBuffer("");
+			char chrBuff;
+			int len = srcString.length();
+
+			for (int i = 0; i < len; i++) {
+				chrBuff = (char) srcString.charAt(i);
+
+				switch (chrBuff) {
+				case '<':
+					strTxt.append("&lt;");
+					break;
+				case '>':
+					strTxt.append("&gt;");
+					break;
+				default:
+					strTxt.append(chrBuff);
+				}
+			}
+
+			rtnStr = strTxt.toString();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return rtnStr;
+	}
+
 	public String getSystem_properties() {
 		return system_properties;
 	}

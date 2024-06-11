@@ -65,7 +65,7 @@ public class SQLController {
 				String values[] = null;
 
 				if (request.getParameter("sendvalue") != null) {
-					values = request.getParameter("sendvalue").split("\\s*\\&");
+					values = com.getReplace(request.getParameter("sendvalue")).split("\\s*\\&");
 				}
 
 				for (String line : properties.split("\r\n")) {

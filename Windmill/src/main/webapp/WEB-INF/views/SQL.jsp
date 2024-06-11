@@ -382,11 +382,11 @@ var sql_text = "";
 	}
 	
 	function ConvertSystemSourcetoHtml(str){
-	 str = str.replace(/</g,"&lt;");
-	 str = str.replace(/>/g,"&gt;");
-	 str = str.replace(/\"/g,"&quot;");
-	 str = str.replace(/\'/g,"&#39;");
-	 return str;
+		 str = str.replace(/</g,"&lt;");
+		 str = str.replace(/>/g,"&gt;");
+		 str = str.replace(/\"/g,"&quot;");
+		 str = str.replace(/\'/g,"&#39;");
+		 return str;
 	}
 	
 	function forxmp(str){
