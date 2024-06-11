@@ -1,4 +1,5 @@
 <%@include file="common/common.jsp"%>
+<c:set var="textlimit" value="100000" />
 <style>
 ::-webkit-scrollbar {
 	width: 10px;
@@ -27,6 +28,27 @@
 .form-group.required .param:after {
 	content: "*";
 	color: red;
+}
+
+.textcontainer {
+	display: flex;
+	border: 1px solid rgb(203, 213, 225);
+	border-radius: 0.5rem;
+	overflow: hidden;
+	max-height: 200px;
+}
+
+.formtextarea {
+	border: none;
+	outline: none;
+	width: 100%;
+}
+
+.container__lines {
+	border-right: 1px solid rgb(203, 213, 225);
+	text-align: right;
+	overflow: hidden;
+	padding: 0 5px;
 }
 </style>
 <script>
@@ -136,8 +158,25 @@ var timeouts = [];
 					e.preventDefault();
 				}
 			})
-		})
 
+			element.addEventListener('input', function() {
+				const lineNumbersEle = document.getElementById('line-numbers');
+				const lines = $(this).val().split('\n');
+
+				lineNumbersEle.innerHTML = Array.from({
+					length: lines.length
+				}, (v, i) => '<div>' + (i + 1) + '</div>').join('');
+
+				if ($(this).val().length > ${textlimit}) {
+					alert('입력가능한 범위를 벗어났습니다. 최대 : ${textlimit}');
+					$(this).val($(this).val().substring(0, ${textlimit}))
+				}
+				$("#textcount").text($(this).val().length)
+			});
+
+
+		});
+		
 		document.querySelectorAll(".paramvalue input").forEach((element) => {
 			element.addEventListener("keydown", function(e) {
 				if (e.keyCode == 13) {
@@ -146,8 +185,8 @@ var timeouts = [];
 					e.preventDefault();
 				}
 			})
-		})
-
+		});
+		
 
 		$(document).on("click", ".Resultrow", function() {
 			$(".Resultrow").removeClass('success');
@@ -164,6 +203,10 @@ var timeouts = [];
 			   .rows().invalidate('data')
 			   .draw(false);
 		});
+		
+		$('.formtextarea').on('scroll', () => {
+	        $('.container__lines').scrollTop($('.formtextarea').scrollTop());
+	    });
 
 	});
 
@@ -201,12 +244,12 @@ var timeouts = [];
 		}
 	}
 	
-function clearAll() {
-	for (var i = 0; i < timeouts.length; i++) {
-	    clearTimeout(timeouts[i]);
+	function clearAll() {
+		for (var i = 0; i < timeouts.length; i++) {
+			clearTimeout(timeouts[i]);
+		}
+		timeouts = [];
 	}
-	timeouts = [];
-}
 	
 	function commit() {
 		$.ajax({
@@ -443,6 +486,8 @@ function clearAll() {
 		myChart.destroy();
 	
 		var chardata = transpose(result)
+		
+		
 	
 		var labels = chardata[0].slice(1, chardata[0].length);
 	
@@ -461,7 +506,8 @@ function clearAll() {
 	
 		for (var i = 1; i < chardata.length; i++) {
 	
-			var label = chardata[i][0];
+			var label = chardata[i][0].split("//")[0];
+			
 			var data = chardata[i].slice(1, chardata[i].length).map((x) => {
 				return parseInt(x)
 			});
@@ -609,7 +655,14 @@ function clearAll() {
 						</select>
 					</div>
 					<c:if test="${sql eq ''}">
-						<textarea class="col-sm-12 col-xs-12 formtextarea" id="sql_text" style="margin: 0 0 10px 0" rows="5">${sql}</textarea>
+
+						<div class="form-group col-xs-12">
+							<div id="container" class="textcontainer">
+								<div id="line-numbers" class="container__lines"></div>
+								<textarea class="col-sm-12 col-xs-12 formtextarea" maxlength="${textlimit}" id="sql_text" style="margin: 0 0 10px 0" rows="5">${sql}</textarea>
+							</div>
+							<span id="textcount">0</span> / <span>${textlimit}</span>
+						</div>
 					</c:if>
 					<form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:startexcute();" onsubmit="clearAll()">
 
@@ -617,17 +670,21 @@ function clearAll() {
 
 						<div class="box-body">
 							<div class="col-sm-10 col-md-11">
+
 								<c:forEach var="item" items="${Param}" varStatus="status">
 									<c:choose>
 										<c:when test="${item.type == 'text' || item.type == 'sql'}">
 											<div class="col-xs-12">
 												<div class="form-group">
 													<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
-													<textarea class="paramvalue col-xs-12 formtextarea" paramtitle="${item.name}" rows="5" paramtype="${item.type}" style="padding: 0 2px;">${item.name=='memberId' ? memberId : item.value}</textarea>
+													<div id="container" class="textcontainer">
+
+														<div id="line-numbers" class="container__lines"></div>
+														<textarea class="paramvalue col-xs-12 formtextarea" maxlength="${textlimit}" paramtitle="${item.name}" rows="5" paramtype="${item.type}" style="padding: 0 2px;">${item.name=='memberId' ? memberId : item.value}</textarea>
+													</div>
 												</div>
+												<span id="textcount">0</span> / <span>${textlimit}</span>
 											</div>
-
-
 										</c:when>
 
 										<c:otherwise>
