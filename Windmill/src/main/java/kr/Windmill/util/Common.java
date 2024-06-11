@@ -29,7 +29,7 @@ public class Common {
 
 	public static String system_properties = "";
 	public static String ConnectionPath = "";
-	public static String srcPath = "";
+	public static String SrcPath = "";
 	public static String UserPath = "";
 	public static String tempPath = "";
 	public static String RootPath = "";
@@ -57,7 +57,7 @@ public class Common {
 
 		RootPath = props.getProperty("Root") + File.separator;
 		ConnectionPath = props.getProperty("Root") + File.separator + "Connection" + File.separator;
-		srcPath = props.getProperty("Root") + File.separator + "src" + File.separator;
+		SrcPath = props.getProperty("Root") + File.separator + "src" + File.separator;
 		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
 		UserPath = props.getProperty("Root") + File.separator + "user" + File.separator;
 		Timeout = Integer.parseInt(props.getProperty("Timeout") == null ? "15" : props.getProperty("Timeout"));
@@ -125,7 +125,7 @@ public class Common {
 		map.put("sql", sqlPath);
 
 		try {
-			String propFile = srcPath + sqlPath + ".properties";
+			String propFile = SrcPath + sqlPath + ".properties";
 			Properties props = new Properties();
 
 			String propStr = FileRead(new File(propFile));
@@ -145,7 +145,7 @@ public class Common {
 
 	public void sqlConfSave(String sqlPath, Map<String, String> conf) {
 
-		String propFile = srcPath + sqlPath + ".properties";
+		String propFile = SrcPath + sqlPath + ".properties";
 		File file = new File(propFile);
 
 		try {
@@ -413,11 +413,11 @@ public class Common {
 	}
 
 	public String getSrcPath() {
-		return srcPath;
+		return SrcPath;
 	}
 
-	public void setSrcPath(String srcPath) {
-		this.srcPath = srcPath;
+	public static void setSrcPath(String srcPath) {
+		SrcPath = srcPath;
 	}
 
 	public static String getRootPath() {

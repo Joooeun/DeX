@@ -42,7 +42,7 @@ public class UserController {
 			return mv;
 		}
 
-		List<Map<String, ?>> list = getfiles(Common.srcPath, 0);
+		List<Map<String, ?>> list = getfiles(Common.SrcPath, 0);
 		mv.addObject("MENU", list);
 
 		return mv;

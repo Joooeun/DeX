@@ -126,7 +126,7 @@ public class SampleController {
 			}
 		}
 
-		path = Common.srcPath;
+		path = Common.SrcPath;
 		folder = new File(path);
 
 		if (!folder.exists()) {
@@ -159,7 +159,7 @@ public class SampleController {
 			}
 		}
 
-		mv.addObject("sqllist", SQLController.getfiles(Common.srcPath, 0));
+		mv.addObject("sqllist", SQLController.getfiles(Common.SrcPath, 0));
 
 		return mv;
 	}
