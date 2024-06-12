@@ -186,12 +186,12 @@ public class SQLController {
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/excute")
-	public List<List<String>> excute(HttpServletRequest request, Model model, HttpSession session)
+	public List<List> excute(HttpServletRequest request, Model model, HttpSession session)
 			throws ClassNotFoundException {
 
 		Instant start = Instant.now();
 
-		List<List<String>> list = new ArrayList<List<String>>();
+		List<List> list = new ArrayList<List>();
 		Map<String, String> map = com.ConnectionConf(request.getParameter("Connection"));
 
 		Properties prop = new Properties();
@@ -313,26 +313,26 @@ public class SQLController {
 							+ "\nend==============================================");
 
 			list.add(element);
-			System.out.println(session.getAttribute("memberId") + "\n" + sql);
+			System.out.println("id : " + session.getAttribute("memberId") + " / sql : " + sql);
 			e1.printStackTrace();
 		}
 
 		return list;
 	}
 
-	public List<List<String>> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit)
+	public List<List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit)
 			throws SQLException {
 
 		Connection con = null;
+
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
 		try {
 			con = DriverManager.getConnection(jdbc, prop);
 
 			con.setAutoCommit(false);
 
-			List<List<String>> list = new ArrayList<List<String>>();
-
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
+			List<List> list = new ArrayList<List>();
 
 			pstmt = con.prepareStatement(sql);
 
@@ -344,15 +344,14 @@ public class SQLController {
 			ResultSetMetaData rsmd = rs.getMetaData();
 			int colcnt = rsmd.getColumnCount();
 
-			List<String> row;
+			List row;
 			String column;
 
 			row = new ArrayList<>();
 			for (int index = 0; index < colcnt; index++) {
 
 				column = rsmd.getColumnLabel(index + 1);
-
-				row.add(column);
+				row.add(column + "//" + rsmd.getColumnType(index + 1));
 
 			}
 			list.add(row);
@@ -364,10 +363,23 @@ public class SQLController {
 					// column = rsmd.getColumnName(index + 1);
 					// 타입별 get함수 다르게 변경필
 					try {
-						row.add(rs.getObject(index + 1) == null ? "NULL"
-								: (rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs.getString(index + 1)
-										: rs.getObject(index + 1).toString()));
-						// System.out.println(rs.getObject(index+1));
+
+						switch (rsmd.getColumnType(index + 1)) {
+						case 2009:
+							row.add(rs.getSQLXML(index + 1).toString());
+							break;
+
+						case 2005:
+						case 93:
+							row.add(rs.getString(index + 1));
+							break;
+
+						default:
+							row.add(rs.getObject(index + 1));
+//							System.out.println(rs.getObject(index + 1) + " / " + rs.getObject(index + 1).getClass());
+							break;
+						}
+
 					} catch (Exception e) {
 						row.add(e.toString());
 					}
@@ -380,6 +392,20 @@ public class SQLController {
 			return list;
 
 		} finally {
+			if (rs != null) {
+				try {
+					rs.close();
+				} catch (Exception e) {
+				}
+			}
+
+			if (pstmt != null) {
+				try {
+					pstmt.close();
+				} catch (Exception e) {
+				}
+			}
+
 			if (con != null) {
 
 				try {
@@ -399,6 +425,7 @@ public class SQLController {
 	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop) throws SQLException {
 
 		Connection con = null;
+		PreparedStatement pstmt = null;
 		try {
 			con = DriverManager.getConnection(jdbc, prop);
 
@@ -406,7 +433,6 @@ public class SQLController {
 
 			List<List<String>> list = new ArrayList<List<String>>();
 
-			PreparedStatement pstmt = null;
 			int rowcnt = 0;
 
 			pstmt = con.prepareStatement(sql);
@@ -423,6 +449,13 @@ public class SQLController {
 			return list;
 
 		} finally {
+			if (pstmt != null) {
+				try {
+					pstmt.close();
+				} catch (Exception e) {
+				}
+			}
+
 			if (con != null) {
 
 				try {
@@ -443,16 +476,17 @@ public class SQLController {
 			throws SQLException {
 
 		Connection con = null;
+
+		CallableStatement callStmt1 = null;
+		PreparedStatement pstmt = null;
+		ResultSet rs = null;
+		ResultSet rs2 = null;
 		try {
 			con = DriverManager.getConnection(jdbc, prop);
 
 			con.setAutoCommit(false);
 
 			List<List<String>> list = new ArrayList<List<String>>();
-
-			CallableStatement callStmt1 = null;
-			PreparedStatement pstmt = null;
-			ResultSet rs = null;
 
 			String callcheckstr = "";
 
@@ -511,14 +545,13 @@ public class SQLController {
 
 			callStmt1.execute();
 
-			ResultSet rs2 = null;
 			rs2 = callStmt1.getResultSet();
 
 			if (rs2 != null) {
 				ResultSetMetaData rsmd = rs2.getMetaData();
 				int colcnt = rsmd.getColumnCount();
 
-				List<String> row;
+				List row;
 				String column;
 
 				row = new ArrayList<>();
@@ -526,7 +559,7 @@ public class SQLController {
 
 					column = rsmd.getColumnLabel(index + 1);
 
-					row.add(column);
+					row.add(column + "//" + rsmd.getColumnType(index + 1));
 
 				}
 				list.add(row);
@@ -536,9 +569,9 @@ public class SQLController {
 					row = new ArrayList<>();
 					for (int index = 0; index < colcnt; index++) {
 						try {
-							row.add(rs2.getObject(index + 1) == null ? "NULL"
-									: (rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1)
-											: rs2.getObject(index + 1).toString()));
+							row.add((rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1)
+									: rs2.getObject(index + 1)));
+
 						} catch (Exception e) {
 							row.add(e.toString());
 						}
@@ -556,6 +589,34 @@ public class SQLController {
 
 			return list;
 		} finally {
+			if (rs != null) {
+				try {
+					rs.close();
+				} catch (Exception e) {
+				}
+			}
+
+			if (pstmt != null) {
+				try {
+					pstmt.close();
+				} catch (Exception e) {
+				}
+			}
+
+			if (rs2 != null) {
+				try {
+					rs2.close();
+				} catch (Exception e) {
+				}
+			}
+
+			if (callStmt1 != null) {
+				try {
+					callStmt1.close();
+				} catch (Exception e) {
+				}
+			}
+
 			if (con != null) {
 
 				try {

@@ -20,31 +20,6 @@
 	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .1)
 }
 
-#result_head td {
-	font-family: "D2Coding" !important;
-}
-
-.tableWrapper {
-	min-height: calc(( 100vh)*0.2);
-	max-height: calc(( 100vh)* 0.6);
-	overflow: auto;
-}
-
-#result_head th:last-child, #result_head td:last-child {
-	border-right: 0px !important;
-}
-
-#result_head th {
-	position: sticky;
-	top: 0px;
-	border-left: 1px solid #cccccc;
-	background-color: #ffffff;
-}
-
-#result_head td {
-	border-left: 1px solid #cccccc
-}
-
 .newline {
 	white-space: pre;
 }
@@ -60,68 +35,64 @@ var ctx;
 
 var myChart;
 
-var graphcolor = ['#FF583A','#FF9032','#FEDD0F','#4B963E','#23439F','#561475','#F2626B','#FEBA4F','#FFEA7F','#89E077','#83C3FF','#C381FD', '#525252' ]
-//var graphcolor = [ '#f22613', '#e74c3c', '#f62459', '#663399', '#9a12b3', '#bf55ec', '#19b5fe', '#1e8bc3', '#1f3a93', '#89c4f4', '#03c9a9', '#26c281', '#16a085', '#2eec71', '#f2784b', '#f89406', '#f9bf3b']
-//var graphcolor = ['#1a1c2c','#5d275d','#b13e53','#ef7d57','#ffcd75','#a7f070','#38b764','#257179','#29366f','#3b5dc9','#41a6f6','#73eff7','#f4f4f4','#94b0c2','#566c86','#333c57'];
+var graphcolor = ['#FF583A', '#FF9032', '#FEDD0F', '#4B963E', '#23439F', '#561475', '#F2626B', '#FEBA4F', '#FFEA7F', '#89E077', '#83C3FF', '#C381FD', '#525252']
 
 var sql_text = "";
 
 	$(document).ready(function() {
-		
+
 		sql_text = $("#sql_org").val();
 		$("#sql_org").remove();
-		
-		
+
 		ctx = document.getElementById('myChart');
 		myChart = myChart = new Chart(ctx, {
-		    type: 'line',
-		    data: {
-		    	  labels: [''],
-		    	  datasets: [{
-		    	    label: 'My First Dataset',
-		    	    data: [65, 59, 80, 81, 56, 55, 40],
-		    	    fill: false,
-		    	    borderColor: 'rgb(75, 192, 192)',
-		    	    tension: 0.1
-		    	  }]
-		    	},
-		    	options: {
-		    		maintainAspectRatio: false,
-		          }
-		});
-		
-		$.ajax({
-			type : 'post',
-			url : "/Connection/list",
-			data : {
-				TYPE : "DB"
+			type: 'line',
+			data: {
+				labels: [''],
+				datasets: [{
+					label: 'My First Dataset',
+					data: [65, 59, 80, 81, 56, 55, 40],
+					fill: false,
+					borderColor: 'rgb(75, 192, 192)',
+					tension: 0.1
+				}]
 			},
-			success : function(result) {
-				
-				const list =  "${DB}"=="" ? [] : "${DB}".split(",")
-				
+			options: {
+				maintainAspectRatio: false,
+			}
+		});
+
+		$.ajax({
+			type: 'post',
+			url: "/Connection/list",
+			data: {
+				TYPE: "DB"
+			},
+			success: function(result) {
+
+				const list = "${DB}" == "" ? [] : "${DB}".split(",")
+
 				for (var i = 0; i < result.length; i++) {
-					
-					
-					if(list.length>0&&!list.includes(result[i].split('.')[0])){
+
+
+					if (list.length > 0 && !list.includes(result[i].split('.')[0])) {
 						continue;
 					}
 
-					if (result[i].split('.')[0] == $('#selectedConnection').val()||list.length==1) {
+					if (result[i].split('.')[0] == $('#selectedConnection').val() || list.length == 1) {
 						$('#connectionlist').append("<option value=\"" + result[i].split('.')[0] + "\"  selected=\"selected\">" + result[i].split('.')[0] + "</option>");
 					} else {
 						$('#connectionlist').append("<option value='" + result[i].split('.')[0] + "'>" + result[i].split('.')[0] + "</option>");
 					}
 				}
-				
-				var shortkey = ${Excute};
 
+				var shortkey = ${Excute};
 
 				if (shortkey && $("#connectionlist option:selected").val() != '') {
 					excute();
 				}
 			},
-			error : function() {
+			error: function() {
 				alert("시스템 에러");
 			}
 		});
@@ -153,24 +124,24 @@ var sql_text = "";
 				sendSql($("#F12").val());
 			}
 		});
-		
+
 		document.querySelectorAll(".formtextarea").forEach((element) => {
-		  element.addEventListener("keydown", function (e){
-			    if (e.ctrlKey && e.keyCode == 13) {
-					
-			    	if(document.ParamForm.checkValidity())
-				    	document.ParamForm.submit();
-			    	e.preventDefault();
+			element.addEventListener("keydown", function(e) {
+				if (e.ctrlKey && e.keyCode == 13) {
+
+					if (document.ParamForm.checkValidity())
+						document.ParamForm.submit();
+					e.preventDefault();
 				}
 			})
 		})
-		
+
 		document.querySelectorAll(".paramvalue input").forEach((element) => {
-		  element.addEventListener("keydown", function (e){
-			    if (e.keyCode == 13) {
-					
-			    	document.ParamForm.submit();
-			    	e.preventDefault();
+			element.addEventListener("keydown", function(e) {
+				if (e.keyCode == 13) {
+
+					document.ParamForm.submit();
+					e.preventDefault();
 				}
 			})
 		})
@@ -180,53 +151,51 @@ var sql_text = "";
 			$(".Resultrow").removeClass('success');
 			$(this).addClass('success');
 		});
-		
+
 		$(document).on("change", "#newline", function() {
-			if($(this).prop('checked')){
+			if ($(this).prop('checked')) {
 				$("#result_head td").addClass('newline');
-			}else{
+			} else {
 				$("#result_head td").removeClass('newline')
 			}
 		});
 
 	});
 
-	
 	function formsubmit(){
 		
 	}
 	function startexcute() {
 		if ($("#connectionlist option:selected").val() == '') {
 			alert("Connection을 선택하세요.");
-			
-		} else{
+	
+		} else {
 			excute();
 			if ($("#refreshtimeout").val() > 0) {
 				setInterval(excute, $("#refreshtimeout").val() * 1000);
 			}
 		}
-		
+	
 		return false;
 	}
 	
 	function commit() {
 		$.ajax({
-			type : 'post',
-			url : '/SQL/commit',
-			data : {
-				Connection : $("#connectionlist").val()
+			type: 'post',
+			url: '/SQL/commit',
+			data: {
+				Connection: $("#connectionlist").val()
 			},
-			error : function() {
+			error: function() {
 				alert("시스템 에러");
 			}
 		});
 	}
-
 	function excute() {
 		
 		var sql = $("#sql_text").val() ?? sql_text;
 		var log = "";
-
+	
 		for (var i = 0; i < $(".paramvalue").length; i++) {
 			
 			if ($(".paramvalue").eq(i).attr('required') == 'required'&&$(".paramvalue").eq(i).val()=="") {
@@ -234,7 +203,6 @@ var sql_text = "";
 				return;
 				
 			}
-			
 			
 			if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
@@ -253,275 +221,295 @@ var sql_text = "";
 		if(!$("#refreshtimeout").val() ){
 			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></tr></td>');
 		}
-		
-
+	
 		$.ajax({
-			type : 'post',
-			url : '/SQL/excute',
-			data : {
-				sql : sql.trim(),
-				log : log,
-				autocommit : true,
+			type: 'post',
+			url: '/SQL/excute',
+			data: {
+				sql: sql.trim(),
+				log: log,
+				autocommit: true,
 				/* autocommit : $("#autocommit").prop('checked'), */
-				Connection : $("#connectionlist").val(),
+				Connection: $("#connectionlist").val(),
 				limit: $("#limit").val()
 			},
-			success : function(result, status, jqXHR ) {
+			success: function(result, status, jqXHR) {
 				
+	
 				if (jqXHR.getResponseHeader("SESSION_EXPIRED") === "true") {
-		            alert("세션이 만료되었습니다.");
-		            window.parent.location.href = "/Login";
-		        }
-
-				$("#Resultbox").css("display", "block");
-				
-				var newline = $("#newline").prop('checked');
-				
-				var str = '';
-				
-				if(result.length > 0){
-					str = '<thead>';
-
-					str += '<tr>';
-					str += '<th>#</th>';
-					for (var title = 0; title < result[0].length; title++) {
-						str += '<th>' + result[0][title] + '</th>';
-					}
-					str += '</tr></thead><tbody>';
-
-
-					for (var outter = 1; outter < result.length; outter++) {
-						
-						
-						//str += '<tr class="Resultrow" param='+result[outter][0]+'>';
-						str += '<tr class="Resultrow sorting">';
-						str += '<td>' + outter + '</td>';
-
-						for (var inner = 0; inner < result[outter].length; inner++) {
-							var cellstr = result[outter][inner];
-							str += `<td><span>\${ConvertSystemSourcetoHtml(cellstr)}</span></td>`;
-						}
-
-						str += '</tr>';
-					}
-					str += '</tbody>';
-					
-					
-				    chart(result);
-				    
-				}else{
-					
-					var str = '<thead><tr><th>#</th></tr></thead><tbody></tbody>';
+					alert("세션이 만료되었습니다.");
+					window.parent.location.href = "/Login";
 				}
-				    
-				if ( $.fn.DataTable.isDataTable( '#result_head' ) ) {
-			        $('#result_head').DataTable().destroy();
-			        $('#result_head').empty(); 	
-			    };
-			    
-			    $("#result_head").html(str);
-				$('#result_head').DataTable( {
-				    paging: false,
-				    searching: false,
-				     layout: {
-				        topEnd: {
-				        	buttons: [
-				                {
-				                    extend: 'excel',
-				                    text: '<i class="fa fa-floppy-o"></i>',
-				                    title: `${title}_${memberId}_` + dateFormat()
-				                }
-				            ]
-				        
-				        },
-				        topStart: {
-				            info: {
-				                text: 'total : _TOTAL_ records'
-				            }
-				        },
-				          bottomStart: null
-				        
-				    }
-				} );
-					
-				
-				if(newline){
-					
+	
+				$("#Resultbox").css("display", "block");
+	
+				var newline = $("#newline").prop('checked');
+	
+	
+				var columnDefs = [{
+					"defaultContent": "-",
+					"targets": "_all"
+				}]
+				var column = [{
+					title: "#"
+				}]
+	
+				if (result.length > 0) {
+	
+	
+					for (var title = 0; title < result[0].length; title++) {
+	
+						if (result[0][title].split("//").length == 2) {
+	
+							column.push({title: result[0][title].split("//")[0]});
+							
+							if (['-6', '5', '4', '-5', '6', '7', '8', '2'].includes(result[0][title].split("//")[1])) {
+	
+								columnDefs.push({
+									type: 'num',
+									targets: title + 1,
+									render: $.fn.dataTable.render.number(',')
+								});
+	
+							} else if (['3'].includes(result[0][title].split("//")[1])) {
+	
+								columnDefs.push({
+									type: 'num',
+									targets: title + 1
+								});
+	
+							} else {
+								columnDefs.push({
+									type: 'string',
+									targets: title + 1,
+									render: DataTable.render.text()
+								});
+	
+							}
+						}else{
+							column.push({title: result[0][title]});
+						}
+					}
+	
+					chart(result);
+				}
+	
+				if ($.fn.DataTable.isDataTable('#result_head')) {
+					$('#result_head').DataTable().destroy();
+					$('#result_head').empty();
+				};
+	
+	
+				const table = $('#result_head').DataTable({
+					data: result.slice(1).map((item, index) => {return [index + 1, ...item]}),
+					columns: column,
+					paging: false,
+					fixedHeader: true,
+					fixedColumns: true,
+					scrollCollapse: true,
+				    scrollY: '50vh',
+					layout: {
+						topEnd: {
+							buttons: [{
+								extend: 'excel',
+								text: '<i class="fa fa-floppy-o"></i>',
+								title: `${title}_${memberId}_` + dateFormat()
+							}]
+						},
+						topStart: {
+							info: {
+								text: 'total : _TOTAL_ records'
+							}
+						},
+						bottomStart: null
+					},
+					columnDefs: columnDefs,
+					createdRow: function(row, data, index) {
+						$(row).addClass("Resultrow sorting");
+					}
+				});
+				if (newline) {
 					$("#result_head td").addClass('newline');
 				}
-				
+	
 				$("#excutebtn").attr('disabled', false);
-				
-				
-
 			},
-			error : function(error) {
+			error: function(error) {
 				$("#excutebtn").attr('disabled', false);
+				console.log(JSON.stringify(error))
 				alert('시스템오류');
 			}
 		});
-
 	}
-
+	
 	function sessionCon(value) {
-		
-		if("${DB}"==""){
-
+	
+		if ("${DB}" == "") {
 			$.ajax({
-				type : 'post',
-				url : '/Connection/sessionCon',
-				data : {
-					Connection : value
+				type: 'post',
+				url: '/Connection/sessionCon',
+				data: {
+					Connection: value
 				},
-				success : function(result) {
+				success: function(result) {
 					//alert("성공")
 				},
-				error : function() {
+				error: function() {
 					//alert("시스템 에러");
 				}
 			});
 		}
-
+	
 	}
 	
-	function ConvertSystemSourcetoHtml(str){
-		 str = str.replace(/</g,"&lt;");
-		 str = str.replace(/>/g,"&gt;");
-		 str = str.replace(/\"/g,"&quot;");
-		 str = str.replace(/\'/g,"&#39;");
-		 return str;
+	function ConvertSystemSourcetoHtml(str) {
+		/* str = str.replace(/</g,"&lt;");
+		str = str.replace(/>/g,"&gt;");
+		str = str.replace(/\"/g,"&quot;");
+		str = str.replace(/\'/g,"&#39;");*/
+		return str;
 	}
 	
-	function forxmp(str){
-		str = str.replace(/\x00/g,"");
-	 return str;
+	function forxmp(str) {
+		str = str.replace(/\x00/g, "");
+		return str;
 	}
 	
-
+	
 	function readfile() {
 		$.ajax({
-			type : 'post',
-			url : '/SQL/readfile',
-			success : function(result) {
+			type: 'post',
+			url: '/SQL/readfile',
+			success: function(result) {
 				alert(result)
 			},
-			error : function() {
+			error: function() {
 				alert("시스템 에러");
 			}
 		});
 	}
-
+	
 	function chart(result) {
-		
+	
 		myChart.destroy();
-		
+	
 		var chardata = transpose(result)
-		
+	
 		var labels = chardata[0].slice(1, chardata[0].length);
-
-		var datasets=[];
-		var maxdata=0;
-		
+	
+		var datasets = [];
+		var maxdata = 0;
+	
 		for (var i = 1; i < chardata.length; i++) {
-			var data = chardata[i].slice(1, chardata[i].length).map((x)=>{return parseInt(x)});
-			if(maxdata<Math.max(...data)){
-				maxdata=Math.max(...data);
+			var data = chardata[i].slice(1, chardata[i].length).map((x) => {
+				return parseInt(x)
+			});
+			if (maxdata < Math.max(...data)) {
+				maxdata = Math.max(...data);
 			}
 		}
-		
-		
+	
+	
 		for (var i = 1; i < chardata.length; i++) {
-			
+	
 			var label = chardata[i][0];
-			var data = chardata[i].slice(1, chardata[i].length).map((x)=>{return parseInt(x)});
-			
-			if(maxdata<Math.max(...data)){
-				maxdata=Math.max(...data);
+			var data = chardata[i].slice(1, chardata[i].length).map((x) => {
+				return parseInt(x)
+			});
+	
+			if (maxdata < Math.max(...data)) {
+				maxdata = Math.max(...data);
 			}
-			
-			datasets.push({label : label,
-				data :data,
-				fill:false,
-				borderColor : graphcolor[i-1],
+	
+			datasets.push({
+				label: label,
+				data: data,
+				fill: false,
+				borderColor: graphcolor[i - 1],
 				/* backgroundColor :  graphcolor[i]+"80", */
-				tension : 0.1,
-				hidden: Math.max(...data)<maxdata/10
-				})
+				tension: 0.1,
+				hidden: Math.max(...data) < maxdata / 10
+			})
 		}
-		
-		
+	
+	
 		const datas = {
-			labels : labels,
-			datasets : datasets
+			labels: labels,
+			datasets: datasets
 		};
-
+	
 		myChart = new Chart(ctx, {
-		    type: 'line',
-		    data: datas,
-		    options: {
-		    	maintainAspectRatio: false,
-	          }
+			type: 'line',
+			data: datas,
+			options: {
+				maintainAspectRatio: false,
+			}
 		});
 	}
 	
 	function random_rgba() {
-	    var o = Math.round, r = Math.random, s = 255;
-	    //return 'rgba(' + o(r()*s) + ',' + o(r()*s) + ',' + o(r()*s) + ',' + r().toFixed(1) + ')';
-	    return 'rgb(' + o(r()*s) + ',' + o(r()*s) + ',' + o(r()*s) + ')';
+		var o = Math.round,
+			r = Math.random,
+			s = 255;
+		//return 'rgba(' + o(r()*s) + ',' + o(r()*s) + ',' + o(r()*s) + ',' + r().toFixed(1) + ')';
+		return 'rgb(' + o(r() * s) + ',' + o(r() * s) + ',' + o(r() * s) + ')';
 	}
-
+	
 	
 	function transpose(a) {
-
-		  // Calculate the width and height of the Array
-		  var w = a.length || 0;
-		  var h = a[0] instanceof Array ? a[0].length : 0;
-
-		  // In case it is a zero matrix, no transpose routine needed.
-		  if(h === 0 || w === 0) { return []; }
-
-		  /**
-		   * @var {Number} i Counter
-		   * @var {Number} j Counter
-		   * @var {Array} t Transposed data is stored in this array.
-		   */
-		  var i, j, t = [];
-
-		  // Loop through every item in the outer array (height)
-		  for(i=0; i<h; i++) {
-
-		    // Insert a new row (array)
-		    t[i] = [];
-
-		    // Loop through every item per item in outer array (width)
-		    for(j=0; j<w; j++) {
-
-		      // Save transposed data.
-		      t[i][j] = a[j][i];
-		    }
-		  }
-
-		  return t;
+	
+		// Calculate the width and height of the Array
+		var w = a.length || 0;
+		var h = a[0] instanceof Array ? a[0].length : 0;
+	
+		// In case it is a zero matrix, no transpose routine needed.
+		if (h === 0 || w === 0) {
+			return [];
 		}
 	
+		/**
+			* @var {Number} i Counter
+			* @var {Number} j Counter
+			* @var {Array} t Transposed data is stored in this array.
+			*/
+		var i, j, t = [];
+	
+		// Loop through every item in the outer array (height)
+		for (i = 0; i < h; i++) {
+	
+			// Insert a new row (array)
+			t[i] = [];
+	
+			// Loop through every item per item in outer array (width)
+			for (j = 0; j < w; j++) {
+	
+				// Save transposed data.
+				t[i][j] = a[j][i];
+			}
+		}
+	
+		return t;
+	}
+	
 	function dateFormat() {
-		
+	
 		let date = new Date();
-		
-        let month = date.getMonth() + 1;
-        let day = date.getDate();
-        let hour = date.getHours();
-        let minute = date.getMinutes();
-        let second = date.getSeconds();
-
-        month = month >= 10 ? month : '0' + month;
-        day = day >= 10 ? day : '0' + day;
-        hour = hour >= 10 ? hour : '0' + hour;
-        minute = minute >= 10 ? minute : '0' + minute;
-        second = second >= 10 ? second : '0' + second;
-
-        return date.getFullYear() +  month + day + '_' + hour +  minute + second;
-}
+	
+		let month = date.getMonth() + 1;
+		let day = date.getDate();
+		let hour = date.getHours();
+		let minute = date.getMinutes();
+		let second = date.getSeconds();
+	
+		month = month >= 10 ? month : '0' + month;
+		day = day >= 10 ? day : '0' + day;
+		hour = hour >= 10 ? hour : '0' + hour;
+		minute = minute >= 10 ? minute : '0' + minute;
+		second = second >= 10 ? second : '0' + second;
+	
+		return date.getFullYear() + month + day + '_' + hour + minute + second;
+	}
+	
 	
 </script>
 <!-- Content Wrapper. Contains page content -->
@@ -564,7 +552,7 @@ var sql_text = "";
 										<div class="col-xs-12">
 											<div class="form-group">
 												<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
-												<textarea class="paramvalue col-xs-12 formtextarea" paramtitle="${item.name}" rows="10" paramtype="${item.type}" style="padding: 0 2px;">${item.name=='memberId' ? memberId : item.value}</textarea>
+												<textarea class="paramvalue col-xs-12 formtextarea" paramtitle="${item.name}" rows="5" paramtype="${item.type}" style="padding: 0 2px;">${item.name=='memberId' ? memberId : item.value}</textarea>
 											</div>
 										</div>
 
@@ -639,7 +627,7 @@ var sql_text = "";
 						<div class="tab-content">
 							<div role="tabpanel" class="tab-pane active" id="result">
 								<div class="tableWrapper">
-									<table class="table table-striped table-bordered table-hover" id="result_head" style="margin: 0; font-size: 14px">
+									<table class="table table-striped table-bordered table-hover" id="result_head" style="width:100%; font-size: 14px">
 									</table>
 								</div>
 							</div>

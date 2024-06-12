@@ -25,7 +25,7 @@ function sendSql(value) {
 		if (i > 0) {
 			str += '&';
 		}
-		str += $(".Resultrow.success").children('td').eq(column[i]).children('span').text();
+		str += $(".Resultrow.success").children('td').eq(column[i]).text();
 	}
 
 	$("#sendvalue").val(str);
@@ -68,10 +68,10 @@ function sendSql(value) {
 		var pathval = "";
 		for (var i = 0; i < column.length; i++) {
 			if (column[i].match(/^\d{1,2}$/)) {
-				pathval += $(".Resultrow.success").children('td').eq(column[i]).children('span').html();
+				pathval += $(".Resultrow.success").children('td').eq(column[i]).text();
 			} else if (column[i].match(/^\d{1,2}A/)) {
 				for (var j = 0; j < $(".Resultrow").length; j++) {//$(".Resultrow").length
-					pathval += $(".Resultrow").eq(j).children('td').eq(column[i].substr(0, column[i].length - 1)).children('span').html() + "/";
+					pathval += $(".Resultrow").eq(j).children('td').eq(column[i].substr(0, column[i].length - 1)).text() + "/";
 				}
 			} else {
 				pathval += column[i];

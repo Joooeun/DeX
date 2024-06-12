@@ -1,5 +1,5 @@
 @import
-	url("../../bootstrap/fonts/D2Coding.ttf")
+	url(https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic)
 	; /*!
  *   AdminLTE v2.1.0
  *   Author: Almsaeed Studio
@@ -18,7 +18,7 @@ html, body {
 body {
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
-	font-family: D2Coding;
+	font-family: sans-serif, 'Source Sans Pro', 'Helvetica Neue', Helvetica, Arial;
 	font-weight: 400;
 	overflow-x: hidden;
 	overflow-y: auto
