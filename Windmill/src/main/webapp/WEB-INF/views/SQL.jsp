@@ -98,17 +98,20 @@ var sql_text = "";
 			},
 			success : function(result) {
 				
-				if("${DB}"==""){
-					for (var i = 0; i < result.length; i++) {
-
-						if (result[i].split('.')[0] == $('#selectedConnection').val()) {
-							$('#connectionlist').append("<option value=\"" + result[i].split('.')[0] + "\"  selected=\"selected\">" + result[i].split('.')[0] + "</option>");
-						} else {
-							$('#connectionlist').append("<option value='" + result[i].split('.')[0] + "'>" + result[i].split('.')[0] + "</option>");
-						}
+				const list =  "${DB}"=="" ? [] : "${DB}".split(",")
+				
+				for (var i = 0; i < result.length; i++) {
+					
+					
+					if(list.length>0&&!list.includes(result[i].split('.')[0])){
+						continue;
 					}
-				}else{
-					$('#connectionlist').append("<option value=\"${DB}\"  selected=\"selected\">${DB}</option>");
+
+					if (result[i].split('.')[0] == $('#selectedConnection').val()||list.length==1) {
+						$('#connectionlist').append("<option value=\"" + result[i].split('.')[0] + "\"  selected=\"selected\">" + result[i].split('.')[0] + "</option>");
+					} else {
+						$('#connectionlist').append("<option value='" + result[i].split('.')[0] + "'>" + result[i].split('.')[0] + "</option>");
+					}
 				}
 				
 				var shortkey = ${Excute};
