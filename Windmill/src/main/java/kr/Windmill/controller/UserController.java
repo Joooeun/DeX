@@ -107,6 +107,21 @@ public class UserController {
 	}
 
 	@ResponseBody
+	@RequestMapping(path = "/User/checkPW")
+	public boolean checkW(HttpServletRequest request, HttpSession session) {
+
+		Map<String, String> map = com.UserConf(session.getAttribute("memberId").toString());
+
+		if (map.get("PW").equals(request.getParameter("PW"))) {
+
+			return true;
+		} else {
+			return false;
+		}
+
+	}
+
+	@ResponseBody
 	@RequestMapping(path = "/User/changePW")
 	public void changePW(HttpServletRequest request, HttpSession session) {
 

@@ -313,6 +313,7 @@ public class SQLController {
 							+ "\nend==============================================");
 
 			list.add(element);
+			System.out.println(session.getAttribute("memberId") + "\n" + sql);
 			e1.printStackTrace();
 		}
 

@@ -214,13 +214,13 @@ body {
 		//console.log($('#iframe').contents().find('.content-header>h1').text())
 
 	}
-	function changePWModal() {
-		$('#changePWModal').modal({
-			keyboard : false
-		})
+	
+	function checkPWModal() {
+		$('#checkPWModal').modal('show')
 	}
 
 	function save() {
+		
 		if ($('#PW').val() != $('#newPW').val()) {
 			alert("비밀번호가 일치하지 않습니다.")
 		} else {
@@ -256,7 +256,6 @@ body {
 					$('#changePWModal').modal('hide')
 					$('#PW').val("")
 					$('#newPW').val("")
-
 				},
 				error : function() {
 					alert("저장되지 않았습니다.");
@@ -264,6 +263,30 @@ body {
 			});
 
 		}
+
+	}
+
+	function checkPW() {
+		$.ajax({
+			type : 'post',
+			url : '/User/checkPW',
+			data : {
+				PW : $('#curPW').val(),
+			},
+			success : function(result) {
+				
+				if (result) {
+					$('#checkPWModal').modal('hide')
+					$('#changePWModal').modal('show')
+				} else {
+					alert("잘못된 비밀번호 입니다.");
+				}
+					$('#curPW').val("")
+			},
+			error : function(e) {
+				alert("저장되지 않았습니다."+JSON.stringify(e));
+			}
+		});
 
 	}
 </script>
@@ -286,7 +309,7 @@ body {
 				<div class="navbar-custom-menu">
 					<ul class="nav navbar-nav">
 						<li>
-							<a href="javascript:changePWModal()">${memberId}</a>
+							<a href="javascript:checkPWModal()">${memberId}</a>
 						</li>
 						<li>
 							<a href="/userRemove"><i class="fa fa-sign-out"></i></a>
@@ -366,8 +389,8 @@ body {
 			</div>
 
 		</div>
-		<!-- Modal -->
 
+		<!-- 비번 변경 Modal -->
 		<div class="modal fade" id="changePWModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
 			<div class="modal-dialog" role="document">
 				<div class="modal-content">
@@ -385,12 +408,37 @@ body {
 
 						<div class="form-group">
 							<label for="PW">새 비밀번호 확인</label>
-							<input type="password" class="form-control" id="newPW" placeholder="새 비밀번호 확인"  maxlength="16">
+							<input type="password" class="form-control" id="newPW" placeholder="새 비밀번호 확인" maxlength="16">
 						</div>
 					</div>
 					<div class="modal-footer">
 						<button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
 						<button type="button" class="btn btn-primary" onclick="save()">저장</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		<!-- 비번 확인 Modal -->
+		<div class="modal fade" id="checkPWModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+			<div class="modal-dialog" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+						<h4 class="modal-title" id="myModalLabel">비밀번호 확인</h4>
+					</div>
+					<div class="modal-body">
+
+						<div class="form-group">
+							<label for="PW">현재 비밀번호</label>
+							<input type="password" class="form-control" id="curPW" placeholder="현재 비밀번호">
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
+						<button type="button" class="btn btn-primary" onclick="checkPW()">확인</button>
 					</div>
 				</div>
 			</div>
