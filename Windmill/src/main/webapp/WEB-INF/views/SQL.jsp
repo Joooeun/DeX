@@ -32,12 +32,14 @@
 <script>
 
 var ctx;
-
 var myChart;
-
 var graphcolor = ['#FF583A', '#FF9032', '#FEDD0F', '#4B963E', '#23439F', '#561475', '#F2626B', '#FEBA4F', '#FFEA7F', '#89E077', '#83C3FF', '#C381FD', '#525252']
 
 var sql_text = "";
+
+var time = 0;
+var timeRemain = 0
+var timeouts = [];
 
 	$(document).ready(function() {
 
@@ -165,19 +167,43 @@ var sql_text = "";
 	function formsubmit(){
 		
 	}
+	
 	function startexcute() {
+		
+		if($("#excutebtn").attr('disabled')=='disabled'){
+			return;
+		}
+		
 		if ($("#connectionlist option:selected").val() == '') {
 			alert("Connection을 선택하세요.");
 	
 		} else {
 			excute();
 			if ($("#refreshtimeout").val() > 0) {
-				setInterval(excute, $("#refreshtimeout").val() * 1000);
+				time =  $("#refreshtimeout").val() 
+				timeRemain =  $("#refreshtimeout").val() 
+				timeouts.push( setInterval(refresh, 1000));
+				
 			}
 		}
 	
 		return false;
 	}
+	
+	function refresh(){
+		$("#excutebtn").val('wait...'+--timeRemain+'s')
+		if(timeRemain==0){
+			timeRemain=time;
+			excute()
+		}
+	}
+	
+function clearAll() {
+	for (var i = 0; i < timeouts.length; i++) {
+	    clearTimeout(timeouts[i]);
+	}
+	timeouts = [];
+}
 	
 	function commit() {
 		$.ajax({
@@ -256,7 +282,6 @@ var sql_text = "";
 	
 				if (result.length > 0) {
 	
-	
 					for (var title = 0; title < result[0].length; title++) {
 	
 						if (result[0][title].split("//").length == 2) {
@@ -275,8 +300,7 @@ var sql_text = "";
 	
 								columnDefs.push({
 									type: 'num',
-									targets: title + 1
-								});
+									targets: title + 1});
 	
 							} else {
 								columnDefs.push({
@@ -324,7 +348,7 @@ var sql_text = "";
 						bottomStart: null
 					},
 					columnDefs: columnDefs,
-					createdRow: function(row, data, index) {
+					createdRow: function(row) {
 						$(row).addClass("Resultrow sorting");
 					}
 				});
@@ -545,7 +569,7 @@ var sql_text = "";
 					<c:if test="${sql eq ''}">
 						<textarea class="col-sm-12 col-xs-12 formtextarea" id="sql_text" style="margin: 0 0 10px 0" rows="5">${sql}</textarea>
 					</c:if>
-					<form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:startexcute();">
+					<form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:startexcute();" onsubmit="clearAll()">
 
 						<!-- onsubmit="startexcute()" -->
 
@@ -583,7 +607,7 @@ var sql_text = "";
 							</c:forEach>
 
 							<div class="col-sm-2 col-md-1 pull-right">
-								<input type="hidden" id="sendvalue" name="sendvalue"> <input id="excutebtn" type="submit" class="form-control" value="실행">
+								<input type="hidden" id="sendvalue" name="sendvalue"><input id="excutebtn" type="submit" class="form-control" value="실행" onclick="clearAll()">
 								<!-- ="startexcute();" -->
 
 								<!-- <input
@@ -632,7 +656,7 @@ var sql_text = "";
 						<div class="tab-content">
 							<div role="tabpanel" class="tab-pane active" id="result">
 								<div class="tableWrapper">
-									<table class="table table-striped table-bordered table-hover" id="result_head" style="width:100%; font-size: 14px">
+									<table class="table table-striped table-bordered table-hover" id="result_head" style="width: 100%; font-size: 14px">
 									</table>
 								</div>
 							</div>
