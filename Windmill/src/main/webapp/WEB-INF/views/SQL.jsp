@@ -250,6 +250,10 @@ function clearAll() {
 		if(!$("#refreshtimeout").val() ){
 			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></tr></td>');
 		}
+		
+
+		
+		let ondate = new Date();
 	
 		$.ajax({
 			type: 'post',
@@ -346,7 +350,7 @@ function clearAll() {
 						},
 						topStart: {
 							info: {
-								text: 'total : _TOTAL_ records'
+								text: 'total : _TOTAL_ records, on '+dateFormat2(ondate)
 							}
 						},
 						bottomStart: null
@@ -540,6 +544,23 @@ function clearAll() {
 		second = second >= 10 ? second : '0' + second;
 	
 		return date.getFullYear() + month + day + '_' + hour + minute + second;
+	}
+	
+	function dateFormat2(date) {
+	
+		let month = date.getMonth() + 1;
+		let day = date.getDate();
+		let hour = date.getHours();
+		let minute = date.getMinutes();
+		let second = date.getSeconds();
+	
+		month = month >= 10 ? month : '0' + month;
+		day = day >= 10 ? day : '0' + day;
+		hour = hour >= 10 ? hour : '0' + hour;
+		minute = minute >= 10 ? minute : '0' + minute;
+		second = second >= 10 ? second : '0' + second;
+	
+		return date.getFullYear() +"-"+ month+"-" + day + " " + hour +":"+ minute+":" + second;
 	}
 	
 	function checkLimit(limit) {
