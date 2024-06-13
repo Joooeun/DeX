@@ -160,6 +160,9 @@ var timeouts = [];
 			} else {
 				$("#result_head td").removeClass('newline')
 			}
+			$('#result_head').DataTable()
+			   .rows().invalidate('data')
+			   .draw(false);
 		});
 
 	});
@@ -328,6 +331,7 @@ function clearAll() {
 					data: result.slice(1).map((item, index) => {return [index + 1, ...item]}),
 					columns: column,
 					paging: false,
+					searching:false,
 					fixedHeader: true,
 					fixedColumns: true,
 					scrollCollapse: true,
@@ -352,8 +356,12 @@ function clearAll() {
 						$(row).addClass("Resultrow sorting");
 					}
 				});
+				
 				if (newline) {
 					$("#result_head td").addClass('newline');
+					$('#result_head').DataTable()
+					   .rows().invalidate('data')
+					   .draw(false);
 				}
 	
 				$("#excutebtn").attr('disabled', false);
