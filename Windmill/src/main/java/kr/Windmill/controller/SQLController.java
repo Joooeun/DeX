@@ -297,7 +297,7 @@ public class SQLController {
 			}
 
 			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					"DB : " + request.getParameter("Connection") + log);
+					"DB : " + request.getParameter("Connection") + " / MENU : " + request.getParameter("menu") + log);
 
 		} catch (SQLException e1) {
 			List<String> element = new ArrayList<String>();
@@ -310,7 +310,8 @@ public class SQLController {
 			}
 
 			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					"DB : " + request.getParameter("Connection") + " / sql 실행 실패" + request.getParameter("log")
+					"DB : " + request.getParameter("Connection") + " / MENU : " + request.getParameter("menu")
+							+ " / sql 실행 실패" + request.getParameter("log")
 							+ "\nstart============================================\n" + sql + "\n\n" + e1.getMessage()
 							+ "\nend==============================================");
 

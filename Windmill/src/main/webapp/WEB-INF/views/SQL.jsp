@@ -261,6 +261,7 @@ function clearAll() {
 			data: {
 				sql: sql.trim(),
 				log: log,
+				menu : '${title}',
 				autocommit: true,
 				/* autocommit : $("#autocommit").prop('checked'), */
 				Connection: $("#connectionlist").val(),
