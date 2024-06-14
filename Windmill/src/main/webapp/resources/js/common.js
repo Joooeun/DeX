@@ -98,3 +98,62 @@ function sendSql(value) {
 	}
 
 }
+
+function getMenu() {
+	$.ajax({
+		type: 'post',
+		url: '/SQL/list',
+		success: function(result) {
+
+			var sidebar = $('#sqltree');
+			//var parent = $('<li class="active treeview menu-open"><a class="addtree" href="#"> <i class="fa fa-code"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></a></i>');
+			var child = $('<ul class="treeview-menu" id="sidemenu"></ul>');
+
+			child.append(setMenu(result, child));
+			sidebar.empty();
+			sidebar.append(child);
+
+		},
+		error: function() {
+			alert("시스템 에러");
+		}
+	});
+}
+
+
+function setMenu(result, parent) {
+
+	for (var i = 0; i < result.length; i++) {
+		var list = result[i];
+
+		if (list.Path.includes('Path')) {
+			var folder = $('<li class="treeview">\n' +
+				'          <a class="addtree" href="#">\n' +
+				'<span>' +
+				list.Name +
+				'</span><i class="fa fa-angle-left pull-right"></i></a>\n' +
+				'        </li>');
+			var child = $('<ul class="treeview-menu"></ul>');
+			folder.append(setMenu(list.list, child));
+
+			parent.append(folder);
+		} else if (list.Name.includes('.htm')) {
+
+			var childItem = $('<li><a href="/HTML?Path=' +
+				encodeURI(list.Path) + '" target="iframe" id="' +
+				list.Name.split('_')[0] + '">' +
+				list.Name.split('.')[0] + '</a></li>');
+			parent.append(childItem);
+
+		} else {
+			var childItem = $('<li><a href="/SQL?Path=' +
+				encodeURI(list.Path) + '" target="iframe" id="' +
+				list.Name.split('_')[0] + '">' +
+				list.Name.split('.')[0] + '</a></li>');
+			parent.append(childItem);
+		}
+	}
+
+	return parent;
+
+}

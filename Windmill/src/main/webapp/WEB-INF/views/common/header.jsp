@@ -6,7 +6,6 @@
 <title>Dex</title>
 <%@include file="common.jsp"%>
 <style type="text/css">
-
 body {
 	margin: 0;
 }
@@ -41,105 +40,35 @@ body {
 </head>
 
 <script>
-	$(document)
-			.ready(
-					function() {
-						$
-								.ajax({
-									type : 'post',
-									url : '/SQL/list',
-									success : function(result) {
+	$(document).ready(function() {
+		getMenu();
 
-										//alert(JSON.stringify(result))
+		$(document).on("click", ".addtree", function() {
 
-										var sidebar = $('#tree');
-										var parent = $('<li class="active treeview menu-open"><a class="addtree" href="#"> <i class="fa fa-code"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></a></i>');
-										var child = $('<ul class="treeview-menu" id="sidemenu"></ul>');
-
-										child.append(setMenu(result, child));
-										parent.append(child);
-										sidebar.append(parent);
-
-									},
-									error : function() {
-										alert("시스템 에러");
-									}
-								});
-
-						$(document).on(
-								"click",
-								".addtree",
-								function() {
-
-									if ($(this).parent().attr('class')
-											.includes('active')) {
-										$(this).parent().removeClass('active');
-									} else {
-										$(this).parent().addClass('active');
-									}
-
-								});
-
-						/**
-						 * Remove a Tab
-						 */
-						$('#pageTab').on(
-								'click',
-								' li a .close',
-								function() {
-									var tabId = $(this).parents('li').children(
-											'a').attr('href');
-									$(this).parents('li').remove('li');
-									$(tabId).remove();
-									$('#pageTab a:first').tab('show');
-								});
-
-						/**
-						 * Click Tab to show its content 
-						 */
-						$("#pageTab").on("click", "a", function(e) {
-							e.preventDefault();
-							$(this).tab('show');
-						});
-
-					});
-
-	function setMenu(result, parent) {
-
-		for (var i = 0; i < result.length; i++) {
-			var list = result[i];
-
-			if (list.Path.includes('Path')) {
-				var folder = $('<li class="treeview">\n'
-						+ '          <a class="addtree" href="#">\n'
-						+ '<span>'
-						+ list.Name
-						+ '</span><i class="fa fa-angle-left pull-right"></i></a>\n'
-						+ '        </li>');
-				var child = $('<ul class="treeview-menu"></ul>');
-				folder.append(setMenu(list.list, child));
-
-				parent.append(folder);
-			} else if (list.Name.includes('.htm')) {
-
-				var childItem = $('<li><a href="/HTML?Path='
-						+ encodeURI(list.Path) + '" target="iframe" id="'
-						+ list.Name.split('_')[0] + '">'
-						+ list.Name.split('.')[0] + '</a></li>');
-				parent.append(childItem);
-
+			if ($(this).parent().attr('class').includes('active')) {
+				$(this).parent().removeClass('active');
 			} else {
-				var childItem = $('<li><a href="/SQL?Path='
-						+ encodeURI(list.Path) + '" target="iframe" id="'
-						+ list.Name.split('_')[0] + '">'
-						+ list.Name.split('.')[0] + '</a></li>');
-				parent.append(childItem);
+				$(this).parent().addClass('active');
 			}
-		}
 
-		return parent;
+		});
 
-	}
+		$('#pageTab').on('click', ' li a .close', function() {
+			var tabId = $(this).parents('li').children('a').attr('href');
+			$(this).parents('li').remove('li');
+			$(tabId).remove();
+			$('#pageTab a:first').tab('show');
+		});
+
+		/**
+		 * Click Tab to show its content 
+		 */
+		$("#pageTab").on("click", "a", function(e) {
+			e.preventDefault();
+			$(this).tab('show');
+		});
+
+	});
 
 	function Search() {
 
@@ -210,34 +139,29 @@ body {
 		//console.log($('#iframe').contents().find('.content-header>h1').text())
 
 	}
-	
+
 	function checkPWModal() {
 		$('#checkPWModal').modal('show')
 	}
 
 	function save() {
-		
+
 		if ($('#PW').val() != $('#newPW').val()) {
 			alert("비밀번호가 일치하지 않습니다.")
 		} else {
 			var lowerCaseLetters = /[a-z]|[A-Z]/g;
 			var numbers = /[0-9]/g;
 
-			if ($('#PW').val().match(lowerCaseLetters)) {
+			if ($('#PW').val().match(lowerCaseLetters)
+					&& $('#PW').val().match(numbers)) {
 			} else {
-				alert("영문");
-				return;
-			}
-
-			if ($('#PW').val().match(numbers)) {
-			} else {
-				alert("숫자");
+				alert("비밀번호는 영문, 숫자를 포함해야 합니다.");
 				return;
 			}
 
 			if ($('#PW').val().length >= 8) {
 			} else {
-				alert("8자 이상");
+				alert("비밀번호는 최소 8자리 이상입니다.");
 				return;
 			}
 
@@ -259,7 +183,6 @@ body {
 			});
 
 		}
-
 	}
 
 	function checkPW() {
@@ -270,17 +193,17 @@ body {
 				PW : $('#curPW').val(),
 			},
 			success : function(result) {
-				
+
 				if (result) {
 					$('#checkPWModal').modal('hide')
 					$('#changePWModal').modal('show')
 				} else {
 					alert("잘못된 비밀번호 입니다.");
 				}
-					$('#curPW').val("")
+				$('#curPW').val("")
 			},
 			error : function(e) {
-				alert("저장되지 않았습니다."+JSON.stringify(e));
+				alert("저장되지 않았습니다." + JSON.stringify(e));
 			}
 		});
 
@@ -353,9 +276,6 @@ body {
 						</li>
 					</c:if>
 
-
-
-
 					<li class="treeview">
 						<a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span>
 						</a>
@@ -363,6 +283,10 @@ body {
 					<li class="treeview">
 						<a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileUpload</span>
 						</a>
+					</li>
+
+					<li id="sqltree" class="active treeview menu-open">
+						<a class="addtree" href="#"> <i class="fa fa-code"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></a></i>
 					</li>
 				</ul>
 			</section>
@@ -383,7 +307,6 @@ body {
 				</div>
 
 			</div>
-
 		</div>
 
 		<!-- 비번 변경 Modal -->
@@ -414,7 +337,7 @@ body {
 				</div>
 			</div>
 		</div>
-		
+
 		<!-- 비번 확인 Modal -->
 		<div class="modal fade" id="checkPWModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
 			<div class="modal-dialog" role="document">
