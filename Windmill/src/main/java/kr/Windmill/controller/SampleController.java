@@ -14,6 +14,7 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.slf4j.Logger;
@@ -49,9 +50,7 @@ public class SampleController {
 	}
 
 	@RequestMapping(path = "/index/login")
-	public String login(HttpServletRequest request, Model model)
-			throws InvalidKeyException, UnsupportedEncodingException, NoSuchAlgorithmException, NoSuchPaddingException,
-			InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
+	public String login(HttpServletRequest request, Model model, HttpServletResponse response) {
 
 		HttpSession session = request.getSession();
 		System.out.println("Timeout : " + Common.Timeout + " min");
@@ -69,6 +68,11 @@ public class SampleController {
 
 				session.setAttribute("memberId", request.getParameter("id"));
 				com.userLog(request.getParameter("id"), com.getIp(request), " 로그인 성공");
+
+				response.setHeader("Cache-Control", "no-cache, no-store");
+				response.setHeader("Pragma", "no-cache");
+				response.setDateHeader("Expires", 0);
+
 				return "redirect:/index";
 
 			} else {
