@@ -672,7 +672,7 @@ function clearAll() {
 							<!-- <li style="float: right; al"><i class="fa fa-floppy-o"></i></li> -->
 							<li style="float: right; margin-right: 5px">
 								<label style="margin: 0 3px 0 3px;">
-									limit&nbsp; <input type="text" size="3" maxlength="3" id="limit" value="${empty limit ? 0 :  limit}" onblur="checkLimit(this)" />
+									limit&nbsp; <input type="number" min="0" max="500" id="limit" value="${empty limit ? 0 :  limit}" onblur="checkLimit(this)" />
 								</label>
 								<label style="margin: 0 3px 0 3px;">
 									<input type="checkbox" id="newline" <c:if test="${newline=='true'}"> checked </c:if> /> 개행보기
