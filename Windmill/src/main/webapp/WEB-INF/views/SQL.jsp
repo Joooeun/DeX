@@ -329,6 +329,12 @@ function clearAll() {
 					$('#result_head').DataTable().destroy();
 					$('#result_head').empty();
 				};
+				
+				const saveBtn = '${save}'=='false'?[]:[{
+					extend: 'excel',
+					text: '${save}<i class="fa fa-floppy-o"></i>',
+					title: `${title}_${memberId}_` + dateFormat()
+				}];
 	
 	
 				const table = $('#result_head').DataTable({
@@ -342,11 +348,7 @@ function clearAll() {
 				    scrollY: '50vh',
 					layout: {
 						topEnd: {
-							buttons: [{
-								extend: 'excel',
-								text: '<i class="fa fa-floppy-o"></i>',
-								title: `${title}_${memberId}_` + dateFormat()
-							}]
+							buttons: saveBtn
 						},
 						topStart: {
 							info: {

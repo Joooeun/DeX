@@ -122,6 +122,8 @@ public class SQLController {
 						mv.addObject("DB", line.split("=")[1]);
 					} else if (line.split("=")[0].equals("DESC")) {
 						mv.addObject("desc", line.split("=")[1]);
+					} else if (line.split("=")[0].equals("SAVE")) {
+						mv.addObject("save", line.split("=")[1]);
 					}
 
 				}
