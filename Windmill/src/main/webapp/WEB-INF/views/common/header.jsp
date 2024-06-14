@@ -211,7 +211,6 @@ body {
 </script>
 
 <body class="sidebar-mini skin-purple-light">
-	<script type="text/javascript" src="/resources/js/common.js"></script>
 
 	<div class="wrapper">
 		<header class="main-header">
@@ -286,7 +285,7 @@ body {
 					</li>
 
 					<li id="sqltree" class="active treeview menu-open">
-						<a class="addtree" href="#"> <i class="fa fa-code"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></a></i>
+						
 					</li>
 				</ul>
 			</section>
