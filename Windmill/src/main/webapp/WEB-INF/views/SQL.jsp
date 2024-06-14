@@ -314,7 +314,13 @@ function clearAll() {
 								columnDefs.push({
 									type: 'string',
 									targets: title + 1,
-									render: DataTable.render.text()
+									render:function( data ) {
+										var div = document.createElement("div");
+										div.innerHTML = data;
+										var text = div.textContent || div.innerText || "";										
+										return text
+									}
+							          
 								});
 	
 							}
