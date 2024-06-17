@@ -42,6 +42,7 @@
 	border: none;
 	outline: none;
 	width: 100%;
+	margin-bottom: 5px;
 }
 
 .container__lines {
@@ -97,7 +98,6 @@ var timeouts = [];
 				const list = "${DB}" == "" ? [] : "${DB}".split(",")
 
 				for (var i = 0; i < result.length; i++) {
-
 
 					if (list.length > 0 && !list.includes(result[i].split('.')[0])) {
 						continue;
@@ -174,7 +174,6 @@ var timeouts = [];
 				$("#textcount").text($(this).val().length)
 			});
 
-
 		});
 		
 		document.querySelectorAll(".paramvalue input").forEach((element) => {
@@ -207,50 +206,47 @@ var timeouts = [];
 		$('.formtextarea').on('scroll', () => {
 	        $('.container__lines').scrollTop($('.formtextarea').scrollTop());
 	    });
+		
 
 	});
-
-	function formsubmit(){
-		
-	}
 	
 	function startexcute() {
-		
-		if($("#excutebtn").attr('disabled')=='disabled'){
+
+		if ($("#excutebtn").attr('disabled') == 'disabled') {
 			return;
 		}
-		
+
 		if ($("#connectionlist option:selected").val() == '') {
 			alert("Connection을 선택하세요.");
-	
+
 		} else {
 			excute();
 			if ($("#refreshtimeout").val() > 0) {
-				time =  $("#refreshtimeout").val() 
-				timeRemain =  $("#refreshtimeout").val() 
-				timeouts.push( setInterval(refresh, 1000));
-				
+				time = $("#refreshtimeout").val()
+				timeRemain = $("#refreshtimeout").val()
+				timeouts.push(setInterval(refresh, 1000));
+
 			}
 		}
-	
+
 		return false;
 	}
-	
-	function refresh(){
-		$("#excutebtn").val('wait...'+--timeRemain+'s')
-		if(timeRemain==0){
-			timeRemain=time;
+
+	function refresh() {
+		$("#excutebtn").val('wait...' + timeRemain + 's')
+		if (timeRemain == 0) {
+			timeRemain = time;
 			excute()
 		}
 	}
-	
+
 	function clearAll() {
 		for (var i = 0; i < timeouts.length; i++) {
 			clearTimeout(timeouts[i]);
 		}
 		timeouts = [];
 	}
-	
+
 	function commit() {
 		$.ajax({
 			type: 'post',
@@ -263,68 +259,65 @@ var timeouts = [];
 			}
 		});
 	}
+	
 	function excute() {
-		
+
 		var sql = $("#sql_text").val() ?? sql_text;
 		var log = "";
-	
+
 		for (var i = 0; i < $(".paramvalue").length; i++) {
-			
-			if ($(".paramvalue").eq(i).attr('required') == 'required'&&$(".paramvalue").eq(i).val()=="") {
-				alert($(".paramvalue").eq(i).attr('paramtitle')+"을 입력하세요.")
+
+			if ($(".paramvalue").eq(i).attr('required') == 'required' && $(".paramvalue").eq(i).val() == "") {
+				alert($(".paramvalue").eq(i).attr('paramtitle') + "을 입력하세요.")
 				return;
-				
+
 			}
-			
+
 			if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'varchar') {
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val().replace(/'/g, "''") + '\'');
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'text') {
-				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join( $(".paramvalue").eq(i).val().replace(/'/g, "''"));		
+				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val().replace(/'/g, "''"));
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'sql') {
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'number') {
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
-			}else if ($(".paramvalue").eq(i).attr('paramtype') == 'log') {
-				log += "\n"+$(".paramvalue").eq(i).attr('paramtitle')+" : "+$(".paramvalue").eq(i).val();
+			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'log') {
+				log += "\n" + $(".paramvalue").eq(i).attr('paramtitle') + " : " + $(".paramvalue").eq(i).val();
 			}
 		}
-		
+
 		$("#excutebtn").attr('disabled', true);
-		if(!$("#refreshtimeout").val() ){
+		if (!$("#refreshtimeout").val()) {
 			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></tr></td>');
 		}
-		
 
-		
 		let ondate = new Date();
-	
+
 		$.ajax({
 			type: 'post',
 			url: '/SQL/excute',
 			data: {
 				sql: sql.trim(),
 				log: log,
-				Path : '${title}',
+				Path: '${title}',
 				autocommit: true,
 				/* autocommit : $("#autocommit").prop('checked'), */
 				Connection: $("#connectionlist").val(),
 				limit: $("#limit").val()
 			},
 			success: function(result, status, jqXHR) {
-				
-	
+
 				if (jqXHR.getResponseHeader("SESSION_EXPIRED") === "true") {
 					alert("세션이 만료되었습니다.");
 					window.parent.location.href = "/Login";
 				}
-	
+
 				$("#Resultbox").css("display", "block");
-	
+
 				var newline = $("#newline").prop('checked');
-	
-	
+
 				var columnDefs = [{
 					"defaultContent": "-",
 					"targets": "_all"
@@ -332,86 +325,93 @@ var timeouts = [];
 				var column = [{
 					title: "#"
 				}]
-	
+
 				if (result.length > 0) {
-	
+
 					for (var title = 0; title < result[0].length; title++) {
-	
+
 						if (result[0][title].split("//").length == 2) {
-	
-							column.push({title: result[0][title].split("//")[0]});
+
+							column.push({
+								title: result[0][title].split("//")[0]
+							});
 							//column.push({title: result[0][title]});
-							
+
 							if (['-6', '5', '4', '6', '7', '8', '2'].includes(result[0][title].split("//")[1])) {
-	
+
 								columnDefs.push({
 									type: 'num',
 									targets: title + 1,
 									//render: $.fn.dataTable.render.number(',')
 								});
-	
+
 							} else if (['-5'].includes(result[0][title].split("//")[1])) {
-	
+
 								columnDefs.push({
 									type: 'num',
-									targets: title + 1});
-	
+									targets: title + 1
+								});
+
 							} else if (['3'].includes(result[0][title].split("//")[1])) {
 								columnDefs.push({
 									type: 'num',
 									targets: title + 1
-									});
-	
+								});
+
 							} else {
 								columnDefs.push({
 									type: 'string',
 									targets: title + 1,
-									render:function( data ) {
+									render: function(data) {
 										var div = document.createElement("div");
 										div.innerHTML = data;
-										var text = div.textContent || div.innerText || "";										
+										var text = div.textContent || div.innerText || "";
 										return text
 									}
-							          
+
 								});
-	
+
 							}
-						}else{
-							column.push({title: result[0][title]});
+						} else {
+							column.push({
+								title: result[0][title]
+							});
 						}
 					}
-	
+
 					chart(result);
 				}
-	
+
 				if ($.fn.DataTable.isDataTable('#result_head')) {
 					$('#result_head').DataTable().destroy();
 					$('#result_head').empty();
 				};
-				
-				const saveBtn = '${save}'=='false'?[]:[{
+
+				const saveBtn = '${save}' == 'false' ? [] : [{
 					extend: 'excel',
 					text: '${save}<i class="fa fa-floppy-o"></i>',
 					title: `${title}_${memberId}_` + dateFormat()
 				}];
-	
-	
+
 				const table = $('#result_head').DataTable({
-					data: result.slice(1).map((item, index) => {return [index + 1, ...item]}),
+					data: result.slice(1).map((item, index) => {
+						return [index + 1, ...item]
+					}),
 					columns: column,
 					paging: false,
-					searching:false,
+					searching: false,
 					fixedHeader: true,
 					fixedColumns: true,
+					scrollResize: true,
+					scrollY: $("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 200,
 					scrollCollapse: true,
-				    scrollY: '50vh',
 					layout: {
 						topEnd: {
 							buttons: saveBtn
 						},
 						topStart: {
 							info: {
-								text: 'total : _TOTAL_ records, on '+dateFormat2(ondate)
+								text: 'total : _TOTAL_ records, on ' + dateFormat2(ondate)
 							}
 						},
 						bottomStart: null
@@ -421,14 +421,14 @@ var timeouts = [];
 						$(row).addClass("Resultrow sorting");
 					}
 				});
-				
+
 				if (newline) {
 					$("#result_head td").addClass('newline');
 					$('#result_head').DataTable()
-					   .rows().invalidate('data')
-					   .draw(false);
+						.rows().invalidate('data')
+						.draw(false);
 				}
-	
+
 				$("#excutebtn").attr('disabled', false);
 			},
 			error: function(error) {
@@ -637,7 +637,7 @@ var timeouts = [];
 	
 </script>
 <!-- Content Wrapper. Contains page content -->
-<div class="content-wrapper" style="margin-left: 0">
+<div class="content-wrapper" style="margin-left: 0" id="test">
 	<!-- Content Header (Page header) -->
 	<section class="content-header">
 		<h1>${title}</h1>
@@ -652,45 +652,43 @@ var timeouts = [];
 		</ol>
 	</section>
 	<section class="content">
-		<div class="row">
+		<div class="row" id="top">
 			<div class="col-xs-12">
 				<div class="box box-default ">
 					<div class="box-header with-border">
-						<h3 class="box-title">파라미터 입력</h3>
+						<h5 class="box-title">파라미터 입력</h5>
 						&nbsp;&nbsp;&nbsp; <input id="selectedConnection" type="hidden" value="${Connection}"> <select id="connectionlist" onchange="sessionCon(this.value)">
 							<option value="">====Connection====</option>
 						</select>
 					</div>
-					<c:if test="${sql eq ''}">
 
-						<div class="form-group col-xs-12">
-							<div id="container" class="textcontainer">
-								<div id="line-numbers" class="container__lines"></div>
-								<textarea class="col-sm-12 col-xs-12 formtextarea" maxlength="${textlimit}" id="sql_text" style="margin: 0 0 10px 0" rows="5">${sql}</textarea>
-							</div>
-							<span id="textcount">0</span> / <span>${textlimit}</span>
-						</div>
-					</c:if>
 					<form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:startexcute();" onsubmit="clearAll()">
-
-						<!-- onsubmit="startexcute()" -->
-
 						<div class="box-body">
 							<div class="col-sm-10 col-md-11">
+								<c:if test="${sql eq ''}">
+
+									<div class="form-group" style="margin-bottom: 0">
+										<div id="container" class="textcontainer">
+											<div id="line-numbers" class="container__lines"></div>
+											<textarea class="col-sm-12 col-xs-12 formtextarea" maxlength="${textlimit}" id="sql_text" style="margin: 0 0 10px 0" rows="5">${sql}</textarea>
+										</div>
+										<span id="textcount">0</span> / <span>${textlimit}</span>
+									</div>
+								</c:if>
 
 								<c:forEach var="item" items="${Param}" varStatus="status">
 									<c:choose>
 										<c:when test="${item.type == 'text' || item.type == 'sql'}">
 											<div class="col-xs-12">
-												<div class="form-group">
-													<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+												<div class="form-group" style="margin-bottom: 0">
+													<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 13px">${fn:toUpperCase(item.name)}</span>
 													<div id="container" class="textcontainer">
 
 														<div id="line-numbers" class="container__lines"></div>
 														<textarea class="paramvalue col-xs-12 formtextarea" maxlength="${textlimit}" paramtitle="${item.name}" rows="5" paramtype="${item.type}" style="padding: 0 2px;">${item.name=='memberId' ? memberId : item.value}</textarea>
 													</div>
+													<span id="textcount">0</span> / <span>${textlimit}</span>
 												</div>
-												<span id="textcount">0</span> / <span>${textlimit}</span>
 											</div>
 										</c:when>
 
@@ -698,7 +696,7 @@ var timeouts = [];
 											<div class="col-lg-2 col-md-3 col-sm-4 col-xs-5">
 												<div class="form-group ${item.required}">
 													<c:if test="${item.name != 'memberId' && item.hidden !='hidden'}">
-														<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+														<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 13px">${fn:toUpperCase(item.name)}</span>
 													</c:if>
 													<div style="margin: 2px 0">
 														<input type="${item.name=='memberId' || item.hidden=='hidden' ? 'hidden' : 'text'}" class="form-control paramvalue" paramtitle="${item.name}" paramtype="${item.type}" value="${item.name == 'memberId' ? memberId : item.value}"
@@ -761,14 +759,14 @@ var timeouts = [];
 						<!-- Tab panes -->
 						<div class="tab-content">
 							<div role="tabpanel" class="tab-pane active" id="result">
-								<div class="tableWrapper">
+								<div>
 									<table class="table table-striped table-bordered table-hover" id="result_head" style="width: 100%; font-size: 14px">
 									</table>
 								</div>
 							</div>
 							<div role="tabpanel" class="tab-pane" id="chart">
 
-								<div style="overflow-y: auto; overflow-x: auto; height: calc(100vh - 370px); width: 100%;">
+								<div style="overflow-y: auto; overflow-x: auto; height: calc(100vh*0.5); width: 100%;">
 									<canvas id="myChart" width="100%" height="100%"></canvas>
 								</div>
 							</div>
@@ -784,12 +782,10 @@ var timeouts = [];
 						<h3 class="box-title">Short Key</h3>
 					</div>
 					<div class="box-body">
-						<div class="form-group">
-							<c:forEach var="item" items="${ShortKey}">
-								<button type="button" class="btn btn-default" onclick="sendSql('${item.menu}&${item.column}&${item.autoExecute}')">${item.keytitle}</button>
-								<input type="hidden" id="${item.key}" value="${item.menu}&${item.column}&${item.autoExecute}">
-							</c:forEach>
-						</div>
+						<c:forEach var="item" items="${ShortKey}">
+							<button type="button" class="btn btn-default btn-sm" onclick="sendSql('${item.menu}&${item.column}&${item.autoExecute}')">${item.keytitle}</button>
+							<input type="hidden" id="${item.key}" value="${item.menu}&${item.column}&${item.autoExecute}">
+						</c:forEach>
 					</div>
 				</div>
 			</div>

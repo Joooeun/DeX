@@ -4,9 +4,9 @@
 <link href="/resources/dist/css/AdminLTE.min.css" rel="stylesheet" type="text/css" />
 <link href="/resources/dist/css/skins/_all-skins.min.css" rel="stylesheet" type="text/css" />
 <link href="/resources/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" type="text/css" />
-<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
+<link href="/resources/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
 <script src="/resources/plugins/jQuery/jQuery-2.1.4.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/resources/plugins/chartjs/ChartJs.js"></script>
 <script src="/resources/bootstrap/js/bootstrap.js"></script>
 <link rel="shortcut icon" href="#">
 
