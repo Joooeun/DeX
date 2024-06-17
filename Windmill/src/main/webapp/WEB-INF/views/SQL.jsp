@@ -340,20 +340,27 @@ var timeouts = [];
 						if (result[0][title].split("//").length == 2) {
 	
 							column.push({title: result[0][title].split("//")[0]});
+							//column.push({title: result[0][title]});
 							
-							if (['-6', '5', '4', '-5', '6', '7', '8', '2'].includes(result[0][title].split("//")[1])) {
+							if (['-6', '5', '4', '6', '7', '8', '2'].includes(result[0][title].split("//")[1])) {
 	
 								columnDefs.push({
 									type: 'num',
 									targets: title + 1,
-									render: $.fn.dataTable.render.number(',')
+									//render: $.fn.dataTable.render.number(',')
 								});
 	
-							} else if (['3'].includes(result[0][title].split("//")[1])) {
+							} else if (['-5'].includes(result[0][title].split("//")[1])) {
 	
 								columnDefs.push({
 									type: 'num',
 									targets: title + 1});
+	
+							} else if (['3'].includes(result[0][title].split("//")[1])) {
+								columnDefs.push({
+									type: 'num',
+									targets: title + 1
+									});
 	
 							} else {
 								columnDefs.push({
