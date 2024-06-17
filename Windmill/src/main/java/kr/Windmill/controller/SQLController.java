@@ -375,6 +375,10 @@ public class SQLController {
 						case 2009:
 							row.add(rs.getSQLXML(index + 1).toString());
 							break;
+							
+						case -5:
+							row.add(rs.getBigDecimal(index + 1).toString());
+							break;
 
 						case 2005:
 						case 93:
