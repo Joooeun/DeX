@@ -1,4 +1,5 @@
 <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <link href="/resources/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
 <link href="/resources/dist/css/AdminLTE.min.css" rel="stylesheet" type="text/css" />
 <link href="/resources/dist/css/skins/_all-skins.min.css" rel="stylesheet" type="text/css" />
@@ -136,6 +137,7 @@
 	}
 
 	function getMenu() {
+		
 		$.ajax({
 			type: 'post',
 			url: '/SQL/list',

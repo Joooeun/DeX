@@ -297,12 +297,17 @@ public class SQLController {
 			}
 
 			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					"DB : " + request.getParameter("Connection") + " / MENU : " + request.getParameter("menu") + log);
+					"DB : " + request.getParameter("Connection") + " / MENU : " + request.getParameter("Path") + log);
 
 		} catch (SQLException e1) {
+
+//			list.add(Arrays.asList("errmsg//err,query//query".split(",")));
+
 			List<String> element = new ArrayList<String>();
+
 			element.add(e1.toString());
 			element.add(sql);
+			list.add(element);
 
 			if (log.length() > 0) {
 				com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
@@ -310,12 +315,11 @@ public class SQLController {
 			}
 
 			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					"DB : " + request.getParameter("Connection") + " / MENU : " + request.getParameter("menu")
+					"DB : " + request.getParameter("Connection") + " / MENU : " + request.getParameter("Path")
 							+ " / sql 실행 실패" + request.getParameter("log")
 							+ "\nstart============================================\n" + sql + "\n\n" + e1.getMessage()
 							+ "\nend==============================================");
 
-			list.add(element);
 			System.out.println("id : " + session.getAttribute("memberId") + " / sql : " + sql);
 			e1.printStackTrace();
 		}

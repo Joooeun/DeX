@@ -1,6 +1,10 @@
 package kr.Windmill.config;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -23,12 +27,22 @@ public class LoginInterceptor implements HandlerInterceptor {
 	@Override
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
 
-//		System.out.println(request.getRequestURI());
 		HttpSession session = request.getSession();
 
 //		logger.info(new Date()+ " / " + session.getMaxInactiveInterval());
 
 		String memberId = (String) session.getAttribute("memberId");
+
+		List vowelsList = Arrays
+				.asList("/,/index,/index2,/SQL/list,/Connection/list,/Connection/sessionCon".split(","));
+
+		if (!vowelsList.contains(request.getRequestURI())) {
+			SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			String strNowDate = simpleDateFormat.format(new Date());
+
+			System.out.println(strNowDate + " " + memberId + " " + request.getRequestURI()
+					+ (request.getParameter("Path") != null ? " " + request.getParameter("Path") : ""));
+		}
 
 		if (memberId != null) {
 			return true;

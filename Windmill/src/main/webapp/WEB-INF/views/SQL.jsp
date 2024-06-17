@@ -235,6 +235,8 @@ function clearAll() {
 			
 			if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
+			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'varchar') {
+				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val().replace(/'/g, "''") + '\'');
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'text') {
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join( $(".paramvalue").eq(i).val().replace(/'/g, "''"));		
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'sql') {
@@ -261,7 +263,7 @@ function clearAll() {
 			data: {
 				sql: sql.trim(),
 				log: log,
-				menu : '${title}',
+				Path : '${title}',
 				autocommit: true,
 				/* autocommit : $("#autocommit").prop('checked'), */
 				Connection: $("#connectionlist").val(),
@@ -388,8 +390,10 @@ function clearAll() {
 	}
 	
 	function sessionCon(value) {
+		
+		const list = "${DB}" == "" ? [] : "${DB}".split(",");
 	
-		if ("${DB}" == "") {
+		if (list.length!=1) {
 			$.ajax({
 				type: 'post',
 				url: '/Connection/sessionCon',
@@ -612,38 +616,38 @@ function clearAll() {
 						<!-- onsubmit="startexcute()" -->
 
 						<div class="box-body">
-
-							<c:forEach var="item" items="${Param}" varStatus="status">
-								<c:choose>
-									<c:when test="${item.type == 'text' || item.type == 'sql'}">
-										<div class="col-xs-12">
-											<div class="form-group">
-												<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
-												<textarea class="paramvalue col-xs-12 formtextarea" paramtitle="${item.name}" rows="5" paramtype="${item.type}" style="padding: 0 2px;">${item.name=='memberId' ? memberId : item.value}</textarea>
-											</div>
-										</div>
-
-
-									</c:when>
-
-									<c:otherwise>
-										<div class="col-sm-3">
-											<div class="form-group ${item.required}">
-												<c:if test="${item.name != 'memberId' && item.hidden !='hidden'}">
+							<div class="col-sm-10 col-md-11">
+								<c:forEach var="item" items="${Param}" varStatus="status">
+									<c:choose>
+										<c:when test="${item.type == 'text' || item.type == 'sql'}">
+											<div class="col-xs-12">
+												<div class="form-group">
 													<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
-												</c:if>
-												<div style="margin: 2px 0">
-													<input type="${item.name=='memberId' || item.hidden=='hidden' ? 'hidden' : 'text'}" class="form-control paramvalue" paramtitle="${item.name}" paramtype="${item.type}" value="${item.name == 'memberId' ? memberId : item.value}"
-														style="padding: 0 2px;" <c:if test="${item.required=='required'}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.disabled=='disabled'}">disabled</c:if>
-														<c:if test="${item.name=='memberId' || item.readonly=='readonly'}">readonly</c:if>>
+													<textarea class="paramvalue col-xs-12 formtextarea" paramtitle="${item.name}" rows="5" paramtype="${item.type}" style="padding: 0 2px;">${item.name=='memberId' ? memberId : item.value}</textarea>
 												</div>
 											</div>
-										</div>
 
-									</c:otherwise>
-								</c:choose>
-							</c:forEach>
 
+										</c:when>
+
+										<c:otherwise>
+											<div class="col-lg-2 col-md-3 col-sm-4 col-xs-5">
+												<div class="form-group ${item.required}">
+													<c:if test="${item.name != 'memberId' && item.hidden !='hidden'}">
+														<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 15px">${fn:toUpperCase(item.name)}</span>
+													</c:if>
+													<div style="margin: 2px 0">
+														<input type="${item.name=='memberId' || item.hidden=='hidden' ? 'hidden' : 'text'}" class="form-control paramvalue" paramtitle="${item.name}" paramtype="${item.type}" value="${item.name == 'memberId' ? memberId : item.value}"
+															style="padding: 0 2px;" <c:if test="${item.required=='required'}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.disabled=='disabled'}">disabled</c:if>
+															<c:if test="${item.name=='memberId' || item.readonly=='readonly'}">readonly</c:if>>
+													</div>
+												</div>
+											</div>
+
+										</c:otherwise>
+									</c:choose>
+								</c:forEach>
+							</div>
 							<div class="col-sm-2 col-md-1 pull-right">
 								<input type="hidden" id="sendvalue" name="sendvalue"><input id="excutebtn" type="submit" class="form-control" value="실행" onclick="clearAll()">
 								<!-- ="startexcute();" -->
