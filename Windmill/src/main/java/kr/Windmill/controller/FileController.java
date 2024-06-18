@@ -47,7 +47,7 @@ public class FileController {
 
 	@ResponseBody
 	@RequestMapping(path = "/FILE/readfile")
-	public Map<String, String> readfile(HttpServletRequest request, Model model, HttpSession session1) throws ClassNotFoundException, JSchException {
+	public Map<String, String> readfile(HttpServletRequest request, Model model, HttpSession session1) throws ClassNotFoundException, JSchException, IOException {
 
 		Map<String, String> map = com.ConnectionConf(request.getParameter("Connection"));
 
@@ -113,7 +113,7 @@ public class FileController {
 
 	@ResponseBody
 	@RequestMapping(path = "/FILE/uploadfile")
-	public String uploadfile(HttpServletRequest request, Model model, HttpSession session1) throws ClassNotFoundException, JSchException {
+	public String uploadfile(HttpServletRequest request, Model model, HttpSession session1) throws ClassNotFoundException, JSchException, IOException {
 
 		File Folder = new File(Common.tempPath);
 		if (!Folder.exists()) {

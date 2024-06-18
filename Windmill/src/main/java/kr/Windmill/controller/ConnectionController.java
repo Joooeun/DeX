@@ -38,7 +38,7 @@ public class ConnectionController {
 
 	@ResponseBody
 	@RequestMapping(path = "/Connection/detail")
-	public Map<String, String> detail(HttpServletRequest request, Model model, HttpSession session) {
+	public Map<String, String> detail(HttpServletRequest request, Model model, HttpSession session) throws IOException {
 
 		Map<String, String> map = com.ConnectionConf(request.getParameter("DB"));
 

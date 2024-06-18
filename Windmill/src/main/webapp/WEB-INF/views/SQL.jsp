@@ -304,6 +304,7 @@ var timeouts = [];
 				Path: '${title}',
 				autocommit: true,
 				/* autocommit : $("#autocommit").prop('checked'), */
+				audit : ${audit==null?false:true},
 				Connection: $("#connectionlist").val(),
 				limit: $("#limit").val()
 			},

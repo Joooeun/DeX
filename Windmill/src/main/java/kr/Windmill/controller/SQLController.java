@@ -29,11 +29,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
+import kr.Windmill.service.ConnectionDTO;
+import kr.Windmill.service.LogInfoDTO;
 import kr.Windmill.util.Common;
 
 @Controller
@@ -124,6 +127,8 @@ public class SQLController {
 						mv.addObject("desc", line.split("=")[1]);
 					} else if (line.split("=")[0].equals("SAVE")) {
 						mv.addObject("save", line.split("=")[1]);
+					} else if (line.split("=")[0].equals("AUDIT")) {
+						mv.addObject("audit", line.split("=")[1]);
 					}
 
 				}
@@ -188,86 +193,67 @@ public class SQLController {
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/excute")
-	public List<List> excute(HttpServletRequest request, Model model, HttpSession session)
-			throws ClassNotFoundException {
+	public List<List> excute(HttpServletRequest request, Model model, HttpSession session,
+			@ModelAttribute LogInfoDTO data) throws ClassNotFoundException, IOException {
 
-		Instant start = Instant.now();
+		data.setStart(Instant.now());
+		data.setId(session.getAttribute("memberId").toString());
+		data.setIp(com.getIp(request));
 
-		List<List> list = new ArrayList<List>();
-		Map<String, String> map = com.ConnectionConf(request.getParameter("Connection"));
+		ConnectionDTO connection = com.getConnection(data.getConnection());
+		Properties prop = connection.getProp();
 
-		Properties prop = new Properties();
-
-		String dbtype = map.get("DBTYPE") == null ? "DB2" : map.get("DBTYPE");
-		String driver = "com.ibm.db2.jcc.DB2Driver";
-		String jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
-
-		switch (dbtype) {
-		case "DB2":
-			driver = "com.ibm.db2.jcc.DB2Driver";
-			jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
-			break;
-		case "ORACLE":
-			driver = "oracle.jdbc.driver.OracleDriver";
-			jdbc = "jdbc:oracle:thin:@" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
-			break;
-		case "Postgresql":
-			driver = "org.postgresql.Driver";
-			jdbc = "jdbc:postgresql://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
-			break;
-		case "Tibero":
-			driver = "com.tmax.tibero.jdbc.TbDriver";
-			jdbc = "jdbc:tibero:thin:@" + map.get("IP") + ":" + map.get("PORT") + ":" + map.get("DB");
-			break;
-
-		default:
-			break;
-		}
-
-		Class.forName(driver);
-
-		prop.put("user", map.get("USER"));
-		prop.put("password", map.get("PW"));
+		Class.forName(connection.getDriver());
 		prop.put("clientProgramName", "DeX");
 
-		String sql = request.getParameter("sql");
-		String log = "";
+		String sql = data.getSql();
+		String log = data.getLog();
+
+		List<List> list = new ArrayList<List>();
+		PreparedStatement pstmt = null;
 
 		try {
 
 			String row = "";
 
 			if (sql.toUpperCase().startsWith("CALL")) {
-				list.addAll(callprocedure(sql, dbtype, jdbc, prop));
-				Instant end = Instant.now();
-				Duration timeElapsed = Duration.between(start, end);
+				list.addAll(callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop));
+				data.setEnd(Instant.now());
+				data.setResult("Success");
+				data.setSql(sql);
+				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
 
-				log = " / sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis())
-						+ request.getParameter("log") + "\nstart============================================\n" + sql
+				log += " / sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis())
+						+ "\nstart============================================\n" + sql
 						+ "\nend==============================================";
+
+				com.log_DB(data);
 
 			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH")
 					|| sql.toUpperCase().startsWith("VALUE")) {
-				list.addAll(excutequery(sql, dbtype, jdbc, prop, Integer.parseInt(request.getParameter("limit"))));
+				list.addAll(excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit()));
 				row = "";
-				Instant end = Instant.now();
-				Duration timeElapsed = Duration.between(start, end);
+				data.setRows(list.size() - 1);
+				data.setEnd(Instant.now());
+				data.setResult("Success");
+				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
 
-				log = " / sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis())
-						+ request.getParameter("log") + "\nstart============================================\n" + sql
+				log += " / sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis())
+						+ "\nstart============================================\n" + sql
 						+ "\nend==============================================";
+
+				com.log_DB(data);
 
 			} else {
 
 				List<String> headRow;
 				headRow = new ArrayList<>();
 				headRow.add("Result");
+				headRow.add("Updated Rows");
 				headRow.add("Query");
 				list.add(headRow);
 
 				String sqlOrg = sql.trim();
-
-				log = request.getParameter("log");
 
 				for (String singleSql : sqlOrg.split(";")) {
 
@@ -276,49 +262,50 @@ public class SQLController {
 					}
 
 					sql = singleSql.trim() + ";";
+					data.setSql(sql);
 
 					Instant singleStart = Instant.now();
 
-					List<List<String>> singleList = updatequery(sql.trim(), dbtype, jdbc, prop);
+					List<List<String>> singleList = com.updatequery(sql.trim(), connection.getDbtype(),
+							connection.getJdbc(), prop, null);
 
 					list.addAll(singleList);
 
 					Duration timeElapsed = Duration.between(singleStart, Instant.now());
-
-					row = " / " + sql.toUpperCase().split("\\s")[0] + " rows : " + singleList.get(0).get(0).toString();
+					data.setResult("Success");
+					data.setDuration(timeElapsed.toMillis());
+					row = " / " + data.getSqlType() + " rows : " + singleList.get(0).get(1).toString();
+					data.setRows(Integer.parseInt(singleList.get(0).get(1)));
 
 					log += "\nsql 실행 성공" + row + " / 소요시간 : "
 							+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
 							+ "\nstart============================================\n" + sql
 							+ "\nend==============================================\n";
 
+					com.log_DB(data);
 				}
-
 			}
 
-			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					"DB : " + request.getParameter("Connection") + " / MENU : " + request.getParameter("Path") + log);
+			com.log_file(data, log);
 
 		} catch (SQLException e1) {
-
-//			list.add(Arrays.asList("errmsg//err,query//query".split(",")));
 
 			List<String> element = new ArrayList<String>();
 
 			element.add(e1.toString());
+			element.add("0");
 			element.add(sql);
 			list.add(element);
 
 			if (log.length() > 0) {
-				com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-						"DB : " + request.getParameter("Connection") + log);
+				com.log_file(data, log);
 			}
 
-			com.userLog(session.getAttribute("memberId").toString(), com.getIp(request),
-					"DB : " + request.getParameter("Connection") + " / MENU : " + request.getParameter("Path")
-							+ " / sql 실행 실패" + request.getParameter("log")
-							+ "\nstart============================================\n" + sql + "\n\n" + e1.getMessage()
-							+ "\nend==============================================");
+			data.setResult(e1.getMessage());
+			data.setDuration(0);
+			com.log_file(data, " / sql 실행 실패\nstart============================================\n" + sql + "\n\n"
+					+ e1.getMessage() + "\nend==============================================");
+			com.log_DB(data);
 
 			System.out.println("id : " + session.getAttribute("memberId") + " / sql : " + sql);
 			e1.printStackTrace();
@@ -375,7 +362,7 @@ public class SQLController {
 						case 2009:
 							row.add(rs.getSQLXML(index + 1).toString());
 							break;
-							
+
 						case -5:
 							row.add(rs.getBigDecimal(index + 1).toString());
 							break;
@@ -430,57 +417,6 @@ public class SQLController {
 
 			}
 		}
-
-	}
-
-	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop) throws SQLException {
-
-		Connection con = null;
-		PreparedStatement pstmt = null;
-		try {
-			con = DriverManager.getConnection(jdbc, prop);
-
-			con.setAutoCommit(false);
-
-			List<List<String>> list = new ArrayList<List<String>>();
-
-			int rowcnt = 0;
-
-			pstmt = con.prepareStatement(sql);
-			rowcnt = pstmt.executeUpdate();
-
-			List<String> row;
-
-			row = new ArrayList<>();
-			row.add("Updated Rows : " + rowcnt);
-			row.add(sql);
-
-			list.add(row);
-
-			return list;
-
-		} finally {
-			if (pstmt != null) {
-				try {
-					pstmt.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (con != null) {
-
-				try {
-					con.commit();
-					con.close();
-
-				} catch (SQLException ex) {
-					logger.error(ex.toString());
-				}
-			} else {
-
-			}
-		}
-
 	}
 
 	public List<List<String>> callprocedure(String sql, String dbtype, String jdbc, Properties prop)

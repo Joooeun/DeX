@@ -8,7 +8,15 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -23,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import crypt.AES256Cipher;
+import kr.Windmill.service.ConnectionDTO;
+import kr.Windmill.service.LogInfoDTO;
 
 public class Common {
 	private static final Logger logger = LoggerFactory.getLogger(Common.class);
@@ -33,7 +43,7 @@ public class Common {
 	public static String UserPath = "";
 	public static String tempPath = "";
 	public static String RootPath = "";
-	public static String LogCode = "";
+	public static String LogDB = "";
 	public static int Timeout = 15;
 
 	public Common() {
@@ -61,36 +71,30 @@ public class Common {
 		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
 		UserPath = props.getProperty("Root") + File.separator + "user" + File.separator;
 		Timeout = Integer.parseInt(props.getProperty("Timeout") == null ? "15" : props.getProperty("Timeout"));
-		LogCode = props.getProperty("LogCode");
-		logger.info("RootPath : " + RootPath + " / Timeout : " + Timeout + " / LogCode : " + LogCode);
+		LogDB = props.getProperty("LogDB");
+		logger.info("RootPath : " + RootPath + " / Timeout : " + Timeout + " / LogDB : " + LogDB);
 
 	}
 
-	public Map<String, String> ConnectionConf(String ConnectionName) {
+	public Map<String, String> ConnectionConf(String ConnectionName) throws IOException {
 		Map<String, String> map = new HashMap<>();
 
 		map.put("ConnectionName", ConnectionName);
 
-		try {
-			String propFile = ConnectionPath + ConnectionName;
-			Properties props = new Properties();
+		String propFile = ConnectionPath + ConnectionName;
+		Properties props = new Properties();
 
-			String propStr = FileRead(new File(propFile + ".properties"));
+		String propStr = FileRead(new File(propFile + ".properties"));
 
-			props.load(new ByteArrayInputStream(propStr.getBytes()));
+		props.load(new ByteArrayInputStream(propStr.getBytes()));
 
-			map.put("TYPE", props.getProperty("TYPE"));
-			map.put("IP", props.getProperty("IP"));
-			map.put("PORT", props.getProperty("PORT"));
-			map.put("USER", props.getProperty("USER"));
-			map.put("PW", props.getProperty("PW"));
-			map.put("DB", props.getProperty("DB"));
-			map.put("DBTYPE", props.getProperty("DBTYPE"));
-
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		map.put("TYPE", props.getProperty("TYPE"));
+		map.put("IP", props.getProperty("IP"));
+		map.put("PORT", props.getProperty("PORT"));
+		map.put("USER", props.getProperty("USER"));
+		map.put("PW", props.getProperty("PW"));
+		map.put("DB", props.getProperty("DB"));
+		map.put("DBTYPE", props.getProperty("DBTYPE"));
 		return map;
 	}
 
@@ -280,7 +284,53 @@ public class Common {
 		return ip;
 	}
 
+	public void log_file(LogInfoDTO data, String msg) {
+
+		if (data.getConnection().equals(LogDB) || !(data.isAudit() || data.getId().equals("admin"))) {
+			return;
+		}
+
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
+		String strNowDate = simpleDateFormat.format(Date.from(data.getStart()));
+
+		try {
+
+			String path = RootPath + "log";
+			File folder = new File(path);
+
+			if (!folder.exists()) {
+				try {
+					logger.info("폴더생성여부 : " + folder.mkdirs());
+				} catch (Exception e) {
+					e.getStackTrace();
+				}
+			}
+
+			path += File.separator + data.getId() + "_" + strNowDate + ".log";
+
+			File file = new File(path);
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+
+			FileWriter fw = new FileWriter(file, true);
+			BufferedWriter writer = new BufferedWriter(fw);
+			SimpleDateFormat simpleDateFormat2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			String strNowDate2 = simpleDateFormat2.format(Date.from(data.getStart()));
+
+			writer.write(strNowDate2 + " id : " + data.getId() + " / ip :  " + data.getIp());
+			writer.write("\nDB : " + data.getConnection() + " / MENU : " + data.getPath());
+			writer.write(msg);
+			writer.newLine();
+			writer.newLine();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	public void userLog(String user, String ip, String msg) {
+
 		Date nowDate = new Date();
 
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
@@ -299,7 +349,7 @@ public class Common {
 				}
 			}
 
-			path += File.separator + user + "_" + strNowDate + ".log";
+			path += File.separator + "user_access_log_" + strNowDate + ".log";
 
 			File file = new File(path);
 			if (!file.exists()) {
@@ -320,41 +370,155 @@ public class Common {
 		}
 	}
 
-	public void userLog(String user, String msg) {
-		Date nowDate = new Date();
+	public void log_DB(LogInfoDTO data) {
 
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
-		String strNowDate = simpleDateFormat.format(nowDate);
+		if (data.getConnection().equals(LogDB) || !(data.isAudit() || data.getId().equals("admin"))) {
+			return;
+		}
 
 		try {
+			ConnectionDTO connection = getConnection(LogDB);
 
-			String path = RootPath + "log";
-			File folder = new File(path);
+			updatequery(
+					"INSERT INTO DEXLOG (USER, IP, CONNECTION, MENU, TYPE, ROW, SQL, RESULT,DURATION, EXECUTEDATE)"
+							+ "VALUES(?,?,?,?,?,?,?,?,?,?);",
+					connection.getDbtype(), connection.getJdbc(), connection.getProp(), data);
+		} catch (SQLException e) {
+			logger.error(e.toString());
+		} catch (IOException e) {
+			logger.error(e.toString());
+		}
 
-			if (!folder.exists()) {
+	}
+
+	public int mapParams(PreparedStatement ps, Object... args) throws SQLException {
+		int i = 1;
+		for (Object arg : args) {
+
+			if (arg instanceof Date) {
+				ps.setTimestamp(i++, new Timestamp(((Date) arg).getTime()));
+			} else if (arg instanceof Instant) {
+				ps.setTimestamp(i++, new Timestamp((Date.from((Instant) arg)).getTime()));
+			} else if (arg instanceof Integer) {
+				ps.setInt(i++, (Integer) arg);
+			} else if (arg instanceof Duration) {
+				ps.setInt(i++, (Integer) arg);
+			} else if (arg instanceof Long) {
+				ps.setLong(i++, (Long) arg);
+			} else if (arg instanceof Double) {
+				ps.setDouble(i++, (Double) arg);
+			} else if (arg instanceof Float) {
+				ps.setFloat(i++, (Float) arg);
+			} else {
+				ps.setString(i++, (String) arg);
+			}
+		}
+		return i;
+	}
+
+	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDTO data)
+			throws SQLException {
+
+		Connection con = null;
+		PreparedStatement pstmt = null;
+		try {
+			con = DriverManager.getConnection(jdbc, prop);
+
+			con.setAutoCommit(false);
+
+			List<List<String>> list = new ArrayList<List<String>>();
+
+			int rowcnt = 0;
+
+			pstmt = con.prepareStatement(sql);
+
+			if (data != null) {
+				mapParams(pstmt, data.getId(), data.getIp(), data.getConnection(), data.getPath(), data.getSqlType(),
+						data.getRows(), data.getSql(), data.getResult(), data.getDuration(), data.getStart());
+			}
+
+			rowcnt = pstmt.executeUpdate();
+
+			List<String> row;
+
+			row = new ArrayList<>();
+			row.add("success");
+			row.add(Integer.toString(rowcnt));
+			row.add(sql);
+
+			list.add(row);
+
+			return list;
+
+		} finally {
+			if (pstmt != null) {
 				try {
-					logger.info("폴더생성여부 : " + folder.mkdirs());
+					pstmt.close();
 				} catch (Exception e) {
-					e.getStackTrace();
 				}
 			}
 
-			path += File.separator + user + "_" + strNowDate + ".log";
+			if (con != null) {
 
-			File file = new File(path);
-			if (!file.exists()) {
-				file.createNewFile();
+				try {
+					con.commit();
+					con.close();
+
+				} catch (SQLException ex) {
+					logger.error(ex.toString());
+				}
+			} else {
+
 			}
-
-			FileWriter fw = new FileWriter(file, true);
-			BufferedWriter writer = new BufferedWriter(fw);
-
-			writer.write("\n" + msg);
-			writer.newLine();
-			writer.close();
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
+
+	}
+
+	public ConnectionDTO getConnection(String connectionId) throws IOException {
+		Map<String, String> map = ConnectionConf(connectionId);
+
+		ConnectionDTO connection = new ConnectionDTO();
+
+		Properties prop = new Properties();
+
+		String dbtype = map.get("DBTYPE") == null ? "DB2" : map.get("DBTYPE");
+		String driver = "";
+		String jdbc = "";
+
+		switch (dbtype) {
+		case "DB2":
+			driver = "com.ibm.db2.jcc.DB2Driver";
+			jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
+			break;
+		case "ORACLE":
+			driver = "oracle.jdbc.driver.OracleDriver";
+			jdbc = "jdbc:oracle:thin:@" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
+			break;
+		case "Postgresql":
+			driver = "org.postgresql.Driver";
+			jdbc = "jdbc:postgresql://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
+			break;
+		case "Tibero":
+			driver = "com.tmax.tibero.jdbc.TbDriver";
+			jdbc = "jdbc:tibero:thin:@" + map.get("IP") + ":" + map.get("PORT") + ":" + map.get("DB");
+			break;
+
+		default:
+			driver = "com.ibm.db2.jcc.DB2Driver";
+			jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
+			break;
+		}
+
+		prop.put("user", map.get("USER"));
+		prop.put("password", map.get("PW"));
+
+		connection.setDbtype(dbtype);
+		connection.setProp(prop);
+		connection.setDriver(driver);
+		connection.setJdbc(jdbc);
+		connection.setDbName(connectionId);
+
+		return connection;
 	}
 
 	public String getSystem_properties() {
