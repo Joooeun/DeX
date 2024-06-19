@@ -3,40 +3,31 @@ package kr.Windmill.controller;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Map;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.ModelAndView;
 
-import kr.Windmill.service.SampleService;
 import kr.Windmill.util.Common;
+import kr.Windmill.util.Log;
 
 @Controller
 public class SampleController {
 
 	private static final Logger logger = LoggerFactory.getLogger(SampleController.class);
 	Common com = new Common();
+	Log cLog = new Log();
 
-	@Autowired
-	SampleService sampleService;
 
 	@RequestMapping(path = "/", method = RequestMethod.GET)
 	public String sample() {
@@ -67,7 +58,7 @@ public class SampleController {
 			if (map.get("PW").equals(request.getParameter("pw"))) {
 
 				session.setAttribute("memberId", request.getParameter("id"));
-				com.userLog(request.getParameter("id"), com.getIp(request), " 로그인 성공");
+				cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 성공");
 
 				response.setHeader("Cache-Control", "no-cache, no-store");
 				response.setHeader("Pragma", "no-cache");
@@ -76,7 +67,7 @@ public class SampleController {
 				return "redirect:/index";
 
 			} else {
-				com.userLog(request.getParameter("id"), com.getIp(request),
+				cLog.userLog(request.getParameter("id"), com.getIp(request),
 						" 로그인 실패 / 입력 : " + request.getParameter("pw"));
 				model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
 				return "/common/messageRedirect";
@@ -90,7 +81,7 @@ public class SampleController {
 
 		} else {
 
-			com.userLog(request.getParameter("id"), com.getIp(request), " 로그인 실패..");
+			cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 실패..");
 			model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
 			return "/common/messageRedirect";
 		}

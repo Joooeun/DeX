@@ -2,12 +2,7 @@ package kr.Windmill.controller;
 
 import java.io.File;
 import java.io.IOException;
-import java.sql.CallableStatement;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.time.Duration;
@@ -24,7 +19,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
@@ -38,12 +32,14 @@ import org.springframework.web.servlet.ModelAndView;
 import kr.Windmill.service.ConnectionDTO;
 import kr.Windmill.service.LogInfoDTO;
 import kr.Windmill.util.Common;
+import kr.Windmill.util.Log;
 
 @Controller
 public class SQLController {
 
 	private static final Logger logger = LoggerFactory.getLogger(SQLController.class);
 	Common com = new Common();
+	Log cLog = new Log();
 
 	@RequestMapping(path = "/SQL")
 	public ModelAndView SQLmain(HttpServletRequest request, ModelAndView mv, HttpSession session) {
@@ -217,7 +213,7 @@ public class SQLController {
 			String row = "";
 
 			if (sql.toUpperCase().startsWith("CALL")) {
-				list.addAll(callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop));
+				list.addAll(com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop));
 				data.setEnd(Instant.now());
 				data.setResult("Success");
 				data.setSql(sql);
@@ -227,11 +223,11 @@ public class SQLController {
 						+ "\nstart============================================\n" + sql
 						+ "\nend==============================================";
 
-				com.log_DB(data);
+				cLog.log_DB(data);
 
 			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH")
 					|| sql.toUpperCase().startsWith("VALUE")) {
-				list.addAll(excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit()));
+				list.addAll(com.excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit()));
 				row = "";
 				data.setRows(list.size() - 1);
 				data.setEnd(Instant.now());
@@ -242,7 +238,7 @@ public class SQLController {
 						+ "\nstart============================================\n" + sql
 						+ "\nend==============================================";
 
-				com.log_DB(data);
+				cLog.log_DB(data);
 
 			} else {
 
@@ -282,11 +278,11 @@ public class SQLController {
 							+ "\nstart============================================\n" + sql
 							+ "\nend==============================================\n";
 
-					com.log_DB(data);
+					cLog.log_DB(data);
 				}
 			}
 
-			com.log_file(data, log);
+			cLog.log_file(data, log);
 
 		} catch (SQLException e1) {
 
@@ -298,14 +294,14 @@ public class SQLController {
 			list.add(element);
 
 			if (log.length() > 0) {
-				com.log_file(data, log);
+				cLog.log_file(data, log);
 			}
 
 			data.setResult(e1.getMessage());
 			data.setDuration(0);
-			com.log_file(data, " / sql 실행 실패\nstart============================================\n" + sql + "\n\n"
+			cLog.log_file(data, " / sql 실행 실패\nstart============================================\n" + sql + "\n\n"
 					+ e1.getMessage() + "\nend==============================================");
-			com.log_DB(data);
+			cLog.log_DB(data);
 
 			System.out.println("id : " + session.getAttribute("memberId") + " / sql : " + sql);
 			e1.printStackTrace();
@@ -314,270 +310,7 @@ public class SQLController {
 		return list;
 	}
 
-	public List<List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit)
-			throws SQLException {
-
-		Connection con = null;
-
-		PreparedStatement pstmt = null;
-		ResultSet rs = null;
-		try {
-			con = DriverManager.getConnection(jdbc, prop);
-
-			con.setAutoCommit(false);
-
-			List<List> list = new ArrayList<List>();
-
-			pstmt = con.prepareStatement(sql);
-
-			if (limit > 0) {
-				pstmt.setMaxRows(limit);
-			}
-			rs = pstmt.executeQuery();
-
-			ResultSetMetaData rsmd = rs.getMetaData();
-			int colcnt = rsmd.getColumnCount();
-
-			List row;
-			String column;
-
-			row = new ArrayList<>();
-			for (int index = 0; index < colcnt; index++) {
-
-				column = rsmd.getColumnLabel(index + 1);
-				row.add(column + "//" + rsmd.getColumnType(index + 1));
-
-			}
-			list.add(row);
-
-			while (rs.next()) {
-
-				row = new ArrayList<>();
-				for (int index = 0; index < colcnt; index++) {
-					// column = rsmd.getColumnName(index + 1);
-					// 타입별 get함수 다르게 변경필
-					try {
-
-						switch (rsmd.getColumnType(index + 1)) {
-						case 2009:
-							row.add(rs.getSQLXML(index + 1).toString());
-							break;
-
-						case -5:
-							row.add(rs.getBigDecimal(index + 1).toString());
-							break;
-
-						case 2005:
-						case 93:
-							row.add(rs.getString(index + 1));
-							break;
-
-						default:
-							row.add(rs.getObject(index + 1));
-//							System.out.println(rs.getObject(index + 1) + " / " + rs.getObject(index + 1).getClass());
-							break;
-						}
-
-					} catch (Exception e) {
-						row.add(e.toString());
-					}
-
-				}
-				list.add(row);
-
-			}
-
-			return list;
-
-		} finally {
-			if (rs != null) {
-				try {
-					rs.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (pstmt != null) {
-				try {
-					pstmt.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (con != null) {
-
-				try {
-					con.commit();
-					con.close();
-
-				} catch (SQLException ex) {
-					logger.error(ex.toString());
-				}
-			} else {
-
-			}
-		}
-	}
-
-	public List<List<String>> callprocedure(String sql, String dbtype, String jdbc, Properties prop)
-			throws SQLException {
-
-		Connection con = null;
-
-		CallableStatement callStmt1 = null;
-		PreparedStatement pstmt = null;
-		ResultSet rs = null;
-		ResultSet rs2 = null;
-		try {
-			con = DriverManager.getConnection(jdbc, prop);
-
-			con.setAutoCommit(false);
-
-			List<List<String>> list = new ArrayList<List<String>>();
-
-			String callcheckstr = "";
-
-			String prcdname = "";
-			prcdname = sql.substring(sql.indexOf("CALL") + 4, sql.indexOf("("));
-			if (prcdname.contains(".")) {
-				prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
-			}
-
-			int paramcnt = StringUtils.countMatches(sql, ",") + 1;
-			switch (dbtype) {
-			case "DB2":
-				callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
-						+ prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
-						+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
-						+ prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt
-						+ ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
-				break;
-			case "ORACLE":
-				callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n"
-						+ " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
-				break;
-
-			default:
-				break;
-			}
-
-			List<Integer> typelst = new ArrayList<>();
-			pstmt = con.prepareStatement(callcheckstr);
-			rs = pstmt.executeQuery();
-
-			while (rs.next()) {
-				switch (rs.getString("TYPENAME")) {
-				case "VARCHAR2":
-					typelst.add(java.sql.Types.VARCHAR);
-					break;
-				case "VARCHAR":
-					typelst.add(java.sql.Types.VARCHAR);
-					break;
-				case "INTEGER":
-					typelst.add(java.sql.Types.INTEGER);
-					break;
-				case "TIMESTAMP":
-					typelst.add(java.sql.Types.TIMESTAMP);
-					break;
-				case "DATE":
-					typelst.add(java.sql.Types.DATE);
-					break;
-				}
-			}
-
-			callStmt1 = con.prepareCall(sql);
-			for (int i = 0; i < typelst.size(); i++) {
-				callStmt1.registerOutParameter(i + 1, typelst.get(i));
-			}
-
-			callStmt1.execute();
-
-			rs2 = callStmt1.getResultSet();
-
-			if (rs2 != null) {
-				ResultSetMetaData rsmd = rs2.getMetaData();
-				int colcnt = rsmd.getColumnCount();
-
-				List row;
-				String column;
-
-				row = new ArrayList<>();
-				for (int index = 0; index < colcnt; index++) {
-
-					column = rsmd.getColumnLabel(index + 1);
-
-					row.add(column + "//" + rsmd.getColumnType(index + 1));
-
-				}
-				list.add(row);
-
-				while (rs2.next()) {
-
-					row = new ArrayList<>();
-					for (int index = 0; index < colcnt; index++) {
-						try {
-							row.add((rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1)
-									: rs2.getObject(index + 1)));
-
-						} catch (Exception e) {
-							row.add(e.toString());
-						}
-					}
-					list.add(row);
-
-				}
-			} else {
-				for (int i = 0; i < typelst.size(); i++) {
-					List<String> element = new ArrayList<String>();
-					element.add(callStmt1.getString(i + 1) + "");
-					list.add(element);
-				}
-			}
-
-			return list;
-		} finally {
-			if (rs != null) {
-				try {
-					rs.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (pstmt != null) {
-				try {
-					pstmt.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (rs2 != null) {
-				try {
-					rs2.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (callStmt1 != null) {
-				try {
-					callStmt1.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (con != null) {
-
-				try {
-					con.commit();
-					con.close();
-
-				} catch (SQLException ex) {
-					logger.error(ex.toString());
-				}
-			} else {
-
-			}
-		}
-	}
+	
 
 	public static List<Map<String, ?>> getfiles(String root, int depth) {
 
