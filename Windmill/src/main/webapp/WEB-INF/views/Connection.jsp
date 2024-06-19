@@ -152,6 +152,7 @@
 								<option value="ORACLE">ORACLE</option>
 								<option value="DB2">DB2</option>
 								<option value="Tibero">Tibero</option>
+								<option value="PostgreSQL">PostgreSQL</option>
 							</select>
 						</div>
 						<div class="col-md-4" style="margin: 2px 0;">

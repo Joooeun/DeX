@@ -400,7 +400,7 @@ public class Common {
 			driver = "oracle.jdbc.driver.OracleDriver";
 			jdbc = "jdbc:oracle:thin:@" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
 			break;
-		case "Postgresql":
+		case "PostgreSQL":
 			driver = "org.postgresql.Driver";
 			jdbc = "jdbc:postgresql://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
 			break;
