@@ -60,9 +60,7 @@ var graphcolor = ['#FF583A', '#FF9032', '#FEDD0F', '#4B963E', '#23439F', '#56147
 
 var sql_text = "";
 
-var time = 0;
-var timeRemain = 0
-var timeouts = [];
+var timeRemain = null;
 
 	$(document).ready(function() {
 
@@ -221,30 +219,26 @@ var timeouts = [];
 
 		} else {
 			excute();
-			if ($("#refreshtimeout").val() > 0) {
-				time = $("#refreshtimeout").val()
-				timeRemain = $("#refreshtimeout").val()
-				timeouts.push(setInterval(refresh, 1000));
-
-			}
+			
 		}
-
 		return false;
 	}
 
 	function refresh() {
-		$("#excutebtn").val('wait...' + timeRemain + 's')
+		timeRemain--;
+		 $("#excutebtn").val('wait...' + timeRemain + 's')
+		console.log(timeRemain)
 		if (timeRemain == 0) {
-			timeRemain = time;
-			excute()
+			timeRemain = $("#refreshtimeout").val();
+			excute();
+			
+		}else{
+			setTimeout(() => {
+				refresh();
+			}, 1000);
 		}
-	}
-
-	function clearAll() {
-		for (var i = 0; i < timeouts.length; i++) {
-			clearTimeout(timeouts[i]);
-		}
-		timeouts = [];
+		
+		
 	}
 
 	function commit() {
@@ -260,7 +254,7 @@ var timeouts = [];
 		});
 	}
 	
-	function excute() {
+	async function excute() {
 
 		var sql = $("#sql_text").val() ?? sql_text;
 		var log = "";
@@ -289,13 +283,14 @@ var timeouts = [];
 		}
 
 		$("#excutebtn").attr('disabled', true);
-		if (!$("#refreshtimeout").val()) {
-			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></tr></td>');
+		
+		if (timeRemain==null) {
+			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></td></tr>');
 		}
-
+		
 		let ondate = new Date();
 
-		$.ajax({
+		await $.ajax({
 			type: 'post',
 			url: '/SQL/excute',
 			data: {
@@ -431,6 +426,12 @@ var timeouts = [];
 				}
 
 				$("#excutebtn").attr('disabled', false);
+				
+				if ($("#refreshtimeout").val() > 0) {
+					timeRemain = $("#refreshtimeout").val();
+					refresh();
+				}
+				
 			},
 			error: function(error) {
 				$("#excutebtn").attr('disabled', false);
@@ -663,7 +664,7 @@ var timeouts = [];
 						</select>
 					</div>
 
-					<form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:startexcute();" onsubmit="clearAll()">
+					<form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:startexcute();">
 						<div class="box-body">
 							<div class="col-sm-10 col-md-11">
 								<c:if test="${sql eq ''}">
@@ -712,9 +713,7 @@ var timeouts = [];
 								</c:forEach>
 							</div>
 							<div class="col-sm-2 col-md-1 pull-right">
-								<input type="hidden" id="sendvalue" name="sendvalue"><input id="excutebtn" type="submit" class="form-control" value="실행" onclick="clearAll()">
-								<!-- ="startexcute();" -->
-
+								<input type="hidden" id="sendvalue" name="sendvalue"><input id="excutebtn" type="submit" class="form-control" value="실행">
 								<!-- <input
 										id="excutebtn" type="submit" class="form-control" value="실행">  -->
 								<!-- <label><span
@@ -767,7 +766,7 @@ var timeouts = [];
 							</div>
 							<div role="tabpanel" class="tab-pane" id="chart">
 
-								<div style="overflow-y: auto; overflow-x: auto; height: calc(100vh*0.5); width: 100%;">
+								<div style="overflow-y: auto; overflow-x: auto; height: calc(100vh * 0.5); width: 100%;">
 									<canvas id="myChart" width="100%" height="100%"></canvas>
 								</div>
 							</div>
