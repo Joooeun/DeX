@@ -227,7 +227,6 @@ var timeRemain = null;
 	function refresh() {
 		timeRemain--;
 		 $("#excutebtn").val('wait...' + timeRemain + 's')
-		console.log(timeRemain)
 		if (timeRemain == 0) {
 			timeRemain = $("#refreshtimeout").val();
 			excute();
@@ -257,7 +256,7 @@ var timeRemain = null;
 	async function excute() {
 
 		var sql = $("#sql_text").val() ?? sql_text;
-		var log = "";
+		var log={};
 
 		for (var i = 0; i < $(".paramvalue").length; i++) {
 
@@ -277,11 +276,11 @@ var timeRemain = null;
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'number') {
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
-			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'log') {
-				log += "\n" + $(".paramvalue").eq(i).attr('paramtitle') + " : " + $(".paramvalue").eq(i).val();
+			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'log' && $(".paramvalue").eq(i).val().length > 0) {
+				log[$(".paramvalue").eq(i).attr('paramtitle')] = $(".paramvalue").eq(i).val()
 			}
 		}
-
+		
 		$("#excutebtn").attr('disabled', true);
 		
 		if (timeRemain==null) {
@@ -295,11 +294,11 @@ var timeRemain = null;
 			url: '/SQL/excute',
 			data: {
 				sql: sql.trim(),
-				log: log,
+				log: JSON.stringify(log),
 				Path: '${title}',
 				autocommit: true,
 				/* autocommit : $("#autocommit").prop('checked'), */
-				audit : ${audit==null?false:true},
+				audit : ${audit==null?false:audit},
 				Connection: $("#connectionlist").val(),
 				limit: $("#limit").val()
 			},

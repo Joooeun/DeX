@@ -1,7 +1,14 @@
 package kr.Windmill.service;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class LogInfoDTO {
 	private String Connection;
@@ -24,6 +31,9 @@ public class LogInfoDTO {
 	private boolean audit = false;
 
 	private long duration = 0;
+
+	private String xmlLog;
+	private Map mapLog;
 
 	public String getConnection() {
 		return Connection;
@@ -58,12 +68,48 @@ public class LogInfoDTO {
 		setSqlType(sql.toUpperCase().split("\\s")[0]);
 	}
 
-	public String getLog() {
-		return log;
+	public Map<String, String> getLog() {
+		return mapLog;
 	}
 
 	public void setLog(String log) {
 		this.log = log;
+
+		ObjectMapper objectMapper = new ObjectMapper();
+		HashMap<String, String> dataMap;
+		try {
+			dataMap = objectMapper.readValue(log, HashMap.class);
+
+			this.mapLog = dataMap;
+
+			String xmlLog = "<xml>";
+			for (Map.Entry<String, String> entry : dataMap.entrySet()) {
+				xmlLog += "<" + entry.getKey() + ">";
+				xmlLog += entry.getValue();
+				xmlLog += "</" + entry.getKey() + ">";
+			}
+			xmlLog += "</xml>";
+			this.xmlLog = xmlLog;
+
+		} catch (JsonParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	public String getXmlLog() {
+		return xmlLog;
+	}
+
+	public void setXmlLog(String xmlLog) {
+		this.xmlLog = xmlLog;
 	}
 
 	public String getPath() {
@@ -104,7 +150,7 @@ public class LogInfoDTO {
 
 	public void setEnd(Instant end) {
 		this.end = end;
-		
+
 		setDuration((Duration.between(getStart(), getEnd())).toMillis());
 
 	}

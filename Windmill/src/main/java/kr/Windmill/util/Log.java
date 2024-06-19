@@ -139,21 +139,14 @@ public class Log {
 		try {
 			ConnectionDTO connection = com.getConnection(com.LogDB);
 
-			String colstr = "";
-			if (com.LogCOL != null) {
-				for (String colname : com.LogCOL.split(colstr)) {
-					colstr += ",?";
-				}
-			}
-
 			com.updatequery(
-					"INSERT INTO DEXLOG (USER, IP, CONNECTION, MENU, TYPE, ROW, SQL, RESULT,DURATION, EXECUTEDATE"
-							+ com.LogCOL + ")" + "VALUES(?,?,?,?,?,?,?,?,?,?" + colstr + ");",
+					"INSERT INTO DEXLOG (USER, IP, CONNECTION, MENU, TYPE, ROW, SQL, RESULT,DURATION, EXECUTEDATE, XMLLOG)"
+							+ "VALUES(?,?,?,?,?,?,?,?,?,?,?);",
 					connection.getDbtype(), connection.getJdbc(), connection.getProp(), data);
 		} catch (SQLException e) {
-			logger.error(e.toString());
+			e.printStackTrace();
 		} catch (IOException e) {
-			logger.error(e.toString());
+			logger.error(e.getMessage());
 		}
 
 	}

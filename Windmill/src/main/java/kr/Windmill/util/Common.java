@@ -14,6 +14,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.SQLXML;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -307,6 +308,7 @@ public class Common {
 				ps.setFloat(i++, (Float) arg);
 			} else {
 				ps.setString(i++, (String) arg);
+
 			}
 		}
 		return i;
@@ -330,17 +332,11 @@ public class Common {
 
 			if (data != null) {
 
-				List<Object> test = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getPath(),
+				List<Object> params = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getPath(),
 						data.getSqlType(), data.getRows(), data.getSql(), data.getResult(), data.getDuration(),
-						data.getStart());
+						data.getStart(), data.getXmlLog());
 
-				if (LogCOL != null) {
-					for (String colvalue : data.getLog().split("")) {
-						test.add(colvalue);
-					}
-				}
-
-				mapParams(pstmt, test);
+				mapParams(pstmt, params);
 			}
 
 			rowcnt = pstmt.executeUpdate();

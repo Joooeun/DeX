@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -203,7 +204,14 @@ public class SQLController {
 		prop.put("clientProgramName", "DeX");
 
 		String sql = data.getSql();
-		String log = data.getLog();
+		String log = "";
+
+		if(data.getLog() != null) {
+			
+			for (Entry<String, String> entry : data.getLog().entrySet()) {
+				log += "\n" + entry.getKey() + " : " + entry.getValue();
+			}
+		}
 
 		List<List> list = new ArrayList<List>();
 		PreparedStatement pstmt = null;
@@ -309,8 +317,6 @@ public class SQLController {
 
 		return list;
 	}
-
-	
 
 	public static List<Map<String, ?>> getfiles(String root, int depth) {
 
