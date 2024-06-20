@@ -142,7 +142,7 @@ public class SQLController {
 
 			e.printStackTrace();
 
-			mv.addObject("params", com.showMessageAndRedirect("메뉴가 존재하지 않습니다. 관리자에게 문의해 주세요.", null, "GET"));
+			mv.addObject("params", com.showMessageAndRedirect("메뉴 정보를 불러오는데 실패했습니다. 관리자에게 문의해 주세요.", null, "GET"));
 			mv.setViewName("common/messageRedirect");
 
 		}

@@ -16,6 +16,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.SQLXML;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -470,16 +471,17 @@ public class Common {
 					try {
 
 						switch (rsmd.getColumnType(index + 1)) {
-						case 2009:
+						case Types.SQLXML:
 							rowbody.add(rs.getSQLXML(index + 1).toString());
 							break;
 
-						case -5:
+						case Types.BIGINT:
+						case Types.DECIMAL:
 							rowbody.add(rs.getBigDecimal(index + 1).toString());
 							break;
 
-						case 2005:
-						case 93:
+						case Types.CLOB:
+						case Types.TIMESTAMP:
 							rowbody.add(rs.getString(index + 1));
 							break;
 
@@ -495,14 +497,14 @@ public class Common {
 									: rowbody.get(index).toString().length());
 						}
 
+					} catch (NullPointerException e) {
+						rowbody.add(null);
 					} catch (Exception e) {
 						rowbody.add(e.toString());
 					}
 
 				}
-
 				list.add(rowbody);
-
 			}
 			list.add(1, rowlength);
 
