@@ -15,6 +15,11 @@
 <script src="/resources/plugins/datatables/datatables.min.js"></script>
 
 
+<link href="/resources/dist/css/tabulator/tabulator.min.css" rel="stylesheet">
+<script type="text/javascript" src="/resources/dist/js/tabulator/tabulator.js"></script>
+<script type="text/javascript" src="/resources/dist/js/tabulator/xlsx.full.min.js"></script>
+
+<link href="/resources/dist/css/tabulator/tabulator_bootstrap3.min.css" rel="stylesheet">
 <script type="text/javascript">
 	document.onkeydown = function(e) {
 
@@ -62,7 +67,9 @@
 			if (i > 0) {
 				str += '&';
 			}
-			str += $(".Resultrow.success").children('td').eq(column[i]).text();
+			str += $(".Resultrow.success").children('div').eq(column[i]).text();
+			
+			alert(str)
 		}
 
 		$("#sendvalue").val(str);
@@ -88,7 +95,8 @@
 			for (var i = 0; i < column.length; i++) {
 				var nCheck = /^\d{1,2}/;
 				if (column[i].match(nCheck)) {
-					pathval += $(".Resultrow.success").children('td').html();
+					pathval += $(".Resultrow.success").children('div').html();
+					
 				} else {
 					pathval += column[i];
 				}
@@ -105,10 +113,10 @@
 			var pathval = "";
 			for (var i = 0; i < column.length; i++) {
 				if (column[i].match(/^\d{1,2}$/)) {
-					pathval += $(".Resultrow.success").children('td').eq(column[i]).text();
+					pathval += $(".Resultrow.success").children('div').eq(column[i]).text();
 				} else if (column[i].match(/^\d{1,2}A/)) {
 					for (var j = 0; j < $(".Resultrow").length; j++) {//$(".Resultrow").length
-						pathval += $(".Resultrow").eq(j).children('td').eq(column[i].substr(0, column[i].length - 1)).text() + "/";
+						pathval += $(".Resultrow").eq(j).children('div').eq(column[i].substr(0, column[i].length - 1)).text() + "/";
 					}
 				} else {
 					pathval += column[i];

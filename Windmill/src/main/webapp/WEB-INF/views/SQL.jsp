@@ -20,11 +20,6 @@
 	border-radius: 8px;
 	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .1)
 }
-
-.newline {
-	white-space: pre;
-}
-
 .form-group.required .param:after {
 	content: "*";
 	color: red;
@@ -51,6 +46,22 @@
 	overflow: hidden;
 	padding: 0 5px;
 }
+
+#collapseExample.collapse:not(.in) {
+	display: block;
+}
+
+.expenda .collapsed:after {
+	content: '더보기 ▼';
+}
+
+#expenda:not(.collapsed):after {
+	content: '접기 ▲';
+}
+
+.tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-title {
+    white-space: normal;
+}
 </style>
 <script>
 
@@ -61,6 +72,10 @@ var graphcolor = ['#FF583A', '#FF9032', '#FEDD0F', '#4B963E', '#23439F', '#56147
 var sql_text = "";
 
 var timeRemain = null;
+var table;
+var column;
+var data;
+var tableoption;
 
 	$(document).ready(function() {
 
@@ -173,7 +188,7 @@ var timeRemain = null;
 			});
 
 		});
-		
+
 		document.querySelectorAll(".paramvalue input").forEach((element) => {
 			element.addEventListener("keydown", function(e) {
 				if (e.keyCode == 13) {
@@ -183,7 +198,7 @@ var timeRemain = null;
 				}
 			})
 		});
-		
+
 
 		$(document).on("click", ".Resultrow", function() {
 			$(".Resultrow").removeClass('success');
@@ -191,20 +206,31 @@ var timeRemain = null;
 		});
 
 		$(document).on("change", "#newline", function() {
+			
 			if ($(this).prop('checked')) {
-				$("#result_head td").addClass('newline');
+				table = new Tabulator("#result", {
+					data: data,
+					columns: column.map((item)=>{return {...item, formatter : "textarea"}}),
+					...tableoption,
+				});
+				
+				
 			} else {
-				$("#result_head td").removeClass('newline')
+				table = new Tabulator("#result", {
+					data: data,
+					columns: column.map((item)=>{return {...item, formatter : "plaintext"}}),
+					...tableoption,
+				});
 			}
-			$('#result_head').DataTable()
-			   .rows().invalidate('data')
-			   .draw(false);
 		});
-		
+
 		$('.formtextarea').on('scroll', () => {
-	        $('.container__lines').scrollTop($('.formtextarea').scrollTop());
-	    });
-		
+			$('.container__lines').scrollTop($('.formtextarea').scrollTop());
+		});
+
+		$(document).on("click", "#save", function() {
+			table.download("xlsx", `${title}_${memberId}_` + dateFormat()+".xlsx");
+		});
 
 	});
 	
@@ -219,25 +245,25 @@ var timeRemain = null;
 
 		} else {
 			excute();
-			
+
 		}
 		return false;
 	}
 
 	function refresh() {
 		timeRemain--;
-		 $("#excutebtn").val('wait...' + timeRemain + 's')
+		$("#excutebtn").val('wait...' + timeRemain + 's')
 		if (timeRemain == 0) {
 			timeRemain = $("#refreshtimeout").val();
 			excute();
-			
-		}else{
+
+		} else {
 			setTimeout(() => {
 				refresh();
 			}, 1000);
 		}
-		
-		
+
+
 	}
 
 	function commit() {
@@ -256,7 +282,7 @@ var timeRemain = null;
 	async function excute() {
 
 		var sql = $("#sql_text").val() ?? sql_text;
-		var log={};
+		var log = {};
 
 		for (var i = 0; i < $(".paramvalue").length; i++) {
 
@@ -280,13 +306,13 @@ var timeRemain = null;
 				log[$(".paramvalue").eq(i).attr('paramtitle')] = $(".paramvalue").eq(i).val()
 			}
 		}
-		
+
 		$("#excutebtn").attr('disabled', true);
-		
-		if (timeRemain==null) {
+
+		if (timeRemain == null) {
 			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></td></tr>');
 		}
-		
+
 		let ondate = new Date();
 
 		await $.ajax({
@@ -298,11 +324,12 @@ var timeRemain = null;
 				Path: '${title}',
 				autocommit: true,
 				/* autocommit : $("#autocommit").prop('checked'), */
-				audit : ${audit==null?false:audit},
+				audit: ${audit == null ? false : audit},
 				Connection: $("#connectionlist").val(),
 				limit: $("#limit").val()
 			},
 			success: function(result, status, jqXHR) {
+
 
 				if (jqXHR.getResponseHeader("SESSION_EXPIRED") === "true") {
 					alert("세션이 만료되었습니다.");
@@ -313,63 +340,47 @@ var timeRemain = null;
 
 				var newline = $("#newline").prop('checked');
 
-				var columnDefs = [{
-					"defaultContent": "-",
-					"targets": "_all"
-				}]
-				var column = [{
-					title: "#"
-				}]
+				column = []
 
 				if (result.length > 0) {
 
 					for (var title = 0; title < result[0].length; title++) {
 
-						if (result[0][title].split("//").length == 2) {
+						if (result[0][title].split("//").length >2) {
 
-							column.push({
-								title: result[0][title].split("//")[0]
-							});
-							//column.push({title: result[0][title]});
-
-							if (['-6', '5', '4', '6', '7', '8', '2'].includes(result[0][title].split("//")[1])) {
-
-								columnDefs.push({
-									type: 'num',
-									targets: title + 1,
-									//render: $.fn.dataTable.render.number(',')
-								});
-
-							} else if (['-5'].includes(result[0][title].split("//")[1])) {
-
-								columnDefs.push({
-									type: 'num',
-									targets: title + 1
-								});
-
-							} else if (['3'].includes(result[0][title].split("//")[1])) {
-								columnDefs.push({
-									type: 'num',
-									targets: title + 1
-								});
-
+							var culmnitem = {
+								title: result[0][title].split("//")[0],
+								field: result[0][title].split("//")[0],
+							}
+							
+							if(result[0][title].split("//")[2]>600){
+								culmnitem.width=600
+							}
+							
+							if (['-6', '5', '4', '6', '7', '8', '2', '-5', '3'].includes(result[0][title].split("//")[1])) {
+								culmnitem.hozAlign = "right";
 							} else {
-								columnDefs.push({
-									type: 'string',
-									targets: title + 1,
-									render: function(data) {
-										var div = document.createElement("div");
-										div.innerHTML = data;
-										var text = div.textContent || div.innerText || "";
-										return text
-									}
+								
+								var div = document.createElement("div");
+								div.innerHTML = data;
+								var text = div.textContent || div.innerText || "";
 
-								});
+								if(newline){
+									
+								culmnitem.formatter = "textarea"
+								}else{
+								culmnitem.formatter = "plaintext"
+									
+								}
 
 							}
+
+							column.push(culmnitem);
+
 						} else {
 							column.push({
-								title: result[0][title]
+								title: result[0][title],
+								field: result[0][title]
 							});
 						}
 					}
@@ -377,60 +388,60 @@ var timeRemain = null;
 					chart(result);
 				}
 
-				if ($.fn.DataTable.isDataTable('#result_head')) {
-					$('#result_head').DataTable().destroy();
-					$('#result_head').empty();
-				};
+				data = result.slice(1).map((item, index) => {
 
-				const saveBtn = '${save}' == 'false' ? [] : [{
-					extend: 'excel',
-					text: '${save}<i class="fa fa-floppy-o"></i>',
-					title: `${title}_${memberId}_` + dateFormat()
-				}];
+					var obj = {};
 
-				const table = $('#result_head').DataTable({
-					data: result.slice(1).map((item, index) => {
-						return [index + 1, ...item]
-					}),
-					columns: column,
-					paging: false,
-					searching: false,
-					fixedHeader: true,
-					fixedColumns: true,
-					scrollResize: true,
-					scrollY: $("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 200,
-					scrollCollapse: true,
-					layout: {
-						topEnd: {
-							buttons: saveBtn
+					item.map((it, idx) => {
+						obj[column[idx].title] = it;
+					})
+
+					return obj
+				})
+				
+				
+
+				const tableHeight = $("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 200;
+
+				tableoption = {
+						height: tableHeight,
+						rowHeader: {
+							formatter: "rownum",
+							headerSort: false,
+							hozAlign: "left",
+							resizable: false,
+							frozen: true,
 						},
-						topStart: {
-							info: {
-								text: 'total : _TOTAL_ records, on ' + dateFormat2(ondate)
-							}
+						layout: "fitDataFill",
+						layoutColumnsOnNewData : true ,
+						resizableRows: true,
+						autoResize:false, 
+						resizableColumnGuide: true,
+						//placeholder:"데이터가 없습니다.", //display message to user on empty table
+						rowFormatter: function(row) {
+							row.getElement().classList.add("Resultrow");
 						},
-						bottomStart: null
-					},
-					columnDefs: columnDefs,
-					createdRow: function(row) {
-						$(row).addClass("Resultrow sorting");
 					}
+				
+				table = new Tabulator("#result", {
+					data: data,
+					columns: column,
+					...tableoption
 				});
+				
+				setTimeout(() => {
+					table.redraw(true)
+				}, 100);
+				
+				$("#result-text").text('total : '+data.length+' records, on ' + dateFormat2(ondate))
 
-				if (newline) {
-					$("#result_head td").addClass('newline');
-					$('#result_head').DataTable()
-						.rows().invalidate('data')
-						.draw(false);
-				}
 
 				$("#excutebtn").attr('disabled', false);
-				
+
 				if ($("#refreshtimeout").val() > 0) {
 					timeRemain = $("#refreshtimeout").val();
 					refresh();
 				}
-				
 			},
 			error: function(error) {
 				$("#excutebtn").attr('disabled', false);
@@ -441,10 +452,10 @@ var timeRemain = null;
 	}
 	
 	function sessionCon(value) {
-		
+
 		const list = "${DB}" == "" ? [] : "${DB}".split(",");
-	
-		if (list.length!=1) {
+
+		if (list.length != 1) {
 			$.ajax({
 				type: 'post',
 				url: '/Connection/sessionCon',
@@ -459,9 +470,10 @@ var timeRemain = null;
 				}
 			});
 		}
-	
+
 	}
-	
+
+
 	function ConvertSystemSourcetoHtml(str) {
 		/* str = str.replace(/</g,"&lt;");
 		str = str.replace(/>/g,"&gt;");
@@ -469,13 +481,13 @@ var timeRemain = null;
 		str = str.replace(/\'/g,"&#39;");*/
 		return str;
 	}
-	
+
 	function forxmp(str) {
 		str = str.replace(/\x00/g, "");
 		return str;
 	}
-	
-	
+
+
 	function readfile() {
 		$.ajax({
 			type: 'post',
@@ -488,20 +500,20 @@ var timeRemain = null;
 			}
 		});
 	}
-	
+
 	function chart(result) {
-	
+
 		myChart.destroy();
-	
+
 		var chardata = transpose(result)
-		
-		
-	
+
+
+
 		var labels = chardata[0].slice(1, chardata[0].length);
-	
+
 		var datasets = [];
 		var maxdata = 0;
-	
+
 		for (var i = 1; i < chardata.length; i++) {
 			var data = chardata[i].slice(1, chardata[i].length).map((x) => {
 				return parseInt(x)
@@ -510,20 +522,20 @@ var timeRemain = null;
 				maxdata = Math.max(...data);
 			}
 		}
-	
-	
+
+
 		for (var i = 1; i < chardata.length; i++) {
-	
+
 			var label = chardata[i][0].split("//")[0];
-			
+
 			var data = chardata[i].slice(1, chardata[i].length).map((x) => {
 				return parseInt(x)
 			});
-	
+
 			if (maxdata < Math.max(...data)) {
 				maxdata = Math.max(...data);
 			}
-	
+
 			datasets.push({
 				label: label,
 				data: data,
@@ -534,13 +546,13 @@ var timeRemain = null;
 				hidden: Math.max(...data) < maxdata / 10
 			})
 		}
-	
-	
+
+
 		const datas = {
 			labels: labels,
 			datasets: datasets
 		};
-	
+
 		myChart = new Chart(ctx, {
 			type: 'line',
 			data: datas,
@@ -549,7 +561,7 @@ var timeRemain = null;
 			}
 		});
 	}
-	
+
 	function random_rgba() {
 		var o = Math.round,
 			r = Math.random,
@@ -557,81 +569,81 @@ var timeRemain = null;
 		//return 'rgba(' + o(r()*s) + ',' + o(r()*s) + ',' + o(r()*s) + ',' + r().toFixed(1) + ')';
 		return 'rgb(' + o(r() * s) + ',' + o(r() * s) + ',' + o(r() * s) + ')';
 	}
-	
-	
+
+
 	function transpose(a) {
-	
+
 		// Calculate the width and height of the Array
 		var w = a.length || 0;
 		var h = a[0] instanceof Array ? a[0].length : 0;
-	
+
 		// In case it is a zero matrix, no transpose routine needed.
 		if (h === 0 || w === 0) {
 			return [];
 		}
-	
+
 		/**
 			* @var {Number} i Counter
 			* @var {Number} j Counter
 			* @var {Array} t Transposed data is stored in this array.
 			*/
 		var i, j, t = [];
-	
+
 		// Loop through every item in the outer array (height)
 		for (i = 0; i < h; i++) {
-	
+
 			// Insert a new row (array)
 			t[i] = [];
-	
+
 			// Loop through every item per item in outer array (width)
 			for (j = 0; j < w; j++) {
-	
+
 				// Save transposed data.
 				t[i][j] = a[j][i];
 			}
 		}
-	
+
 		return t;
 	}
-	
+
 	function dateFormat() {
-	
+
 		let date = new Date();
-	
+
 		let month = date.getMonth() + 1;
 		let day = date.getDate();
 		let hour = date.getHours();
 		let minute = date.getMinutes();
 		let second = date.getSeconds();
-	
+
 		month = month >= 10 ? month : '0' + month;
 		day = day >= 10 ? day : '0' + day;
 		hour = hour >= 10 ? hour : '0' + hour;
 		minute = minute >= 10 ? minute : '0' + minute;
 		second = second >= 10 ? second : '0' + second;
-	
+
 		return date.getFullYear() + month + day + '_' + hour + minute + second;
 	}
-	
+
 	function dateFormat2(date) {
-	
+
 		let month = date.getMonth() + 1;
 		let day = date.getDate();
 		let hour = date.getHours();
 		let minute = date.getMinutes();
 		let second = date.getSeconds();
-	
+
 		month = month >= 10 ? month : '0' + month;
 		day = day >= 10 ? day : '0' + day;
 		hour = hour >= 10 ? hour : '0' + hour;
 		minute = minute >= 10 ? minute : '0' + minute;
 		second = second >= 10 ? second : '0' + second;
-	
-		return date.getFullYear() +"-"+ month+"-" + day + " " + hour +":"+ minute+":" + second;
+
+		return date.getFullYear() + "-" + month + "-" + day + " " + hour + ":" + minute + ":" + second;
 	}
-	
+
 	function checkLimit(limit) {
-		if(limit.value==''){
+		if (limit.value == '') {
 			$(limit).val(0)
 		}
 	}
@@ -643,6 +655,7 @@ var timeRemain = null;
 	<section class="content-header">
 		<h1>${title}</h1>
 		<span>${desc}</span>
+
 		<ol class="breadcrumb">
 			<li>
 				<a href="#"><i class="icon ion-ios-home"></i> Home</a>
@@ -650,17 +663,19 @@ var timeRemain = null;
 			<li class="active">
 				<a href="#" onclick="readfile()">SQL</a>
 			</li>
+
 		</ol>
 	</section>
 	<section class="content">
 		<div class="row" id="top">
 			<div class="col-xs-12">
-				<div class="box box-default ">
+				<div class="box box-default collapse in">
 					<div class="box-header with-border">
 						<h5 class="box-title">파라미터 입력</h5>
 						&nbsp;&nbsp;&nbsp; <input id="selectedConnection" type="hidden" value="${Connection}"> <select id="connectionlist" onchange="sessionCon(this.value)">
 							<option value="">====Connection====</option>
 						</select>
+
 					</div>
 
 					<form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:startexcute();">
@@ -757,12 +772,14 @@ var timeRemain = null;
 
 						<!-- Tab panes -->
 						<div class="tab-content">
-							<div role="tabpanel" class="tab-pane active" id="result">
-								<div>
-									<table class="table table-striped table-bordered table-hover" id="result_head" style="width: 100%; font-size: 14px">
-									</table>
-								</div>
+							<div style="display: flex; justify-content: space-between;">
+								<span id="result-text"></span>
+								<button id="download-csv" class="btn btn-default buttons-excel buttons-html5" type="button"><span><i class="fa fa-floppy-o"></i></span></button>
 							</div>
+							<div role="tabpanel" class="tab-pane active tabulator-placeholder table-striped table-bordered" id="result"></div>
+
+
+							<a role="button" id="expenda" class="collapsed" data-toggle="collapse" href="#collapseExample" aria-expanded="false" aria-controls="collapseExample"></a>
 							<div role="tabpanel" class="tab-pane" id="chart">
 
 								<div style="overflow-y: auto; overflow-x: auto; height: calc(100vh * 0.5); width: 100%;">
@@ -779,6 +796,7 @@ var timeRemain = null;
 				<div class="box box-default" style="margin-bottom: 0px">
 					<div class="box-header with-border">
 						<h3 class="box-title">Short Key</h3>
+
 					</div>
 					<div class="box-body">
 						<c:forEach var="item" items="${ShortKey}">

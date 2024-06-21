@@ -454,7 +454,7 @@ public class Common {
 			for (int index = 0; index < colcnt; index++) {
 
 				column = rsmd.getColumnLabel(index + 1);
-				row.add(column + "//" + rsmd.getColumnType(index + 1));
+				row.add(column + "//" + rsmd.getColumnType(index + 1)+"//"+rsmd.getColumnDisplaySize(index + 1));
 
 			}
 			list.add(row);

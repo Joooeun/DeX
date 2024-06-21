@@ -140,7 +140,9 @@ public class SQLController {
 
 		} catch (IOException e) {
 
-			mv.addObject("params", com.showMessageAndRedirect("에러가 발생했습니다. 다시 시도해 주세요.", mv.getViewName(), "GET"));
+			e.printStackTrace();
+
+			mv.addObject("params", com.showMessageAndRedirect("메뉴가 존재하지 않습니다. 관리자에게 문의해 주세요.", null, "GET"));
 			mv.setViewName("common/messageRedirect");
 
 		}
@@ -206,8 +208,8 @@ public class SQLController {
 		String sql = data.getSql();
 		String log = "";
 
-		if(data.getLog() != null) {
-			
+		if (data.getLog() != null) {
+
 			for (Entry<String, String> entry : data.getLog().entrySet()) {
 				log += "\n" + entry.getKey() + " : " + entry.getValue();
 			}

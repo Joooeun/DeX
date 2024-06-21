@@ -24,7 +24,10 @@
             } */
       
             const redirectUri =  "${params.redirectUri}" ;
+            if(redirectUri!=''){
+            	
             location.href = redirectUri;
+            }
             
             
         }
