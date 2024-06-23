@@ -447,54 +447,64 @@ public class Common {
 			ResultSetMetaData rsmd = rs.getMetaData();
 			int colcnt = rsmd.getColumnCount();
 
-			List row;
+			List rowhead = new ArrayList<>();
+			List<Integer> rowlength = new ArrayList<>();
 			String column;
 
-			row = new ArrayList<>();
 			for (int index = 0; index < colcnt; index++) {
-
-				column = rsmd.getColumnLabel(index + 1);
-				row.add(column + "//" + rsmd.getColumnType(index + 1)+"//"+rsmd.getColumnDisplaySize(index + 1));
-
+				rowhead.add(rsmd.getColumnLabel(index + 1) + "//" + rsmd.getColumnType(index + 1));
+				rowlength.add(0);
 			}
-			list.add(row);
+
+			list.add(rowhead);
+
+			List rowbody;
 
 			while (rs.next()) {
 
-				row = new ArrayList<>();
+				rowbody = new ArrayList<>();
 				for (int index = 0; index < colcnt; index++) {
+
 					// column = rsmd.getColumnName(index + 1);
 					// 타입별 get함수 다르게 변경필
 					try {
 
 						switch (rsmd.getColumnType(index + 1)) {
 						case 2009:
-							row.add(rs.getSQLXML(index + 1).toString());
+							rowbody.add(rs.getSQLXML(index + 1).toString());
 							break;
 
 						case -5:
-							row.add(rs.getBigDecimal(index + 1).toString());
+							rowbody.add(rs.getBigDecimal(index + 1).toString());
 							break;
 
 						case 2005:
 						case 93:
-							row.add(rs.getString(index + 1));
+							rowbody.add(rs.getString(index + 1));
 							break;
 
 						default:
-							row.add(rs.getObject(index + 1));
+							rowbody.add(rs.getObject(index + 1));
 //							System.out.println(rs.getObject(index + 1) + " / " + rs.getObject(index + 1).getClass());
 							break;
 						}
 
+						if (rowlength.get(index) < (rowbody.get(index) == null ? "" : rowbody.get(index)).toString()
+								.length()) {
+							rowlength.set(index, rowbody.get(index).toString().length() > 100 ? 100
+									: rowbody.get(index).toString().length());
+						}
+
 					} catch (Exception e) {
-						row.add(e.toString());
+						rowbody.add(e.toString());
 					}
 
 				}
-				list.add(row);
+
+				list.add(rowbody);
 
 			}
+			list.add(1, rowlength);
 
 			return list;
 

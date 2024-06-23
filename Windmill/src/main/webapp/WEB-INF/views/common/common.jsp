@@ -55,7 +55,6 @@
 			if (value.split('&')[0] == $(parent.document).find('#pageTab a:eq(' + i + ')').text().replace(/x$/, '')) {
 				target = $(parent.document).find('#pageTabContent>div:eq(' + i + ')>iframe').attr('id');
 				//$(parent.document).find('#pageTab a:eq(' + i + ')').tab('show');
-				//alert("Asdfasdfasfd")
 				break;
 			}
 
@@ -68,8 +67,6 @@
 				str += '&';
 			}
 			str += $(".Resultrow.success").children('div').eq(column[i]).text();
-			
-			alert(str)
 		}
 
 		$("#sendvalue").val(str);
