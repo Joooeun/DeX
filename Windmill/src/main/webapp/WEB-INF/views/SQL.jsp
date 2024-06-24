@@ -354,42 +354,39 @@ var tableoption;
 				var newline = $("#newline").prop('checked');
 
 				column = []
-				const tableHeight = $("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 200;
+				const tableHeight = $("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 230;
 
 				if (result.length > 0) {
 
 					for (var title = 0; title < result[0].length; title++) {
+						if (result[0][title].split("//")[1]) {
+							var calwidth = result[1].reduce((ac, cur) =>
+								ac + cur,
+								0, ) * 9
 
-						if (result[0][title].split("//").length >1) {
-									
-							/* var calwidth = result[1][title] / (result[1].reduce(
-									  (ac, cur) => ac + cur,
-									  0,
-									)+result[0].length*(['-6', '5', '4', '6', '7', '8', '2', '-5', '3','93'].includes(result[0][title].split("//")[1])?4:10))*100 */
-									
 							var culmnitem = {
 								title: result[0][title].split("//")[0],
 								field: result[0][title].split("//")[0],
-								//width: calwidth+"%",
-								width: Math.max(result[0][title].split("//")[0].length*9+55,result[1][title]*8),
-								//orgin : result[0][title],
-								
+							}
+
+							if (result[1][title] >= 50) {
+								culmnitem.width = 4 * result[1][title] / 10 + 'vw';
 							}
 
 							if (['-6', '5', '4', '6', '7', '8', '2', '-5', '3'].includes(result[0][title].split("//")[1])) {
 								culmnitem.hozAlign = "right";
 							} else {
-								
+
 								var div = document.createElement("div");
 								div.innerHTML = data;
 								var text = div.textContent || div.innerText || "";
 
-								if(newline){
-									
-								culmnitem.formatter = "textarea"
-								}else{
-								culmnitem.formatter = "plaintext"
-									
+								if (newline) {
+
+									culmnitem.formatter = "textarea"
+								} else {
+									culmnitem.formatter = "plaintext"
+
 								}
 
 							}
@@ -407,63 +404,59 @@ var tableoption;
 					chart(result);
 				}
 
-				
-				data = result.slice(2).map((item, index) => {
-
+				data = result.slice(result[0][0].split("//")[1] ? 2 : 1).map((item, index) => {
 					var obj = {};
 					item.map((it, idx) => {
 						obj[column[idx].title] = it;
 					})
-					
-
 					return obj
 				})
-				
+
 				tableoption = {
-						maxHeight:"85vh",
-						height: tableHeight,
-						rowHeader: {
-							formatter: "rownum",
-							headerSort: false,
-							hozAlign: "left",
-							resizable: false,
-							frozen: true,
-							width:50,
-						},
-						layout: "fitColumns",
-						renderVerticalBuffer : 5000, //가상 DOM 버퍼를 300px로 설정 });    
-						//renderVertical : "basic" ,
-						renderHorizontal : "virtual" ,
-						//autoResize:false, 
-						resizableColumnGuide: true,
-						placeholder:"데이터가 없습니다.", //display message to user on empty table
-						rowFormatter: function(row) {
-							row.getElement().classList.add("Resultrow");
-						},
-						
-					}
-				
+					maxHeight: "85vh",
+					height: tableHeight,
+					rowHeader: {
+						formatter: "rownum",
+						headerSort: false,
+						hozAlign: "left",
+						resizable: false,
+						frozen: true,
+						width: 50,
+					},
+					layout: "fitDataFill",
+					renderVerticalBuffer: 5000, //가상 DOM 버퍼를 300px로 설정 });    
+					//renderVertical : "basic" ,
+					renderHorizontal: "virtual",
+					//autoResize:false, 
+					resizableColumnGuide: true,
+					placeholder: "데이터가 없습니다.", //display message to user on empty table
+					rowFormatter: function(row) {
+						row.getElement().classList.add("Resultrow");
+					},
+
+				}
+
 				table = new Tabulator("#result", {
 					data: data,
 					columns: column,
 					...tableoption
 				});
-				
+
 				$('#result').addClass('collapse');
-				$('#result').attr('aria-expanded','false');
-				$('#result').css('min-height',tableHeight+"px");
-				$('#result').css('height',tableHeight+"px");
+				$('#result').attr('aria-expanded', 'false');
+				$('#result').css('min-height', tableHeight + "px");
+				$('#result').css('height', tableHeight + "px");
 				$('#expenda').parent().addClass('expenda');
-				
-				
+
+
 				setTimeout(() => {
 					table.redraw(true);
-				}, 100); 
-				
-				$("#result-text").text('total : '+data.length+' records, on ' + dateFormat2(ondate));
-				$("#download-csv").css('display','block');
-				
-				
+				}, 100);
+
+				$("#result-text").text('total : ' + data.length + ' records, on ' + dateFormat2(ondate));
+				$("#download-csv").css('display', 'block');
+
+
 				$("#excutebtn").attr('disabled', false);
 
 				if ($("#refreshtimeout").val() > 0) {
