@@ -48,10 +48,6 @@
 	padding: 0 5px;
 }
 
-#collapseExample.collapse:not(.in) {
-	display: block;
-}
-
 .expenda .collapsed:after {
 	content: '더보기 ▼';
 }
@@ -242,6 +238,12 @@ var tableoption;
 		$(document).on("click", "#save", function() {
 			table.download("xlsx", `${title}_${memberId}_` + dateFormat()+".xlsx");
 		});
+		
+		$("#expenda").click(function() {
+		    $([document.documentElement, document.body]).animate({
+		        scrollTop: $("#result").offset().top-50
+		    }, 1000);
+		});
 
 	});
 	
@@ -368,9 +370,8 @@ var tableoption;
 							var culmnitem = {
 								title: result[0][title].split("//")[0],
 								field: result[0][title].split("//")[0],
-								minWidth:result[0][title].split("//")[0].length*10+55,
 								//width: calwidth+"%",
-								width: result[1][title]*8,
+								width: Math.max(result[0][title].split("//")[0].length*9+55,result[1][title]*8),
 								//orgin : result[0][title],
 								
 							}
@@ -419,6 +420,7 @@ var tableoption;
 				})
 				
 				tableoption = {
+						maxHeight:"85vh",
 						height: tableHeight,
 						rowHeader: {
 							formatter: "rownum",
@@ -447,8 +449,15 @@ var tableoption;
 					...tableoption
 				});
 				
+				$('#result').addClass('collapse');
+				$('#result').attr('aria-expanded','false');
+				$('#result').css('min-height',tableHeight+"px");
+				$('#result').css('height',tableHeight+"px");
+				$('#expenda').parent().addClass('expenda');
+				
+				
 				setTimeout(() => {
-					table.redraw(true)
+					table.redraw(true);
 				}, 100); 
 				
 				$("#result-text").text('total : '+data.length+' records, on ' + dateFormat2(ondate));
@@ -798,9 +807,7 @@ var tableoption;
 								</button>
 							</div>
 							<div role="tabpanel" class="tab-pane active tabulator-placeholder table-striped table-bordered" id="result"></div>
-
-
-							<a role="button" id="expenda" class="collapsed" data-toggle="collapse" href="#collapseExample" aria-expanded="false" aria-controls="collapseExample"></a>
+							<a role="button" id="expenda" class="collapsed" data-toggle="collapse" href="#result" aria-expanded="false" aria-controls="result"></a>
 							<div role="tabpanel" class="tab-pane" id="chart">
 
 								<div style="overflow-y: auto; overflow-x: auto; height: calc(100vh * 0.5); width: 100%;">
