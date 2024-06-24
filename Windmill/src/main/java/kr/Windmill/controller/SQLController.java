@@ -219,30 +219,30 @@ public class SQLController {
 
 		try {
 
-			cLog.log_file(data, log);
+			cLog.log_start(data, log + " sql 실행 시작\n");
 
 			String row = "";
 
 			if (sql.toUpperCase().startsWith("CALL")) {
-				cLog.log_line(data, "sql 실행 시작\nstart============================================\n" + sql + "\nend==============================================");
+				cLog.log_line(data, "start============================================\n" + sql + "\nend==============================================");
 				list.addAll(com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop));
 				data.setEnd(Instant.now());
 				data.setResult("Success");
 				data.setSql(sql);
 				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
 
-				cLog.log_line(data, "sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()));
+				cLog.log_end(data, " sql 실행 종료 : 성공 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 				cLog.log_DB(data);
 
 			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH") || sql.toUpperCase().startsWith("VALUE")) {
-				cLog.log_line(data, "sql 실행 시작\nstart============================================\n" + sql + "\nend==============================================");
+				cLog.log_line(data, "start============================================\n" + sql + "\nend==============================================");
 				list.addAll(com.excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit()));
 				data.setRows(list.size() - 1);
 				data.setEnd(Instant.now());
 				data.setResult("Success");
 				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
 
-				cLog.log_line(data, "sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()));
+				cLog.log_end(data, " sql 실행 종료 : 성공 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 				cLog.log_DB(data);
 
 			} else {
@@ -263,7 +263,7 @@ public class SQLController {
 					}
 
 					sql = singleSql.trim() + ";";
-					cLog.log_line(data, "sql 실행 시작\nstart============================================\n" + sql + "\nend==============================================");
+					cLog.log_line(data, "start============================================\n" + sql + "\nend==============================================");
 					data.setSql(sql);
 
 					Instant singleStart = Instant.now();
@@ -278,7 +278,7 @@ public class SQLController {
 					row = " / " + data.getSqlType() + " rows : " + singleList.get(0).get(1).toString();
 					data.setRows(Integer.parseInt(singleList.get(0).get(1)));
 
-					cLog.log_line(data, "sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()));
+					cLog.log_end(data, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 					cLog.log_DB(data);
 				}
 			}
@@ -293,12 +293,12 @@ public class SQLController {
 			list.add(element);
 
 			if (log.length() > 0) {
-				cLog.log_file(data, log);
+				cLog.log_line(data, log);
 			}
 
 			data.setResult(e1.getMessage());
 			data.setDuration(0);
-			cLog.log_line(data, "sql 실행 실패 " + e1.getMessage());
+			cLog.log_end(data, " sql 실행 종료 : 실패 " + e1.getMessage() + "\n\n");
 			cLog.log_DB(data);
 
 			System.out.println("id : " + session.getAttribute("memberId") + " / sql : " + sql);
