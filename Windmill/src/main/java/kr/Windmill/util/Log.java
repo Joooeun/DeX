@@ -78,10 +78,50 @@ public class Log {
 			SimpleDateFormat simpleDateFormat2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			String strNowDate2 = simpleDateFormat2.format(Date.from(data.getStart()));
 
-			writer.write(strNowDate2 + " id : " + data.getId() + " / ip :  " + data.getIp());
+			writer.write("\n"+strNowDate2 + " id : " + data.getId() + " / ip :  " + data.getIp());
 			writer.write("\nDB : " + data.getConnection() + " / MENU : " + data.getPath());
 			writer.write(msg);
 			writer.newLine();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void log_line(LogInfoDTO data, String msg) {
+
+		// 파일은 모두 저장으로 변경 20240619
+//		if (data.getConnection().equals(LogDB) || !(data.isAudit() || data.getId().equals("admin"))) {
+//			return;
+//		}
+
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
+		String strNowDate = simpleDateFormat.format(Date.from(data.getStart()));
+
+		try {
+
+			String path = com.RootPath + "log";
+			File folder = new File(path);
+
+			if (!folder.exists()) {
+				try {
+					logger.info("폴더생성여부 : " + folder.mkdirs());
+				} catch (Exception e) {
+					e.getStackTrace();
+				}
+			}
+
+			path += File.separator + data.getId() + "_" + strNowDate + ".log";
+
+			File file = new File(path);
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+
+			FileWriter fw = new FileWriter(file, true);
+			BufferedWriter writer = new BufferedWriter(fw);
+
+			writer.write(msg);
 			writer.newLine();
 			writer.close();
 		} catch (IOException e) {

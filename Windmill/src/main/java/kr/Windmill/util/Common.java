@@ -14,7 +14,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.SQLXML;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Duration;
@@ -51,8 +50,7 @@ public class Common {
 	public static int Timeout = 15;
 
 	public Common() {
-		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator
-				+ "system.properties";
+		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator + "system.properties";
 		Setproperties();
 	}
 
@@ -186,8 +184,7 @@ public class Common {
 			File[] fileList = dirFile.listFiles();
 			Arrays.sort(fileList);
 			for (File tempFile : fileList) {
-				if (tempFile.isFile()
-						&& tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".properties")) {
+				if (tempFile.isFile() && tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".properties")) {
 
 					String propStr = FileRead(tempFile);
 
@@ -315,8 +312,7 @@ public class Common {
 		return i;
 	}
 
-	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDTO data)
-			throws SQLException {
+	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDTO data) throws SQLException {
 
 		Connection con = null;
 		PreparedStatement pstmt = null;
@@ -333,9 +329,7 @@ public class Common {
 
 			if (data != null) {
 
-				List<Object> params = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getPath(),
-						data.getSqlType(), data.getRows(), data.getSql(), data.getResult(), data.getDuration(),
-						data.getStart(), data.getXmlLog());
+				List<Object> params = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getPath(), data.getSqlType(), data.getRows(), data.getSql(), data.getResult(), data.getDuration(), data.getStart(), data.getXmlLog());
 
 				mapParams(pstmt, params);
 			}
@@ -424,8 +418,7 @@ public class Common {
 		return connection;
 	}
 
-	public List<List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit)
-			throws SQLException {
+	public List<List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit) throws SQLException {
 
 		Connection con = null;
 
@@ -491,10 +484,8 @@ public class Common {
 							break;
 						}
 
-						if (rowlength.get(index) < (rowbody.get(index) == null ? "" : rowbody.get(index)).toString()
-								.length()) {
-							rowlength.set(index, rowbody.get(index).toString().length() > 100 ? 100
-									: rowbody.get(index).toString().length());
+						if (rowlength.get(index) < (rowbody.get(index) == null ? "" : rowbody.get(index)).toString().length()) {
+							rowlength.set(index, rowbody.get(index).toString().length() > 100 ? 100 : rowbody.get(index).toString().length());
 						}
 
 					} catch (NullPointerException e) {
@@ -540,8 +531,7 @@ public class Common {
 		}
 	}
 
-	public List<List<String>> callprocedure(String sql, String dbtype, String jdbc, Properties prop)
-			throws SQLException {
+	public List<List> callprocedure(String sql, String dbtype, String jdbc, Properties prop) throws SQLException {
 
 		Connection con = null;
 
@@ -554,7 +544,7 @@ public class Common {
 
 			con.setAutoCommit(false);
 
-			List<List<String>> list = new ArrayList<List<String>>();
+			List<List> list = new ArrayList<List>();
 
 			String callcheckstr = "";
 
@@ -567,15 +557,11 @@ public class Common {
 			int paramcnt = StringUtils.countMatches(sql, ",") + 1;
 			switch (dbtype) {
 			case "DB2":
-				callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
-						+ prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
-						+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
-						+ prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt
-						+ ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
+				callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME " + " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
+						+ prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
 				break;
 			case "ORACLE":
-				callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n"
-						+ " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
+				callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n" + " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
 				break;
 
 			default:
@@ -585,6 +571,8 @@ public class Common {
 			List<Integer> typelst = new ArrayList<>();
 			pstmt = con.prepareStatement(callcheckstr);
 			rs = pstmt.executeQuery();
+
+			List<Integer> rowlength = new ArrayList<>();
 
 			while (rs.next()) {
 				switch (rs.getString("TYPENAME")) {
@@ -627,26 +615,40 @@ public class Common {
 
 					column = rsmd.getColumnLabel(index + 1);
 
-					row.add(column + "//" + rsmd.getColumnType(index + 1));
+					row.add(rsmd.getColumnLabel(index + 1) + "//" + rsmd.getColumnType(index + 1));
+					rowlength.add(0);
 
 				}
 				list.add(row);
 
+				List rowbody;
 				while (rs2.next()) {
 
-					row = new ArrayList<>();
+					rowbody = new ArrayList<>();
 					for (int index = 0; index < colcnt; index++) {
-						try {
-							row.add((rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1)
-									: rs2.getObject(index + 1)));
 
+						// column = rsmd.getColumnName(index + 1);
+						// 타입별 get함수 다르게 변경필
+						try {
+
+							rowbody.add((rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1) : rs2.getObject(index + 1)));
+
+							if (rowlength.get(index) < (rowbody.get(index) == null ? "" : rowbody.get(index)).toString().length()) {
+								rowlength.set(index, rowbody.get(index).toString().length() > 100 ? 100 : rowbody.get(index).toString().length());
+							}
+
+						} catch (NullPointerException e) {
+							rowbody.add(null);
 						} catch (Exception e) {
-							row.add(e.toString());
+							rowbody.add(e.toString());
 						}
+
 					}
-					list.add(row);
+					list.add(rowbody);
 
 				}
+
+				list.add(1, rowlength);
 			} else {
 				for (int i = 0; i < typelst.size(); i++) {
 					List<String> element = new ArrayList<String>();

@@ -192,8 +192,7 @@ public class SQLController {
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/excute")
-	public List<List> excute(HttpServletRequest request, Model model, HttpSession session,
-			@ModelAttribute LogInfoDTO data) throws ClassNotFoundException, IOException {
+	public List<List> excute(HttpServletRequest request, Model model, HttpSession session, @ModelAttribute LogInfoDTO data) throws ClassNotFoundException, IOException {
 
 		data.setStart(Instant.now());
 		data.setId(session.getAttribute("memberId").toString());
@@ -220,34 +219,30 @@ public class SQLController {
 
 		try {
 
+			cLog.log_file(data, log);
+
 			String row = "";
 
 			if (sql.toUpperCase().startsWith("CALL")) {
+				cLog.log_line(data, "sql 실행 시작\nstart============================================\n" + sql + "\nend==============================================");
 				list.addAll(com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop));
 				data.setEnd(Instant.now());
 				data.setResult("Success");
 				data.setSql(sql);
 				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
 
-				log += " / sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis())
-						+ "\nstart============================================\n" + sql
-						+ "\nend==============================================";
-
+				cLog.log_line(data, "sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()));
 				cLog.log_DB(data);
 
-			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH")
-					|| sql.toUpperCase().startsWith("VALUE")) {
+			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH") || sql.toUpperCase().startsWith("VALUE")) {
+				cLog.log_line(data, "sql 실행 시작\nstart============================================\n" + sql + "\nend==============================================");
 				list.addAll(com.excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit()));
-				row = "";
 				data.setRows(list.size() - 1);
 				data.setEnd(Instant.now());
 				data.setResult("Success");
 				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
 
-				log += " / sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis())
-						+ "\nstart============================================\n" + sql
-						+ "\nend==============================================";
-
+				cLog.log_line(data, "sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()));
 				cLog.log_DB(data);
 
 			} else {
@@ -268,12 +263,12 @@ public class SQLController {
 					}
 
 					sql = singleSql.trim() + ";";
+					cLog.log_line(data, "sql 실행 시작\nstart============================================\n" + sql + "\nend==============================================");
 					data.setSql(sql);
 
 					Instant singleStart = Instant.now();
 
-					List<List<String>> singleList = com.updatequery(sql.trim(), connection.getDbtype(),
-							connection.getJdbc(), prop, null);
+					List<List<String>> singleList = com.updatequery(sql.trim(), connection.getDbtype(), connection.getJdbc(), prop, null);
 
 					list.addAll(singleList);
 
@@ -283,16 +278,10 @@ public class SQLController {
 					row = " / " + data.getSqlType() + " rows : " + singleList.get(0).get(1).toString();
 					data.setRows(Integer.parseInt(singleList.get(0).get(1)));
 
-					log += "\nsql 실행 성공" + row + " / 소요시간 : "
-							+ new DecimalFormat("###,###").format(timeElapsed.toMillis())
-							+ "\nstart============================================\n" + sql
-							+ "\nend==============================================\n";
-
+					cLog.log_line(data, "sql 실행 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()));
 					cLog.log_DB(data);
 				}
 			}
-
-			cLog.log_file(data, log);
 
 		} catch (SQLException e1) {
 
@@ -309,11 +298,12 @@ public class SQLController {
 
 			data.setResult(e1.getMessage());
 			data.setDuration(0);
-			cLog.log_file(data, " / sql 실행 실패\nstart============================================\n" + sql + "\n\n"
-					+ e1.getMessage() + "\nend==============================================");
+			cLog.log_line(data, "sql 실행 실패 " + e1.getMessage());
 			cLog.log_DB(data);
 
 			System.out.println("id : " + session.getAttribute("memberId") + " / sql : " + sql);
+			e1.printStackTrace();
+		} catch (Exception e1) {
 			e1.printStackTrace();
 		}
 
