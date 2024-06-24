@@ -407,7 +407,12 @@ var tableoption;
 				data = result.slice(result[0][0].split("//")[1] ? 2 : 1).map((item, index) => {
 					var obj = {};
 					item.map((it, idx) => {
-						obj[column[idx].title] = it;
+						
+						var div = document.createElement("div");
+						div.innerHTML = it;
+						var text = div.textContent || div.innerText || "";
+
+						obj[column[idx].title] = text;
 					})
 					return obj
 				})
