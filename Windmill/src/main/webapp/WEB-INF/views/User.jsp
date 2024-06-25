@@ -79,15 +79,17 @@
 
 	function UserDetail(value) {
 		if (value == 'create') {
-			$('#id_input').css("display", "block");
+			$('#ID').removeAttr("disabled");
 
+			$('#ID').val('');
+			$('#NAME').val('');
 			$('#IP').val('');
 			$('#PW').val('');
 			$('#MENU').val('');
 			$('#CONNECTION').val('');
 			return;
 		} else {
-			$('#id_input').css("display", "none");
+			$('#ID').attr("disabled", "disabled");
 		}
 		$.ajax({
 			type : 'post',
@@ -99,6 +101,8 @@
 
 				$('#IP').val(result.IP);
 				$('#PW').val(result.PW);
+				$('#ID').val(result.ID);
+				$('#NAME').val(result.NAME);
 				
 				for ( var it of result.MENU.split(',')) {
 					$("#MENU option[value='"+it+"']").attr("selected","selected");
@@ -128,6 +132,7 @@
 			data : {
 				file : filename,
 				ID : $('#ID').val(),
+				NAME : $('#NAME').val(),
 				IP : $('#IP').val(),
 				PW : $('#PW').val(),
 				MENU : getSelectValues(document.getElementById('MENU'))
@@ -150,8 +155,12 @@
 	<section class="content-header">
 		<h1>User관리</h1>
 		<ol class="breadcrumb">
-			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
-			<li class="active"><a href="#">User관리</a></li>
+			<li>
+				<a href="#"><i class="icon ion-ios-home"></i> Home</a>
+			</li>
+			<li class="active">
+				<a href="#">User관리</a>
+			</li>
 		</ol>
 	</section>
 	<section class="content">
@@ -167,42 +176,45 @@
 			<!-- form start -->
 			<form role="form">
 				<div class="box-body">
-					<div class="form-group row">
-						<div class="col-md-4" style="margin: 2px 0; display: none;"
-							id="id_input">
-							<label for="ID">ID</label> <input type="text"
-								class="form-control" id="ID" placeholder="ID">
-						</div>
+					<div class="col-md-6">
+						<div class="form-group row">
+							<div class="col-md-6" style="margin: 2px 0;">
+								<label for="ID">ID</label>
+								<input type="text" class="form-control" id="ID" placeholder="ID" disabled="disabled">
+							</div>
+							<div class="col-md-6" style="margin: 2px 0;">
+								<label for="NAME">NAME</label>
+								<input type="text" class="form-control" id="NAME" placeholder="NAME">
+							</div>
 
+						</div>
+						<div class="form-group row">
+							<div class="col-md-6" style="margin: 2px 0;">
+								<label for="IP">IP</label>
+								<input type="text" class="form-control" id="IP" placeholder="IP">
+							</div>
+							<div class="col-md-6" style="margin: 2px 0;">
+								<label for="PW">PW</label>
+								<input type="text" class="form-control" id="PW" placeholder="PW">
+							</div>
+						</div>
 					</div>
-					<div class="form-group row">
-						<div class="col-md-3" style="margin: 2px 0;">
-							<label for="IP">IP</label> <input type="text"
-								class="form-control" id="IP" placeholder="IP">
-						</div>
-						<div class="col-md-3" style="margin: 2px 0;">
-							<label for="PW">PW</label> <input type="text"
-								class="form-control" id="PW" placeholder="PW">
-						</div>
-
-
-
-						<div class="col-md-3" style="margin: 2px 0;">
-							<label for="MENU">MENU</label> <select multiple
-								class="form-control" id="MENU">
+					<div class="col-md-6">
+						<div class="col-md-6" style="margin: 2px 0; height: 200px">
+							<label for="MENU">MENU</label>
+							<select multiple class="form-control" id="MENU" style="height: 100%">
 								<c:forEach var="item" items="${MENU}">
 									<option value="${item.Name}">${item.Name}</option>
 								</c:forEach>
 							</select>
 						</div>
 
-						<div class="col-md-3" style="margin: 2px 0;">
-							<label for="MENU">CONNECTION</label> <select multiple
-								class="form-control" id="CONNECTION">
+						<div class="col-md-6" style="margin: 2px 0; height: 200px">
+							<label for="MENU">CONNECTION</label>
+							<select multiple class="form-control" id="CONNECTION" style="height: 100%">
 
 							</select>
 						</div>
-
 					</div>
 
 				</div>

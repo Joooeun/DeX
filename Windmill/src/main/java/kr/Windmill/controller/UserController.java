@@ -91,6 +91,7 @@ public class UserController {
 		try {
 			String str = "#" + request.getParameter("ID") + "\n";
 			FileWriter fw = new FileWriter(file);
+			str += "NAME=" + request.getParameter("NAME") + "\n";
 			str += "IP=" + request.getParameter("IP") + "\n";
 			str += "PW=" + request.getParameter("PW") + "\n";
 			str += "MENU=" + request.getParameter("MENU") + "\n";

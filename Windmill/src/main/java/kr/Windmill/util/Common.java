@@ -114,6 +114,8 @@ public class Common {
 
 			props.load(new ByteArrayInputStream(propStr.getBytes()));
 
+			map.put("ID", UserName);
+			map.put("NAME", props.getProperty("NAME"));
 			map.put("IP", props.getProperty("IP"));
 			map.put("PW", props.getProperty("PW"));
 			map.put("MENU", props.getProperty("MENU"));
