@@ -60,6 +60,9 @@
 	{
 	white-space: normal;
 }
+.tabulator-tableholder{
+	padding-bottom: 150px;
+}
 </style>
 <script>
 
@@ -74,6 +77,8 @@ var table;
 var column;
 var data;
 var tableoption;
+
+var tableHeight=0;
 
 	$(document).ready(function() {
 
@@ -212,13 +217,15 @@ var tableoption;
 				table = new Tabulator("#result", {
 					data: data,
 					columns: column.map((item)=>{
-						return {...item, formatter : "textarea"}
+						return {...item, formatter : "textarea", width:undefined}
 						}),
 					...tableoption,
+					height: $('#result').hasClass( "in" )?"85vh":tableoption.height,
 				});
 				
 				setTimeout(() => {
-					table.redraw(true)
+					table.redraw();
+					
 				}, 100); 
 				
 				
@@ -227,6 +234,7 @@ var tableoption;
 					data: data,
 					columns: column.map((item)=>{return {...item, formatter : "plaintext"}}),
 					...tableoption,
+					height: $('#result').hasClass( "in" )?"85vh":tableoption.height,
 				});
 			}
 		});
@@ -242,7 +250,7 @@ var tableoption;
 		$("#expenda").click(function() {
 		    $([document.documentElement, document.body]).animate({
 		        scrollTop: $("#result").offset().top-50
-		    }, 1000);
+		    }, 700);
 		});
 
 	});
@@ -302,7 +310,6 @@ var tableoption;
 			if ($(".paramvalue").eq(i).attr('required') == 'required' && $(".paramvalue").eq(i).val() == "") {
 				alert($(".paramvalue").eq(i).attr('paramtitle') + "을 입력하세요.")
 				return;
-
 			}
 
 			if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
@@ -342,6 +349,11 @@ var tableoption;
 				limit: $("#limit").val()
 			},
 			success: function(result, status, jqXHR) {
+				
+				if(tableHeight==0){
+					tableHeight = $("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 230;
+				}
+				
 
 
 				if (jqXHR.getResponseHeader("SESSION_EXPIRED") === "true") {
@@ -354,7 +366,7 @@ var tableoption;
 				var newline = $("#newline").prop('checked');
 
 				column = []
-				const tableHeight = $("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 230;
+				
 
 				if (result.length > 0) {
 
@@ -376,17 +388,10 @@ var tableoption;
 							if (['-6', '5', '4', '6', '7', '8', '2', '-5', '3'].includes(result[0][title].split("//")[1])) {
 								culmnitem.hozAlign = "right";
 							} else {
-
-								var div = document.createElement("div");
-								div.innerHTML = data;
-								var text = div.textContent || div.innerText || "";
-
 								if (newline) {
-
 									culmnitem.formatter = "textarea"
 								} else {
 									culmnitem.formatter = "plaintext"
-
 								}
 
 							}
@@ -408,11 +413,17 @@ var tableoption;
 					var obj = {};
 					item.map((it, idx) => {
 						
-						var div = document.createElement("div");
-						div.innerHTML = it;
-						var text = div.textContent || div.innerText || "";
+						if(it!=null){
+							var div = document.createElement("div");
+							div.innerHTML = it;
+							var text = div.textContent || div.innerText || "";
 
-						obj[column[idx].title] = text;
+							obj[column[idx].title] = text;
+						}else{
+							obj[column[idx].title] = undefined
+						}
+						
+					
 					})
 					return obj
 				})
@@ -426,15 +437,14 @@ var tableoption;
 						hozAlign: "left",
 						resizable: false,
 						frozen: true,
-						width: 50,
 					},
 					layout: "fitDataFill",
-					renderVerticalBuffer: 5000, //가상 DOM 버퍼를 300px로 설정 });    
+					renderVerticalBuffer: 20000, // 가상 DOM 버퍼 설정    
 					//renderVertical : "basic" ,
-					renderHorizontal: "virtual",
-					//autoResize:false, 
+					//renderHorizontal: "virtual",
+					autoResize:false, 
 					resizableColumnGuide: true,
-					placeholder: "데이터가 없습니다.", //display message to user on empty table
+					placeholder: "데이터가 없습니다.",
 					rowFormatter: function(row) {
 						row.getElement().classList.add("Resultrow");
 					},
@@ -443,23 +453,29 @@ var tableoption;
 
 				table = new Tabulator("#result", {
 					data: data,
-					columns: column,
-					...tableoption
+					columns: newline?column.map((item)=>{
+						return {...item, width:undefined}
+					}):column,
+					...tableoption,
+					height: $('#result').hasClass( "in" )?"85vh":tableoption.height,
 				});
-
-				$('#result').addClass('collapse');
-				$('#result').attr('aria-expanded', 'false');
-				$('#result').css('min-height', tableHeight + "px");
-				$('#result').css('height', tableHeight + "px");
-				$('#expenda').parent().addClass('expenda');
-
+				
+					
+				if(!$('#result').hasClass( "collapse" )){
+					$('#result').addClass('collapse');
+					$('#result').attr('aria-expanded', 'false');
+					$('#result').css('min-height', tableHeight + "px");
+//	 				$('#result').css('height', tableHeight + "px");
+					$('#expenda').parent().addClass('expenda');
+				}
+					
 
 				setTimeout(() => {
-					table.redraw(true);
+					table.redraw();
 				}, 100);
 
 				$("#result-text").text('total : ' + data.length + ' records, on ' + dateFormat2(ondate));
-				$("#download-csv").css('display', 'block');
+				$("#save").css('display', 'block');
 
 
 				$("#excutebtn").attr('disabled', false);
@@ -800,7 +816,7 @@ var tableoption;
 						<div class="tab-content">
 							<div style="display: flex; justify-content: space-between;">
 								<span id="result-text"></span>
-								<button id="download-csv" class="btn btn-default buttons-excel buttons-html5" type="button" style="display: none;">
+								<button id="save" class="btn btn-default buttons-excel buttons-html5" type="button" style="display: none;">
 									<span><i class="fa fa-floppy-o"></i></span>
 								</button>
 							</div>
