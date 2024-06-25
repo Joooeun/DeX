@@ -66,7 +66,7 @@
 			if (i > 0) {
 				str += '&';
 			}
-			str += $(".Resultrow.success").children('div').eq(column[i]).text();
+			str += $(".Resultrow.success").children('div').eq(column[i]).text().trim();
 		}
 
 		$("#sendvalue").val(str);
