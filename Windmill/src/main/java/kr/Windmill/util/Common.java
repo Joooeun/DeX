@@ -7,6 +7,10 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -26,6 +30,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.lang3.StringUtils;
@@ -89,15 +96,19 @@ public class Common {
 
 		String propStr = FileRead(new File(propFile + ".properties"));
 
+		if (!propStr.startsWith("#")) {
+			propStr = FileReadDec(new File(propFile + ".properties"));
+		}
+
 		props.load(new ByteArrayInputStream(propStr.getBytes()));
 
-		map.put("TYPE", props.getProperty("TYPE"));
-		map.put("IP", props.getProperty("IP"));
-		map.put("PORT", props.getProperty("PORT"));
-		map.put("USER", props.getProperty("USER"));
-		map.put("PW", props.getProperty("PW"));
-		map.put("DB", props.getProperty("DB"));
-		map.put("DBTYPE", props.getProperty("DBTYPE"));
+		map.put("TYPE", new String(props.getProperty("TYPE").getBytes("ISO-8859-1"), "utf-8"));
+		map.put("IP", new String(props.getProperty("IP").getBytes("ISO-8859-1"), "utf-8"));
+		map.put("PORT", new String(props.getProperty("PORT").getBytes("ISO-8859-1"), "utf-8"));
+		map.put("USER", new String(props.getProperty("USER").getBytes("ISO-8859-1"), "utf-8"));
+		map.put("PW", new String(props.getProperty("PW").getBytes("ISO-8859-1"), "utf-8"));
+		map.put("DB", new String(props.getProperty("DB").getBytes("ISO-8859-1"), "utf-8"));
+		map.put("DBTYPE", new String(props.getProperty("DBTYPE").getBytes("ISO-8859-1"), "utf-8"));
 		return map;
 	}
 
@@ -109,20 +120,22 @@ public class Common {
 		try {
 			String propFile = UserPath + UserName;
 			Properties props = new Properties();
-
 			String propStr = FileRead(new File(propFile));
+
+			if (!propStr.startsWith("#")) {
+				propStr = FileReadDec(new File(propFile));
+			}
 
 			props.load(new ByteArrayInputStream(propStr.getBytes()));
 
 			map.put("ID", UserName);
-			map.put("NAME", props.getProperty("NAME"));
-			map.put("IP", props.getProperty("IP"));
-			map.put("PW", props.getProperty("PW"));
-			map.put("MENU", props.getProperty("MENU"));
-			map.put("CONNECTION", props.getProperty("CONNECTION"));
+			map.put("NAME", new String(props.getProperty("NAME").getBytes("ISO-8859-1"), "utf-8"));
+			map.put("IP", new String(props.getProperty("IP").getBytes("ISO-8859-1"), "utf-8"));
+			map.put("PW", new String(props.getProperty("PW").getBytes("ISO-8859-1"), "utf-8"));
+			map.put("MENU", new String(props.getProperty("MENU").getBytes("ISO-8859-1"), "utf-8"));
+			map.put("CONNECTION", new String(props.getProperty("CONNECTION").getBytes("ISO-8859-1"), "utf-8"));
 
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return map;
@@ -146,7 +159,6 @@ public class Common {
 			map.put("REFRESHTIMEOUT", props.getProperty("REFRESHTIMEOUT"));
 
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return map;
@@ -189,6 +201,9 @@ public class Common {
 				if (tempFile.isFile() && tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".properties")) {
 
 					String propStr = FileRead(tempFile);
+					if (!propStr.startsWith("#")) {
+						propStr = FileReadDec(tempFile);
+					}
 
 					Properties props = new Properties();
 
@@ -241,16 +256,46 @@ public class Common {
 		}
 		bufReader.close();
 
+		return str;
+	}
+
+	public String FileReadDec(File file) throws IOException {
+		String str = "";
+
+		BufferedReader bufReader = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
+		String line = "";
+
+		while ((line = bufReader.readLine()) != null) {
+			str += line + "\r\n";
+		}
+		bufReader.close();
+
 		AES256Cipher a256 = AES256Cipher.getInstance();
 
-//		try {
-//			str = a256.AES_Decode(str);
-//		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | IllegalBlockSizeException
-//				| BadPaddingException e) {
-//			// TODO Auto-generated catch block
-//			logger.warn("임호화 에러 "+str);
-//		}
+		try {
+			str = a256.AES_Decode(str);
+
+		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		return str;
+	}
+
+	public String cryptStr(String str) throws IOException {
+
+		String crtStr = "";
+
+		AES256Cipher a256 = AES256Cipher.getInstance();
+
+		try {
+			crtStr = a256.AES_Encode(str);
+
+		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return crtStr;
 	}
 
 	// 사용자에게 메시지를 전달하고, 페이지를 리다이렉트 한다.

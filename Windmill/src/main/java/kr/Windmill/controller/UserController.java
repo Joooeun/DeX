@@ -97,7 +97,7 @@ public class UserController {
 			str += "MENU=" + request.getParameter("MENU") + "\n";
 			str += "CONNECTION=" + request.getParameter("CONNECTION") + "\n";
 
-			fw.write(str);
+			fw.write(com.cryptStr(str));
 			fw.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -140,7 +140,7 @@ public class UserController {
 			str += "MENU=" + map.get("MENU") + "\n";
 			str += "CONNECTION=" + map.get("CONNECTION") + "\n";
 
-			fw.write(str);
+			fw.write(com.cryptStr(str));
 			fw.close();
 
 		} catch (IOException e) {

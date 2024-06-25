@@ -94,7 +94,7 @@ public class ConnectionController {
 			str += "PW=" + request.getParameter("PW") + "\n";
 			str += "DBTYPE=" + request.getParameter("DBTYPE");
 
-			fw.write(str);
+			fw.write(com.cryptStr(str));
 			fw.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
