@@ -1,5 +1,5 @@
 <%@include file="common/common.jsp"%>
-<c:set var="textlimit" value="100000" />
+<c:set var="textlimit" value="300000" />
 <style>
 ::-webkit-scrollbar {
 	width: 10px;
