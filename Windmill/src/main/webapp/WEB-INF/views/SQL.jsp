@@ -439,7 +439,7 @@ var tableHeight=0;
 						frozen: true,
 					},
 					layout: "fitDataFill",
-					renderVerticalBuffer: 20000, // 가상 DOM 버퍼 설정    
+					renderVerticalBuffer: 200000, // 가상 DOM 버퍼 설정    
 					//renderVertical : "basic" ,
 					//renderHorizontal: "virtual",
 					autoResize:false, 
