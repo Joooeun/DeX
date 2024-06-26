@@ -287,6 +287,15 @@ public class SQLController {
 
 			List<String> element = new ArrayList<String>();
 
+			if (list.size() == 0) {
+				element.add("Result");
+				element.add("Updated Rows");
+				element.add("Query");
+				list.add(element);
+
+				element = new ArrayList<>();
+			}
+
 			element.add(e1.toString());
 			element.add("0");
 			element.add(sql);
