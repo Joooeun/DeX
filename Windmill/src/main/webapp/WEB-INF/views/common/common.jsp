@@ -19,7 +19,7 @@
 <script type="text/javascript" src="/resources/dist/js/tabulator/tabulator.js"></script>
 <script type="text/javascript" src="/resources/dist/js/tabulator/xlsx.full.min.js"></script>
 
-<link href="/resources/dist/css/tabulator/tabulator_bootstrap3.min.css" rel="stylesheet">
+<link href="/resources/dist/css/tabulator/tabulator_bootstrap3.css" rel="stylesheet">
 <script type="text/javascript">
 	document.onkeydown = function(e) {
 
