@@ -406,7 +406,7 @@ var tableHeight=0;
 						}
 					}
 
-					chart(result);
+					chart(result.filter((it,idx)=>idx!=1));
 				}
 
 				data = result.slice(result[0][0].split("//")[1] ? 2 : 1).map((item, index) => {
