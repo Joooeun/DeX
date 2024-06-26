@@ -1,5 +1,5 @@
 <%@include file="common/common.jsp"%>
-<c:set var="textlimit" value="300000" />
+<c:set var="textlimit" value="1900000" />
 <style>
 ::-webkit-scrollbar {
 	width: 10px;
@@ -728,7 +728,7 @@ var tableHeight=0;
 									<div class="form-group" style="margin-bottom: 0">
 										<div id="container" class="textcontainer">
 											<div id="line-numbers" class="container__lines"></div>
-											<textarea class="col-sm-12 col-xs-12 formtextarea" maxlength="${textlimit}" id="sql_text" style="margin: 0 0 10px 0" rows="5">${sql}</textarea>
+											<textarea class="col-sm-12 col-xs-12 formtextarea" maxlength="${textlimit}" id="sql_text" style="margin: 0 0 10px 0" rows="5" wrap='off'>${sql}</textarea>
 										</div>
 										<span id="textcount">0</span> / <span>${textlimit}</span>
 									</div>
@@ -743,7 +743,7 @@ var tableHeight=0;
 													<div id="container" class="textcontainer">
 
 														<div id="line-numbers" class="container__lines"></div>
-														<textarea class="paramvalue col-xs-12 formtextarea" maxlength="${textlimit}" paramtitle="${item.name}" rows="5" paramtype="${item.type}" style="padding: 0 2px;">${item.name=='memberId' ? memberId : item.value}</textarea>
+														<textarea class="paramvalue col-xs-12 formtextarea" maxlength="${textlimit}" paramtitle="${item.name}" rows="5" paramtype="${item.type}" style="padding: 0 2px;" wrap="off">${item.name=='memberId' ? memberId : item.value}</textarea>
 													</div>
 													<span id="textcount">0</span> / <span>${textlimit}</span>
 												</div>
