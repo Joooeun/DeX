@@ -102,13 +102,13 @@ public class Common {
 
 		props.load(new ByteArrayInputStream(propStr.getBytes()));
 
-		map.put("TYPE", new String(props.getProperty("TYPE").getBytes("ISO-8859-1"), "utf-8"));
-		map.put("IP", new String(props.getProperty("IP").getBytes("ISO-8859-1"), "utf-8"));
-		map.put("PORT", new String(props.getProperty("PORT").getBytes("ISO-8859-1"), "utf-8"));
-		map.put("USER", new String(props.getProperty("USER").getBytes("ISO-8859-1"), "utf-8"));
-		map.put("PW", new String(props.getProperty("PW").getBytes("ISO-8859-1"), "utf-8"));
-		map.put("DB", new String(props.getProperty("DB").getBytes("ISO-8859-1"), "utf-8"));
-		map.put("DBTYPE", new String(props.getProperty("DBTYPE").getBytes("ISO-8859-1"), "utf-8"));
+		map.put("TYPE", bytetostr(props.getProperty("TYPE")));
+		map.put("IP", bytetostr(props.getProperty("IP")));
+		map.put("PORT", bytetostr(props.getProperty("PORT")));
+		map.put("USER", bytetostr(props.getProperty("USER")));
+		map.put("PW", bytetostr(props.getProperty("PW")));
+		map.put("DB", bytetostr(props.getProperty("DB")));
+		map.put("DBTYPE", bytetostr(props.getProperty("DBTYPE")));
 		return map;
 	}
 
@@ -129,11 +129,11 @@ public class Common {
 			props.load(new ByteArrayInputStream(propStr.getBytes()));
 
 			map.put("ID", UserName);
-			map.put("NAME", new String(props.getProperty("NAME").getBytes("ISO-8859-1"), "utf-8"));
-			map.put("IP", new String(props.getProperty("IP").getBytes("ISO-8859-1"), "utf-8"));
-			map.put("PW", new String(props.getProperty("PW").getBytes("ISO-8859-1"), "utf-8"));
-			map.put("MENU", new String(props.getProperty("MENU").getBytes("ISO-8859-1"), "utf-8"));
-			map.put("CONNECTION", new String(props.getProperty("CONNECTION").getBytes("ISO-8859-1"), "utf-8"));
+			map.put("NAME",bytetostr(props.getProperty("NAME")));
+			map.put("IP", bytetostr(props.getProperty("IP")));
+			map.put("PW", bytetostr(props.getProperty("PW")));
+			map.put("MENU", bytetostr(props.getProperty("MENU")));
+			map.put("CONNECTION", bytetostr(props.getProperty("CONNECTION")));
 
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -747,6 +747,16 @@ public class Common {
 
 			}
 		}
+	}
+
+	public String bytetostr(String str) throws UnsupportedEncodingException {
+
+		String resultstr = "";
+		if (str != null) {
+			resultstr = new String(str.getBytes("ISO-8859-1"), "utf-8");
+		}
+
+		return resultstr;
 	}
 
 	public String getSystem_properties() {
