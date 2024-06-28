@@ -326,32 +326,39 @@ public class SQLController {
 		File dirFile = new File(root);
 		File[] fileList = dirFile.listFiles();
 		Arrays.sort(fileList);
-		for (File tempFile : fileList) {
-			if (tempFile.isFile()) {
 
-				if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".sql")) {
-					Map<String, Object> element = new HashMap<>();
-					element.put("Name", tempFile.getName());
-					element.put("Path", tempFile.getPath());
+		try {
+			for (File tempFile : fileList) {
+				if (tempFile.isFile()) {
+					if (tempFile.getName().contains(".")) {
+						if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".sql")) {
+							Map<String, Object> element = new HashMap<>();
+							element.put("Name", tempFile.getName());
+							element.put("Path", tempFile.getPath());
 
-					list.add(element);
-				} else if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".htm")) {
+							list.add(element);
+						} else if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".htm")) {
+							Map<String, Object> element = new HashMap<>();
+							element.put("Name", tempFile.getName());
+							element.put("Path", tempFile.getPath());
+
+							list.add(element);
+						}
+					}
+
+				} else if (tempFile.isDirectory()) {
 					Map<String, Object> element = new HashMap<>();
+
 					element.put("Name", tempFile.getName());
-					element.put("Path", tempFile.getPath());
+					element.put("Path", "Path" + depth);
+					element.put("list", getfiles(tempFile.getPath(), depth + 1));
 
 					list.add(element);
 				}
-
-			} else if (tempFile.isDirectory()) {
-				Map<String, Object> element = new HashMap<>();
-
-				element.put("Name", tempFile.getName());
-				element.put("Path", "Path" + depth);
-				element.put("list", getfiles(tempFile.getPath(), depth + 1));
-
-				list.add(element);
 			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
 		return list;
