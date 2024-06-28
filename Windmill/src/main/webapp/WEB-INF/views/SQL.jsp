@@ -61,7 +61,7 @@
 	white-space: normal;
 }
 .tabulator-tableholder{
-	padding-bottom: 150px;
+	height: calc(85vh - 31px)!important;
 }
 </style>
 <script>
@@ -349,7 +349,7 @@ var tableHeight=0;
 			success: function(result, status, jqXHR) {
 				
 				if(tableHeight==0){
-					tableHeight = $("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 230;
+					tableHeight = Math.max(200,$("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 230);
 				}
 				
 
@@ -406,6 +406,8 @@ var tableHeight=0;
 
 					chart(result.filter((it,idx)=>idx!=1));
 				}
+				
+				var v_buffer = 40;
 
 				data = result.slice(result[0][0].split("//")[1] ? 2 : 1).map((item, index) => {
 					var obj = {};
@@ -416,6 +418,10 @@ var tableHeight=0;
 							div.innerHTML = it;
 							var text = div.textContent || div.innerText || "";
 
+							if(v_buffer<text.split("\n").length){
+								v_buffer = text.split("\n").length
+								console.log(v_buffer)
+							}
 							obj[column[idx].title] = text;
 						}else{
 							obj[column[idx].title] = undefined
@@ -437,7 +443,7 @@ var tableHeight=0;
 						frozen: true,
 					},
 					layout: "fitDataFill",
-					renderVerticalBuffer: 200000, // 가상 DOM 버퍼 설정    
+					renderVerticalBuffer: v_buffer*30, // 가상 DOM 버퍼 설정    
 					//renderVertical : "basic" ,
 					renderHorizontal: "virtual",
 					autoResize:false, 
@@ -692,7 +698,7 @@ var tableHeight=0;
 	
 </script>
 <!-- Content Wrapper. Contains page content -->
-<div class="content-wrapper" style="margin-left: 0" id="test">
+<div class="content-wrapper" style="margin-left: 0; position: relative;" id="test">
 	<!-- Content Header (Page header) -->
 	<section class="content-header">
 		<h1>${title}</h1>
