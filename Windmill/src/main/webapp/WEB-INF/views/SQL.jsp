@@ -329,9 +329,7 @@ var tableHeight=0;
 
 		$("#excutebtn").attr('disabled', true);
 
-		if (timeRemain == null) {
-			$("#result_head").html('<tr><td class="text-center"><img alt="loading..." src="/resources/img/loading.gif" style="width:50px; margin : 50px auto;"></td></tr>');
-		}
+		$("#loadingdiv").css('display','block')
 
 		let ondate = new Date();
 
@@ -479,6 +477,7 @@ var tableHeight=0;
 
 
 				$("#excutebtn").attr('disabled', false);
+				$("#loadingdiv").css('display','none')
 
 				if ($("#refreshtimeout").val() > 0) {
 					timeRemain = $("#refreshtimeout").val();
@@ -487,6 +486,7 @@ var tableHeight=0;
 			},
 			error: function(error) {
 				$("#excutebtn").attr('disabled', false);
+				$("#loadingdiv").css('display','none')
 				console.log(JSON.stringify(error))
 				alert('시스템오류');
 			}
@@ -855,4 +855,7 @@ var tableHeight=0;
 			<input id="refreshtimeout" value="${refreshtimeout}" type="hidden">
 		</c:if>
 	</section>
+	<div id="loadingdiv" style="position: absolute; width: 100%; height: 100%; background-color: #43407520; top: 0; align-content: center; text-align: center; display: none;">
+		<img alt="loading..." src="/resources/img/loading.gif" style="width: 50px;">
+	</div>
 </div>
