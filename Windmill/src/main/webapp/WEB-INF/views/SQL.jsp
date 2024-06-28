@@ -439,7 +439,7 @@ var tableHeight=0;
 					layout: "fitDataFill",
 					renderVerticalBuffer: 200000, // 가상 DOM 버퍼 설정    
 					//renderVertical : "basic" ,
-					//renderHorizontal: "virtual",
+					renderHorizontal: "virtual",
 					autoResize:false, 
 					resizableColumnGuide: true,
 					placeholder: "데이터가 없습니다.",
