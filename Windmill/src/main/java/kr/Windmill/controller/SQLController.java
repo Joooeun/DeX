@@ -219,7 +219,7 @@ public class SQLController {
 
 		try {
 
-			cLog.log_start(data, log + " sql 실행 시작\n");
+			cLog.log_start(data, log + "\nmenu 실행 시작\n");
 
 			String row = "";
 
