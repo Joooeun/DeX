@@ -60,15 +60,16 @@
 	{
 	white-space: normal;
 }
-.tabulator-tableholder{
-	height: calc(85vh - 31px)!important;
+
+.tabulator-tableholder {
+	height: calc(85vh - 31px) !important;
 }
 </style>
 <script>
 
 var ctx;
 var myChart;
-var graphcolor = ['#FF583A', '#FF9032', '#FEDD0F', '#4B963E', '#23439F', '#561475', '#F2626B', '#FEBA4F', '#FFEA7F', '#89E077', '#83C3FF', '#C381FD', '#525252']
+var graphcolor = ['#FF583A','#4B963E', '#FF9032', '#23439F','#FEDD0F','#561475', '#F2626B','#89E077','#FEBA4F','#83C3FF', '#FFEA7F','#C381FD', '#525252']
 
 var sql_text = "";
 
@@ -214,13 +215,13 @@ var tableHeight=0;
 				return;
 			
 			if ($(this).prop('checked')) {
-				table = new Tabulator("#result", {
+				table = new Tabulator("#result_table", {
 					data: data,
 					columns: column.map((item)=>{
 						return {...item, formatter : "textarea", width:undefined}
 						}),
 					...tableoption,
-					height: $('#result').hasClass( "in" )?"85vh":tableoption.height,
+					height: $('#result_table').hasClass( "in" )?"85vh":tableoption.height,
 				});
 				
 				setTimeout(() => {
@@ -230,11 +231,11 @@ var tableHeight=0;
 				
 				
 			} else {
-				table = new Tabulator("#result", {
+				table = new Tabulator("#result_table", {
 					data: data,
 					columns: column.map((item)=>{return {...item, formatter : "plaintext"}}),
 					...tableoption,
-					height: $('#result').hasClass( "in" )?"85vh":tableoption.height,
+					height: $('#result_table').hasClass( "in" )?"85vh":tableoption.height,
 				});
 			}
 		});
@@ -249,7 +250,7 @@ var tableHeight=0;
 		
 		$("#expenda").click(function() {
 		    $([document.documentElement, document.body]).animate({
-		        scrollTop: $("#result").offset().top-50
+		        scrollTop: $("#result_table").offset().top-50
 		    }, 700);
 		});
 
@@ -349,7 +350,7 @@ var tableHeight=0;
 			success: function(result, status, jqXHR) {
 				
 				if(tableHeight==0){
-					tableHeight = Math.max(200,$("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 230);
+					tableHeight = Math.max(200,$("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 200);
 				}
 				
 
@@ -455,21 +456,21 @@ var tableHeight=0;
 
 				}
 
-				table = new Tabulator("#result", {
+				table = new Tabulator("#result_table", {
 					data: data,
 					columns: newline?column.map((item)=>{
 						return {...item, width:undefined}
 					}):column,
 					...tableoption,
-					height: $('#result').hasClass( "in" )?"85vh":tableoption.height,
+					height: $('#result_table').hasClass( "in" )?"85vh":tableoption.height,
 				});
 				
 					
-				if(!$('#result').hasClass( "collapse" )){
-					$('#result').addClass('collapse');
-					$('#result').attr('aria-expanded', 'false');
-					$('#result').css('min-height', tableHeight + "px");
-//	 				$('#result').css('height', tableHeight + "px");
+				if(!$('#result_table').hasClass( "collapse" )){
+					$('#result_table').addClass('collapse');
+					$('#result_table').attr('aria-expanded', 'false');
+					$('#result_table').css('min-height', tableHeight + "px");
+//	 				$('#result_table').css('height', tableHeight + "px");
 					$('#expenda').parent().addClass('expenda');
 				}
 					
@@ -820,14 +821,18 @@ var tableHeight=0;
 
 						<!-- Tab panes -->
 						<div class="tab-content">
-							<div style="display: flex; justify-content: space-between;">
-								<span id="result-text"></span>
-								<button id="save" class="btn btn-default buttons-excel buttons-html5" type="button" style="display: none;">
-									<span><i class="fa fa-floppy-o"></i></span>
-								</button>
+
+							<div role="tabpanel" class="tab-pane active" id="result">
+								<div style="display: flex; justify-content: space-between;">
+									<span id="result-text"></span>
+									<button id="save" class="btn btn-default buttons-excel buttons-html5" type="button" style="display: none;">
+										<span><i class="fa fa-floppy-o"></i></span>
+									</button>
+								</div>
+								<div id="result_table" class="tabulator-placeholder table-striped table-bordered" style="display: block"></div>
+								<a role="button" id="expenda" class="collapsed" data-toggle="collapse" href="#result_table" aria-expanded="false" aria-controls="result_table"></a>
 							</div>
-							<div role="tabpanel" class="tab-pane active tabulator-placeholder table-striped table-bordered" id="result"></div>
-							<a role="button" id="expenda" class="collapsed" data-toggle="collapse" href="#result" aria-expanded="false" aria-controls="result"></a>
+
 							<div role="tabpanel" class="tab-pane" id="chart">
 
 								<div style="overflow-y: auto; overflow-x: auto; height: calc(100vh * 0.5); width: 100%;">
