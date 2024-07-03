@@ -75,7 +75,7 @@ var sql_text = "";
 
 var timeRemain = null;
 var table;
-var column;
+var column=[];
 var data;
 var tableoption;
 
@@ -363,47 +363,56 @@ var tableHeight=0;
 				$("#Resultbox").css("display", "block");
 
 				var newline = $("#newline").prop('checked');
-
-				column = []
+				
+				
 				
 
 				if (result.length > 0) {
+					
+					if(column.filter((it, idx)=>it.title==result[0][idx].split("//")[0]).length==result[0].length){
+						
+						
+						
+					}else{
+						column = []
+						for (var title = 0; title < result[0].length; title++) {
+							if (result[0][title].split("//")[1]) {
+								var calwidth = result[1].reduce((ac, cur) =>
+									ac + cur,
+									0, ) * 9
 
-					for (var title = 0; title < result[0].length; title++) {
-						if (result[0][title].split("//")[1]) {
-							var calwidth = result[1].reduce((ac, cur) =>
-								ac + cur,
-								0, ) * 9
-
-							var culmnitem = {
-								title: result[0][title].split("//")[0],
-								field: result[0][title].split("//")[0],
-							}
-
-							if (result[1][title] >= 50) {
-								culmnitem.width = 4 * result[1][title] / 10 + 'vw';
-							}
-
-							if (['-6', '5', '4', '6', '7', '8', '2', '-5', '3'].includes(result[0][title].split("//")[1])) {
-								culmnitem.hozAlign = "right";
-							} else {
-								if (newline) {
-									culmnitem.formatter = "textarea"
-								} else {
-									culmnitem.formatter = "plaintext"
+								var culmnitem = {
+									title: result[0][title].split("//")[0],
+									field: result[0][title].split("//")[0],
 								}
 
+								if (result[1][title] >= 50) {
+									culmnitem.width = 4 * result[1][title] / 10 + 'vw';
+								}
+
+								if (['-6', '5', '4', '6', '7', '8', '2', '-5', '3'].includes(result[0][title].split("//")[1])) {
+									culmnitem.hozAlign = "right";
+								} else {
+									if (newline) {
+										culmnitem.formatter = "textarea"
+									} else {
+										culmnitem.formatter = "plaintext"
+									}
+
+								}
+
+								column.push(culmnitem);
+
+							} else {
+								column.push({
+									title: result[0][title],
+									field: result[0][title]
+								});
 							}
-
-							column.push(culmnitem);
-
-						} else {
-							column.push({
-								title: result[0][title],
-								field: result[0][title]
-							});
 						}
 					}
+
+					
 
 					chart(result.filter((it,idx)=>idx!=1));
 				}
@@ -415,13 +424,15 @@ var tableHeight=0;
 					item.map((it, idx) => {
 						
 						if(it!=null){
-							var div = document.createElement("div");
-							div.innerHTML = it;
-							var text = div.textContent || div.innerText || "";
-
+							var text = it + "";
+							if(text.trim().startsWith('<')){
+								var div = document.createElement("div");
+								div.innerHTML = it;
+								text = div.textContent || div.innerText || "";
+							}
+							
 							if(v_buffer<text.split("\n").length){
 								v_buffer = text.split("\n").length
-								console.log(v_buffer)
 							}
 							obj[column[idx].title] = text;
 						}else{
@@ -455,14 +466,25 @@ var tableHeight=0;
 					},
 
 				}
-
+			    
 				table = new Tabulator("#result_table", {
 					data: data,
-					columns: newline?column.map((item)=>{
+					columns: newline ? column.map((item)=>{
 						return {...item, width:undefined}
 					}):column,
 					...tableoption,
 					height: $('#result_table').hasClass( "in" )?"85vh":tableoption.height,
+				});
+				
+				table.on("columnResized", function(col){
+				    
+					column = column.map((it, idx)=>{
+						if(it.title == col.getField())
+							return {...it, width:col.getWidth()}
+						else
+							return it
+					})
+					
 				});
 				
 					
