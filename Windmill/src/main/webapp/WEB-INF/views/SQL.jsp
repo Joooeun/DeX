@@ -369,9 +369,7 @@ var tableHeight=0;
 
 				if (result.length > 0) {
 					
-					if(column.filter((it, idx)=>it.title==result[0][idx].split("//")[0]).length==result[0].length){
-						
-						
+					if(column.filter((it, idx)=>it.title==(result[0][idx]??'').split("//")[0]).length==result[0].length){
 						
 					}else{
 						column = []
