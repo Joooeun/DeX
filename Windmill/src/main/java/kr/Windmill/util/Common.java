@@ -129,7 +129,7 @@ public class Common {
 			props.load(new ByteArrayInputStream(propStr.getBytes()));
 
 			map.put("ID", UserName);
-			map.put("NAME",bytetostr(props.getProperty("NAME")));
+			map.put("NAME", bytetostr(props.getProperty("NAME")));
 			map.put("IP", bytetostr(props.getProperty("IP")));
 			map.put("PW", bytetostr(props.getProperty("PW")));
 			map.put("MENU", bytetostr(props.getProperty("MENU")));
@@ -465,7 +465,7 @@ public class Common {
 		return connection;
 	}
 
-	public List<List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit) throws SQLException {
+	public Map<String, List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit) throws SQLException {
 
 		Connection con = null;
 
@@ -476,7 +476,7 @@ public class Common {
 
 			con.setAutoCommit(false);
 
-			List<List> list = new ArrayList<List>();
+			Map<String, List> result = new HashMap<String, List>();
 
 			pstmt = con.prepareStatement(sql);
 
@@ -486,6 +486,7 @@ public class Common {
 			rs = pstmt.executeQuery();
 
 			ResultSetMetaData rsmd = rs.getMetaData();
+
 			int colcnt = rsmd.getColumnCount();
 
 			List rowhead = new ArrayList<>();
@@ -493,17 +494,34 @@ public class Common {
 			String column;
 
 			for (int index = 0; index < colcnt; index++) {
-				rowhead.add(rsmd.getColumnLabel(index + 1) + "//" + rsmd.getColumnType(index + 1));
+
+				Map head = new HashMap();
+
+				ResultSet resultSet = con.getMetaData().getColumns(null, rsmd.getSchemaName(index + 1), rsmd.getTableName(index + 1), rsmd.getColumnName(index + 1));
+
+				String desc = rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")";
+
+				if (resultSet.next()) {
+					String REMARKS = resultSet.getString("REMARKS") == null ? "" : "\n" + resultSet.getString("REMARKS");
+					desc += REMARKS;
+				}
+
+				head.put("title", rsmd.getColumnLabel(index + 1));
+				head.put("type", rsmd.getColumnType(index + 1));
+				head.put("desc", desc);
+
+				rowhead.add(head);
+
 				rowlength.add(0);
 			}
 
-			list.add(rowhead);
+			result.put("rowhead", rowhead);
 
-			List rowbody;
+			List rowbody = new ArrayList<>();
 
 			while (rs.next()) {
 
-				rowbody = new ArrayList<>();
+				List body = new ArrayList<>();
 				for (int index = 0; index < colcnt; index++) {
 
 					// column = rsmd.getColumnName(index + 1);
@@ -512,41 +530,42 @@ public class Common {
 
 						switch (rsmd.getColumnType(index + 1)) {
 						case Types.SQLXML:
-							rowbody.add(rs.getSQLXML(index + 1).toString());
+							body.add(rs.getSQLXML(index + 1).toString());
 							break;
 
 						case Types.BIGINT:
 						case Types.DECIMAL:
-							rowbody.add(rs.getBigDecimal(index + 1).toString());
+							body.add(rs.getBigDecimal(index + 1).toString());
 							break;
 
 						case Types.CLOB:
 						case Types.TIMESTAMP:
-							rowbody.add(rs.getString(index + 1));
+							body.add(rs.getString(index + 1));
 							break;
 
 						default:
-							rowbody.add(rs.getObject(index + 1));
+							body.add(rs.getObject(index + 1));
 //							System.out.println(rs.getObject(index + 1) + " / " + rs.getObject(index + 1).getClass());
 							break;
 						}
 
-						if (rowlength.get(index) < (rowbody.get(index) == null ? "" : rowbody.get(index)).toString().length()) {
-							rowlength.set(index, rowbody.get(index).toString().length() > 100 ? 100 : rowbody.get(index).toString().length());
+						if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString().length()) {
+							rowlength.set(index, body.get(index).toString().length() > 100 ? 100 : body.get(index).toString().length());
 						}
 
 					} catch (NullPointerException e) {
-						rowbody.add(null);
+						body.add(null);
 					} catch (Exception e) {
-						rowbody.add(e.toString());
+						body.add(e.toString());
 					}
 
 				}
-				list.add(rowbody);
+				rowbody.add(body);
 			}
-			list.add(1, rowlength);
+			result.put("rowbody", rowbody);
+			result.put("rowlength", rowlength);
 
-			return list;
+			return result;
 
 		} finally {
 			if (rs != null) {
@@ -578,7 +597,7 @@ public class Common {
 		}
 	}
 
-	public List<List> callprocedure(String sql, String dbtype, String jdbc, Properties prop) throws SQLException {
+	public Map<String, List> callprocedure(String sql, String dbtype, String jdbc, Properties prop) throws SQLException {
 
 		Connection con = null;
 
@@ -591,7 +610,7 @@ public class Common {
 
 			con.setAutoCommit(false);
 
-			List<List> list = new ArrayList<List>();
+			Map<String, List> result = new HashMap<String, List>();
 
 			String callcheckstr = "";
 
@@ -654,57 +673,65 @@ public class Common {
 				ResultSetMetaData rsmd = rs2.getMetaData();
 				int colcnt = rsmd.getColumnCount();
 
-				List row;
+				List rowhead = new ArrayList<>();
 				String column;
 
-				row = new ArrayList<>();
 				for (int index = 0; index < colcnt; index++) {
 
-					column = rsmd.getColumnLabel(index + 1);
+					Map head = new HashMap();
 
-					row.add(rsmd.getColumnLabel(index + 1) + "//" + rsmd.getColumnType(index + 1));
+					head.put("title", rsmd.getColumnLabel(index + 1));
+					head.put("type", rsmd.getColumnType(index + 1));
+					head.put("desc", rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")");
+
+					rowhead.add(head);
 					rowlength.add(0);
 
 				}
-				list.add(row);
+				result.put("rowhead", rowhead);
 
-				List rowbody;
+				List rowbody = new ArrayList<>();
 				while (rs2.next()) {
 
-					rowbody = new ArrayList<>();
+					List body = new ArrayList<>();
 					for (int index = 0; index < colcnt; index++) {
 
 						// column = rsmd.getColumnName(index + 1);
 						// 타입별 get함수 다르게 변경필
 						try {
 
-							rowbody.add((rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1) : rs2.getObject(index + 1)));
+							body.add((rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1) : rs2.getObject(index + 1)));
 
-							if (rowlength.get(index) < (rowbody.get(index) == null ? "" : rowbody.get(index)).toString().length()) {
-								rowlength.set(index, rowbody.get(index).toString().length() > 100 ? 100 : rowbody.get(index).toString().length());
+							if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString().length()) {
+								rowlength.set(index, body.get(index).toString().length() > 100 ? 100 : body.get(index).toString().length());
 							}
 
 						} catch (NullPointerException e) {
-							rowbody.add(null);
+							body.add(null);
 						} catch (Exception e) {
-							rowbody.add(e.toString());
+							body.add(e.toString());
 						}
-
 					}
-					list.add(rowbody);
+
+					rowbody.add(body);
 
 				}
 
-				list.add(1, rowlength);
+				result.put("rowbody", rowbody);
+				result.put("rowlength", rowlength);
 			} else {
+
+				List<String> element = new ArrayList<String>();
 				for (int i = 0; i < typelst.size(); i++) {
-					List<String> element = new ArrayList<String>();
+
 					element.add(callStmt1.getString(i + 1) + "");
-					list.add(element);
+
 				}
+
+				result.put("rowbody", element);
 			}
 
-			return list;
+			return result;
 		} finally {
 			if (rs != null) {
 				try {

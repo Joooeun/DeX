@@ -364,31 +364,30 @@ var tableHeight=0;
 
 				var newline = $("#newline").prop('checked');
 				
-				
-				
 
-				if (result.length > 0) {
+				if (result.rowhead!=null) {
 					
-					if(column.filter((it, idx)=>it.title==(result[0][idx]??'').split("//")[0]).length==result[0].length){
+					if(column.filter((it, idx)=>it.title==result.rowhead[idx].title).length==result.rowhead.length){
 						
 					}else{
 						column = []
-						for (var title = 0; title < result[0].length; title++) {
-							if (result[0][title].split("//")[1]) {
+						for (var title = 0; title < result.rowhead.length; title++) {
+							if (result.rowhead[title].rowlength) {
 								var calwidth = result[1].reduce((ac, cur) =>
 									ac + cur,
 									0, ) * 9
 
 								var culmnitem = {
-									title: result[0][title].split("//")[0],
-									field: result[0][title].split("//")[0],
+									title: result.rowhead[title].title,
+									field: result.rowhead[title].title,
+									headerTooltip: result.rowhead[title].desc
 								}
 
-								if (result[1][title] >= 50) {
-									culmnitem.width = 4 * result[1][title] / 10 + 'vw';
+								if (result.rowhead[title].rowlength >= 50) {
+									culmnitem.width = 4 * result.rowhead[title].rowlength / 10 + 'vw';
 								}
 
-								if (['-6', '5', '4', '6', '7', '8', '2', '-5', '3'].includes(result[0][title].split("//")[1])) {
+								if (['-6', '5', '4', '6', '7', '8', '2', '-5', '3'].includes(result.rowhead[title].type)) {
 									culmnitem.hozAlign = "right";
 								} else {
 									if (newline) {
@@ -403,8 +402,8 @@ var tableHeight=0;
 
 							} else {
 								column.push({
-									title: result[0][title],
-									field: result[0][title]
+									title: result.rowhead[title].title,
+									field:  result.rowhead[title].title
 								});
 							}
 						}
@@ -412,12 +411,13 @@ var tableHeight=0;
 
 					
 
-					chart(result.filter((it,idx)=>idx!=1));
+					chart(result);
 				}
 				
 				var v_buffer = 40;
 
-				data = result.slice(result[0][0].split("//")[1] ? 2 : 1).map((item, index) => {
+				data = result.rowbody.map((item, index) => {
+					
 					var obj = {};
 					item.map((it, idx) => {
 						
@@ -462,7 +462,11 @@ var tableHeight=0;
 					rowFormatter: function(row) {
 						row.getElement().classList.add("Resultrow");
 					},
-
+					columnDefaults:{
+				        headerTooltip:function(e,cell,onRendered){
+				            return result.rowhead.find((item)=>item.title ==cell.getField()).desc; 
+				        },
+				    }
 				}
 			    
 				table = new Tabulator("#result_table", {
@@ -573,29 +577,17 @@ var tableHeight=0;
 	function chart(result) {
 
 		myChart.destroy();
+		
+		var chardata = transpose(result.rowbody)
 
-		var chardata = transpose(result)
-
-
-
-		var labels = chardata[0].slice(1, chardata[0].length);
-
+		var labels = result.rowhead.map((item)=>item.title);
+		
 		var datasets = [];
-		var maxdata = 0;
+		var maxdata = 0;	
 
-		for (var i = 1; i < chardata.length; i++) {
-			var data = chardata[i].slice(1, chardata[i].length).map((x) => {
-				return parseInt(x)
-			});
-			if (maxdata < Math.max(...data)) {
-				maxdata = Math.max(...data);
-			}
-		}
+		for (var i = 1; i < labels.length; i++) {
 
-
-		for (var i = 1; i < chardata.length; i++) {
-
-			var label = chardata[i][0].split("//")[0];
+			var label = labels[i];
 
 			var data = chardata[i].slice(1, chardata[i].length).map((x) => {
 				return parseInt(x)
@@ -607,10 +599,9 @@ var tableHeight=0;
 
 			datasets.push({
 				label: label,
-				data: data,
+				data: result.rowbody.map((item)=>{return item[i]}),
 				fill: false,
 				borderColor: graphcolor[i - 1],
-				/* backgroundColor :  graphcolor[i]+"80", */
 				tension: 0.1,
 				hidden: Math.max(...data) < maxdata / 10
 			})

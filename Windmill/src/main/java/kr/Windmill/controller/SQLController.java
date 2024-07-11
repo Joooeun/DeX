@@ -192,7 +192,7 @@ public class SQLController {
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/excute")
-	public List<List> excute(HttpServletRequest request, Model model, HttpSession session, @ModelAttribute LogInfoDTO data) throws ClassNotFoundException, IOException {
+	public Map<String, List> excute(HttpServletRequest request, Model model, HttpSession session, @ModelAttribute LogInfoDTO data) throws ClassNotFoundException, IOException {
 
 		data.setStart(Instant.now());
 		data.setId(session.getAttribute("memberId").toString());
@@ -214,7 +214,7 @@ public class SQLController {
 			}
 		}
 
-		List<List> list = new ArrayList<List>();
+		Map<String, List> result = new HashMap();
 		PreparedStatement pstmt = null;
 
 		try {
@@ -225,7 +225,7 @@ public class SQLController {
 
 			if (sql.toUpperCase().startsWith("CALL")) {
 				cLog.log_line(data, "start============================================\n" + sql + "\nend==============================================");
-				list.addAll(com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop));
+				result = com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop);
 				data.setEnd(Instant.now());
 				data.setResult("Success");
 				data.setSql(sql);
@@ -236,8 +236,8 @@ public class SQLController {
 
 			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH") || sql.toUpperCase().startsWith("VALUE")) {
 				cLog.log_line(data, "start============================================\n" + sql + "\nend==============================================");
-				list.addAll(com.excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit()));
-				data.setRows(list.size() - 1);
+				result = com.excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit());
+				data.setRows(result.get("rowbody").size() - 1);
 				data.setEnd(Instant.now());
 				data.setResult("Success");
 				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
@@ -247,12 +247,25 @@ public class SQLController {
 
 			} else {
 
-				List<String> headRow;
-				headRow = new ArrayList<>();
-				headRow.add("Result");
-				headRow.add("Updated Rows");
-				headRow.add("Query");
-				list.add(headRow);
+				List<Map> rowhead = new ArrayList<>();
+
+				rowhead.add(new HashMap<String, String>() {
+					{
+						put("title", "Result");
+					}
+				});
+				rowhead.add(new HashMap<String, String>() {
+					{
+						put("title", "Updated Rows");
+					}
+				});
+				rowhead.add(new HashMap<String, String>() {
+					{
+						put("title", "Query");
+					}
+				});
+
+				result.put("rowhead", rowhead);
 
 				String sqlOrg = sql.trim();
 
@@ -268,9 +281,13 @@ public class SQLController {
 
 					Instant singleStart = Instant.now();
 
-					List<List<String>> singleList = com.updatequery(sql.trim(), connection.getDbtype(), connection.getJdbc(), prop, null);
+					List<List<String>> singleList = new ArrayList<List<String>>();
 
-					list.addAll(singleList);
+					if (result.get("rowbody") != null)
+						singleList.addAll(result.get("rowbody"));
+					singleList.addAll(com.updatequery(sql.trim(), connection.getDbtype(), connection.getJdbc(), prop, null));
+
+					result.put("rowbody", singleList);
 
 					Duration timeElapsed = Duration.between(singleStart, Instant.now());
 					data.setResult("Success");
@@ -285,21 +302,40 @@ public class SQLController {
 
 		} catch (SQLException e1) {
 
-			List<String> element = new ArrayList<String>();
+			if (result.size() == 0) {
+				List<Map> rowhead = new ArrayList<>();
 
-			if (list.size() == 0) {
-				element.add("Result");
-				element.add("Updated Rows");
-				element.add("Query");
-				list.add(element);
+				rowhead.add(new HashMap<String, String>() {
+					{
+						put("title", "Result");
+					}
+				});
+				rowhead.add(new HashMap<String, String>() {
+					{
+						put("title", "Updated Rows");
+					}
+				});
+				rowhead.add(new HashMap<String, String>() {
+					{
+						put("title", "Query");
+					}
+				});
 
-				element = new ArrayList<>();
+				result.put("rowhead", rowhead);
 			}
 
+			List<List<String>> singleList = new ArrayList<List<String>>();
+			if (result.get("rowbody") != null)
+				singleList.addAll(result.get("rowbody"));
+
+			List<String> element = new ArrayList<String>();
 			element.add(e1.toString());
 			element.add("0");
 			element.add(sql);
-			list.add(element);
+
+			singleList.add(element);
+
+			result.put("rowbody", singleList);
 
 			if (log.length() > 0) {
 				cLog.log_line(data, log);
@@ -316,7 +352,7 @@ public class SQLController {
 			e1.printStackTrace();
 		}
 
-		return list;
+		return result;
 	}
 
 	public static List<Map<String, ?>> getfiles(String root, int depth) {
