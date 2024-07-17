@@ -79,6 +79,8 @@ var column=[];
 var data;
 var tableoption;
 
+var temp_column;
+
 var tableHeight=0;
 
 	$(document).ready(function() {
@@ -349,6 +351,8 @@ var tableHeight=0;
 			},
 			success: function(result, status, jqXHR) {
 				
+				
+				
 				if(tableHeight==0){
 					tableHeight = Math.max(200,$("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 200);
 				}
@@ -367,9 +371,10 @@ var tableHeight=0;
 
 				if (result.rowhead!=null) {
 					
-					if(column.filter((it, idx)=>it.title==result.rowhead[idx].title).length==result.rowhead.length){
+					if(JSON.stringify(result.rowhead)==JSON.stringify(temp_column)){
 						
 					}else{
+						temp_column = result.rowhead
 						column = []
 						for (var title = 0; title < result.rowhead.length; title++) {
 							if (result.rowhead[title].rowlength) {
@@ -379,7 +384,7 @@ var tableHeight=0;
 
 								var culmnitem = {
 									title: result.rowhead[title].title,
-									field: result.rowhead[title].title,
+									field: title+'',
 									headerTooltip: result.rowhead[title].desc
 								}
 
@@ -403,7 +408,7 @@ var tableHeight=0;
 							} else {
 								column.push({
 									title: result.rowhead[title].title,
-									field:  result.rowhead[title].title
+									field: title+'',
 								});
 							}
 						}
@@ -411,6 +416,7 @@ var tableHeight=0;
 
 					
 
+					if(result.rowbody.length>0)
 					chart(result);
 				}
 				
@@ -432,9 +438,9 @@ var tableHeight=0;
 							if(v_buffer<text.split("\n").length){
 								v_buffer = text.split("\n").length
 							}
-							obj[column[idx].title] = text;
+							obj[column[idx].field] = text;
 						}else{
-							obj[column[idx].title] = undefined
+							obj[column[idx].field] = undefined
 						}
 						
 					
