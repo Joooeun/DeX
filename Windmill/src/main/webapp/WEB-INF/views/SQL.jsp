@@ -375,13 +375,14 @@ var tableHeight=0;
 						
 					}else{
 						temp_column = result.rowhead
-						column = []
+						column = [];
+						
+						
 						for (var title = 0; title < result.rowhead.length; title++) {
-							if (result.rowhead[title].rowlength) {
-								var calwidth = result[1].reduce((ac, cur) =>
-									ac + cur,
-									0, ) * 9
-
+							
+							
+							if (result.rowlength) {
+							
 								var culmnitem = {
 									title: result.rowhead[title].title,
 									field: title+'',
@@ -392,7 +393,8 @@ var tableHeight=0;
 									culmnitem.width = 4 * result.rowhead[title].rowlength / 10 + 'vw';
 								}
 
-								if (['-6', '5', '4', '6', '7', '8', '2', '-5', '3'].includes(result.rowhead[title].type)) {
+								
+								if ([-6, 5, 4, 6, 7, 8, 2, -5, 3].includes(result.rowhead[title].type)) {
 									culmnitem.hozAlign = "right";
 								} else {
 									if (newline) {
@@ -470,7 +472,7 @@ var tableHeight=0;
 					},
 					columnDefaults:{
 				        headerTooltip:function(e,cell,onRendered){
-				            return result.rowhead.find((item)=>item.title ==cell.getField()).desc; 
+				            return result.rowhead.find((item,idx)=> (idx+'') == cell.getField()).desc; 
 				        },
 				    }
 				}
@@ -590,22 +592,19 @@ var tableHeight=0;
 		
 		var datasets = [];
 		var maxdata = 0;	
+		
 
 		for (var i = 1; i < labels.length; i++) {
-
-			var label = labels[i];
-
-			var data = chardata[i].slice(1, chardata[i].length).map((x) => {
-				return parseInt(x)
-			});
-
+			
+			var data = result.rowbody.map((item)=>parseInt(item[i])) 
+			
 			if (maxdata < Math.max(...data)) {
 				maxdata = Math.max(...data);
 			}
 
 			datasets.push({
-				label: label,
-				data: result.rowbody.map((item)=>{return item[i]}),
+				label: labels[i],
+				data: data,
 				fill: false,
 				borderColor: graphcolor[i - 1],
 				tension: 0.1,
@@ -615,7 +614,7 @@ var tableHeight=0;
 
 
 		const datas = {
-			labels: labels,
+			labels: result.rowbody.map((item)=>item[0]),
 			datasets: datasets
 		};
 
