@@ -28,7 +28,6 @@ public class SampleController {
 	Common com = new Common();
 	Log cLog = new Log();
 
-
 	@RequestMapping(path = "/", method = RequestMethod.GET)
 	public String sample() {
 		return "redirect:/index";
@@ -53,7 +52,12 @@ public class SampleController {
 
 			Map<String, String> map = com.UserConf(request.getParameter("id"));
 
-//			if (map.get("IP").equals(getIp(request))) {
+			if (!map.get("IP").equals("") && !map.get("IP").equals(com.getIp(request))) {
+
+				logger.info(request.getParameter("id") + " 로그인 실패.. 접속 ip : " + com.getIp(request));
+				model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
+				return "/common/messageRedirect";
+			}
 
 			if (map.get("PW").equals(request.getParameter("pw"))) {
 
@@ -67,17 +71,10 @@ public class SampleController {
 				return "redirect:/index";
 
 			} else {
-				cLog.userLog(request.getParameter("id"), com.getIp(request),
-						" 로그인 실패 / 입력 : " + request.getParameter("pw"));
+				cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 실패 / 입력 : " + request.getParameter("pw"));
 				model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
 				return "/common/messageRedirect";
 			}
-
-//			} else {
-//				logger.info(request.getParameter("id") + " 로그인 실패.. 접속 ip : " + getIp(request));
-//				model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
-//				return "/common/messageRedirect";
-//			}
 
 		} else {
 
