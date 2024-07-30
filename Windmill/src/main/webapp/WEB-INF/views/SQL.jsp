@@ -64,6 +64,15 @@
 .tabulator-tableholder {
 	height: calc(85vh - 31px) !important;
 }
+
+@font-face {
+  font-family: 'D2Coding';
+  src: url('../fonts/D2Coding.ttf');
+}
+
+#result_table{
+	font-family: D2Coding!important;
+}
 </style>
 <script>
 
