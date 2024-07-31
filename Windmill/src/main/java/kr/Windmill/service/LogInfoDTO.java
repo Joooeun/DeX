@@ -60,7 +60,7 @@ public class LogInfoDTO {
 	}
 
 	public String getSql() {
-		return sql;
+		return sql.trim();
 	}
 
 	public void setSql(String sql) {

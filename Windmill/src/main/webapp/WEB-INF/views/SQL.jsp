@@ -226,11 +226,13 @@ var tableHeight=0;
 				return;
 			
 			if ($(this).prop('checked')) {
+				
+				column = column.map((item)=>{
+					return {...item, formatter : "textarea", width:undefined}
+				});
 				table = new Tabulator("#result_table", {
 					data: data,
-					columns: column.map((item)=>{
-						return {...item, formatter : "textarea", width:undefined}
-						}),
+					columns: column,
 					...tableoption,
 					height: $('#result_table').hasClass( "in" )?"85vh":tableoption.height,
 				});
@@ -242,9 +244,12 @@ var tableHeight=0;
 				
 				
 			} else {
+				
+				column = column.map((item)=>{return {...item, formatter : "plaintext"}});
+				
 				table = new Tabulator("#result_table", {
 					data: data,
-					columns: column.map((item)=>{return {...item, formatter : "plaintext"}}),
+					columns: column,
 					...tableoption,
 					height: $('#result_table').hasClass( "in" )?"85vh":tableoption.height,
 				});

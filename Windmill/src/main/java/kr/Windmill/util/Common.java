@@ -615,7 +615,7 @@ public class Common {
 			String callcheckstr = "";
 
 			String prcdname = "";
-			prcdname = sql.substring(sql.indexOf("CALL") + 4, sql.indexOf("("));
+			prcdname = sql.substring(sql.indexOf("CALL") + 6, sql.indexOf("("));
 			if (prcdname.contains(".")) {
 				prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
 			}
