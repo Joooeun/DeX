@@ -260,9 +260,15 @@ var tableHeight=0;
 			$('.container__lines').scrollTop($('.formtextarea').scrollTop());
 		});
 
-		$(document).on("click", "#save", function() {
+		$(document).on("click", "#save_excel", function() {
 			table.download("xlsx", `${title}_${memberId}_` + dateFormat()+".xlsx");
 		});
+		
+		$(document).on("click", "#save_csv", function() {
+			table.download("csv", `${title}_${memberId}_` + dateFormat()+".csv");
+		});
+		
+		
 		
 		$("#expenda").click(function() {
 		    $([document.documentElement, document.body]).animate({
@@ -855,9 +861,14 @@ var tableHeight=0;
 							<div role="tabpanel" class="tab-pane active" id="result">
 								<div style="display: flex; justify-content: space-between;">
 									<span id="result-text"></span>
-									<button id="save" class="btn btn-default buttons-excel buttons-html5" type="button" style="display: none;">
-										<span><i class="fa fa-floppy-o"></i></span>
-									</button>
+									<div id="save" style="display: flex; display: none;">
+										<button id="save_excel" class="btn btn-default buttons-excel buttons-html5" type="button">
+											<span><i class="fa fa-floppy-o"></i> Excel</span>
+										</button>
+										<button id="save_csv" class="btn btn-default buttons-csv buttons-html5" type="button">
+											<span><i class="fa fa-floppy-o"></i> CSV</span>
+										</button>
+									</div>
 								</div>
 								<div id="result_table" class="tabulator-placeholder table-striped table-bordered" style="display: block"></div>
 								<a role="button" id="expenda" class="collapsed" data-toggle="collapse" href="#result_table" aria-expanded="false" aria-controls="result_table"></a>
