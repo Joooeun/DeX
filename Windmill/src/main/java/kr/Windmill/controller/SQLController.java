@@ -228,6 +228,8 @@ public class SQLController {
 		Map<String, List> result = new HashMap();
 		PreparedStatement pstmt = null;
 
+		data.setParamList(com.getJsonObjectFromString(data.getParams()));
+
 		try {
 
 			cLog.log_start(data, log + "\nmenu 실행 시작\n");
@@ -235,19 +237,18 @@ public class SQLController {
 			String row = "";
 
 			if (sql.toUpperCase().startsWith("CALL")) {
-				cLog.log_line(data, "start============================================\n" + sql + "\nend==============================================");
-				result = com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop);
+				cLog.log_line(data, "start============================================\n" + data.getLogsql() + "\nend==============================================");
+				result = com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getParamList());
 				data.setEnd(Instant.now());
 				data.setResult("Success");
-				data.setSql(sql);
 				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
 
 				cLog.log_end(data, " sql 실행 종료 : 성공 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 				cLog.log_DB(data);
 
 			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH") || sql.toUpperCase().startsWith("VALUE")) {
-				cLog.log_line(data, "start============================================\n" + sql + "\nend==============================================");
-				result = com.excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit());
+				cLog.log_line(data, "start============================================\n" + data.getLogsql() + "\nend==============================================");
+				result = com.excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit(), data.getParamList());
 				data.setRows(result.get("rowbody").size() - 1);
 				data.setEnd(Instant.now());
 				data.setResult("Success");
@@ -279,16 +280,22 @@ public class SQLController {
 				result.put("rowhead", rowhead);
 
 				String sqlOrg = sql.trim();
+				String logsqlOrg = data.getLogsql().trim();
 
-				for (String singleSql : sqlOrg.split(";")) {
+				for (int i = 0; i < sqlOrg.split(";").length; i++) {
+
+					String singleSql = sqlOrg.split(";")[i];
 
 					if (singleSql.trim().length() == 0) {
 						continue;
 					}
 
 					sql = singleSql.trim() + ";";
-					cLog.log_line(data, "start============================================\n" + sql + "\nend==============================================");
+					String logsql = logsqlOrg.split(";")[i].trim() + ";";
+
+					cLog.log_line(data, "start============================================\n" + logsql + "\nend==============================================");
 					data.setSql(sql);
+					data.setLogsql(logsql);
 
 					Instant singleStart = Instant.now();
 
@@ -296,15 +303,15 @@ public class SQLController {
 
 					if (result.get("rowbody") != null)
 						singleList.addAll(result.get("rowbody"));
-					singleList.addAll(com.updatequery(sql.trim(), connection.getDbtype(), connection.getJdbc(), prop, null));
+					singleList.addAll(com.updatequery(sql.trim(), connection.getDbtype(), connection.getJdbc(), prop, null, data.getParamList()));
 
 					result.put("rowbody", singleList);
 
 					Duration timeElapsed = Duration.between(singleStart, Instant.now());
 					data.setResult("Success");
 					data.setDuration(timeElapsed.toMillis());
-					row = " / " + data.getSqlType() + " rows : " + singleList.get(0).get(1).toString();
-					data.setRows(Integer.parseInt(singleList.get(0).get(1)));
+					row = " / " + data.getSqlType() + " rows : " + singleList.get(i).get(1).toString();
+					data.setRows(Integer.parseInt(singleList.get(i).get(1)));
 
 					cLog.log_end(data, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 					cLog.log_DB(data);
