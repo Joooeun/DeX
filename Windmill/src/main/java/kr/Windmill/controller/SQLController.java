@@ -2,6 +2,10 @@ package kr.Windmill.controller;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.sql.Driver;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
@@ -195,7 +199,7 @@ public class SQLController {
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/excute")
-	public Map<String, List> excute(HttpServletRequest request, Model model, HttpSession session, @ModelAttribute LogInfoDTO data) throws ClassNotFoundException, IOException {
+	public Map<String, List> excute(HttpServletRequest request, Model model, HttpSession session, @ModelAttribute LogInfoDTO data) throws ClassNotFoundException, IOException, InstantiationException, IllegalAccessException, SQLException {
 
 		data.setStart(Instant.now());
 		data.setId(session.getAttribute("memberId").toString());
@@ -204,7 +208,15 @@ public class SQLController {
 		ConnectionDTO connection = com.getConnection(data.getConnection());
 		Properties prop = connection.getProp();
 
-		Class.forName(connection.getDriver());
+//		Class.forName(connection.getDriver());
+		
+		System.out.println(getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator);
+		
+		URL u = new URL("jar:file:"+getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator+"/lib/"+connection.getJar()+"!/");
+		String classname = connection.getDriver();
+		URLClassLoader ucl = new URLClassLoader(new URL[] { u });
+		Driver d = (Driver)Class.forName(classname, true, ucl).newInstance();
+		DriverManager.registerDriver(new DriverShim(d));
 		prop.put("clientProgramName", "DeX");
 
 		String sql = data.getSql();

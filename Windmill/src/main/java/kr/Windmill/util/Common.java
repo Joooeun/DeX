@@ -436,11 +436,18 @@ public class Common {
 		String dbtype = map.get("DBTYPE") == null ? "DB2" : map.get("DBTYPE");
 		String driver = "";
 		String jdbc = "";
+		String jar = "";
 
 		switch (dbtype) {
 		case "DB2":
 			driver = "com.ibm.db2.jcc.DB2Driver";
 			jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
+			jar= "jcc-11.5.9.0.jar";
+			break;
+		case "DB21":
+			driver = "com.ibm.db2.jcc.DB2Driver";
+			jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
+			jar= "jcc-11.5.0.0.jar";
 			break;
 		case "ORACLE":
 			driver = "oracle.jdbc.driver.OracleDriver";
@@ -469,6 +476,7 @@ public class Common {
 		connection.setDriver(driver);
 		connection.setJdbc(jdbc);
 		connection.setDbName(connectionId);
+		connection.setJar(jar);
 
 		return connection;
 	}

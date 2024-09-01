@@ -10,6 +10,7 @@ public class ConnectionDTO {
 	private String driver;
 	private String jdbc;
 	private String dbName;
+	private String jar;
 	
 
 	public Properties getProp() {
@@ -51,5 +52,15 @@ public class ConnectionDTO {
 	public void setDbName(String dbName) {
 		this.dbName = dbName;
 	}
+
+	public String getJar() {
+		return jar;
+	}
+
+	public void setJar(String jar) {
+		this.jar = jar;
+	}
+	
+	
 
 }
