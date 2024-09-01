@@ -53,6 +53,7 @@ public class Common {
 	public static String tempPath = "";
 	public static String RootPath = "";
 	public static String LogDB = "";
+	public static String DownloadIP = "";
 	public static String LogCOL = "";
 	public static int Timeout = 15;
 
@@ -81,6 +82,7 @@ public class Common {
 		UserPath = props.getProperty("Root") + File.separator + "user" + File.separator;
 		Timeout = Integer.parseInt(props.getProperty("Timeout") == null ? "15" : props.getProperty("Timeout"));
 		LogDB = props.getProperty("LogDB");
+		DownloadIP = props.getProperty("DownloadIP");
 		LogCOL = props.getProperty("LogCOL");
 		logger.info("RootPath : " + RootPath + " / Timeout : " + Timeout + " / LogDB : " + LogDB);
 

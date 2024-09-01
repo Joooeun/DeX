@@ -132,11 +132,14 @@ public class SQLController {
 
 			}
 
+			boolean DownloadEnable = com.getIp(request).matches(com.DownloadIP);
+
 			mv.addObject("sql", sql);
 			mv.addObject("Param", Param);
 			mv.addObject("ShortKey", ShortKey);
 			mv.addObject("Excute", request.getParameter("excute") == null ? false : request.getParameter("excute"));
 			mv.addObject("Connection", session.getAttribute("Connection"));
+			mv.addObject("DownloadEnable", DownloadEnable);
 
 		} catch (IOException e) {
 

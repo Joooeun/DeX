@@ -65,11 +65,6 @@
 	height: calc(85vh - 31px) !important;
 }
 
-@font-face {
-  font-family: 'D2Coding';
-  src: url('../fonts/D2Coding.ttf');
-}
-
 #result_table{
 	font-family: D2Coding!important;
 }
@@ -861,6 +856,7 @@ var tableHeight=0;
 							<div role="tabpanel" class="tab-pane active" id="result">
 								<div style="display: flex; justify-content: space-between;">
 									<span id="result-text"></span>
+									<c:if test="${DownloadEnable == 'true'}">
 									<div id="save" style="display: flex; display: none;">
 										<button id="save_excel" class="btn btn-default buttons-excel buttons-html5" type="button">
 											<span><i class="fa fa-floppy-o"></i> Excel</span>
@@ -869,6 +865,7 @@ var tableHeight=0;
 											<span><i class="fa fa-floppy-o"></i> CSV</span>
 										</button>
 									</div>
+									</c:if>
 								</div>
 								<div id="result_table" class="tabulator-placeholder table-striped table-bordered" style="display: block"></div>
 								<a role="button" id="expenda" class="collapsed" data-toggle="collapse" href="#result_table" aria-expanded="false" aria-controls="result_table"></a>
