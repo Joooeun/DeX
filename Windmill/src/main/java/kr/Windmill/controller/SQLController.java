@@ -208,14 +208,10 @@ public class SQLController {
 		ConnectionDTO connection = com.getConnection(data.getConnection());
 		Properties prop = connection.getProp();
 
-//		Class.forName(connection.getDriver());
-		
-		System.out.println(getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator);
-		
-		URL u = new URL("jar:file:"+getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator+"/lib/"+connection.getJar()+"!/");
+		URL u = new URL("jar:file:" + com.RootPath + "jdbc" + File.separator + connection.getJar() + "!/");
 		String classname = connection.getDriver();
 		URLClassLoader ucl = new URLClassLoader(new URL[] { u });
-		Driver d = (Driver)Class.forName(classname, true, ucl).newInstance();
+		Driver d = (Driver) Class.forName(classname, true, ucl).newInstance();
 		DriverManager.registerDriver(new DriverShim(d));
 		prop.put("clientProgramName", "DeX");
 

@@ -56,13 +56,32 @@ public class ConnectionController {
 			Map<String, String> map = com.UserConf(id);
 			List<String> strList = new ArrayList<>(Arrays.asList(map.get("CONNECTION").split(",")));
 
-			
-			return dblist.stream().filter(con ->
-			strList.contains(con.split("\\.")[0])).collect(Collectors.toList());
+			return dblist.stream().filter(con -> strList.contains(con.split("\\.")[0])).collect(Collectors.toList());
 
 		}
 
 		return dblist;
+	}
+
+	@ResponseBody
+	@RequestMapping(path = "/JDBC/list")
+	public List<String> JDBC_list(HttpServletRequest request, Model model, HttpSession session) {
+
+		List<String> jdbc_list = new ArrayList<>();
+
+		File dirFile = new File(com.RootPath + "jdbc");
+		File[] fileList = dirFile.listFiles();
+		Arrays.sort(fileList);
+		for (File tempFile : fileList) {
+			if (tempFile.isFile()) {
+
+				String tempFileName = tempFile.getName();
+
+				jdbc_list.add(tempFileName);
+
+			}
+		}
+		return jdbc_list;
 	}
 
 	@ResponseBody
@@ -92,7 +111,8 @@ public class ConnectionController {
 			}
 			str += "USER=" + request.getParameter("USER") + "\n";
 			str += "PW=" + request.getParameter("PW") + "\n";
-			str += "DBTYPE=" + request.getParameter("DBTYPE");
+			str += "DBTYPE=" + request.getParameter("DBTYPE") + "\n";
+			str += "JDBC=" + request.getParameter("JDBC");
 
 			fw.write(com.cryptStr(str));
 			fw.close();

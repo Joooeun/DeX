@@ -69,6 +69,25 @@ var arr;
 					}
 				});
 				
+				$.ajax({
+					type : 'post',
+					url : "/JDBC/list",
+					data : {
+						TYPE : ""
+					},
+					success : function(result) {
+						for (var i = 0; i < result.length; i++) {
+							$('#JDBC').append(
+									"<option value='" + result[i]
+											+ "'>" + result[i]
+											+ "</option>");
+						}
+					},
+					error : function() {
+						alert("시스템 에러");
+					}
+				});
+				
 				$('#query').on({
 				    "focus": function() {
 				    $(this).parent().css('border-color', '#CCCCCC');
@@ -120,6 +139,7 @@ var arr;
 			$('#USER').val('');
 			$('#PW').val('');
 			$('#DBTYPE').val('');
+			$('#JDBC').val('');
 			return;
 		} else {
 			$('#name_input').css("display", "none");
@@ -144,6 +164,9 @@ var arr;
 				$('#PW').val(result.PW);
 				$('#DBTYPE').val(result.DBTYPE);
 				$('#DBTYPE').val(result.DBTYPE).prop("selected", true);
+
+				$('#JDBC').val(result.JDBC);
+				$('#JDBC').val(result.JDBC).prop("selected", true);
 			},
 			error : function() {
 				alert("시스템 에러");
@@ -166,7 +189,8 @@ var arr;
 				DB : $('#DB').val(),
 				USER : $('#USER').val(),
 				PW : $('#PW').val(),
-				DBTYPE : $('#DBTYPE').val()
+				DBTYPE : $('#DBTYPE').val(),
+				JDBC : $('#JDBC').val()
 			},
 			success : function(result) {
 				alert("저장 되었습니다.");
@@ -194,7 +218,7 @@ var arr;
 	<section class="content">
 		<div class="row" style="margin: 0">
 			<div class="col-md-1 autocomplete-wrapper" style="width: 170px">
-				<input class="form-control" type="text" id="query" autocomplete="off" placeholder="아이디 검색">
+				<input class="form-control" type="text" id="query" autocomplete="off" placeholder="검색">
 				<ul id="query-results"></ul>
 			</div>
 			<div class="col-md-1" style="width: 200px">
@@ -213,11 +237,11 @@ var arr;
 			<form role="form-horizontal" onsubmit="save()">
 				<div class="box-body">
 					<div class="form-group row">
-						<div class="col-md-4" style="margin: 2px 0; display: none;" id="name_input">
+						<div class="col-md-3" style="margin: 2px 0; display: none;" id="name_input">
 							<label for="NAME">NAME</label>
 							<input type="text" class="form-control" id="NAME" placeholder="NAME" name="NAME">
 						</div>
-						<div class="col-md-4" style="margin: 2px 0;">
+						<div class="col-md-3" style="margin: 2px 0;">
 							<label for="TYPE">TYPE</label>
 							<select class="form-control" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." id="TYPE" name="TYPE">
 								<option value="" selected disabled hidden>TYPE</option>
@@ -227,35 +251,41 @@ var arr;
 						</div>
 					</div>
 					<div class="form-group row">
-						<div class="col-md-4" style="margin: 2px 0;">
+						<div class="col-md-3" style="margin: 2px 0;">
 							<label for="IP">IP</label>
 							<input type="text" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." class="form-control" id="IP" placeholder="IP" name="IP">
 						</div>
-						<div class="col-md-4" style="margin: 2px 0;">
+						<div class="col-md-3" style="margin: 2px 0;">
 							<label for="PORT">PORT</label>
 							<input type="text" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." class="form-control" id="PORT" placeholder="PORT" name="PORT">
 						</div>
-						<div class="col-md-4" style="margin: 2px 0;" id="form_DB">
+						<div class="col-md-3" style="margin: 2px 0;" id="form_DB">
 							<label for="DB">DB</label>
 							<input type="text" class="form-control" id="DB" placeholder="DB" name="DB">
 						</div>
 					</div>
 					<div class="form-group row">
-						<div class="col-md-4" style="margin: 2px 0;">
+						<div class="col-md-3" style="margin: 2px 0;">
 							<label for="DBTYPE">DB TYPE</label>
-							<select class="form-control" id="DBTYPE" name="DBTYPE">
-								<option value="" selected disabled hidden>DB TYPE</option>
+							<select class="form-control" id="DBTYPE" name="DBTYPE" required="required">
+								<option value="" selected disabled hidden>선택하세요</option>
 								<option value="ORACLE">ORACLE</option>
 								<option value="DB2">DB2</option>
 								<option value="Tibero">Tibero</option>
 								<option value="PostgreSQL">PostgreSQL</option>
 							</select>
 						</div>
-						<div class="col-md-4" style="margin: 2px 0;">
+						<div class="col-md-3" style="margin: 2px 0;">
+							<label for="JDBC">JDBC</label>
+							<select class="form-control" id="JDBC" name="JDBC" required="required">
+								<option value="" selected disabled hidden>선택하세요</option>
+							</select>
+						</div>
+						<div class="col-md-3" style="margin: 2px 0;">
 							<label for="USER">USER</label>
 							<input type="text" class="form-control" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." id="USER" placeholder="USER" name="USER">
 						</div>
-						<div class="col-md-4" style="margin: 2px 0;">
+						<div class="col-md-3" style="margin: 2px 0;">
 							<label for="PW">PW</label>
 							<input type="text" class="form-control" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." id="PW" placeholder="PW" name="PW">
 						</div>
@@ -269,4 +299,3 @@ var arr;
 		</div>
 	</section>
 </div>
-No newline at end of file
