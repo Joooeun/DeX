@@ -65,8 +65,8 @@
 	height: calc(85vh - 31px) !important;
 }
 
-#result_table{
-	font-family: D2Coding!important;
+#result_table {
+	font-family: D2Coding !important;
 }
 </style>
 <script>
@@ -321,7 +321,9 @@ var tableHeight=0;
 	async function excute() {
 
 		var sql = $("#sql_text").val() ?? sql_text;
+		var logsql = $("#sql_text").val() ?? sql_text;
 		var log = {};
+		var params=[];
 
 		for (var i = 0; i < $(".paramvalue").length; i++) {
 
@@ -330,18 +332,24 @@ var tableHeight=0;
 				return;
 			}
 
-			if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
-				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
-			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'varchar') {
-				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val().replace(/'/g, "''") + '\'');
-			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'text') {
-				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val().replace(/'/g, "''"));
-			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'sql') {
+		 	if ($(".paramvalue").eq(i).attr('paramtype') == 'sql') {
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
+				logsql = logsql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'number') {
 				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
+				logsql = logsql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
 			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'log' && $(".paramvalue").eq(i).val().length > 0) {
 				log[$(".paramvalue").eq(i).attr('paramtitle')] = $(".paramvalue").eq(i).val()
+			} else{
+				params.push({title:$(".paramvalue").eq(i).attr('paramtitle'), value:$(".paramvalue").eq(i).val(), type : $(".paramvalue").eq(i).attr('paramtype')});
+				
+				if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
+					logsql = logsql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
+				} else if ($(".paramvalue").eq(i).attr('paramtype') == 'varchar') {
+					logsql = logsql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val().replace(/'/g, "''") + '\'');
+				} else if ($(".paramvalue").eq(i).attr('paramtype') == 'text') {
+					logsql = logsql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val().replace(/'/g, "''"));
+				}
 			}
 		}
 
@@ -355,25 +363,23 @@ var tableHeight=0;
 			type: 'post',
 			url: '/SQL/excute',
 			data: {
-				sql: sql.trim(),
+				sql: sql,
+				logsql: logsql,
 				log: JSON.stringify(log),
 				Path: '${title}',
 				autocommit: true,
 				/* autocommit : $("#autocommit").prop('checked'), */
 				audit: ${audit == null ? false : audit},
 				Connection: $("#connectionlist").val(),
-				limit: $("#limit").val()
+				limit: $("#limit").val(),
+				params : JSON.stringify(params)
 			},
 			success: function(result, status, jqXHR) {
-				
-				
 				
 				if(tableHeight==0){
 					tableHeight = Math.max(200,$("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 200);
 				}
 				
-
-
 				if (jqXHR.getResponseHeader("SESSION_EXPIRED") === "true") {
 					alert("세션이 만료되었습니다.");
 					window.parent.location.href = "/Login";
@@ -857,14 +863,14 @@ var tableHeight=0;
 								<div style="display: flex; justify-content: space-between;">
 									<span id="result-text"></span>
 									<c:if test="${DownloadEnable == 'true'}">
-									<div id="save" style="display: flex; display: none;">
-										<button id="save_excel" class="btn btn-default buttons-excel buttons-html5" type="button">
-											<span><i class="fa fa-floppy-o"></i> Excel</span>
-										</button>
-										<button id="save_csv" class="btn btn-default buttons-csv buttons-html5" type="button">
-											<span><i class="fa fa-floppy-o"></i> CSV</span>
-										</button>
-									</div>
+										<div id="save" style="display: flex; display: none;">
+											<button id="save_excel" class="btn btn-default buttons-excel buttons-html5" type="button">
+												<span><i class="fa fa-floppy-o"></i> Excel</span>
+											</button>
+											<button id="save_csv" class="btn btn-default buttons-csv buttons-html5" type="button">
+												<span><i class="fa fa-floppy-o"></i> CSV</span>
+											</button>
+										</div>
 									</c:if>
 								</div>
 								<div id="result_table" class="tabulator-placeholder table-striped table-bordered" style="display: block"></div>

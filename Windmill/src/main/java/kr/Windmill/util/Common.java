@@ -26,9 +26,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -36,8 +39,16 @@ import javax.crypto.NoSuchPaddingException;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.lang3.StringUtils;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import crypt.AES256Cipher;
 import kr.Windmill.service.ConnectionDTO;
@@ -246,7 +257,6 @@ public class Common {
 					userlist.add(user);
 				}
 
-
 			}
 		}
 
@@ -367,7 +377,7 @@ public class Common {
 		return i;
 	}
 
-	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDTO data) throws SQLException {
+	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDTO data, List<Map<String, Object>> params ) throws SQLException {
 
 		Connection con = null;
 		PreparedStatement pstmt = null;
@@ -380,13 +390,36 @@ public class Common {
 
 			int rowcnt = 0;
 
+			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
+			String patternString = ":(";
+			for (int i = 0; i < params.size(); i++) {
+				if (i != 0)
+					patternString += "|";
+				patternString +=params.get(i).get("title");
+			}
+			patternString += ")";
+			Pattern pattern = Pattern.compile(patternString);
+			Matcher matcher = pattern.matcher(sql);
+			int cnt = 0;
+			while (matcher.find()) {
+				Map temp = new HashMap<>();
+				temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
+				temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
+				mapping.add(temp);
+				cnt++;
+			}
+			matcher.reset();
+			sql = matcher.replaceAll("?");
 			pstmt = con.prepareStatement(sql);
+			for (int i = 0; i < mapping.size(); i++) {
+				pstmt.setString(i + 1, mapping.get(i).get("value"));
+			}
 
 			if (data != null) {
 
-				List<Object> params = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getPath(), data.getSqlType(), data.getRows(), data.getSql(), data.getResult(), data.getDuration(), data.getStart(), data.getXmlLog());
+				List<Object> logparams = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getPath(), data.getSqlType(), data.getRows(), data.getLogsql(), data.getResult(), data.getDuration(), data.getStart(), data.getXmlLog());
 
-				mapParams(pstmt, params);
+				mapParams(pstmt, logparams);
 			}
 
 			rowcnt = pstmt.executeUpdate();
@@ -473,7 +506,7 @@ public class Common {
 		return connection;
 	}
 
-	public Map<String, List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit) throws SQLException {
+	public Map<String, List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit, List<Map<String, Object>> params) throws SQLException {
 
 		Connection con = null;
 
@@ -486,8 +519,31 @@ public class Common {
 
 			Map<String, List> result = new HashMap<String, List>();
 
+			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
+			String patternString = ":(";
+			for (int i = 0; i < params.size(); i++) {
+				if (i != 0)
+					patternString += "|";
+				patternString += params.get(i).get("title");
+			}
+			patternString += ")";
+			Pattern pattern = Pattern.compile(patternString);
+			Matcher matcher = pattern.matcher(sql);
+			int cnt = 0;
+			while (matcher.find()) {
+				Map temp = new HashMap<>();
+				temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
+				temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
+				mapping.add(temp);
+				cnt++;
+			}
+			matcher.reset();
+			sql = matcher.replaceAll("?");
 			pstmt = con.prepareStatement(sql);
-
+			for (int i = 0; i < mapping.size(); i++) {
+				pstmt.setString(i + 1, mapping.get(i).get("value"));
+			}
+			
 			if (limit > 0) {
 				pstmt.setMaxRows(limit);
 			}
@@ -605,7 +661,7 @@ public class Common {
 		}
 	}
 
-	public Map<String, List> callprocedure(String sql, String dbtype, String jdbc, Properties prop) throws SQLException {
+	public Map<String, List> callprocedure(String sql, String dbtype, String jdbc, Properties prop, List<Map<String, Object>> params) throws SQLException {
 
 		Connection con = null;
 
@@ -668,7 +724,31 @@ public class Common {
 				}
 			}
 
+			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
+			String patternString = ":(";
+			for (int i = 0; i < params.size(); i++) {
+				if (i != 0)
+					patternString += "|";
+				patternString += params.get(i).get("title");
+			}
+			patternString += ")";
+			Pattern pattern = Pattern.compile(patternString);
+			Matcher matcher = pattern.matcher(sql);
+			int cnt = 0;
+			while (matcher.find()) {
+				Map temp = new HashMap<>();
+				temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
+				temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
+				mapping.add(temp);
+				cnt++;
+			}
+			matcher.reset();
+			sql = matcher.replaceAll("?");
 			callStmt1 = con.prepareCall(sql);
+			for (int i = 0; i < mapping.size(); i++) {
+				callStmt1.setString(i + 1, mapping.get(i).get("value"));
+			}
+
 			for (int i = 0; i < typelst.size(); i++) {
 				callStmt1.registerOutParameter(i + 1, typelst.get(i));
 			}
@@ -782,6 +862,55 @@ public class Common {
 
 			}
 		}
+	}
+
+	public List<Map<String, Object>> getJsonObjectFromString(String jsonStr) {
+
+		JSONArray jsonArray = new JSONArray();
+
+		JSONParser jsonParser = new JSONParser();
+
+		try {
+
+			jsonArray = (JSONArray) jsonParser.parse(jsonStr);
+
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+
+		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+
+		if (jsonArray != null) {
+
+			int jsonSize = jsonArray.size();
+
+			for (int i = 0; i < jsonSize; i++) {
+
+				Map<String, Object> map = getMapFromJsonObject((JSONObject) jsonArray.get(i));
+				list.add(map);
+			}
+		}
+
+		return list;
+	}
+
+	public static Map<String, Object> getMapFromJsonObject(JSONObject jsonObject) {
+
+		Map<String, Object> map = null;
+
+		try {
+
+			map = new ObjectMapper().readValue(jsonObject.toJSONString(), Map.class);
+
+		} catch (JsonParseException e) {
+			e.printStackTrace();
+		} catch (JsonMappingException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		return map;
 	}
 
 	public String bytetostr(String str) throws UnsupportedEncodingException {

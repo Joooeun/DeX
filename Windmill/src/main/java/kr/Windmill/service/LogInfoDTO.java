@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -16,6 +17,7 @@ public class LogInfoDTO {
 	private String ip;
 
 	private String sql;
+	private String logsql;
 	private String log;
 	private String Path;
 	private boolean autocommit;
@@ -34,6 +36,8 @@ public class LogInfoDTO {
 
 	private String xmlLog;
 	private Map mapLog;
+	private String params;
+	private List<Map<String, Object>> paramList;
 
 	public String getConnection() {
 		return Connection;
@@ -194,5 +198,31 @@ public class LogInfoDTO {
 	public void setDuration(long duration) {
 		this.duration = duration;
 	}
+
+	public String getParams() {
+		return params;
+	}
+
+	public void setParams(String params) {
+		this.params = params;
+	}
+
+	public List<Map<String, Object>> getParamList() {
+		return paramList;
+	}
+
+	public void setParamList(List<Map<String, Object>> paramList) {
+		this.paramList = paramList;
+	}
+
+	public String getLogsql() {
+		return logsql;
+	}
+
+	public void setLogsql(String logsql) {
+		this.logsql = logsql;
+	}
+
+
 
 }

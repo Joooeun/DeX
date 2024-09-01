@@ -6,8 +6,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.Properties;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,29 +20,29 @@ public class Log {
 	private static final Logger logger = LoggerFactory.getLogger(Log.class);
 	Common com = new Common();
 
-	public void tablecheck() {
-
-		ConnectionDTO connection;
-		try {
-			connection = com.getConnection(com.LogDB);
-
-			Properties prop = connection.getProp();
-
-			Class.forName(connection.getDriver());
-			prop.put("clientProgramName", "DeX");
-
-			com.excutequery("", connection.getDbtype(), connection.getJdbc(), prop, 1);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
+//	public void tablecheck() {
+//
+//		ConnectionDTO connection;
+//		try {
+//			connection = com.getConnection(com.LogDB);
+//
+//			Properties prop = connection.getProp();
+//
+//			Class.forName(connection.getDriver());
+//			prop.put("clientProgramName", "DeX");
+//
+//			com.excutequery("", connection.getDbtype(), connection.getJdbc(), prop, 1);
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (ClassNotFoundException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (SQLException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+//	}
 
 	public void log_start(LogInfoDTO data, String msg) {
 
@@ -210,7 +211,7 @@ public class Log {
 		try {
 			ConnectionDTO connection = com.getConnection(com.LogDB);
 
-			com.updatequery("INSERT INTO DEXLOG (USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG)" + "VALUES(?,?,?,?,?,?,?,?,?,?,?);", connection.getDbtype(), connection.getJdbc(), connection.getProp(), data);
+			com.updatequery("INSERT INTO DEXLOG (USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG)" + "VALUES(?,?,?,?,?,?,?,?,?,?,?);", connection.getDbtype(), connection.getJdbc(), connection.getProp(), data, new ArrayList<Map<String,Object>>());
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
