@@ -42,6 +42,10 @@
       }
     }
 }
+.required label:after {
+	content: "*";
+	color: red;
+}
 </style>
 <script>
 
@@ -49,27 +53,7 @@ var arr;
 
 	$(document).ready(
 			function() {
-				$.ajax({
-					type : 'post',
-					url : "/User/list",
-					data : {
-						TYPE : ""
-					},
-					success : function(result) {
-						
-						arr=result;
-						
-						for (var i = 0; i < result.length; i++) {
-							$('#userlist').append(
-									"<option value='" + result[i].split('.')[0]
-											+ "'>" + result[i].split('.')[0]
-											+ "</option>");
-						}
-					},
-					error : function() {
-						alert("시스템 에러");
-					}
-				});
+				getUserList();
 
 				$.ajax({
 					type : 'post',
@@ -85,9 +69,9 @@ var arr;
 									'#selectedConnection').val()) {
 								$('#CONNECTION').append(
 										"<option value=\""
-												+ result[i].split('.')[0]
+												+ result[i].id.split('.')[0]
 												+ "\"  selected=\"selected\">"
-												+ result[i].split('.')[0]
+												+ result[i].id.split('.')[0]
 												+ "</option>");
 							} else {
 								$('#CONNECTION').append(
@@ -123,15 +107,16 @@ var arr;
 				    var queryResultsMarkup = "";
 				    
 				    if (val.length > 0) {
-				    	console.log(val)
+				    	
 				            $queryResults.html("").hide();
 				            $.each(arr, function(i) {
-				                if (arr[i].match(new RegExp(val,'i'))) {
-				                    var $li = $('<li/>')
-				                        .html(arr[i])
-				                    .attr('data-value', arr[i]);
-				                $queryResults.append($li).show();
-				            }
+				                if (arr[i].id.match(new RegExp(val,'i'))) {
+				                    var $li = $('<li/>').html(arr[i].id).attr('data-value', arr[i].id);
+				                	$queryResults.append($li).show();
+				           	 	} else if (arr[i].name.match(new RegExp(val,'i'))) {
+				                    var $li = $('<li/>').html(arr[i].name).attr('data-value', arr[i].id);
+				                	$queryResults.append($li).show();
+				           	 	}
 				        });
 
 				        $('li').on('click', function() {
@@ -141,7 +126,7 @@ var arr;
 				            UserDetail(selectedVal);
 				            $("#userlist").val(selectedVal)
 
-				            $('#query-results').html("").hide();
+				            
 				        });
 				    } else {
 				            $queryResults.html("").hide();
@@ -151,8 +136,35 @@ var arr;
 
 			});
 	
+	function getUserList(){
+		
+		$.ajax({
+			type : 'post',
+			url : "/User/list",
+			data : {
+				TYPE : ""
+			},
+			success : function(result) {
+				
+				arr=result;
+				$('#userlist').empty();
+				$('#userlist').append("<option value='' selected disabled hidden>==선택하세요==</option>");
+				$('#userlist').append("<option id='create_option' value='create'>새로 만들기</option>");
+				
+				
+				for (var i = 0; i < result.length; i++) {
+					$('#userlist').append(
+							"<option value='" + result[i].id.split('.')[0]
+									+ "'>" + result[i].id.split('.')[0]
+									+ "</option>");
+				}
+			},
+			error : function() {
+				alert("시스템 에러");
+			}
+		});
+	}
 	
-
 	function getSelectValues(select) {
 		var result = [];
 		var options = select && select.options;
@@ -170,6 +182,8 @@ var arr;
 	}
 
 	function UserDetail(value) {
+		
+		$('#query-results').html("").hide();
 		
 		$('#query').val("");
 		
@@ -221,14 +235,12 @@ var arr;
 			}
 		});
 	}
+	
 	function save() {
 		var filename = $("#userlist").val();
 		if (filename == 'create') {
 			filename = $('#ID').val();
 		}
-		console
-				.log(getSelectValues(document.getElementById('MENU'))
-						.toString())
 
 		$.ajax({
 			type : 'post',
@@ -246,11 +258,14 @@ var arr;
 			},
 			success : function(result) {
 				alert("저장 되었습니다.");
+				location.reload();
 			},
 			error : function() {
 				alert("저장되지 않았습니다.");
 			}
 		});
+		
+		
 	}
 </script>
 <!-- Content Wrapper. Contains page content -->
@@ -268,13 +283,13 @@ var arr;
 		</ol>
 	</section>
 	<section class="content">
-		<div class="row" style="margin:0">
-			<div class="col-md-1 autocomplete-wrapper">
-				<input type="text" id="query" autocomplete="off" placeholder="아이디 검색">
+		<div class="row" style="margin: 0">
+			<div class="col-md-1 autocomplete-wrapper" style="width: 170px">
+				<input class="form-control" type="text" id="query" autocomplete="off" placeholder="아이디 검색">
 				<ul id="query-results"></ul>
 			</div>
-			<div class="col-md-2">
-				<select id="userlist" onchange="UserDetail(this.value)">
+			<div class="col-md-1" style="width: 200px">
+				<select class="form-control" id="userlist" onchange="UserDetail(this.value)">
 					<option value="" selected disabled hidden>==선택하세요==</option>
 					<option id="create_option" value="create">새로 만들기</option>
 				</select>
@@ -287,17 +302,17 @@ var arr;
 			</div>
 			<!-- /.box-header -->
 			<!-- form start -->
-			<form role="form">
+			<form role="form" action="javascript:save();">
 				<div class="box-body">
 					<div class="col-md-6">
 						<div class="form-group row">
-							<div class="col-md-6" style="margin: 2px 0;">
+							<div class="col-md-6 required" style="margin: 2px 0;">
 								<label for="ID">ID</label>
-								<input type="text" class="form-control" id="ID" placeholder="ID" disabled="disabled">
+								<input type="text" class="form-control" id="ID" placeholder="ID" disabled="disabled" required="required">
 							</div>
-							<div class="col-md-6" style="margin: 2px 0;">
+							<div class="col-md-6 required" style="margin: 2px 0;">
 								<label for="NAME">NAME</label>
-								<input type="text" class="form-control" id="NAME" placeholder="NAME">
+								<input type="text" class="form-control" id="NAME" placeholder="NAME" required="required">
 							</div>
 
 						</div>
@@ -306,9 +321,9 @@ var arr;
 								<label for="IP">IP</label>
 								<input type="text" class="form-control" id="IP" placeholder="IP">
 							</div>
-							<div class="col-md-6" style="margin: 2px 0;">
+							<div class="col-md-6 required" style="margin: 2px 0;">
 								<label for="PW">PW</label>
-								<input type="text" class="form-control" id="PW" placeholder="PW">
+								<input type="text" class="form-control" id="PW" placeholder="PW" required="required">
 							</div>
 						</div>
 					</div>
@@ -333,7 +348,7 @@ var arr;
 				</div>
 				<!-- /.box-body -->
 				<div class="box-footer">
-					<button type="button" class="btn btn-primary" onclick="save()">Submit</button>
+					<button type="submit" class="btn btn-primary">저장</button>
 				</div>
 			</form>
 		</div>

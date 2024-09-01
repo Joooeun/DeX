@@ -5,6 +5,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -46,9 +47,11 @@ public class SampleController {
 		System.out.println("Timeout : " + Common.Timeout + " min");
 		session.setMaxInactiveInterval(Common.Timeout * 60);
 
-		List<String> userList = com.UserList();
+		List<Map<String, String>> userList = com.UserList();
 
-		if (userList.contains(request.getParameter("id"))) {
+		List<String> userIds = userList.stream().map(user->user.get("id")).collect(Collectors.toList());
+		
+		if (userIds.contains(request.getParameter("id"))) {
 
 			Map<String, String> map = com.UserConf(request.getParameter("id"));
 

@@ -224,20 +224,26 @@ public class Common {
 		return dblist;
 	}
 
-	public List<String> UserList() {
+	public List<Map<String, String>> UserList() {
 
-		List<String> userlist = new ArrayList<>();
+		List<Map<String, String>> userlist = new ArrayList<>();
 
 		File dirFile = new File(UserPath);
 		File[] fileList = dirFile.listFiles();
 		Arrays.sort(fileList);
 		for (File tempFile : fileList) {
+
+			Map user = new HashMap<String, String>();
 			if (tempFile.isFile()) {
 
 				String tempFileName = tempFile.getName();
 
-				if (!tempFileName.contains("."))
-					userlist.add(tempFileName);
+				if (!tempFileName.contains(".")) {
+					user.put("id", tempFileName);
+					user.put("name", UserConf(tempFileName).get("NAME"));
+					userlist.add(user);
+				}
+
 
 			}
 		}

@@ -65,9 +65,9 @@ public class UserController {
 
 	@ResponseBody
 	@RequestMapping(path = "/User/list")
-	public List<String> User_list(HttpServletRequest request, Model model, HttpSession session) {
+	public List<Map<String, String>> User_list(HttpServletRequest request, Model model, HttpSession session) {
 
-		List<String> userList = com.UserList();
+		List<Map<String, String>> userList = com.UserList();
 
 		return userList;
 	}
