@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -368,6 +369,13 @@ public class SQLController {
 			e1.printStackTrace();
 		} catch (Exception e1) {
 			e1.printStackTrace();
+		} finally {
+			Enumeration<Driver> enumDrivers = DriverManager.getDrivers();
+			while (enumDrivers.hasMoreElements()) {
+				Driver driver = enumDrivers.nextElement();
+				DriverManager.deregisterDriver(driver);
+			}
+
 		}
 
 		return result;
