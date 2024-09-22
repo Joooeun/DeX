@@ -391,25 +391,31 @@ public class Common {
 			int rowcnt = 0;
 
 			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
-			String patternString = ":(";
-			for (int i = 0; i < params.size(); i++) {
-				if (i != 0)
-					patternString += "|";
-				patternString += params.get(i).get("title");
+
+			if (params.size() > 0) {
+
+				String patternString = ":(";
+				for (int i = 0; i < params.size(); i++) {
+					if (i != 0)
+						patternString += "|";
+					patternString += params.get(i).get("title");
+				}
+				patternString += ")";
+				Pattern pattern = Pattern.compile(patternString);
+				Matcher matcher = pattern.matcher(sql);
+				int cnt = 0;
+				while (matcher.find()) {
+					Map temp = new HashMap<>();
+					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
+					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
+					mapping.add(temp);
+					cnt++;
+				}
+				matcher.reset();
+				sql = matcher.replaceAll("?");
+
 			}
-			patternString += ")";
-			Pattern pattern = Pattern.compile(patternString);
-			Matcher matcher = pattern.matcher(sql);
-			int cnt = 0;
-			while (matcher.find()) {
-				Map temp = new HashMap<>();
-				temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
-				temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
-				mapping.add(temp);
-				cnt++;
-			}
-			matcher.reset();
-			sql = matcher.replaceAll("?");
+
 			pstmt = con.prepareStatement(sql);
 			for (int i = 0; i < mapping.size(); i++) {
 				pstmt.setString(i + 1, mapping.get(i).get("value"));
@@ -731,25 +737,29 @@ public class Common {
 			}
 
 			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
-			String patternString = ":(";
-			for (int i = 0; i < params.size(); i++) {
-				if (i != 0)
-					patternString += "|";
-				patternString += params.get(i).get("title");
+
+			if (params.size() > 0) {
+				String patternString = ":(";
+				for (int i = 0; i < params.size(); i++) {
+					if (i != 0)
+						patternString += "|";
+					patternString += params.get(i).get("title");
+				}
+				patternString += ")";
+				Pattern pattern = Pattern.compile(patternString);
+				Matcher matcher = pattern.matcher(sql);
+				int cnt = 0;
+				while (matcher.find()) {
+					Map temp = new HashMap<>();
+					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
+					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
+					mapping.add(temp);
+					cnt++;
+				}
+				matcher.reset();
+				sql = matcher.replaceAll("?");
 			}
-			patternString += ")";
-			Pattern pattern = Pattern.compile(patternString);
-			Matcher matcher = pattern.matcher(sql);
-			int cnt = 0;
-			while (matcher.find()) {
-				Map temp = new HashMap<>();
-				temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
-				temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
-				mapping.add(temp);
-				cnt++;
-			}
-			matcher.reset();
-			sql = matcher.replaceAll("?");
+
 			callStmt1 = con.prepareCall(sql);
 			for (int i = 0; i < mapping.size(); i++) {
 				callStmt1.setString(i + 1, mapping.get(i).get("value"));
