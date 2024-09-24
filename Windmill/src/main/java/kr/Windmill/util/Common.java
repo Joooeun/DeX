@@ -535,7 +535,6 @@ public class Common {
 					patternString += params.get(i).get("title");
 				}
 				patternString += ")";
-				System.out.println(patternString + "//" + params.size());
 				Pattern pattern = Pattern.compile(patternString);
 				Matcher matcher = pattern.matcher(sql);
 				int cnt = 0;
