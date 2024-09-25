@@ -285,7 +285,7 @@ var arr;
 	<section class="content">
 		<div class="row" style="margin: 0">
 			<div class="col-md-1 autocomplete-wrapper" style="width: 170px">
-				<input class="form-control" type="text" id="query" autocomplete="off" placeholder="아이디 검색">
+				<input class="form-control" type="text" id="query" autocomplete="off" placeholder="아이디/이 검색">
 				<ul id="query-results"></ul>
 			</div>
 			<div class="col-md-1" style="width: 200px">
@@ -328,18 +328,18 @@ var arr;
 						</div>
 					</div>
 					<div class="col-md-6">
-						<div class="col-md-6" style="margin: 2px 0; height: 200px">
+						<div class="col-md-6" style="margin: 2px 0; height: 250px">
 							<label for="MENU">MENU</label>
-							<select multiple class="form-control" id="MENU" style="height: 100%">
+							<select multiple class="form-control" id="MENU" style="height: 85%">
 								<c:forEach var="item" items="${MENU}">
 									<option value="${item.Name}">${item.Name}</option>
 								</c:forEach>
 							</select>
 						</div>
 
-						<div class="col-md-6" style="margin: 2px 0; height: 200px">
+						<div class="col-md-6" style="margin: 2px 0; height: 250px">
 							<label for="MENU">CONNECTION</label>
-							<select multiple class="form-control" id="CONNECTION" style="height: 100%">
+							<select multiple class="form-control" id="CONNECTION" style="height: 85%">
 
 							</select>
 						</div>
@@ -348,7 +348,7 @@ var arr;
 				</div>
 				<!-- /.box-body -->
 				<div class="box-footer">
-					<button type="submit" class="btn btn-primary">저장</button>
+					<button type="submit" class="btn btn-primary form-control">저장</button>
 				</div>
 			</form>
 		</div>
