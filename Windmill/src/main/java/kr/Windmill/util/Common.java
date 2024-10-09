@@ -607,7 +607,9 @@ public class Common {
 						case Types.SQLXML:
 							body.add(rs.getSQLXML(index + 1).toString());
 							break;
-
+						case Types.DATE:
+							body.add(rs.getDate(index + 1).toString());
+							break;
 						case Types.BIGINT:
 						case Types.DECIMAL:
 							body.add(rs.getBigDecimal(index + 1).toString());
