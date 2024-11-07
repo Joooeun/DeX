@@ -282,7 +282,7 @@ public class SQLController {
 						continue;
 					}
 
-					sql = singleSql.trim() + ";";
+					sql = singleSql.trim();
 					String logsql = logsqlOrg.split(";")[i].trim() + ";";
 
 					cLog.log_line(data, "start============================================\n" + logsql + "\nend==============================================");
