@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -69,7 +68,8 @@ public class Common {
 	public static int Timeout = 15;
 
 	public Common() {
-		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator + "system.properties";
+		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator
+				+ "system.properties";
 		Setproperties();
 	}
 
@@ -125,32 +125,28 @@ public class Common {
 		return map;
 	}
 
-	public Map<String, String> UserConf(String UserName) {
+	public Map<String, String> UserConf(String UserName) throws IOException {
 		Map<String, String> map = new HashMap<>();
 
 		map.put("UserName", UserName);
 
-		try {
-			String propFile = UserPath + UserName;
-			Properties props = new Properties();
-			String propStr = FileRead(new File(propFile));
+		String propFile = UserPath + UserName;
+		Properties props = new Properties();
+		String propStr = FileRead(new File(propFile));
 
-			if (!propStr.startsWith("#")) {
-				propStr = FileReadDec(new File(propFile));
-			}
-
-			props.load(new ByteArrayInputStream(propStr.getBytes()));
-
-			map.put("ID", UserName);
-			map.put("NAME", bytetostr(props.getProperty("NAME")));
-			map.put("IP", bytetostr(props.getProperty("IP")));
-			map.put("PW", bytetostr(props.getProperty("PW")));
-			map.put("MENU", bytetostr(props.getProperty("MENU")));
-			map.put("CONNECTION", bytetostr(props.getProperty("CONNECTION")));
-
-		} catch (IOException e) {
-			e.printStackTrace();
+		if (!propStr.startsWith("#")) {
+			propStr = FileReadDec(new File(propFile));
 		}
+
+		props.load(new ByteArrayInputStream(propStr.getBytes()));
+
+		map.put("ID", UserName);
+		map.put("NAME", bytetostr(props.getProperty("NAME")));
+		map.put("IP", bytetostr(props.getProperty("IP")));
+		map.put("PW", bytetostr(props.getProperty("PW")));
+		map.put("MENU", bytetostr(props.getProperty("MENU")));
+		map.put("CONNECTION", bytetostr(props.getProperty("CONNECTION")));
+
 		return map;
 	}
 
@@ -211,7 +207,8 @@ public class Common {
 			File[] fileList = dirFile.listFiles();
 			Arrays.sort(fileList);
 			for (File tempFile : fileList) {
-				if (tempFile.isFile() && tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".properties")) {
+				if (tempFile.isFile()
+						&& tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".properties")) {
 
 					String propStr = FileRead(tempFile);
 					if (!propStr.startsWith("#")) {
@@ -237,7 +234,55 @@ public class Common {
 		return dblist;
 	}
 
-	public List<Map<String, String>> UserList() {
+	public static List<Map<String, ?>> getfiles(String root, int depth) {
+
+		List<Map<String, ?>> list = new ArrayList<>();
+
+		File dirFile = new File(root);
+		File[] fileList = dirFile.listFiles();
+		Arrays.sort(fileList);
+
+		try {
+			for (File tempFile : fileList) {
+				if (tempFile.isFile()) {
+					if (tempFile.getName().contains(".")) {
+						if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".sql")) {
+							Map<String, Object> element = new HashMap<>();
+							element.put("Name", tempFile.getName());
+							element.put("Path", tempFile.getPath());
+
+							list.add(element);
+						} else if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".htm")) {
+							Map<String, Object> element = new HashMap<>();
+							element.put("Name", tempFile.getName());
+							element.put("Path", tempFile.getPath());
+
+							list.add(element);
+						}
+					} else {
+						System.out.println("파일 확인 필요 : " + tempFile.getPath());
+					}
+
+				} else if (tempFile.isDirectory()) {
+					Map<String, Object> element = new HashMap<>();
+
+					element.put("Name", tempFile.getName());
+					element.put("Path", "Path" + depth);
+					element.put("list", getfiles(tempFile.getPath(), depth + 1));
+
+					list.add(element);
+				}
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return list;
+
+	}
+
+	public List<Map<String, String>> UserList() throws IOException {
 
 		List<Map<String, String>> userlist = new ArrayList<>();
 
@@ -293,8 +338,11 @@ public class Common {
 		try {
 			str = a256.AES_Decode(str);
 
-		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
-			// TODO Auto-generated catch block
+		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException
+				| InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
+
+			System.out.println("file : " + file.getPath());
+
 			e.printStackTrace();
 		}
 		return str;
@@ -309,7 +357,8 @@ public class Common {
 		try {
 			crtStr = a256.AES_Encode(str);
 
-		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
+		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException
+				| InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -377,7 +426,8 @@ public class Common {
 		return i;
 	}
 
-	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDTO data, List<Map<String, Object>> params) throws SQLException {
+	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDTO data,
+			List<Map<String, Object>> params) throws SQLException {
 
 		Connection con = null;
 		PreparedStatement pstmt = null;
@@ -406,8 +456,10 @@ public class Common {
 				int cnt = 0;
 				while (matcher.find()) {
 					Map temp = new HashMap<>();
-					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
-					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
+					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst()
+							.get().get("value"));
+					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst()
+							.get().get("type"));
 					mapping.add(temp);
 					cnt++;
 				}
@@ -423,7 +475,9 @@ public class Common {
 
 			if (data != null) {
 
-				List<Object> logparams = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getPath(), data.getSqlType(), data.getRows(), data.getLogsql(), data.getResult(), data.getDuration(), data.getStart(), data.getXmlLog());
+				List<Object> logparams = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getPath(),
+						data.getSqlType(), data.getRows(), data.getLogsql(), data.getResult(), data.getDuration(),
+						data.getStart(), data.getXmlLog());
 
 				mapParams(pstmt, logparams);
 			}
@@ -512,7 +566,8 @@ public class Common {
 		return connection;
 	}
 
-	public Map<String, List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit, List<Map<String, Object>> params) throws SQLException {
+	public Map<String, List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit,
+			List<Map<String, Object>> params) throws SQLException {
 
 		Connection con = null;
 
@@ -540,8 +595,10 @@ public class Common {
 				int cnt = 0;
 				while (matcher.find()) {
 					Map temp = new HashMap<>();
-					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
-					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
+					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst()
+							.get().get("value"));
+					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst()
+							.get().get("type"));
 					mapping.add(temp);
 					cnt++;
 				}
@@ -572,12 +629,14 @@ public class Common {
 
 				Map head = new HashMap();
 
-				ResultSet resultSet = con.getMetaData().getColumns(null, rsmd.getSchemaName(index + 1), rsmd.getTableName(index + 1), rsmd.getColumnName(index + 1));
+				ResultSet resultSet = con.getMetaData().getColumns(null, rsmd.getSchemaName(index + 1),
+						rsmd.getTableName(index + 1), rsmd.getColumnName(index + 1));
 
 				String desc = rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")";
 
 				if (resultSet.next()) {
-					String REMARKS = resultSet.getString("REMARKS") == null ? "" : "\n" + resultSet.getString("REMARKS");
+					String REMARKS = resultSet.getString("REMARKS") == null ? ""
+							: "\n" + resultSet.getString("REMARKS");
 					desc += REMARKS;
 				}
 
@@ -622,12 +681,13 @@ public class Common {
 
 						default:
 							body.add(rs.getObject(index + 1));
-//							System.out.println(rs.getObject(index + 1) + " / " + rs.getObject(index + 1).getClass());
 							break;
 						}
 
-						if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString().length()) {
-							rowlength.set(index, body.get(index).toString().length() > 100 ? 100 : body.get(index).toString().length());
+						if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString()
+								.length()) {
+							rowlength.set(index, body.get(index).toString().length() > 100 ? 100
+									: body.get(index).toString().length());
 						}
 
 					} catch (NullPointerException e) {
@@ -674,7 +734,8 @@ public class Common {
 		}
 	}
 
-	public Map<String, List> callprocedure(String sql, String dbtype, String jdbc, Properties prop, List<Map<String, Object>> params) throws SQLException {
+	public Map<String, List> callprocedure(String sql, String dbtype, String jdbc, Properties prop,
+			List<Map<String, Object>> params) throws SQLException {
 
 		Connection con = null;
 
@@ -700,11 +761,15 @@ public class Common {
 			int paramcnt = StringUtils.countMatches(sql, ",") + 1;
 			switch (dbtype) {
 			case "DB2":
-				callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME " + " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
-						+ prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
+				callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
+						+ prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
+						+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
+						+ prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt
+						+ ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
 				break;
 			case "ORACLE":
-				callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n" + " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
+				callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n"
+						+ " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
 				break;
 
 			default:
@@ -720,19 +785,19 @@ public class Common {
 			while (rs.next()) {
 				switch (rs.getString("TYPENAME")) {
 				case "VARCHAR2":
-					typelst.add(java.sql.Types.VARCHAR);
+					typelst.add(Types.VARCHAR);
 					break;
 				case "VARCHAR":
-					typelst.add(java.sql.Types.VARCHAR);
+					typelst.add(Types.VARCHAR);
 					break;
 				case "INTEGER":
-					typelst.add(java.sql.Types.INTEGER);
+					typelst.add(Types.INTEGER);
 					break;
 				case "TIMESTAMP":
-					typelst.add(java.sql.Types.TIMESTAMP);
+					typelst.add(Types.TIMESTAMP);
 					break;
 				case "DATE":
-					typelst.add(java.sql.Types.DATE);
+					typelst.add(Types.DATE);
 					break;
 				}
 			}
@@ -752,8 +817,10 @@ public class Common {
 				int cnt = 0;
 				while (matcher.find()) {
 					Map temp = new HashMap<>();
-					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
-					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
+					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst()
+							.get().get("value"));
+					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst()
+							.get().get("type"));
 					mapping.add(temp);
 					cnt++;
 				}
@@ -787,7 +854,8 @@ public class Common {
 
 					head.put("title", rsmd.getColumnLabel(index + 1));
 					head.put("type", rsmd.getColumnType(index + 1));
-					head.put("desc", rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")");
+					head.put("desc",
+							rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")");
 
 					rowhead.add(head);
 					rowlength.add(0);
@@ -805,10 +873,13 @@ public class Common {
 						// 타입별 get함수 다르게 변경필
 						try {
 
-							body.add((rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1) : rs2.getObject(index + 1)));
+							body.add((rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1)
+									: rs2.getObject(index + 1)));
 
-							if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString().length()) {
-								rowlength.set(index, body.get(index).toString().length() > 100 ? 100 : body.get(index).toString().length());
+							if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString()
+									.length()) {
+								rowlength.set(index, body.get(index).toString().length() > 100 ? 100
+										: body.get(index).toString().length());
 							}
 
 						} catch (NullPointerException e) {

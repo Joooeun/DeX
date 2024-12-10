@@ -47,7 +47,7 @@ public class ConnectionController {
 
 	@ResponseBody
 	@RequestMapping(path = "/Connection/list")
-	public List<String> Connection_list(HttpServletRequest request, Model model, HttpSession session) {
+	public List<String> Connection_list(HttpServletRequest request, Model model, HttpSession session) throws IOException {
 
 		List<String> dblist = com.ConnectionnList(request.getParameter("TYPE"));
 		String id = (String) session.getAttribute("memberId");

@@ -47,44 +47,54 @@ public class SampleController {
 		System.out.println("Timeout : " + Common.Timeout + " min");
 		session.setMaxInactiveInterval(Common.Timeout * 60);
 
-		List<Map<String, String>> userList = com.UserList();
+		try {
+			List<Map<String, String>> userList = com.UserList();
 
-		List<String> userIds = userList.stream().map(user->user.get("id")).collect(Collectors.toList());
-		
-		if (userIds.contains(request.getParameter("id"))) {
+			List<String> userIds = userList.stream().map(user->user.get("id")).collect(Collectors.toList());
+			
+			if (userIds.contains(request.getParameter("id"))) {
 
-			Map<String, String> map = com.UserConf(request.getParameter("id"));
+				System.out.println("id : "+request.getParameter("id"));
+				
+				Map<String, String> map = com.UserConf(request.getParameter("id"));
+				
 
-			if (!map.get("IP").equals("") && !map.get("IP").equals(com.getIp(request))) {
+				if (!map.get("IP").equals("") && !map.get("IP").equals(com.getIp(request))) {
 
-				logger.info(request.getParameter("id") + " 로그인 실패.. 접속 ip : " + com.getIp(request));
-				model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
-				return "/common/messageRedirect";
-			}
+					logger.info(request.getParameter("id") + " 로그인 실패.. 접속 ip : " + com.getIp(request));
+					model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
+					return "/common/messageRedirect";
+				}
 
-			if (map.get("PW").equals(request.getParameter("pw"))) {
+				if (map.get("PW").equals(request.getParameter("pw"))) {
 
-				session.setAttribute("memberId", request.getParameter("id"));
-				cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 성공");
+					session.setAttribute("memberId", request.getParameter("id"));
+					cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 성공");
 
-				response.setHeader("Cache-Control", "no-cache, no-store");
-				response.setHeader("Pragma", "no-cache");
-				response.setDateHeader("Expires", 0);
+					response.setHeader("Cache-Control", "no-cache, no-store");
+					response.setHeader("Pragma", "no-cache");
+					response.setDateHeader("Expires", 0);
 
-				return "redirect:/index";
+					return "redirect:/index";
+
+				} else {
+					cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 실패 / 입력 : " + request.getParameter("pw"));
+					model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
+					return "/common/messageRedirect";
+				}
 
 			} else {
-				cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 실패 / 입력 : " + request.getParameter("pw"));
+
+				cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 실패..");
 				model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
 				return "/common/messageRedirect";
 			}
-
-		} else {
-
-			cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 실패..");
-			model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
+		} catch (Exception e) {
+			
+			model.addAttribute("params", com.showMessageAndRedirect("계정정보를 불러오는데 실패했습니다.", "/", "GET"));
 			return "/common/messageRedirect";
 		}
+		
 
 //		AES256Cipher a256 = AES256Cipher.getInstance();
 //
@@ -154,7 +164,7 @@ public class SampleController {
 			}
 		}
 
-		mv.addObject("sqllist", SQLController.getfiles(Common.SrcPath, 0));
+		mv.addObject("sqllist", com.getfiles(Common.SrcPath, 0));
 
 		return mv;
 	}

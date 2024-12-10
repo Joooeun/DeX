@@ -181,7 +181,7 @@ public class SQLController {
 		String id = (String) session.getAttribute("memberId");
 
 		Map<String, String> map = com.UserConf(id);
-		List<Map<String, ?>> list = getfiles(Common.SrcPath, 0);
+		List<Map<String, ?>> list = com.getfiles(Common.SrcPath, 0);
 
 		if (!id.equals("admin")) {
 			List<String> strList = new ArrayList<>(Arrays.asList(map.get("MENU").split(",")));
@@ -364,51 +364,4 @@ public class SQLController {
 
 		return result;
 	}
-
-	public static List<Map<String, ?>> getfiles(String root, int depth) {
-
-		List<Map<String, ?>> list = new ArrayList<>();
-
-		File dirFile = new File(root);
-		File[] fileList = dirFile.listFiles();
-		Arrays.sort(fileList);
-
-		try {
-			for (File tempFile : fileList) {
-				if (tempFile.isFile()) {
-					if (tempFile.getName().contains(".")) {
-						if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".sql")) {
-							Map<String, Object> element = new HashMap<>();
-							element.put("Name", tempFile.getName());
-							element.put("Path", tempFile.getPath());
-
-							list.add(element);
-						} else if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".htm")) {
-							Map<String, Object> element = new HashMap<>();
-							element.put("Name", tempFile.getName());
-							element.put("Path", tempFile.getPath());
-
-							list.add(element);
-						}
-					}
-
-				} else if (tempFile.isDirectory()) {
-					Map<String, Object> element = new HashMap<>();
-
-					element.put("Name", tempFile.getName());
-					element.put("Path", "Path" + depth);
-					element.put("list", getfiles(tempFile.getPath(), depth + 1));
-
-					list.add(element);
-				}
-			}
-
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
-		return list;
-
-	}
-
 }

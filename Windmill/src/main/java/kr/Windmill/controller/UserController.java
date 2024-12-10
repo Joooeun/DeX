@@ -42,7 +42,7 @@ public class UserController {
 			return mv;
 		}
 
-		List<Map<String, ?>> list = getfiles(Common.SrcPath, 0);
+		List<Map<String, ?>> list = com.getfiles(Common.SrcPath, 0);
 		mv.addObject("MENU", list);
 
 		return mv;
@@ -56,7 +56,7 @@ public class UserController {
 
 	@ResponseBody
 	@RequestMapping(path = "/User/detail")
-	public Map<String, String> detail(HttpServletRequest request, Model model, HttpSession session) {
+	public Map<String, String> detail(HttpServletRequest request, Model model, HttpSession session) throws IOException {
 
 		Map<String, String> map = com.UserConf(request.getParameter("ID"));
 
@@ -65,7 +65,7 @@ public class UserController {
 
 	@ResponseBody
 	@RequestMapping(path = "/User/list")
-	public List<Map<String, String>> User_list(HttpServletRequest request, Model model, HttpSession session) {
+	public List<Map<String, String>> User_list(HttpServletRequest request, Model model, HttpSession session) throws IOException {
 
 		List<Map<String, String>> userList = com.UserList();
 
@@ -109,7 +109,7 @@ public class UserController {
 
 	@ResponseBody
 	@RequestMapping(path = "/User/checkPW")
-	public boolean checkW(HttpServletRequest request, HttpSession session) {
+	public boolean checkW(HttpServletRequest request, HttpSession session) throws IOException {
 
 		Map<String, String> map = com.UserConf(session.getAttribute("memberId").toString());
 
@@ -124,7 +124,7 @@ public class UserController {
 
 	@ResponseBody
 	@RequestMapping(path = "/User/changePW")
-	public void changePW(HttpServletRequest request, HttpSession session) {
+	public void changePW(HttpServletRequest request, HttpSession session) throws IOException {
 
 		Map<String, String> map = com.UserConf(session.getAttribute("memberId").toString());
 
@@ -151,37 +151,5 @@ public class UserController {
 		return;
 	}
 
-	public static List<Map<String, ?>> getfiles(String root, int depth) {
-
-		List<Map<String, ?>> list = new ArrayList<>();
-
-		File dirFile = new File(root);
-		File[] fileList = dirFile.listFiles();
-		Arrays.sort(fileList);
-		for (File tempFile : fileList) {
-			if (tempFile.isFile()) {
-
-				if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".sql")) {
-					Map<String, Object> element = new HashMap<>();
-					element.put("Name", tempFile.getName());
-					element.put("Path", tempFile.getPath());
-
-					list.add(element);
-				}
-
-			} else if (tempFile.isDirectory()) {
-				Map<String, Object> element = new HashMap<>();
-
-				element.put("Name", tempFile.getName());
-				element.put("Path", "Path" + depth);
-				element.put("list", getfiles(tempFile.getPath(), depth + 1));
-
-				list.add(element);
-			}
-		}
-
-		return list;
-
-	}
-
+	
 }
