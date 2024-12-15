@@ -38,6 +38,16 @@ public class LogInfoDTO {
 	private Map mapLog;
 	private String params;
 	private List<Map<String, Object>> paramList;
+	
+	private String title;
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
 
 	public String getConnection() {
 		return Connection;
@@ -64,12 +74,14 @@ public class LogInfoDTO {
 	}
 
 	public String getSql() {
-		return sql.trim();
+		return (sql == null ? "" : sql).trim();
 	}
 
 	public void setSql(String sql) {
-		this.sql = sql;
+		this.sql = sql == null ? "" : sql;
+
 		setSqlType(sql.toUpperCase().split("\\s")[0]);
+
 	}
 
 	public Map<String, String> getLog() {
@@ -223,6 +235,22 @@ public class LogInfoDTO {
 		this.logsql = logsql;
 	}
 
+	public void setLogsqlA(String sql) {
 
+		this.logsql = sql;
+
+		for (int i = 0; i < paramList.size(); i++) {
+
+			if (paramList.get(i).get("type").equals("string")) {
+
+				this.logsql = logsql.replaceAll(":" + paramList.get(i).get("title"),
+						"\'" + paramList.get(i).get("value").toString() + "\'");
+			} else
+				this.logsql = logsql.replaceAll(":" + paramList.get(i).get("title"),
+						paramList.get(i).get("value").toString());
+
+		}
+
+	}
 
 }

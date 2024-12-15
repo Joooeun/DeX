@@ -51,7 +51,7 @@ public class SQLController {
 			mv.addObject("Path", file.getParent());
 			mv.addObject("title", file.getName().replaceAll("\\..*", ""));
 
-			String sql = com.FileRead(file);
+			boolean sql = com.FileRead(file).length() > 0;
 
 			file = new File(request.getParameter("Path").replace(".sql", ".properties"));
 			List<Map<String, String>> ShortKey = new ArrayList<>();
@@ -135,6 +135,7 @@ public class SQLController {
 			boolean DownloadEnable = com.getIp(request).matches(com.DownloadIP);
 
 			mv.addObject("sql", sql);
+			mv.addObject("Path", request.getParameter("Path"));
 			mv.addObject("Param", Param);
 			mv.addObject("ShortKey", ShortKey);
 			mv.addObject("Excute", request.getParameter("excute") == null ? false : request.getParameter("excute"));
@@ -207,7 +208,11 @@ public class SQLController {
 		Class.forName(connection.getDriver());
 		prop.put("clientProgramName", "DeX");
 
-		String sql = data.getSql();
+		String sql = data.getSql().length() > 0 ? data.getSql() : com.FileRead(new File(data.getPath()));
+		data.setParamList(com.getJsonObjectFromString(data.getParams()));
+		data.setSql(sql);
+		data.setLogsqlA(sql);
+
 		String log = "";
 
 		if (data.getLog() != null) {
@@ -219,8 +224,6 @@ public class SQLController {
 
 		Map<String, List> result = new HashMap();
 		PreparedStatement pstmt = null;
-
-		data.setParamList(com.getJsonObjectFromString(data.getParams()));
 
 		try {
 

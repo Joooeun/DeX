@@ -68,8 +68,7 @@ public class Common {
 	public static int Timeout = 15;
 
 	public Common() {
-		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator
-				+ "system.properties";
+		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator + "system.properties";
 		Setproperties();
 	}
 
@@ -207,8 +206,7 @@ public class Common {
 			File[] fileList = dirFile.listFiles();
 			Arrays.sort(fileList);
 			for (File tempFile : fileList) {
-				if (tempFile.isFile()
-						&& tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".properties")) {
+				if (tempFile.isFile() && tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".properties")) {
 
 					String propStr = FileRead(tempFile);
 					if (!propStr.startsWith("#")) {
@@ -338,8 +336,7 @@ public class Common {
 		try {
 			str = a256.AES_Decode(str);
 
-		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException
-				| InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
+		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
 
 			System.out.println("file : " + file.getPath());
 
@@ -357,8 +354,7 @@ public class Common {
 		try {
 			crtStr = a256.AES_Encode(str);
 
-		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException
-				| InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
+		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -426,8 +422,7 @@ public class Common {
 		return i;
 	}
 
-	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDTO data,
-			List<Map<String, Object>> params) throws SQLException {
+	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDTO data, List<Map<String, Object>> params) throws SQLException {
 
 		Connection con = null;
 		PreparedStatement pstmt = null;
@@ -456,10 +451,8 @@ public class Common {
 				int cnt = 0;
 				while (matcher.find()) {
 					Map temp = new HashMap<>();
-					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst()
-							.get().get("value"));
-					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst()
-							.get().get("type"));
+					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
+					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
 					mapping.add(temp);
 					cnt++;
 				}
@@ -475,9 +468,7 @@ public class Common {
 
 			if (data != null) {
 
-				List<Object> logparams = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getPath(),
-						data.getSqlType(), data.getRows(), data.getLogsql(), data.getResult(), data.getDuration(),
-						data.getStart(), data.getXmlLog());
+				List<Object> logparams = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getPath(), data.getSqlType(), data.getRows(), data.getLogsql(), data.getResult(), data.getDuration(), data.getStart(), data.getXmlLog());
 
 				mapParams(pstmt, logparams);
 			}
@@ -566,8 +557,7 @@ public class Common {
 		return connection;
 	}
 
-	public Map<String, List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit,
-			List<Map<String, Object>> params) throws SQLException {
+	public Map<String, List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit, List<Map<String, Object>> params) throws SQLException {
 
 		Connection con = null;
 
@@ -583,11 +573,18 @@ public class Common {
 			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
 
 			if (params.size() > 0) {
+
 				String patternString = ":(";
 				for (int i = 0; i < params.size(); i++) {
-					if (i != 0)
-						patternString += "|";
-					patternString += params.get(i).get("title");
+
+					if (params.get(i).get("type").equals("string")) {
+						if (!patternString.equals(":("))
+							patternString += "|";
+						patternString += params.get(i).get("title");
+					} else {
+						sql = sql.replaceAll(":" + params.get(i).get("title"), params.get(i).get("value").toString());
+					}
+
 				}
 				patternString += ")";
 				Pattern pattern = Pattern.compile(patternString);
@@ -595,10 +592,9 @@ public class Common {
 				int cnt = 0;
 				while (matcher.find()) {
 					Map temp = new HashMap<>();
-					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst()
-							.get().get("value"));
-					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst()
-							.get().get("type"));
+					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
+					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
+
 					mapping.add(temp);
 					cnt++;
 				}
@@ -609,7 +605,16 @@ public class Common {
 
 			pstmt = con.prepareStatement(sql);
 			for (int i = 0; i < mapping.size(); i++) {
-				pstmt.setString(i + 1, mapping.get(i).get("value"));
+				switch (mapping.get(i).get("type")) {
+				case "string":
+
+					pstmt.setString(i + 1, mapping.get(i).get("value"));
+					break;
+
+				default:
+					pstmt.setInt(i + 1, Integer.parseInt(mapping.get(i).get("value")));
+					break;
+				}
 			}
 
 			if (limit > 0) {
@@ -629,14 +634,12 @@ public class Common {
 
 				Map head = new HashMap();
 
-				ResultSet resultSet = con.getMetaData().getColumns(null, rsmd.getSchemaName(index + 1),
-						rsmd.getTableName(index + 1), rsmd.getColumnName(index + 1));
+				ResultSet resultSet = con.getMetaData().getColumns(null, rsmd.getSchemaName(index + 1), rsmd.getTableName(index + 1), rsmd.getColumnName(index + 1));
 
 				String desc = rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")";
 
 				if (resultSet.next()) {
-					String REMARKS = resultSet.getString("REMARKS") == null ? ""
-							: "\n" + resultSet.getString("REMARKS");
+					String REMARKS = resultSet.getString("REMARKS") == null ? "" : "\n" + resultSet.getString("REMARKS");
 					desc += REMARKS;
 				}
 
@@ -684,10 +687,8 @@ public class Common {
 							break;
 						}
 
-						if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString()
-								.length()) {
-							rowlength.set(index, body.get(index).toString().length() > 100 ? 100
-									: body.get(index).toString().length());
+						if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString().length()) {
+							rowlength.set(index, body.get(index).toString().length() > 100 ? 100 : body.get(index).toString().length());
 						}
 
 					} catch (NullPointerException e) {
@@ -734,8 +735,7 @@ public class Common {
 		}
 	}
 
-	public Map<String, List> callprocedure(String sql, String dbtype, String jdbc, Properties prop,
-			List<Map<String, Object>> params) throws SQLException {
+	public Map<String, List> callprocedure(String sql, String dbtype, String jdbc, Properties prop, List<Map<String, Object>> params) throws SQLException {
 
 		Connection con = null;
 
@@ -761,15 +761,10 @@ public class Common {
 			int paramcnt = StringUtils.countMatches(sql, ",") + 1;
 			switch (dbtype) {
 			case "DB2":
-				callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
-						+ prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME "
-						+ " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
-						+ prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt
-						+ ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
+				callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME " + " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
 				break;
 			case "ORACLE":
-				callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n"
-						+ " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
+				callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n" + " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
 				break;
 
 			default:
@@ -805,11 +800,18 @@ public class Common {
 			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
 
 			if (params.size() > 0) {
+
 				String patternString = ":(";
 				for (int i = 0; i < params.size(); i++) {
-					if (i != 0)
-						patternString += "|";
-					patternString += params.get(i).get("title");
+
+					if (params.get(i).get("type").equals("string")) {
+						if (!patternString.equals(":("))
+							patternString += "|";
+						patternString += params.get(i).get("title");
+					} else {
+						sql = sql.replaceAll(":" + params.get(i).get("title"), params.get(i).get("value").toString());
+					}
+
 				}
 				patternString += ")";
 				Pattern pattern = Pattern.compile(patternString);
@@ -817,20 +819,29 @@ public class Common {
 				int cnt = 0;
 				while (matcher.find()) {
 					Map temp = new HashMap<>();
-					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst()
-							.get().get("value"));
-					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst()
-							.get().get("type"));
+					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
+					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
+
 					mapping.add(temp);
 					cnt++;
 				}
 				matcher.reset();
 				sql = matcher.replaceAll("?");
+
 			}
 
 			callStmt1 = con.prepareCall(sql);
 			for (int i = 0; i < mapping.size(); i++) {
-				callStmt1.setString(i + 1, mapping.get(i).get("value"));
+				switch (mapping.get(i).get("type")) {
+				case "string":
+
+					callStmt1.setString(i + 1, mapping.get(i).get("value"));
+					break;
+
+				default:
+					// callStmt1.setInt(i + 1, Integer.parseInt(mapping.get(i).get("value")));
+					break;
+				}
 			}
 
 			for (int i = 0; i < typelst.size(); i++) {
@@ -854,8 +865,7 @@ public class Common {
 
 					head.put("title", rsmd.getColumnLabel(index + 1));
 					head.put("type", rsmd.getColumnType(index + 1));
-					head.put("desc",
-							rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")");
+					head.put("desc", rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")");
 
 					rowhead.add(head);
 					rowlength.add(0);
@@ -873,13 +883,10 @@ public class Common {
 						// 타입별 get함수 다르게 변경필
 						try {
 
-							body.add((rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1)
-									: rs2.getObject(index + 1)));
+							body.add((rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1) : rs2.getObject(index + 1)));
 
-							if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString()
-									.length()) {
-								rowlength.set(index, body.get(index).toString().length() > 100 ? 100
-										: body.get(index).toString().length());
+							if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString().length()) {
+								rowlength.set(index, body.get(index).toString().length() > 100 ? 100 : body.get(index).toString().length());
 							}
 
 						} catch (NullPointerException e) {

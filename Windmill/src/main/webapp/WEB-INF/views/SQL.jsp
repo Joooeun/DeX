@@ -89,9 +89,6 @@ var tableHeight=0;
 
 	$(document).ready(function() {
 
-		sql_text = $("#sql_org").val();
-		$("#sql_org").remove();
-
 		ctx = document.getElementById('myChart');
 		myChart = myChart = new Chart(ctx, {
 			type: 'line',
@@ -320,8 +317,6 @@ var tableHeight=0;
 	
 	async function excute() {
 
-		var sql = $("#sql_text").val() ?? sql_text;
-		var logsql = $("#sql_text").val() ?? sql_text;
 		var log = {};
 		var params=[];
 
@@ -332,24 +327,11 @@ var tableHeight=0;
 				return;
 			}
 
-		 	if ($(".paramvalue").eq(i).attr('paramtype') == 'sql') {
-				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
-				logsql = logsql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
-			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'number') {
-				sql = sql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
-				logsql = logsql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val());
-			} else if ($(".paramvalue").eq(i).attr('paramtype') == 'log' && $(".paramvalue").eq(i).val().length > 0) {
+		 	if ($(".paramvalue").eq(i).attr('paramtype') == 'log' && $(".paramvalue").eq(i).val().length > 0) {
 				log[$(".paramvalue").eq(i).attr('paramtitle')] = $(".paramvalue").eq(i).val()
 			} else{
 				params.push({title:$(".paramvalue").eq(i).attr('paramtitle'), value:$(".paramvalue").eq(i).val(), type : $(".paramvalue").eq(i).attr('paramtype')});
 				
-				if ($(".paramvalue").eq(i).attr('paramtype') == 'string') {
-					logsql = logsql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val() + '\'');
-				} else if ($(".paramvalue").eq(i).attr('paramtype') == 'varchar') {
-					logsql = logsql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join('\'' + $(".paramvalue").eq(i).val().replace(/'/g, "''") + '\'');
-				} else if ($(".paramvalue").eq(i).attr('paramtype') == 'text') {
-					logsql = logsql.split(':' + $(".paramvalue").eq(i).attr('paramtitle')).join($(".paramvalue").eq(i).val().replace(/'/g, "''"));
-				}
 			}
 		}
 
@@ -363,10 +345,10 @@ var tableHeight=0;
 			type: 'post',
 			url: '/SQL/excute',
 			data: {
-				sql: sql,
-				logsql: logsql,
+				sql:  $("#sql_text").val(),
 				log: JSON.stringify(log),
-				Path: '${title}',
+				Path: $("#Path").val(),
+				title: '${title}',
 				autocommit: true,
 				/* autocommit : $("#autocommit").prop('checked'), */
 				audit: ${audit == null ? false : audit},
@@ -767,12 +749,12 @@ var tableHeight=0;
 					<form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:startexcute();">
 						<div class="box-body">
 							<div class="col-sm-10 col-md-11">
-								<c:if test="${sql eq ''}">
+								<c:if test="${!sql}">
 
 									<div class="form-group" style="margin-bottom: 0">
 										<div id="container" class="textcontainer">
 											<div id="line-numbers" class="container__lines"></div>
-											<textarea class="col-sm-12 col-xs-12 formtextarea" maxlength="${textlimit}" id="sql_text" style="margin: 0 0 10px 0" rows="5" wrap='off'>${sql}</textarea>
+											<textarea class="col-sm-12 col-xs-12 formtextarea" maxlength="${textlimit}" id="sql_text" style="margin: 0 0 10px 0" rows="5" wrap='off'></textarea>
 										</div>
 										<span id="textcount">0</span> / <span>${textlimit}</span>
 									</div>
@@ -904,8 +886,7 @@ var tableHeight=0;
 				</div>
 			</div>
 		</div>
-		<c:if test="${sql != ''}">
-			<textarea id="sql_org" hidden>${sql}</textarea>
+		<c:if test="${sql}">
 			<input id="Path" name="Path" value="${Path}" type="hidden">
 			<input id="refreshtimeout" value="${refreshtimeout}" type="hidden">
 		</c:if>

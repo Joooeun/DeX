@@ -80,7 +80,7 @@ public class Log {
 			String strNowDate2 = simpleDateFormat2.format(Date.from(data.getStart()));
 
 			writer.write(strNowDate2 + " id : " + data.getId() + " / ip :  " + data.getIp());
-			writer.write("\nDB : " + data.getConnection() + " / MENU : " + data.getPath());
+			writer.write("\nDB : " + data.getConnection() + " / MENU : " + data.getTitle());
 			writer.write(msg);
 			writer.close();
 		} catch (IOException e) {
@@ -116,7 +116,7 @@ public class Log {
 			FileWriter fw = new FileWriter(file, true);
 			BufferedWriter writer = new BufferedWriter(fw);
 
-			writer.write("DB : " + data.getConnection() + " / MENU : " + data.getPath());
+			writer.write("DB : " + data.getConnection() + " / MENU : " + data.getTitle());
 			writer.write(msg);
 			writer.newLine();
 			writer.close();
@@ -211,7 +211,7 @@ public class Log {
 		try {
 			ConnectionDTO connection = com.getConnection(com.LogDB);
 
-			com.updatequery("INSERT INTO DEXLOG (USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG)" + "VALUES(?,?,?,?,?,?,?,?,?,?,?);", connection.getDbtype(), connection.getJdbc(), connection.getProp(), data, new ArrayList<Map<String,Object>>());
+			com.updatequery("INSERT INTO DEXLOG (USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG)" + "VALUES(?,?,?,?,?,?,?,?,?,?,?)", connection.getDbtype(), connection.getJdbc(), connection.getProp(), data, new ArrayList<Map<String, Object>>());
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
