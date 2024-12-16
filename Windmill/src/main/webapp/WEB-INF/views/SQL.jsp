@@ -347,7 +347,7 @@ var tableHeight=0;
 			data: {
 				sql:  $("#sql_text").val(),
 				log: JSON.stringify(log),
-				Path: $("#Path").val(),
+				Path: $("#Path").val()+"/"+'${title}.sql',
 				title: '${title}',
 				autocommit: true,
 				/* autocommit : $("#autocommit").prop('checked'), */

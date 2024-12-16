@@ -135,7 +135,6 @@ public class SQLController {
 			boolean DownloadEnable = com.getIp(request).matches(com.DownloadIP);
 
 			mv.addObject("sql", sql);
-			mv.addObject("Path", request.getParameter("Path"));
 			mv.addObject("Param", Param);
 			mv.addObject("ShortKey", ShortKey);
 			mv.addObject("Excute", request.getParameter("excute") == null ? false : request.getParameter("excute"));
