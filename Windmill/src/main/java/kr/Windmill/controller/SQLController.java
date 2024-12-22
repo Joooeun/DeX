@@ -13,6 +13,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -227,12 +229,45 @@ public class SQLController {
 		try {
 
 			cLog.log_start(data, log + "\nmenu 실행 시작\n");
+			
+			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
 
+			if (data.getParamList().size() > 0) {
+
+				String patternString = ":(";
+				for (int i = 0; i < data.getParamList().size(); i++) {
+
+					if (data.getParamList().get(i).get("type").equals("string")) {
+						if (!patternString.equals(":("))
+							patternString += "|";
+						patternString += data.getParamList().get(i).get("title");
+					} else {
+						sql = sql.replaceAll(":" + data.getParamList().get(i).get("title"), data.getParamList().get(i).get("value").toString());
+					}
+
+				}
+				patternString += ")";
+				Pattern pattern = Pattern.compile(patternString);
+				Matcher matcher = pattern.matcher(sql);
+				int cnt = 0;
+				while (matcher.find()) {
+					Map temp = new HashMap<>();
+					temp.put("value", data.getParamList().stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
+					temp.put("type", data.getParamList().stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
+
+					mapping.add(temp);
+					cnt++;
+				}
+				matcher.reset();
+				sql = matcher.replaceAll("?");
+
+			}
+			
 			String row = "";
 
-			if (sql.toUpperCase().startsWith("CALL")) {
+			if (sql.toUpperCase().startsWith("CALL")||sql.toUpperCase().startsWith("BEGIN")) {
 				cLog.log_line(data, "start============================================\n" + data.getLogsql() + "\nend==============================================");
-				result = com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getParamList());
+				result = com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop, mapping);
 				data.setEnd(Instant.now());
 				data.setResult("Success");
 				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
@@ -242,7 +277,7 @@ public class SQLController {
 
 			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH") || sql.toUpperCase().startsWith("VALUE")) {
 				cLog.log_line(data, "start============================================\n" + data.getLogsql() + "\nend==============================================");
-				result = com.excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit(), data.getParamList());
+				result = com.excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit(), mapping);
 				data.setRows(result.get("rowbody").size() - 1);
 				data.setEnd(Instant.now());
 				data.setResult("Success");

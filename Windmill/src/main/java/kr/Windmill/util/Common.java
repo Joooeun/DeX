@@ -468,7 +468,7 @@ public class Common {
 
 			if (data != null) {
 
-				List<Object> logparams = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getPath(), data.getSqlType(), data.getRows(), data.getLogsql(), data.getResult(), data.getDuration(), data.getStart(), data.getXmlLog());
+				List<Object> logparams = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getTitle(), data.getSqlType(), data.getRows(), data.getLogsql(), data.getResult(), data.getDuration(), data.getStart(), data.getXmlLog());
 
 				mapParams(pstmt, logparams);
 			}
@@ -557,7 +557,7 @@ public class Common {
 		return connection;
 	}
 
-	public Map<String, List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit, List<Map<String, Object>> params) throws SQLException {
+	public Map<String, List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit, List<Map<String, String>> mapping) throws SQLException {
 
 		Connection con = null;
 
@@ -569,39 +569,6 @@ public class Common {
 			con.setAutoCommit(false);
 
 			Map<String, List> result = new HashMap<String, List>();
-
-			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
-
-			if (params.size() > 0) {
-
-				String patternString = ":(";
-				for (int i = 0; i < params.size(); i++) {
-
-					if (params.get(i).get("type").equals("string")) {
-						if (!patternString.equals(":("))
-							patternString += "|";
-						patternString += params.get(i).get("title");
-					} else {
-						sql = sql.replaceAll(":" + params.get(i).get("title"), params.get(i).get("value").toString());
-					}
-
-				}
-				patternString += ")";
-				Pattern pattern = Pattern.compile(patternString);
-				Matcher matcher = pattern.matcher(sql);
-				int cnt = 0;
-				while (matcher.find()) {
-					Map temp = new HashMap<>();
-					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
-					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
-
-					mapping.add(temp);
-					cnt++;
-				}
-				matcher.reset();
-				sql = matcher.replaceAll("?");
-
-			}
 
 			pstmt = con.prepareStatement(sql);
 			for (int i = 0; i < mapping.size(); i++) {
@@ -735,7 +702,7 @@ public class Common {
 		}
 	}
 
-	public Map<String, List> callprocedure(String sql, String dbtype, String jdbc, Properties prop, List<Map<String, Object>> params) throws SQLException {
+	public Map<String, List> callprocedure(String sql, String dbtype, String jdbc, Properties prop, List<Map<String, String>> mapping) throws SQLException {
 
 		Connection con = null;
 
@@ -795,39 +762,6 @@ public class Common {
 					typelst.add(Types.DATE);
 					break;
 				}
-			}
-
-			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
-
-			if (params.size() > 0) {
-
-				String patternString = ":(";
-				for (int i = 0; i < params.size(); i++) {
-
-					if (params.get(i).get("type").equals("string")) {
-						if (!patternString.equals(":("))
-							patternString += "|";
-						patternString += params.get(i).get("title");
-					} else {
-						sql = sql.replaceAll(":" + params.get(i).get("title"), params.get(i).get("value").toString());
-					}
-
-				}
-				patternString += ")";
-				Pattern pattern = Pattern.compile(patternString);
-				Matcher matcher = pattern.matcher(sql);
-				int cnt = 0;
-				while (matcher.find()) {
-					Map temp = new HashMap<>();
-					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
-					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
-
-					mapping.add(temp);
-					cnt++;
-				}
-				matcher.reset();
-				sql = matcher.replaceAll("?");
-
 			}
 
 			callStmt1 = con.prepareCall(sql);

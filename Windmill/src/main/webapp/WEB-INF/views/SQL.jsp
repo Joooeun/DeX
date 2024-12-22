@@ -690,7 +690,7 @@ var tableHeight=0;
 		minute = minute >= 10 ? minute : '0' + minute;
 		second = second >= 10 ? second : '0' + second;
 
-		return date.getFullYear() + month + day + '_' + hour + minute + second;
+		return date.getFullYear() + "" + month + "" + day + '_' + hour + minute + second;
 	}
 
 	function dateFormat2(date) {
@@ -796,6 +796,7 @@ var tableHeight=0;
 							</div>
 							<div class="col-sm-2 col-md-1 pull-right">
 								<input type="hidden" id="sendvalue" name="sendvalue"><input id="excutebtn" type="submit" class="form-control" value="실행">
+								<input id="Path" name="Path" value="${Path}" type="hidden">
 								<!-- <input
 										id="excutebtn" type="submit" class="form-control" value="실행">  -->
 								<!-- <label><span
@@ -887,7 +888,6 @@ var tableHeight=0;
 			</div>
 		</div>
 		<c:if test="${sql}">
-			<input id="Path" name="Path" value="${Path}" type="hidden">
 			<input id="refreshtimeout" value="${refreshtimeout}" type="hidden">
 		</c:if>
 	</section>
