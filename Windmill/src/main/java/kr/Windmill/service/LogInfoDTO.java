@@ -241,7 +241,7 @@ public class LogInfoDTO {
 
 		for (int i = 0; i < paramList.size(); i++) {
 
-			if (paramList.get(i).get("type").equals("string")) {
+			if (paramList.get(i).get("type").equals("string") || paramList.get(i).get("type").equals("text") || paramList.get(i).get("type").equals("varchar")) {
 
 				this.logsql = logsql.replaceAll(":" + paramList.get(i).get("title"),
 						"\'" + paramList.get(i).get("value").toString() + "\'");

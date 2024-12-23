@@ -229,7 +229,7 @@ public class SQLController {
 		try {
 
 			cLog.log_start(data, log + "\nmenu 실행 시작\n");
-			
+
 			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
 
 			if (data.getParamList().size() > 0) {
@@ -237,7 +237,7 @@ public class SQLController {
 				String patternString = ":(";
 				for (int i = 0; i < data.getParamList().size(); i++) {
 
-					if (data.getParamList().get(i).get("type").equals("string")) {
+					if (data.getParamList().get(i).get("type").equals("string") || data.getParamList().get(i).get("type").equals("text") || data.getParamList().get(i).get("type").equals("varchar")) {
 						if (!patternString.equals(":("))
 							patternString += "|";
 						patternString += data.getParamList().get(i).get("title");
@@ -262,10 +262,10 @@ public class SQLController {
 				sql = matcher.replaceAll("?");
 
 			}
-			
+
 			String row = "";
 
-			if (sql.toUpperCase().startsWith("CALL")||sql.toUpperCase().startsWith("BEGIN")) {
+			if (sql.toUpperCase().startsWith("CALL") || sql.toUpperCase().startsWith("BEGIN")) {
 				cLog.log_line(data, "start============================================\n" + data.getLogsql() + "\nend==============================================");
 				result = com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop, mapping);
 				data.setEnd(Instant.now());
@@ -332,7 +332,7 @@ public class SQLController {
 
 					if (result.get("rowbody") != null)
 						singleList.addAll(result.get("rowbody"));
-					singleList.addAll(com.updatequery(sql.trim(), connection.getDbtype(), connection.getJdbc(), prop, null, data.getParamList()));
+					singleList.addAll(com.updatequery(sql.trim(), connection.getDbtype(), connection.getJdbc(), prop, null, mapping));
 
 					result.put("rowbody", singleList);
 
