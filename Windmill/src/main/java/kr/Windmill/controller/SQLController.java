@@ -211,7 +211,6 @@ public class SQLController {
 
 		String sql = data.getSql().length() > 0 ? data.getSql() : com.FileRead(new File(data.getPath()));
 		data.setParamList(com.getJsonObjectFromString(data.getParams()));
-		data.setSql(sql);
 		data.setLogsqlA(sql);
 
 		String log = "";
@@ -262,6 +261,8 @@ public class SQLController {
 				sql = matcher.replaceAll("?");
 
 			}
+			
+			data.setSql(sql);
 
 			String row = "";
 

@@ -79,8 +79,7 @@ public class LogInfoDTO {
 
 	public void setSql(String sql) {
 		this.sql = sql == null ? "" : sql;
-
-		setSqlType(sql.toUpperCase().split("\\s")[0]);
+		setSqlType(sql.toUpperCase().split("[\\W\\s]")[0]);
 
 	}
 
