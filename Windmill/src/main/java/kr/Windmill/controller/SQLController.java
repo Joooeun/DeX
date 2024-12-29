@@ -233,7 +233,7 @@ public class SQLController {
 
 			if (data.getParamList().size() > 0) {
 
-				String patternString = ":(";
+				String patternString = "(?!:):(";
 				for (int i = 0; i < data.getParamList().size(); i++) {
 
 					if (data.getParamList().get(i).get("type").equals("string") || data.getParamList().get(i).get("type").equals("text") || data.getParamList().get(i).get("type").equals("varchar")) {
@@ -261,7 +261,7 @@ public class SQLController {
 				sql = matcher.replaceAll("?");
 
 			}
-			
+
 			data.setSql(sql);
 
 			String row = "";
