@@ -258,6 +258,7 @@ body {
 
 
 					<c:if test="${memberId eq 'admin'}">
+						<li class="treeview"><a><i class="fa fa-code-fork"></i><span>7b032e0 / 4bd1bf5</span></a></li>
 						<li class="treeview">
 							<a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span>
 

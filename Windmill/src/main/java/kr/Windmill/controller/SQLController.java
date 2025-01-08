@@ -233,11 +233,11 @@ public class SQLController {
 
 			if (data.getParamList().size() > 0) {
 
-				String patternString = "(?!:):(";
+				String patternString = "(?<!:):(";
 				for (int i = 0; i < data.getParamList().size(); i++) {
 
 					if (data.getParamList().get(i).get("type").equals("string") || data.getParamList().get(i).get("type").equals("text") || data.getParamList().get(i).get("type").equals("varchar")) {
-						if (!patternString.equals(":("))
+						if (!patternString.equals("(?<!:):("))
 							patternString += "|";
 						patternString += data.getParamList().get(i).get("title");
 					} else {
@@ -246,19 +246,21 @@ public class SQLController {
 
 				}
 				patternString += ")";
-				Pattern pattern = Pattern.compile(patternString);
-				Matcher matcher = pattern.matcher(sql);
-				int cnt = 0;
-				while (matcher.find()) {
-					Map temp = new HashMap<>();
-					temp.put("value", data.getParamList().stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
-					temp.put("type", data.getParamList().stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
+				if (!patternString.equals("(?<!:):()")) {
+					Pattern pattern = Pattern.compile(patternString);
+					Matcher matcher = pattern.matcher(sql);
+					int cnt = 0;
+					while (matcher.find()) {
+						Map temp = new HashMap<>();
+						temp.put("value", data.getParamList().stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
+						temp.put("type", data.getParamList().stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
 
-					mapping.add(temp);
-					cnt++;
+						mapping.add(temp);
+						cnt++;
+					}
+					matcher.reset();
+					sql = matcher.replaceAll("?");
 				}
-				matcher.reset();
-				sql = matcher.replaceAll("?");
 
 			}
 
@@ -267,7 +269,9 @@ public class SQLController {
 			String row = "";
 
 			if (sql.toUpperCase().startsWith("CALL") || sql.toUpperCase().startsWith("BEGIN")) {
-				cLog.log_line(data, "start============================================\n" + data.getLogsql() + "\nend==============================================");
+				data.setLogNo(data.getLogNo() + 1);
+				// cLog.log_line(data, "start============================================\n" +
+				// data.getLogsql() + "\nend==============================================");
 				result = com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop, mapping);
 				data.setEnd(Instant.now());
 				data.setResult("Success");
@@ -277,7 +281,9 @@ public class SQLController {
 				cLog.log_DB(data);
 
 			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH") || sql.toUpperCase().startsWith("VALUE")) {
-				cLog.log_line(data, "start============================================\n" + data.getLogsql() + "\nend==============================================");
+				data.setLogNo(data.getLogNo() + 1);
+				// cLog.log_line(data, "start============================================\n" +
+				// data.getLogsql() + "\nend==============================================");
 				result = com.excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit(), mapping);
 				data.setRows(result.get("rowbody").size() - 1);
 				data.setEnd(Instant.now());
@@ -319,11 +325,12 @@ public class SQLController {
 					if (singleSql.trim().length() == 0) {
 						continue;
 					}
-
+					data.setLogNo(data.getLogNo() + 1);
 					sql = singleSql.trim();
 					String logsql = logsqlOrg.split(";")[i].trim() + ";";
 
-					cLog.log_line(data, "start============================================\n" + logsql + "\nend==============================================");
+					// cLog.log_line(data, "start============================================\n" +
+					// logsql + "\nend==============================================");
 					data.setSql(sql);
 					data.setLogsql(logsql);
 
@@ -386,12 +393,12 @@ public class SQLController {
 			result.put("rowbody", singleList);
 
 			if (log.length() > 0) {
-				cLog.log_line(data, log);
+				// cLog.log_line(data, log);
 			}
 
 			data.setResult(e1.getMessage());
 			data.setDuration(0);
-			cLog.log_end(data, " sql 실행 종료 : 실패 " + e1.getMessage() + "\n\n");
+			cLog.log_end(data, " sql 실 행 종료 : 실패 " + e1.getMessage() + "\n\n");
 			cLog.log_DB(data);
 
 			System.out.println("id : " + session.getAttribute("memberId") + " / sql : " + sql);

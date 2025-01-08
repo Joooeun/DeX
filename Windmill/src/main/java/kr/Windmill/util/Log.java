@@ -79,9 +79,7 @@ public class Log {
 			SimpleDateFormat simpleDateFormat2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			String strNowDate2 = simpleDateFormat2.format(Date.from(data.getStart()));
 
-			writer.write(strNowDate2 + " id : " + data.getId() + " / ip :  " + data.getIp());
-			writer.write("\nDB : " + data.getConnection() + " / MENU : " + data.getTitle());
-			writer.write(msg);
+			writer.write(strNowDate2 + " id : " + data.getId() + " / ip :  " + data.getIp() + "\nDB : " + data.getConnection() + " / MENU : " + data.getTitle() + msg);
 			writer.close();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -116,8 +114,7 @@ public class Log {
 			FileWriter fw = new FileWriter(file, true);
 			BufferedWriter writer = new BufferedWriter(fw);
 
-			writer.write("DB : " + data.getConnection() + " / MENU : " + data.getTitle());
-			writer.write(msg);
+			writer.write("start:" + data.getLogId() + ":==============================================\n" + data.getLogsql() + "\nend:" + data.getLogId() + ":==============================================" + "\nDB : " + data.getConnection() + " / MENU : " + data.getTitle() + msg);
 			writer.newLine();
 			writer.close();
 		} catch (IOException e) {
@@ -153,7 +150,7 @@ public class Log {
 			FileWriter fw = new FileWriter(file, true);
 			BufferedWriter writer = new BufferedWriter(fw);
 
-			writer.write(msg);
+			writer.write(data.getLogId() + "\n" + msg);
 			writer.newLine();
 			writer.close();
 		} catch (IOException e) {
@@ -211,7 +208,7 @@ public class Log {
 		try {
 			ConnectionDTO connection = com.getConnection(com.LogDB);
 
-			com.updatequery("INSERT INTO DEXLOG (USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG)" + "VALUES(?,?,?,?,?,?,?,?,?,?,?)", connection.getDbtype(), connection.getJdbc(), connection.getProp(), data, new ArrayList<Map<String, String>>());
+			com.updatequery("INSERT INTO DEXLOG (USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOGID)" + "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", connection.getDbtype(), connection.getJdbc(), connection.getProp(), data, new ArrayList<Map<String, String>>());
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} catch (IOException e) {

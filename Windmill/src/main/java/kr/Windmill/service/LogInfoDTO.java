@@ -1,8 +1,10 @@
 package kr.Windmill.service;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +16,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class LogInfoDTO {
 	private String Connection;
 	private String id;
+	private String logId;
+	private int logNo=0;
 	private String ip;
 
 	private String sql;
@@ -38,7 +42,7 @@ public class LogInfoDTO {
 	private Map mapLog;
 	private String params;
 	private List<Map<String, Object>> paramList;
-	
+
 	private String title;
 
 	public String getTitle() {
@@ -242,14 +246,34 @@ public class LogInfoDTO {
 
 			if (paramList.get(i).get("type").equals("string") || paramList.get(i).get("type").equals("text") || paramList.get(i).get("type").equals("varchar")) {
 
-				this.logsql = logsql.replaceAll(":" + paramList.get(i).get("title"),
-						"\'" + paramList.get(i).get("value").toString() + "\'");
+				this.logsql = logsql.replaceAll(":" + paramList.get(i).get("title"), "\'" + paramList.get(i).get("value").toString() + "\'");
 			} else
-				this.logsql = logsql.replaceAll(":" + paramList.get(i).get("title"),
-						paramList.get(i).get("value").toString());
+				this.logsql = logsql.replaceAll(":" + paramList.get(i).get("title"), paramList.get(i).get("value").toString());
 
 		}
 
+	}
+
+	public String getLogId() {
+		return logId;
+	}
+
+	public void setLogId(String logId) {
+		this.logId = logId;
+	}
+
+	public int getLogNo() {
+		return logNo;
+	}
+
+	public void setLogNo(int logNo) {
+
+		
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("YYYYMMddHHmmssSSS");
+		String strNowDate = simpleDateFormat.format(Date.from(this.start));
+		
+		this.logId = this.id + "_" + this.title + "_" + strNowDate + "_" + logNo;
+		this.logNo = logNo;
 	}
 
 }

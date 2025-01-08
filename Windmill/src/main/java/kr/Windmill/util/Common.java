@@ -453,7 +453,7 @@ public class Common {
 
 			if (data != null) {
 
-				List<Object> logparams = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getTitle(), data.getSqlType(), data.getRows(), data.getLogsql(), data.getResult(), data.getDuration(), data.getStart(), data.getXmlLog());
+				List<Object> logparams = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getTitle(), data.getSqlType(), data.getRows(), data.getLogsql(), data.getResult(), data.getDuration(), data.getStart(), data.getXmlLog(), data.getLogId());
 
 				mapParams(pstmt, logparams);
 			}
