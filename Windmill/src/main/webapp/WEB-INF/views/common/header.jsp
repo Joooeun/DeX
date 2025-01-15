@@ -87,8 +87,9 @@ var changePW
 			alert("메뉴가 없습니다.")
 			return false;
 		}
-
-		iframe.location.href = $('#' + $("#search").val()).attr('href');
+		
+		const iframe = document.querySelector('#pageTabContent > div:last-child > iframe');
+		iframe.contentWindow.location.href = $('#' + $("#search").val()).attr('href');
 
 		return false;
 	}
@@ -107,8 +108,7 @@ var changePW
 			var newtab = true;
 			for (var i = 0; i < $('#pageTab a').length; i++) {
 				//console.log('text2 : ', text, $('#pageTab a:eq(' + i + ')').text().replace(/x$/, ''))
-				if (text == $('#pageTab a:eq(' + i + ')').text().replace(/x$/,
-						'')) {
+				if (text == $('#pageTab a:eq(' + i + ')').text()) {
 
 					newtab = false;
 					$('#pageTab a:eq(' + i + ')').tab('show');
