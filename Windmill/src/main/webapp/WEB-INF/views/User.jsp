@@ -267,6 +267,31 @@ var arr;
 		
 		
 	}
+	
+	function resetPW() {
+		var filename = $("#userlist").val();
+		if (filename == 'create') {
+			filename = $('#ID').val();
+		}
+
+		$.ajax({
+			type : 'post',
+			url : '/User/resetPW',
+			data : {
+				file : filename,
+				ID : $('#ID').val(),
+			},
+			success : function(result) {
+				alert("비밀번호가 초기화 되었습니다.");
+				location.reload();
+			},
+			error : function() {
+				alert("저장되지 않았습니다.");
+			}
+		});
+		
+		
+	}
 </script>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper" style="margin-left: 0">
@@ -323,7 +348,8 @@ var arr;
 							</div>
 							<div class="col-md-6 required" style="margin: 2px 0;">
 								<label for="PW">PW</label>
-								<input type="text" class="form-control" id="PW" placeholder="PW" required="required">
+								<input type="password" class="form-control" id="PW" placeholder="PW" required="required">
+								
 							</div>
 						</div>
 					</div>
@@ -348,7 +374,12 @@ var arr;
 				</div>
 				<!-- /.box-body -->
 				<div class="box-footer">
+				<div class="col-md-6">
+					<button type="button" class="btn btn-primary form-control" onclick="resetPW()">비밀번호 초기화</button>
+					</div>
+					<div class="col-md-6">
 					<button type="submit" class="btn btn-primary form-control">저장</button>
+					</div>
 				</div>
 			</form>
 		</div>

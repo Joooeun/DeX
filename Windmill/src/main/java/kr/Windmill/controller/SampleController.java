@@ -50,14 +50,13 @@ public class SampleController {
 		try {
 			List<Map<String, String>> userList = com.UserList();
 
-			List<String> userIds = userList.stream().map(user->user.get("id")).collect(Collectors.toList());
-			
+			List<String> userIds = userList.stream().map(user -> user.get("id")).collect(Collectors.toList());
+
 			if (userIds.contains(request.getParameter("id"))) {
 
-				System.out.println("id : "+request.getParameter("id"));
-				
+				System.out.println("id : " + request.getParameter("id"));
+
 				Map<String, String> map = com.UserConf(request.getParameter("id"));
-				
 
 				if (!map.get("IP").equals("") && !map.get("IP").equals(com.getIp(request))) {
 
@@ -66,9 +65,22 @@ public class SampleController {
 					return "/common/messageRedirect";
 				}
 
-				if (map.get("PW").equals(request.getParameter("pw"))) {
+				if (map.get("TEMPPW").equals("true") && map.get("PW").equals(request.getParameter("pw"))) {
 
 					session.setAttribute("memberId", request.getParameter("id"));
+					session.setAttribute("changePW", true);
+					cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 성공, 비밀번호 변경 필요");
+
+					response.setHeader("Cache-Control", "no-cache, no-store");
+					response.setHeader("Pragma", "no-cache");
+					response.setDateHeader("Expires", 0);
+
+					return "redirect:/index";
+
+				} else if (map.get("PW").equals(request.getParameter("pw"))) {
+
+					session.setAttribute("memberId", request.getParameter("id"));
+					session.setAttribute("changePW", false);
 					cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 성공");
 
 					response.setHeader("Cache-Control", "no-cache, no-store");
@@ -90,11 +102,10 @@ public class SampleController {
 				return "/common/messageRedirect";
 			}
 		} catch (Exception e) {
-			
+
 			model.addAttribute("params", com.showMessageAndRedirect("계정정보를 불러오는데 실패했습니다.", "/", "GET"));
 			return "/common/messageRedirect";
 		}
-		
 
 //		AES256Cipher a256 = AES256Cipher.getInstance();
 //

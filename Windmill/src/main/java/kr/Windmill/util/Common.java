@@ -143,6 +143,7 @@ public class Common {
 		map.put("NAME", bytetostr(props.getProperty("NAME")));
 		map.put("IP", bytetostr(props.getProperty("IP")));
 		map.put("PW", bytetostr(props.getProperty("PW")));
+		map.put("TEMPPW", bytetostr(props.getProperty("TEMPPW")));
 		map.put("MENU", bytetostr(props.getProperty("MENU")));
 		map.put("CONNECTION", bytetostr(props.getProperty("CONNECTION")));
 

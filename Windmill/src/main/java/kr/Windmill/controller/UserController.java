@@ -123,6 +123,37 @@ public class UserController {
 	}
 
 	@ResponseBody
+	@RequestMapping(path = "/User/resetPW")
+	public void resetPW(HttpServletRequest request, HttpSession session) throws IOException {
+
+		Map<String, String> map = com.UserConf(request.getParameter("ID"));
+
+		String propFile = com.UserPath + request.getParameter("file");
+		File file = new File(propFile);
+
+		try {
+
+			String str = "#" + request.getParameter("ID") + "\n";
+			FileWriter fw = new FileWriter(file);
+			str += "IP=" + map.get("IP") + "\n";
+			str += "PW=1234\n";
+			str += "TEMPPW=true\n";
+			str += "MENU=" + map.get("MENU") + "\n";
+			str += "CONNECTION=" + map.get("CONNECTION") + "\n";
+
+			fw.write(com.cryptStr(str));
+			fw.close();
+			session.setAttribute("changePW", false);
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return;
+	}
+
+	@ResponseBody
 	@RequestMapping(path = "/User/changePW")
 	public void changePW(HttpServletRequest request, HttpSession session) throws IOException {
 
@@ -142,6 +173,7 @@ public class UserController {
 
 			fw.write(com.cryptStr(str));
 			fw.close();
+			session.setAttribute("changePW", false);
 
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -151,5 +183,4 @@ public class UserController {
 		return;
 	}
 
-	
 }

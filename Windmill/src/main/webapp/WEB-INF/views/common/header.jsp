@@ -40,7 +40,18 @@ body {
 </head>
 
 <script>
+
+var changePW
 	$(document).ready(function() {
+		
+		changePW = ${changePW==true};
+		
+		if(changePW){
+			
+			$('#changePWModal').modal({backdrop: 'static', keyboard: false});
+			$('#changePWModal').modal('show');
+		}
+		
 		getMenu();
 
 		$(document).on("click", ".addtree", function() {
@@ -87,8 +98,7 @@ body {
 
 	function setFrame(frameid) {
 
-		var text = $('#' + frameid).contents().find('.content-header>h1')
-				.text().trim();
+		var text = $('#' + frameid).contents().find('.content-header>h1').text().trim();
 
 		if (text == '') {
 			return;
@@ -222,16 +232,13 @@ body {
 			<!-- Header Navbar: style can be found in header.less -->
 			<nav class="navbar navbar-static-top" role="navigation">
 				<!-- Sidebar toggle button-->
-				<a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span>
+				<a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar"></span> <span class="icon-bar"></span> <span
+					class="icon-bar"></span>
 				</a>
 				<div class="navbar-custom-menu">
 					<ul class="nav navbar-nav">
-						<li>
-							<a href="javascript:checkPWModal()">${memberId}</a>
-						</li>
-						<li>
-							<a href="/userRemove"><i class="fa fa-sign-out"></i></a>
-						</li>
+						<li><a href="javascript:checkPWModal()">${memberId}</a></li>
+						<li><a href="/userRemove"><i class="fa fa-sign-out"></i></a></li>
 					</ul>
 				</div>
 			</nav>
@@ -259,44 +266,31 @@ body {
 
 					<c:if test="${memberId eq 'admin'}">
 						<li class="treeview"><a><i class="fa fa-code-fork"></i><span>7b032e0 / 4bd1bf5</span></a></li>
-						<li class="treeview">
-							<a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span>
+						<li class="treeview"><a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span>
 
-							</a>
-							<!-- <ul class="treeview-menu" id="ConnectionList">
+						</a> <!-- <ul class="treeview-menu" id="ConnectionList">
 							<li><a href="/Connection?DB=2"><i class="fa fa-circle-o"></i> DB1</a></li>
 							<li><a href="/Connection?DB=1"><i class="fa fa-circle-o"></i> DB2</a></li>
-						</ul> -->
-						</li>
+						</ul> --></li>
 
-						<li class="treeview">
-							<a href="/User" target="iframe"> <i class="fa fa-user"></i> <span>User</span>
+						<li class="treeview"><a href="/User" target="iframe"> <i class="fa fa-user"></i> <span>User</span>
 
-							</a>
-						</li>
+						</a></li>
 					</c:if>
 
-					<li class="treeview">
-						<a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span>
-						</a>
-					</li>
-					<li class="treeview">
-						<a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileUpload</span>
-						</a>
-					</li>
+					<li class="treeview"><a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span>
+					</a></li>
+					<li class="treeview"><a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileUpload</span>
+					</a></li>
 
-					<li id="sqltree" class="active treeview menu-open">
-						
-					</li>
+					<li id="sqltree" class="active treeview menu-open"></li>
 				</ul>
 			</section>
 			<!-- /.sidebar -->
 		</aside>
 		<div class="content-wrapper" id="framebox">
 			<ul id="pageTab" class="nav nav-tabs">
-				<li class="active">
-					<a href="#page1" data-toggle="tab">전체메뉴</a>
-				</li>
+				<li class="active"><a href="#page1" data-toggle="tab">전체메뉴</a></li>
 			</ul>
 			<div id="pageTabContent" class="tab-content">
 				<div class="tab-pane active" id="page1">
@@ -314,24 +308,27 @@ body {
 			<div class="modal-dialog" role="document">
 				<div class="modal-content">
 					<div class="modal-header">
-						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-							<span aria-hidden="true">&times;</span>
-						</button>
+						<c:if test=" ${changePW==true}">
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+								<span aria-hidden="true">&times;</span>
+							</button>
+						</c:if>
 						<h4 class="modal-title" id="myModalLabel">비밀번호 변경</h4>
 					</div>
 					<div class="modal-body">
 						<div class="form-group">
-							<label for="PW">새 비밀번호</label>
-							<input type="password" class="form-control" id="PW" placeholder="새 비밀번호" maxlength="16">
+							<label for="PW">새 비밀번호</label> <input type="password" class="form-control" id="PW" placeholder="새 비밀번호" maxlength="16">
 						</div>
 
 						<div class="form-group">
-							<label for="PW">새 비밀번호 확인</label>
-							<input type="password" class="form-control" id="newPW" placeholder="새 비밀번호 확인" maxlength="16">
+							<label for="PW">새 비밀번호 확인</label> <input type="password" class="form-control" id="newPW" placeholder="새 비밀번호 확인" maxlength="16">
 						</div>
 					</div>
 					<div class="modal-footer">
-						<button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
+						<c:if test=" ${changePW==true}">
+							<button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
+						</c:if>
+
 						<button type="button" class="btn btn-primary" onclick="save()">저장</button>
 					</div>
 				</div>
@@ -351,8 +348,7 @@ body {
 					<div class="modal-body">
 
 						<div class="form-group">
-							<label for="PW">현재 비밀번호</label>
-							<input type="password" class="form-control" id="curPW" placeholder="현재 비밀번호">
+							<label for="PW">현재 비밀번호</label> <input type="password" class="form-control" id="curPW" placeholder="현재 비밀번호">
 						</div>
 					</div>
 					<div class="modal-footer">
