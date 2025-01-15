@@ -13,11 +13,13 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import kr.Windmill.controller.SQLController.SqlType;
+
 public class LogInfoDTO {
 	private String Connection;
 	private String id;
 	private String logId;
-	private int logNo=0;
+	private int logNo = 0;
 	private String ip;
 
 	private String sql;
@@ -83,7 +85,7 @@ public class LogInfoDTO {
 
 	public void setSql(String sql) {
 		this.sql = sql == null ? "" : sql;
-		setSqlType(sql.toUpperCase().split("[\\W\\s]")[0]);
+		setSqlType(firstword(sql));
 
 	}
 
@@ -268,12 +270,52 @@ public class LogInfoDTO {
 
 	public void setLogNo(int logNo) {
 
-		
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("YYYYMMddHHmmssSSS");
 		String strNowDate = simpleDateFormat.format(Date.from(this.start));
-		
+
 		this.logId = this.id + "_" + this.title + "_" + strNowDate + "_" + logNo;
 		this.logNo = logNo;
+	}
+
+	// SQL에서 주석 제거
+	public static String removeComments(String sql) {
+		if (sql == null || sql.trim().isEmpty()) {
+			throw new IllegalArgumentException("SQL query cannot be null or empty");
+		}
+
+		// 정규식을 사용해 단일 줄 및 다중 줄 주석 제거
+		String singleLineCommentRegex = "--.*?(\r?\n|$)";
+		String multiLineCommentRegex = "/\\*.*?\\*/";
+
+		sql = sql.replaceAll(singleLineCommentRegex, " ");
+		sql = sql.replaceAll(multiLineCommentRegex, " ");
+		return sql.trim();
+	}
+
+	// SQL 유형 판별
+	public static String firstword(String sql) {
+		String cleanedSql = removeComments(sql);
+
+		// 첫 번째 단어 추출
+		String firstWord = cleanedSql.split("\\s+")[0].toUpperCase();
+
+		return firstWord;
+	}
+
+	// SQL 유형 판별
+	public static SqlType detectSqlType(String firstWord) {
+
+		switch (firstWord) {
+		case "CALL":
+		case "BEGIN":
+			return SqlType.CALL;
+		case "SELECT":
+		case "WITH":
+		case "VALUE":
+			return SqlType.EXECUTE;
+		default:
+			return SqlType.UPDATE;
+		}
 	}
 
 }

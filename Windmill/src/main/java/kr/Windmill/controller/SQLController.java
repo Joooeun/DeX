@@ -268,7 +268,7 @@ public class SQLController {
 
 			String row = "";
 
-			if (sql.toUpperCase().startsWith("CALL") || sql.toUpperCase().startsWith("BEGIN")) {
+			if (detectSqlType(sql) == SqlType.CALL) {
 				data.setLogNo(data.getLogNo() + 1);
 				// cLog.log_line(data, "start============================================\n" +
 				// data.getLogsql() + "\nend==============================================");
@@ -280,7 +280,7 @@ public class SQLController {
 				cLog.log_end(data, " sql 실행 종료 : 성공 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 				cLog.log_DB(data);
 
-			} else if (sql.toUpperCase().startsWith("SELECT") || sql.toUpperCase().startsWith("WITH") || sql.toUpperCase().startsWith("VALUE")) {
+			} else if (detectSqlType(sql) == SqlType.EXECUTE) {
 				data.setLogNo(data.getLogNo() + 1);
 				// cLog.log_line(data, "start============================================\n" +
 				// data.getLogsql() + "\nend==============================================");
@@ -408,5 +408,50 @@ public class SQLController {
 		}
 
 		return result;
+	}
+
+	public enum SqlType {
+		CALL, EXECUTE, UPDATE
+	}
+
+	// SQL에서 주석 제거
+	public static String removeComments(String sql) {
+		if (sql == null || sql.trim().isEmpty()) {
+			throw new IllegalArgumentException("SQL query cannot be null or empty");
+		}
+
+		// 정규식을 사용해 단일 줄 및 다중 줄 주석 제거
+		String singleLineCommentRegex = "--.*?(\r?\n|$)";
+		String multiLineCommentRegex = "/\\*.*?\\*/";
+
+		sql = sql.replaceAll(singleLineCommentRegex, " ");
+		sql = sql.replaceAll(multiLineCommentRegex, " ");
+		return sql.trim();
+	}
+
+	// SQL 유형 판별
+	public static String firstword(String sql) {
+		String cleanedSql = removeComments(sql);
+
+		// 첫 번째 단어 추출
+		String firstWord = cleanedSql.split("\\s+")[0].toUpperCase();
+
+		return firstWord;
+	}
+
+	// SQL 유형 판별
+	public static SqlType detectSqlType(String firstWord) {
+
+		switch (firstWord) {
+		case "CALL":
+		case "BEGIN":
+			return SqlType.CALL;
+		case "SELECT":
+		case "WITH":
+		case "VALUE":
+			return SqlType.EXECUTE;
+		default:
+			return SqlType.UPDATE;
+		}
 	}
 }
