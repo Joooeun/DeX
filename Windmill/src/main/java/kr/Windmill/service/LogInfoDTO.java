@@ -106,7 +106,7 @@ public class LogInfoDTO {
 			String xmlLog = "<xml>";
 			for (Map.Entry<String, String> entry : dataMap.entrySet()) {
 				xmlLog += "<" + entry.getKey() + ">";
-				xmlLog += entry.getValue();
+				xmlLog += encodeXml(entry.getValue());
 				xmlLog += "</" + entry.getKey() + ">";
 			}
 			xmlLog += "</xml>";
@@ -123,6 +123,15 @@ public class LogInfoDTO {
 			e.printStackTrace();
 		}
 
+	}
+
+	// 특수문자 인코딩 메서드
+	public static String encodeXml(String input) {
+		if (input == null || input.isEmpty()) {
+			return input;
+		}
+
+		return input.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&apos;").replace("\"", "&quot;");
 	}
 
 	public String getXmlLog() {
