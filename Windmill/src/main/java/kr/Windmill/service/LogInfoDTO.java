@@ -293,8 +293,8 @@ public class LogInfoDTO {
 		}
 
 		// 정규식을 사용해 단일 줄 및 다중 줄 주석 제거
-		String singleLineCommentRegex = "--.*?(\r?\n|$)";
-		String multiLineCommentRegex = "/\\*.*?\\*/";
+		String singleLineCommentRegex = "--.*";
+		String multiLineCommentRegex = "\\/\\*[\\s\\S]*?\\*\\/";
 
 		sql = sql.replaceAll(singleLineCommentRegex, " ");
 		sql = sql.replaceAll(multiLineCommentRegex, " ");
@@ -312,9 +312,9 @@ public class LogInfoDTO {
 	}
 
 	// SQL 유형 판별
-	public static SqlType detectSqlType(String firstWord) {
+	public static SqlType detectSqlType(String sql) {
 
-		switch (firstWord) {
+		switch (firstword(sql)) {
 		case "CALL":
 		case "BEGIN":
 			return SqlType.CALL;
