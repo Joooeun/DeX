@@ -135,6 +135,7 @@ public class UserController {
 
 			String str = "#" + request.getParameter("ID") + "\n";
 			FileWriter fw = new FileWriter(file);
+			str += "NAME=" + map.get("NAME") + "\n";
 			str += "IP=" + map.get("IP") + "\n";
 			str += "PW=1234\n";
 			str += "TEMPPW=true\n";
@@ -166,6 +167,7 @@ public class UserController {
 
 			String str = "#" + session.getAttribute("memberId") + "\n";
 			FileWriter fw = new FileWriter(file);
+			str += "NAME=" + map.get("NAME") + "\n";
 			str += "IP=" + map.get("IP") + "\n";
 			str += "PW=" + request.getParameter("PW") + "\n";
 			str += "MENU=" + map.get("MENU") + "\n";

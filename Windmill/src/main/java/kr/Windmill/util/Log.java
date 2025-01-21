@@ -208,7 +208,7 @@ public class Log {
 		try {
 			ConnectionDTO connection = com.getConnection(com.LogDB);
 
-			com.updatequery("INSERT INTO DEXLOG (USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOGID)" + "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", connection.getDbtype(), connection.getJdbc(), connection.getProp(), data, new ArrayList<Map<String, String>>());
+			com.updatequery("INSERT INTO DEXLOG (USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID)" + "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", connection.getDbtype(), connection.getJdbc(), connection.getProp(), data, new ArrayList<Map<String, String>>());
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} catch (IOException e) {

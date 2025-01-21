@@ -706,49 +706,54 @@ public class Common {
 			Map<String, List> result = new HashMap<String, List>();
 
 			String callcheckstr = "";
-
 			String prcdname = "";
-			prcdname = sql.substring(sql.indexOf("CALL") + 6, sql.indexOf("("));
-			if (prcdname.contains(".")) {
-				prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
-			}
-
-			int paramcnt = StringUtils.countMatches(sql, ",") + 1;
-			switch (dbtype) {
-			case "DB2":
-				callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME " + " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
-				break;
-			case "ORACLE":
-				callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n" + " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
-				break;
-
-			default:
-				break;
-			}
-
+			
 			List<Integer> typelst = new ArrayList<>();
-			pstmt = con.prepareStatement(callcheckstr);
-			rs = pstmt.executeQuery();
-
 			List<Integer> rowlength = new ArrayList<>();
+			
+			if (sql.indexOf("CALL") > -1) {
+				prcdname = sql.substring(sql.indexOf("CALL") + 6, sql.indexOf("("));
+				if (prcdname.contains(".")) {
+					prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
+				}
 
-			while (rs.next()) {
-				switch (rs.getString("TYPENAME")) {
-				case "VARCHAR2":
-					typelst.add(Types.VARCHAR);
+				int paramcnt = StringUtils.countMatches(sql, ",") + 1;
+				switch (dbtype) {
+				case "DB2":
+					callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME " + " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
 					break;
-				case "VARCHAR":
-					typelst.add(Types.VARCHAR);
+				case "ORACLE":
+					callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n" + " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
 					break;
-				case "INTEGER":
-					typelst.add(Types.INTEGER);
+
+				default:
 					break;
-				case "TIMESTAMP":
-					typelst.add(Types.TIMESTAMP);
-					break;
-				case "DATE":
-					typelst.add(Types.DATE);
-					break;
+				}
+
+				
+				pstmt = con.prepareStatement(callcheckstr);
+				rs = pstmt.executeQuery();
+
+				
+
+				while (rs.next()) {
+					switch (rs.getString("TYPENAME")) {
+					case "VARCHAR2":
+						typelst.add(Types.VARCHAR);
+						break;
+					case "VARCHAR":
+						typelst.add(Types.VARCHAR);
+						break;
+					case "INTEGER":
+						typelst.add(Types.INTEGER);
+						break;
+					case "TIMESTAMP":
+						typelst.add(Types.TIMESTAMP);
+						break;
+					case "DATE":
+						typelst.add(Types.DATE);
+						break;
+					}
 				}
 			}
 

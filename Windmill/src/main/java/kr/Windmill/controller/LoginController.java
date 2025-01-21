@@ -23,9 +23,9 @@ import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
 
 @Controller
-public class SampleController {
+public class LoginController {
 
-	private static final Logger logger = LoggerFactory.getLogger(SampleController.class);
+	private static final Logger logger = LoggerFactory.getLogger(LoginController.class);
 	Common com = new Common();
 	Log cLog = new Log();
 
