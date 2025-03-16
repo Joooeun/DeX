@@ -29,8 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -707,12 +705,13 @@ public class Common {
 
 			String callcheckstr = "";
 			String prcdname = "";
-			
+
 			List<Integer> typelst = new ArrayList<>();
 			List<Integer> rowlength = new ArrayList<>();
-			
+			List rowhead = new ArrayList<>();
+
 			if (sql.indexOf("CALL") > -1) {
-				prcdname = sql.substring(sql.indexOf("CALL") + 6, sql.indexOf("("));
+				prcdname = sql.substring(sql.indexOf("CALL") + 5, sql.indexOf("("));
 				if (prcdname.contains(".")) {
 					prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
 				}
@@ -730,11 +729,8 @@ public class Common {
 					break;
 				}
 
-				
 				pstmt = con.prepareStatement(callcheckstr);
 				rs = pstmt.executeQuery();
-
-				
 
 				while (rs.next()) {
 					switch (rs.getString("TYPENAME")) {
@@ -775,7 +771,17 @@ public class Common {
 
 			for (int i = 0; i < typelst.size(); i++) {
 				callStmt1.registerOutParameter(i + 1, typelst.get(i));
+
+				Map head = new HashMap();
+
+				head.put("title", (i + 1) + "");
+				head.put("type", typelst.get(i));
+				head.put("desc", "");
+
+				rowhead.add(head);
 			}
+
+			result.put("rowhead", rowhead);
 
 			callStmt1.execute();
 
@@ -785,7 +791,6 @@ public class Common {
 				ResultSetMetaData rsmd = rs2.getMetaData();
 				int colcnt = rsmd.getColumnCount();
 
-				List rowhead = new ArrayList<>();
 				String column;
 
 				for (int index = 0; index < colcnt; index++) {
@@ -833,14 +838,39 @@ public class Common {
 				result.put("rowlength", rowlength);
 			} else {
 
-				List<String> element = new ArrayList<String>();
-				for (int i = 0; i < typelst.size(); i++) {
+				Map head = new HashMap();
 
-					element.add(callStmt1.getString(i + 1) + "");
+				head.put("title", "Update Rows");
+				head.put("type", Types.VARCHAR);
+				head.put("desc", "");
+
+				rowhead.add(head);
+				
+
+				result.put("rowhead", rowhead);
+
+				List rowbody = new ArrayList<>();
+
+				List<String> element = new ArrayList<String>();
+
+				if (typelst.size() > 0) {
+
+					for (int i = 0; i < typelst.size(); i++) {
+
+						element.add(callStmt1.getString(i + 1) + "");
+
+					}
+
+				} else {
+
+					element.add("" + callStmt1.getUpdateCount());
+					rowlength.add(callStmt1.getUpdateCount());
 
 				}
 
-				result.put("rowbody", element);
+				rowbody.add(element);
+				result.put("rowbody", rowbody);
+				result.put("rowlength", rowlength);
 			}
 
 			return result;

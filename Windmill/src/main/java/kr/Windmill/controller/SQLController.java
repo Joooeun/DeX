@@ -273,11 +273,15 @@ public class SQLController {
 				// cLog.log_line(data, "start============================================\n" +
 				// data.getLogsql() + "\nend==============================================");
 				result = com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop, mapping);
+
+				data.setRows(Integer.parseInt(result.get("rowlength").get(0).toString()));
 				data.setEnd(Instant.now());
 				data.setResult("Success");
 				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
 
-				cLog.log_end(data, " sql 실행 종료 : 성공 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
+				row = " / rows : " + result.get("rowlength").get(0).toString();
+
+				cLog.log_end(data, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 				cLog.log_DB(data);
 
 			} else if (detectSqlType(sql) == SqlType.EXECUTE) {

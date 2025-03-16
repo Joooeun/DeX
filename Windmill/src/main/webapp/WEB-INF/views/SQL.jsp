@@ -423,6 +423,7 @@ var tableHeight=0;
 
 					if(result.rowbody.length>0)
 					chart(result);
+
 				}
 				
 				var v_buffer = 40;
@@ -586,49 +587,73 @@ var tableHeight=0;
 	}
 
 	function chart(result) {
-
-		myChart.destroy();
 		
-		var chardata = transpose(result.rowbody)
-
+		if(myChart.data.labels.length==1){	
+			
+			myChart.destroy();
+		
+			var chardata = transpose(result.rowbody)
+	
+			var labels = result.rowhead.map((item)=>item.title);
+			
+			var datasets = [];
+			var maxdata = 0;	
+			
+	
+			for (var i = 1; i < labels.length; i++) {
+				
+				var data = result.rowbody.map((item)=>parseInt(item[i])) 
+				
+				if (maxdata < Math.max(...data)) {
+					maxdata = Math.max(...data);
+				}
+	
+				datasets.push({
+					label: labels[i],
+					data: data,
+					fill: false,
+					borderColor: graphcolor[i - 1],
+					tension: 0.1,
+					hidden: Math.max(...data) < maxdata / 10
+				})
+			}
+	
+	
+			const datas = {
+				labels: result.rowbody.map((item)=>item[0]),
+				datasets: datasets
+			};
+	
+			myChart = new Chart(ctx, {
+				type: 'line',
+				data: datas,
+				options: {
+					maintainAspectRatio: false,
+				}
+			});
+			
+		} else {
+			updateChart(result)
+			
+		}
+	}
+	
+	function updateChart(result) {
+        
+        var datasets = [];
+		
 		var labels = result.rowhead.map((item)=>item.title);
 		
-		var datasets = [];
-		var maxdata = 0;	
-		
-
-		for (var i = 1; i < labels.length; i++) {
+        myChart.data.labels = result.rowbody.map((item)=>item[0]);
+        for (var i = 1; i < labels.length; i++) {
 			
-			var data = result.rowbody.map((item)=>parseInt(item[i])) 
-			
-			if (maxdata < Math.max(...data)) {
-				maxdata = Math.max(...data);
-			}
-
-			datasets.push({
-				label: labels[i],
-				data: data,
-				fill: false,
-				borderColor: graphcolor[i - 1],
-				tension: 0.1,
-				hidden: Math.max(...data) < maxdata / 10
-			})
-		}
-
-
-		const datas = {
-			labels: result.rowbody.map((item)=>item[0]),
-			datasets: datasets
+			var data = result.rowbody.map((item)=>parseInt(item[i]))
+			//myChart.data.datasets[i-1].label = labels[i];
+			myChart.data.datasets[i-1].data = data;
 		};
-
-		myChart = new Chart(ctx, {
-			type: 'line',
-			data: datas,
-			options: {
-				maintainAspectRatio: false,
-			}
-		});
-	}
+		
+		myChart.update('none');
+    }
 
 	function random_rgba() {
 		var o = Math.round,
