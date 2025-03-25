@@ -838,17 +838,6 @@ public class Common {
 				result.put("rowlength", rowlength);
 			} else {
 
-				Map head = new HashMap();
-
-				head.put("title", "Update Rows");
-				head.put("type", Types.VARCHAR);
-				head.put("desc", "");
-
-				rowhead.add(head);
-				
-
-				result.put("rowhead", rowhead);
-
 				List rowbody = new ArrayList<>();
 
 				List<String> element = new ArrayList<String>();
@@ -861,7 +850,19 @@ public class Common {
 
 					}
 
+					rowlength.add(1);
+
 				} else {
+
+					Map head = new HashMap();
+
+					head.put("title", "Update Rows");
+					head.put("type", Types.VARCHAR);
+					head.put("desc", "");
+
+					rowhead.add(head);
+
+					result.put("rowhead", rowhead);
 
 					element.add("" + callStmt1.getUpdateCount());
 					rowlength.add(callStmt1.getUpdateCount());
