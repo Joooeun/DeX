@@ -274,12 +274,12 @@ public class SQLController {
 				// data.getLogsql() + "\nend==============================================");
 				result = com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop, mapping);
 
-				data.setRows(Integer.parseInt(result.get("rowlength").get(0).toString()));
+				data.setRows(Integer.parseInt(result.get("rowlength").get(data.isAudit() ? 1 : 0).toString()));
 				data.setEnd(Instant.now());
 				data.setResult("Success");
 				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
 
-				row = " / rows : " + result.get("rowlength").get(0).toString();
+				row = " / rows : " + data.getRows();
 
 				cLog.log_end(data, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 				cLog.log_DB(data);

@@ -851,6 +851,7 @@ public class Common {
 					}
 
 					rowlength.add(1);
+					rowlength.add(Integer.parseInt(callStmt1.getString(1 + mapping.size())));
 
 				} else {
 
@@ -865,6 +866,7 @@ public class Common {
 					result.put("rowhead", rowhead);
 
 					element.add("" + callStmt1.getUpdateCount());
+					rowlength.add(callStmt1.getUpdateCount());
 					rowlength.add(callStmt1.getUpdateCount());
 
 				}
