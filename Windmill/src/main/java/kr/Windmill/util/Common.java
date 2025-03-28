@@ -770,7 +770,7 @@ public class Common {
 			}
 
 			for (int i = 0; i < typelst.size(); i++) {
-				callStmt1.registerOutParameter(i + 1, typelst.get(i));
+				callStmt1.registerOutParameter(i + 1 + mapping.size(), typelst.get(i));
 
 				Map head = new HashMap();
 
@@ -846,7 +846,7 @@ public class Common {
 
 					for (int i = 0; i < typelst.size(); i++) {
 
-						element.add(callStmt1.getString(i + 1) + "");
+						element.add(callStmt1.getString(i + 1 + mapping.size()) + "");
 
 					}
 
