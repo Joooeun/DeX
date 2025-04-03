@@ -199,6 +199,46 @@ public class Log {
 		}
 	}
 
+	public void errorLog(String msg) {
+
+		Date nowDate = new Date();
+
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
+		String strNowDate = simpleDateFormat.format(nowDate);
+
+		try {
+
+			String path = com.RootPath + "log";
+			File folder = new File(path);
+
+			if (!folder.exists()) {
+				try {
+					logger.info("폴더생성여부 : " + folder.mkdirs());
+				} catch (Exception e) {
+					e.getStackTrace();
+				}
+			}
+
+			path += File.separator + "error_log_" + strNowDate + ".log";
+
+			File file = new File(path);
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+
+			FileWriter fw = new FileWriter(file, true);
+			BufferedWriter writer = new BufferedWriter(fw);
+			SimpleDateFormat simpleDateFormat2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			String strNowDate2 = simpleDateFormat2.format(nowDate);
+
+			writer.write(strNowDate2 + " " + msg);
+			writer.newLine();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
 	public void log_DB(LogInfoDTO data) {
 
 		if (data.getConnection().equals(com.LogDB) || !data.isAudit()) {

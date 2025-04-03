@@ -119,15 +119,15 @@ public class SQLController {
 					} else if (line.split("=")[0].equals("LIMIT")) {
 						mv.addObject("limit", line.split("=")[1]);
 					} else if (line.split("=")[0].equals("NEWLINE")) {
-						mv.addObject("newline", line.split("=")[1]);
+						mv.addObject("newline", line.split("=")[1].toLowerCase());
 					} else if (line.split("=")[0].equals("DB")) {
 						mv.addObject("DB", line.split("=")[1]);
 					} else if (line.split("=")[0].equals("DESC")) {
 						mv.addObject("desc", line.split("=")[1]);
 					} else if (line.split("=")[0].equals("SAVE")) {
-						mv.addObject("save", line.split("=")[1]);
+						mv.addObject("save", line.split("=")[1].toLowerCase());
 					} else if (line.split("=")[0].equals("AUDIT")) {
-						mv.addObject("audit", line.split("=")[1]);
+						mv.addObject("audit", line.split("=")[1].toLowerCase());
 					}
 
 				}

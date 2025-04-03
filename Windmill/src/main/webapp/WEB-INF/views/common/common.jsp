@@ -200,4 +200,47 @@
 		return parent;
 
 	}
+	
+	
+	// 일반적인 오류 감지
+	window.onerror = function(message, source, lineno, colno, error) {
+	    sendErrorToServer({
+	        type: "error",
+	        message: message,
+	        source: source,
+	        line: lineno,
+	        column: colno,
+	        stack: error ? error.stack : null
+	    });
+	};
+
+	// 리소스 로딩 오류 감지 (예: 이미지, 스크립트 로드 실패)
+	window.addEventListener("error", function(event) {
+	    if (event.target instanceof HTMLElement) {
+	        sendErrorToServer({
+	            type: "resource",
+	            tag: event.target.tagName,
+	            src: event.target.src || event.target.href
+	        });
+	    }
+	}, true);
+
+	// Promise 처리 중 발생한 오류 감지
+	window.addEventListener("unhandledrejection", function(event) {
+	    sendErrorToServer({
+	        type: "promise",
+	        message: event.reason ? event.reason.message : "Unhandled promise rejection",
+	        stack: event.reason ? event.reason.stack : null
+	    });
+	});
+
+	// 오류를 서버로 전송하는 함수
+	function sendErrorToServer(errorData) {
+	    fetch("/log-error", {
+	        method: "POST",
+	        headers: { "Content-Type": "application/json" },
+	        body: JSON.stringify(errorData)
+	    });
+	}
+
 </script>

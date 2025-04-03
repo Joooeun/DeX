@@ -649,7 +649,15 @@ var tableHeight=0;
 			
 			var data = result.rowbody.map((item)=>parseInt(item[i]))
 			//myChart.data.datasets[i-1].label = labels[i];
-			myChart.data.datasets[i-1].data = data;
+			if (typeof myChart.data.datasets[i-1].data === "undefined") {
+				 sendErrorToServer({
+				        type: "debug",
+				        data : myChart.data.datasets[i-1]
+				        
+				    });
+			}else{
+				myChart.data.datasets[i-1].data = data;
+			}
 		};
 		
 		myChart.update('none');

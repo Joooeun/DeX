@@ -15,12 +15,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
@@ -28,6 +31,7 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
 import kr.Windmill.util.Common;
+import kr.Windmill.util.Log;
 
 @Controller
 public class FileController {
@@ -35,6 +39,7 @@ public class FileController {
 	private static final Logger logger = LoggerFactory.getLogger(FileController.class);
 
 	Common com = new Common();
+	Log cLog = new Log();
 
 	@RequestMapping(path = "/FileRead")
 	public ModelAndView FileRead(HttpServletRequest request, ModelAndView mv, HttpSession session) throws IOException {
@@ -109,6 +114,16 @@ public class FileController {
 	public ModelAndView FileUpload(HttpServletRequest request, ModelAndView mv, HttpSession session) {
 
 		return mv;
+	}
+	
+	@ResponseBody
+	@RequestMapping(path = "/log-error")
+	public String ViewError(@RequestBody Map<String, Object> errorData) throws JsonProcessingException {
+		
+		
+		cLog.errorLog( new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(errorData));
+		
+		return "done";
 	}
 
 	@ResponseBody
