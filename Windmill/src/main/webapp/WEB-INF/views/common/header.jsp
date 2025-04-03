@@ -132,7 +132,7 @@ var changePW
 		$('#pageTab a:last').tab('show');
 		$('#pageTabContent')
 				.append(
-						'<div class="tab-pane active" id="newpage"><iframe name="iframe'
+						'<div class="tab-pane" id="newpage"><iframe name="iframe'
 								+ pageid
 								+ '" id="iframe'
 								+ pageid
