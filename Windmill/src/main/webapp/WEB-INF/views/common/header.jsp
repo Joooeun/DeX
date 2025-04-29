@@ -54,6 +54,21 @@ var changePW
 		
 		getMenu();
 
+		/* ------------------------------공지사항 start------------------------------ */
+		var checkCookie = getCookie("mycookie");
+			
+		if(checkCookie == 'popupEnd') {
+			$("#NoticeModal").modal("hide");
+		} else {
+			$('#NoticeModal').modal("show");	
+		}
+		
+		$("#modal-today-close").click(function() {
+			$("#NoticeModal").modal("hide");
+			setCookie("mycookie", 'popupEnd', 1);
+		})
+		/* ------------------------------공지사항 end------------------------------ */
+
 		$(document).on("click", ".addtree", function() {
 
 			if ($(this).parent().attr('class').includes('active')) {
@@ -80,6 +95,36 @@ var changePW
 		});
 
 	});
+		
+	/* ------------------------------공지사항 start------------------------------ */
+	function setCookie(name, value, expiredays){
+		var today = new Date();
+	
+		console.log(today.getDate())
+	
+		today.setDate(today.getDate() + expiredays); // 현재시간에 하루를 더함 
+	
+		document.cookie = name + '=' + escape(value) + '; expires=' + today.toGMTString();
+	
+	}
+		
+	function getCookie(name) {
+	
+		var cookie = document.cookie;
+		
+		if (document.cookie != "") {
+			var cookie_array = cookie.split("; ");
+			console.log(cookie_array)
+			for ( var index in cookie_array) {
+				var cookie_name = cookie_array[index].split("=");
+				if (cookie_name[0] == "mycookie") {
+					return cookie_name[1];
+				}
+			}
+		}
+		return;
+	}
+	/* ------------------------------공지사항 end------------------------------ */
 
 	function Search() {
 
@@ -218,6 +263,7 @@ var changePW
 		});
 
 	}
+	
 </script>
 
 <body class="sidebar-mini skin-purple-light">
@@ -358,3 +404,25 @@ var changePW
 				</div>
 			</div>
 		</div>
+
+        <!-- ------------------------------공지사항 start------------------------------ -->
+		<div class="modal" id="NoticeModal" tabindex="-1" role="dialog">
+			<div class="modal-dialog" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title">공지</h5>
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+					<div class="modal-body">
+						<p>내용</p>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-primary" id="modal-today-close">오늘 하루 열지 않기</button>
+						<button type="button" class="btn btn-secondary" data-dismiss="modal">닫기</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- ------------------------------공지사항 end------------------------------ -->
