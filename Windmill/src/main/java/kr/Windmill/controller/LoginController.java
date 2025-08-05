@@ -21,6 +21,7 @@ import org.springframework.web.servlet.ModelAndView;
 
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
+import kr.Windmill.util.VersionUtil;
 
 @Controller
 public class LoginController {
@@ -176,6 +177,9 @@ public class LoginController {
 		}
 
 		mv.addObject("sqllist", com.getfiles(Common.SrcPath, 0));
+		
+		// 버전 정보 추가
+		mv.addObject("appVersion", VersionUtil.getVersion());
 
 		return mv;
 	}
