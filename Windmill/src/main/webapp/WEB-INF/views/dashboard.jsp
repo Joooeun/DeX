@@ -1,11 +1,15 @@
 <%@include file="common/common.jsp"%>
-<script>
+    <script>
         // 연결 상태 모니터링 관련 변수
         var connectionStatusInterval;
+        var applCountChart;
+        var lockWaitCountChart;
 
         // 페이지 로드 시 연결 모니터링 시작
         $(document).ready(function() {
             startConnectionMonitoring();
+            initializeCharts();
+            startChartMonitoring();
         });
 
         // 페이지 언로드 시 연결 모니터링 중지
@@ -167,6 +171,118 @@
                 connectionStatusInterval = null;
             }
         }
+
+        // 차트 초기화 함수
+        function initializeCharts() {
+            // APPL_COUNT 차트 (가로 막대그래프)
+            var applCountCtx = document.getElementById('applCountChart').getContext('2d');
+            applCountChart = new Chart(applCountCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'APPL_COUNT',
+                        data: [],
+                        backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y', // 가로 막대그래프를 위한 설정
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'APPL_COUNT'
+                        }
+                    }
+                }
+            });
+
+            // LOCK_WAIT_COUNT 차트 (세로 막대그래프)
+            var lockWaitCountCtx = document.getElementById('lockWaitCountChart').getContext('2d');
+            lockWaitCountChart = new Chart(lockWaitCountCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'LOCK_WAIT_COUNT',
+                        data: [],
+                        backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'LOCK_WAIT_COUNT'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 차트 데이터 업데이트 함수
+        function updateCharts() {
+            // APPL_COUNT 데이터 조회
+            $.ajax({
+                type: 'post',
+                url: '/Dashboard/applCount',
+                success: function(result) {
+                    if (result && result.labels && result.data) {
+                        applCountChart.data.labels = result.labels;
+                        applCountChart.data.datasets[0].data = result.data;
+                        applCountChart.update('none'); // 애니메이션 없이 업데이트
+                    }
+                },
+                error: function() {
+                    console.error('APPL_COUNT 데이터 조회 실패');
+                }
+            });
+
+            // LOCK_WAIT_COUNT 데이터 조회
+            $.ajax({
+                type: 'post',
+                url: '/Dashboard/lockWaitCount',
+                success: function(result) {
+                    if (result && result.labels && result.data) {
+                        lockWaitCountChart.data.labels = result.labels;
+                        lockWaitCountChart.data.datasets[0].data = result.data;
+                        lockWaitCountChart.update('none'); // 애니메이션 없이 업데이트
+                    }
+                },
+                error: function() {
+                    console.error('LOCK_WAIT_COUNT 데이터 조회 실패');
+                }
+            });
+        }
+
+        // 차트 모니터링 시작 함수
+        function startChartMonitoring() {
+            // 초기 데이터 로드
+            updateCharts();
+            
+            // 30초마다 차트 데이터 업데이트
+            setInterval(function() {
+                updateCharts();
+            }, 30000);
+        }
     </script>
 <head>
     <meta charset="UTF-8">
@@ -236,6 +352,36 @@
                             <div id="connectionStatusContainer" class="row">
                                 <!-- 연결 상태가 여기에 동적으로 추가됩니다 -->
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- APPL_COUNT 차트 -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="box box-info">
+                        <div class="box-header with-border">
+                            <h3 class="box-title">
+                                <i class="fa fa-bar-chart"></i> APPL_COUNT
+                            </h3>
+                        </div>
+                        <div class="box-body">
+                            <canvas id="applCountChart" style="height: 300px;"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LOCK_WAIT_COUNT 차트 -->
+                <div class="col-md-6">
+                    <div class="box box-warning">
+                        <div class="box-header with-border">
+                            <h3 class="box-title">
+                                <i class="fa fa-bar-chart"></i> LOCK_WAIT_COUNT
+                            </h3>
+                        </div>
+                        <div class="box-body">
+                            <canvas id="lockWaitCountChart" style="height: 300px;"></canvas>
                         </div>
                     </div>
                 </div>

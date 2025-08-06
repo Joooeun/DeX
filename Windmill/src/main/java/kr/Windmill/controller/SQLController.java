@@ -2,19 +2,11 @@ package kr.Windmill.controller;
 
 import java.io.File;
 import java.io.IOException;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.text.DecimalFormat;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
@@ -24,6 +16,7 @@ import javax.servlet.http.HttpSession;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -34,6 +27,7 @@ import org.springframework.web.servlet.ModelAndView;
 
 import kr.Windmill.service.ConnectionDTO;
 import kr.Windmill.service.LogInfoDTO;
+import kr.Windmill.service.SQLExecuteService;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
 
@@ -43,6 +37,9 @@ public class SQLController {
 	private static final Logger logger = LoggerFactory.getLogger(SQLController.class);
 	Common com = new Common();
 	Log cLog = new Log();
+	
+	@Autowired
+	private SQLExecuteService sqlExecuteService;
 
 	@RequestMapping(path = "/SQL")
 	public ModelAndView SQLmain(HttpServletRequest request, ModelAndView mv, HttpSession session) {
@@ -197,221 +194,18 @@ public class SQLController {
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/excute")
-	public Map<String, List> excute(HttpServletRequest request, Model model, HttpSession session, @ModelAttribute LogInfoDTO data) throws ClassNotFoundException, IOException {
+	public Map<String, List> excute(HttpServletRequest request, Model model, HttpSession session, @ModelAttribute LogInfoDTO data) throws ClassNotFoundException, IOException, Exception {
 
-		data.setStart(Instant.now());
 		data.setId(session.getAttribute("memberId").toString());
 		data.setIp(com.getIp(request));
 
-		ConnectionDTO connection = com.getConnection(data.getConnection());
-		Properties prop = connection.getProp();
-
-		Class.forName(connection.getDriver());
-		prop.put("clientProgramName", "DeX");
-
-		String sql = data.getSql().length() > 0 ? data.getSql() : com.FileRead(new File(data.getPath()));
-		data.setParamList(com.getJsonObjectFromString(data.getParams()));
-		data.setLogsqlA(sql);
-
-		String log = "";
-
-		if (data.getLog() != null) {
-
-			for (Entry<String, String> entry : data.getLog().entrySet()) {
-				log += "\n" + entry.getKey() + " : " + entry.getValue();
-			}
-		}
-
-		Map<String, List> result = new HashMap();
-		PreparedStatement pstmt = null;
-
 		try {
-
-			cLog.log_start(data, log + "\nmenu 실행 시작\n");
-
-			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
-
-			if (data.getParamList().size() > 0) {
-
-				String patternString = "(?<!:):(";
-				for (int i = 0; i < data.getParamList().size(); i++) {
-
-					if (data.getParamList().get(i).get("type").equals("string") || data.getParamList().get(i).get("type").equals("text") || data.getParamList().get(i).get("type").equals("varchar")) {
-						if (!patternString.equals("(?<!:):("))
-							patternString += "|";
-						patternString += data.getParamList().get(i).get("title");
-					} else {
-						sql = sql.replaceAll(":" + data.getParamList().get(i).get("title"), data.getParamList().get(i).get("value").toString());
-					}
-
-				}
-				patternString += ")";
-				if (!patternString.equals("(?<!:):()")) {
-					Pattern pattern = Pattern.compile(patternString);
-					Matcher matcher = pattern.matcher(sql);
-					int cnt = 0;
-					while (matcher.find()) {
-						Map temp = new HashMap<>();
-						temp.put("value", data.getParamList().stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
-						temp.put("type", data.getParamList().stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
-
-						mapping.add(temp);
-						cnt++;
-					}
-					matcher.reset();
-					sql = matcher.replaceAll("?");
-				}
-
-			}
-
-			data.setSql(sql);
-
-			String row = "";
-
-			if (detectSqlType(sql) == SqlType.CALL) {
-				data.setLogNo(data.getLogNo() + 1);
-				// cLog.log_line(data, "start============================================\n" +
-				// data.getLogsql() + "\nend==============================================");
-				result = com.callprocedure(sql, connection.getDbtype(), connection.getJdbc(), prop, mapping);
-
-				data.setRows(Integer.parseInt(result.get("rowlength").get(data.isAudit() ? 1 : 0).toString()));
-				data.setEnd(Instant.now());
-				data.setResult("Success");
-				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
-
-				row = " / rows : " + data.getRows();
-
-				cLog.log_end(data, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
-				cLog.log_DB(data);
-
-			} else if (detectSqlType(sql) == SqlType.EXECUTE) {
-				data.setLogNo(data.getLogNo() + 1);
-				// cLog.log_line(data, "start============================================\n" +
-				// data.getLogsql() + "\nend==============================================");
-				result = com.excutequery(sql, connection.getDbtype(), connection.getJdbc(), prop, data.getLimit(), mapping);
-				data.setRows(result.get("rowbody").size() - 1);
-				data.setEnd(Instant.now());
-				data.setResult("Success");
-				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
-
-				cLog.log_end(data, " sql 실행 종료 : 성공 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
-				cLog.log_DB(data);
-
-			} else {
-
-				List<Map> rowhead = new ArrayList<>();
-
-				rowhead.add(new HashMap<String, String>() {
-					{
-						put("title", "Result");
-					}
-				});
-				rowhead.add(new HashMap<String, String>() {
-					{
-						put("title", "Updated Rows");
-					}
-				});
-				rowhead.add(new HashMap<String, String>() {
-					{
-						put("title", "Query");
-					}
-				});
-
-				result.put("rowhead", rowhead);
-
-				String sqlOrg = sql.trim();
-				String logsqlOrg = data.getLogsql().trim();
-
-				for (int i = 0; i < sqlOrg.split(";").length; i++) {
-
-					String singleSql = sqlOrg.split(";")[i];
-
-					if (singleSql.trim().length() == 0) {
-						continue;
-					}
-					data.setLogNo(data.getLogNo() + 1);
-					sql = singleSql.trim();
-					String logsql = logsqlOrg.split(";")[i].trim() + ";";
-
-					// cLog.log_line(data, "start============================================\n" +
-					// logsql + "\nend==============================================");
-					data.setSql(sql);
-					data.setLogsql(logsql);
-
-					Instant singleStart = Instant.now();
-
-					List<List<String>> singleList = new ArrayList<List<String>>();
-
-					if (result.get("rowbody") != null)
-						singleList.addAll(result.get("rowbody"));
-					singleList.addAll(com.updatequery(sql.trim(), connection.getDbtype(), connection.getJdbc(), prop, null, mapping));
-
-					result.put("rowbody", singleList);
-
-					Duration timeElapsed = Duration.between(singleStart, Instant.now());
-					data.setResult("Success");
-					data.setDuration(timeElapsed.toMillis());
-					row = " / " + data.getSqlType() + " rows : " + singleList.get(i).get(1).toString();
-					data.setRows(Integer.parseInt(singleList.get(i).get(1)));
-
-					cLog.log_end(data, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
-					cLog.log_DB(data);
-				}
-			}
-
-		} catch (SQLException e1) {
-
-			if (result.size() == 0) {
-				List<Map> rowhead = new ArrayList<>();
-
-				rowhead.add(new HashMap<String, String>() {
-					{
-						put("title", "Result");
-					}
-				});
-				rowhead.add(new HashMap<String, String>() {
-					{
-						put("title", "Updated Rows");
-					}
-				});
-				rowhead.add(new HashMap<String, String>() {
-					{
-						put("title", "Query");
-					}
-				});
-
-				result.put("rowhead", rowhead);
-			}
-
-			List<List<String>> singleList = new ArrayList<List<String>>();
-			if (result.get("rowbody") != null)
-				singleList.addAll(result.get("rowbody"));
-
-			List<String> element = new ArrayList<String>();
-			element.add(e1.toString());
-			element.add("0");
-			element.add(sql);
-
-			singleList.add(element);
-
-			result.put("rowbody", singleList);
-
-			if (log.length() > 0) {
-				// cLog.log_line(data, log);
-			}
-
-			data.setResult(e1.getMessage());
-			data.setDuration(0);
-			cLog.log_end(data, " sql 실 행 종료 : 실패 " + e1.getMessage() + "\n\n");
-			cLog.log_DB(data);
-
-			System.out.println("id : " + session.getAttribute("memberId") + " / sql : " + sql);
-			e1.printStackTrace();
-		} catch (Exception e1) {
-			e1.printStackTrace();
+			// 공통 SQL 실행 서비스 사용
+			return sqlExecuteService.executeSQL(data);
+		} catch (Exception e) {
+			logger.error("SQL 실행 오류", e);
+			throw e;
 		}
-
-		return result;
 	}
 
 	public enum SqlType {
