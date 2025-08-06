@@ -131,4 +131,62 @@ public class DashboardController {
         // 공통 SQL 실행 서비스 사용 (LogInfoDTO에 이미 memberId와 ip가 설정되어 있음)
         return sqlExecuteService.executeSQL(logInfo);
     }
+
+    @RequestMapping(path = "/Dashboard/activeLog", method = RequestMethod.POST)
+    public @ResponseBody Map<String, Object> getActiveLog(HttpServletRequest request, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            // ACTIVE_LOG SQL 실행
+            Map<String, List> sqlResult = executeDashboardSQL("ACTIVE_LOG");
+            
+            if (sqlResult.containsKey("error")) {
+                result.put("error", sqlResult.get("error"));
+                return result;
+            }
+
+            // SQL 결과를 차트 데이터로 변환
+            List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
+            List<String> labels = new ArrayList<>();
+            List<Integer> data = new ArrayList<>();
+            result.put("result", rowbody);
+            result.put("labels", labels);
+            result.put("data", data);
+
+        } catch (Exception e) {
+            logger.error("ACTIVE_LOG 실행 오류", e);
+            result.put("error", e.getMessage());
+        }
+
+        return result;
+    }
+
+    @RequestMapping(path = "/Dashboard/filesystem", method = RequestMethod.POST)
+    public @ResponseBody Map<String, Object> getFilesystem(HttpServletRequest request, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+
+        try {
+            // FILESYSTEM SQL 실행
+            Map<String, List> sqlResult = executeDashboardSQL("FILESYSTEM");
+            
+            if (sqlResult.containsKey("error")) {
+                result.put("error", sqlResult.get("error"));
+                return result;
+            }
+
+            // SQL 결과를 차트 데이터로 변환
+            List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
+            List<String> labels = new ArrayList<>();
+            List<Integer> data = new ArrayList<>();
+            result.put("result", rowbody);
+            result.put("labels", labels);
+            result.put("data", data);
+
+        } catch (Exception e) {
+            logger.error("FILESYSTEM 실행 오류", e);
+            result.put("error", e.getMessage());
+        }
+
+        return result;
+    }
 } 

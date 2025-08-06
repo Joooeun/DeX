@@ -4,6 +4,8 @@
         var connectionStatusInterval;
         var applCountChart;
         var lockWaitCountChart;
+        var activeLogChart;
+        var filesystemChart;
 
         // 페이지 로드 시 연결 모니터링 시작
         $(document).ready(function() {
@@ -283,71 +285,227 @@
                     },
                 }
             });
+
+            // ACTIVE_LOG 차트 (가로 막대그래프 - 사용량)
+            var activeLogCtx = document.getElementById('activeLogChart').getContext('2d');
+            activeLogChart = new Chart(activeLogCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'ACTIVE_LOG',
+                        data: [],
+                        backgroundColor: function(context) {
+                            var value = context.dataset.data[context.dataIndex];
+                            if (value >= 80) {
+                                return 'rgba(220, 53, 69, 0.8)'; // 빨간색 (80% 이상)
+                            } else if (value >= 60) {
+                                return 'rgba(255, 193, 7, 0.8)'; // 노란색 (60-79%)
+                            } else {
+                                return 'rgba(40, 167, 69, 0.8)'; // 초록색 (60% 미만)
+                            }
+                        },
+                        borderColor: function(context) {
+                            var value = context.dataset.data[context.dataIndex];
+                            if (value >= 80) {
+                                return 'rgba(220, 53, 69, 1)';
+                            } else if (value >= 60) {
+                                return 'rgba(255, 193, 7, 1)';
+                            } else {
+                                return 'rgba(40, 167, 69, 1)';
+                            }
+                        },
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y', // 가로 막대그래프
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // FILESYSTEM 차트 (가로 막대그래프 - 사용량)
+            var filesystemCtx = document.getElementById('filesystemChart').getContext('2d');
+            filesystemChart = new Chart(filesystemCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'FILESYSTEM',
+                        data: [],
+                        backgroundColor: function(context) {
+                            var value = context.dataset.data[context.dataIndex];
+                            if (value >= 80) {
+                                return 'rgba(220, 53, 69, 0.8)'; // 빨간색 (80% 이상)
+                            } else if (value >= 60) {
+                                return 'rgba(255, 193, 7, 0.8)'; // 노란색 (60-79%)
+                            } else {
+                                return 'rgba(40, 167, 69, 0.8)'; // 초록색 (60% 미만)
+                            }
+                        },
+                        borderColor: function(context) {
+                            var value = context.dataset.data[context.dataIndex];
+                            if (value >= 80) {
+                                return 'rgba(220, 53, 69, 1)';
+                            } else if (value >= 60) {
+                                return 'rgba(255, 193, 7, 1)';
+                            } else {
+                                return 'rgba(40, 167, 69, 1)';
+                            }
+                        },
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y', // 가로 막대그래프
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
         }
 
         // 차트 데이터 업데이트 함수
         function updateCharts() {
-            // APPL_COUNT 데이터 조회
-            $.ajax({
-                type: 'post',
-                url: '/Dashboard/applCount',
-                success: function(result) {
-                    console.log(JSON.stringify(result));
-                    if (result && result.result && Array.isArray(result.result)) {
-                        var labels = [];
-                        var data = [];
-                        
-                        // result 배열에서 [color, value] 형태의 데이터 추출
-                        for (var i = 0; i < result.result.length; i++) {
-                            if (result.result[i] && result.result[i].length >= 2) {
-                                labels.push(result.result[i][0]); // color
-                                data.push(result.result[i][1]);  // value
-                            }
+            // 모든 차트 데이터를 병렬로 요청
+            Promise.all([
+                // APPL_COUNT 데이터 조회
+                $.ajax({
+                    type: 'post',
+                    url: '/Dashboard/applCount'
+                }),
+                // LOCK_WAIT_COUNT 데이터 조회
+                $.ajax({
+                    type: 'post',
+                    url: '/Dashboard/lockWaitCount'
+                }),
+                // ACTIVE_LOG 데이터 조회
+                $.ajax({
+                    type: 'post',
+                    url: '/Dashboard/activeLog'
+                }),
+                // FILESYSTEM 데이터 조회
+                $.ajax({
+                    type: 'post',
+                    url: '/Dashboard/filesystem'
+                })
+            ]).then(function(results) {
+                // APPL_COUNT 차트 업데이트
+                if (results[0] && results[0].result && Array.isArray(results[0].result)) {
+                    var labels = [];
+                    var data = [];
+                    
+                    for (var i = 0; i < results[0].result.length; i++) {
+                        if (results[0].result[i] && results[0].result[i].length >= 2) {
+                            labels.push(results[0].result[i][0]); // color
+                            data.push(results[0].result[i][1]);  // value
                         }
-                        
-                        applCountChart.data.labels = labels;
-                        applCountChart.data.datasets[0].data = data;
-                        applCountChart.update(); // 애니메이션과 함께 업데이트
                     }
-                },
-                error: function() {
-                    console.error('APPL_COUNT 데이터 조회 실패');
-                },
-                complete: function() {
-                    // APPL_COUNT 완료 후 LOCK_WAIT_COUNT 조회
-                    $.ajax({
-                        type: 'post',
-                        url: '/Dashboard/lockWaitCount',
-                        success: function(result) {
-                            console.log(JSON.stringify(result));
-                            if (result && result.result && Array.isArray(result.result)) {
-                                var labels = [];
-                                var data = [];
-                                
-                                // result 배열에서 [color, value] 형태의 데이터 추출
-                                for (var i = 0; i < result.result.length; i++) {
-                                    if (result.result[i] && result.result[i].length >= 2) {
-                                        labels.push(result.result[i][0]); // color
-                                        data.push(result.result[i][1]);  // value
-                                    }
-                                }
-                                
-                                lockWaitCountChart.data.labels = labels;
-                                lockWaitCountChart.data.datasets[0].data = data;
-                                lockWaitCountChart.update(); // 애니메이션과 함께 업데이트
-                            }
-                        },
-                        error: function() {
-                            console.error('LOCK_WAIT_COUNT 데이터 조회 실패');
-                        },
-                        complete: function() {
-                            // 모든 차트 업데이트 완료 후 30초 후에 다시 실행
-                            setTimeout(function() {
-                                updateCharts();
-                            }, 10000);
-                        }
-                    });
+                    
+                    applCountChart.data.labels = labels;
+                    applCountChart.data.datasets[0].data = data;
+                    applCountChart.update();
                 }
+
+                // LOCK_WAIT_COUNT 차트 업데이트
+                if (results[1] && results[1].result && Array.isArray(results[1].result)) {
+                    var labels = [];
+                    var data = [];
+                    
+                    for (var i = 0; i < results[1].result.length; i++) {
+                        if (results[1].result[i] && results[1].result[i].length >= 2) {
+                            labels.push(results[1].result[i][0]); // color
+                            data.push(results[1].result[i][1]);  // value
+                        }
+                    }
+                    
+                    // 최대값 계산하여 Y축 최대값 설정 (정수로)
+                    var maxValue = Math.max(...data);
+                    var yAxisMax = Math.ceil(maxValue * 1.1);
+                    
+                    lockWaitCountChart.data.labels = labels;
+                    lockWaitCountChart.data.datasets[0].data = data;
+                    lockWaitCountChart.options.scales.y.max = yAxisMax;
+                    lockWaitCountChart.update();
+                }
+
+                // ACTIVE_LOG 차트 업데이트
+                if (results[2] && results[2].result && Array.isArray(results[2].result)) {
+                    var labels = [];
+                    var data = [];
+                    
+                    for (var i = 0; i < results[2].result.length; i++) {
+                        if (results[2].result[i] && results[2].result[i].length >= 2) {
+                            labels.push(results[2].result[i][0]); // color
+                            data.push(results[2].result[i][1]);  // value
+                        }
+                    }
+                    
+                    activeLogChart.data.labels = labels;
+                    activeLogChart.data.datasets[0].data = data;
+                    activeLogChart.update();
+                }
+
+                // FILESYSTEM 차트 업데이트
+                if (results[3] && results[3].result && Array.isArray(results[3].result)) {
+                    var labels = [];
+                    var data = [];
+                    
+                    for (var i = 0; i < results[3].result.length; i++) {
+                        if (results[3].result[i] && results[3].result[i].length >= 2) {
+                            labels.push(results[3].result[i][0]); // name
+                            data.push(results[3].result[i][1]);  // value (0-100%)
+                        }
+                    }
+                    
+                    filesystemChart.data.labels = labels;
+                    filesystemChart.data.datasets[0].data = data;
+                    filesystemChart.update();
+                }
+
+                // 모든 차트 업데이트 완료 후 10초 후에 다시 실행
+                setTimeout(function() {
+                    updateCharts();
+                }, 10000);
+
+            }).catch(function(error) {
+                console.error('차트 데이터 조회 중 오류 발생:', error);
+                // 오류 발생 시에도 10초 후에 다시 시도
+                setTimeout(function() {
+                    updateCharts();
+                }, 10000);
             });
         }
 
@@ -498,6 +656,34 @@
                         </div>
                         <div class="box-body" style="height: 250px; display: flex; align-items: center; justify-content: center;">
                             <canvas id="lockWaitCountChart" style="max-height: 200px%; max-width: 100%;"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACTIVE_LOG 차트 -->
+                <div class="col-md-3">
+                    <div class="box box-success">
+                        <div class="box-header with-border">
+                            <h3 class="box-title">
+                                <i class="fa fa-bar-chart"></i> ACTIVE_LOG
+                            </h3>
+                        </div>
+                        <div class="box-body" style="height: 250px; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="activeLogChart" style="max-height: 200px; max-width: 100%;"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FILESYSTEM 차트 -->
+                <div class="col-md-3">
+                    <div class="box box-danger">
+                        <div class="box-header with-border">
+                            <h3 class="box-title">
+                                <i class="fa fa-bar-chart"></i> FILESYSTEM
+                            </h3>
+                        </div>
+                        <div class="box-body" style="height: 250px; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="filesystemChart" style="max-height: 200px; max-width: 100%;"></canvas>
                         </div>
                     </div>
                 </div>
