@@ -222,6 +222,17 @@ public class LoginController {
 		return mv;
 	}
 
+	@RequestMapping(path = "/dashboard")
+	public ModelAndView dashboard(HttpServletRequest request, ModelAndView mv, HttpSession session) {
+		String memberId = (String) session.getAttribute("memberId");
+		if (memberId == null || !"admin".equals(memberId)) {
+			mv.setViewName("redirect:/index");
+			return mv;
+		}
+		mv.setViewName("dashboard");
+		return mv;
+	}
+
 	@RequestMapping(value = "/userRemove")
 	public String userRemove(HttpServletRequest request) {
 
