@@ -4,8 +4,7 @@
 	<appender name="info"
 		class="ch.qos.logback.core.ConsoleAppender">
 		<encoder>
-			<pattern>▶ %green(%d{yyyy-MM-dd HH:mm:ss.SSS}) %highlight(%5level) -
-				%yellow(%msg%n)</pattern>
+			<pattern>▶ %green(%d{yyyy-MM-dd HH:mm:ss.SSS}) %highlight(%5level) - %yellow(%msg%n)</pattern>
 		</encoder>
 	</appender>
 
@@ -19,8 +18,7 @@
 	<appender name="console"
 		class="ch.qos.logback.core.ConsoleAppender">
 		<encoder>
-			<pattern>▶ %-5level %d{HH:mm:ss.SSS} [%class{0}][%method:%line] -
-				%msg%n</pattern>
+			<pattern>▶ %-5level %d{HH:mm:ss.SSS} [%class{0}][%method:%line] - %msg%n</pattern>
 		</encoder>
 	</appender>
 

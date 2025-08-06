@@ -1020,4 +1020,94 @@ public class Common {
 		RootPath = rootPath;
 	}
 
+	public boolean testConnection(Map<String, String> connConfig) {
+		Connection conn = null;
+		try {
+			String driver = getDriverByDbType(connConfig.get("DBTYPE"));
+			String url = buildJdbcUrl(connConfig);
+			Properties prop = new Properties();
+			prop.put("user", connConfig.get("USER"));
+			prop.put("password", connConfig.get("PW"));
+			prop.put("clientProgramName", "DeX");
+
+			Class.forName(driver);
+			conn = DriverManager.getConnection(url, prop);
+			
+			// 데이터베이스 타입에 맞는 연결 테스트 쿼리 실행
+			String testQuery = getTestQueryByDbType(connConfig.get("DBTYPE"));
+			try (PreparedStatement stmt = conn.prepareStatement(testQuery)) {
+				stmt.executeQuery();
+			}
+			
+			return true;
+		} catch (Exception e) {
+			logger.error("Connection test failed for " + connConfig.get("IP") + ":" + connConfig.get("PORT"));
+			return false;
+		} finally {
+			if (conn != null) {
+				try {
+					conn.close();
+				} catch (SQLException e) {
+					logger.error("Error closing connection", e);
+				}
+			}
+		}
+	}
+
+	private String getDriverByDbType(String dbType) {
+		switch (dbType.toUpperCase()) {
+			case "ORACLE":
+				return "oracle.jdbc.driver.OracleDriver";
+			case "POSTGRESQL":
+				return "org.postgresql.Driver";
+			case "TIBERO":
+				return "com.tmax.tibero.jdbc.TbDriver";
+			case "DB2":
+				return "com.ibm.db2.jcc.DB2Driver";
+			case "MYSQL":
+				return "com.mysql.jdbc.Driver";
+			default:
+				return "oracle.jdbc.driver.OracleDriver";
+		}
+	}
+	
+	private String getTestQueryByDbType(String dbType) {
+		switch (dbType.toUpperCase()) {
+			case "ORACLE":
+				return "SELECT 1 FROM DUAL";
+			case "POSTGRESQL":
+				return "SELECT 1";
+			case "TIBERO":
+				return "SELECT 1 FROM DUAL";
+			case "DB2":
+				return "SELECT 1 FROM SYSIBM.SYSDUMMY1";
+			case "MYSQL":
+				return "SELECT 1";
+			default:
+				return "SELECT 1 FROM DUAL";
+		}
+	}
+
+	private String buildJdbcUrl(Map<String, String> connConfig) {
+		String dbType = connConfig.get("DBTYPE").toUpperCase();
+		String ip = connConfig.get("IP");
+		String port = connConfig.get("PORT");
+		String db = connConfig.get("DB");
+
+		switch (dbType) {
+			case "ORACLE":
+				return "jdbc:oracle:thin:@" + ip + ":" + port + ":" + db;
+			case "POSTGRESQL":
+				return "jdbc:postgresql://" + ip + ":" + port + "/" + db;
+			case "TIBERO":
+				return "jdbc:tibero:thin:@" + ip + ":" + port + ":" + db;
+			case "DB2":
+				return "jdbc:db2://" + ip + ":" + port + "/" + db;
+			case "MYSQL":
+				return "jdbc:mysql://" + ip + ":" + port + "/" + db;
+			default:
+				return "jdbc:oracle:thin:@" + ip + ":" + port + ":" + db;
+		}
+	}
+
 }

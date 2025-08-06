@@ -124,7 +124,7 @@ public class LoginController {
 	}
 
 	@RequestMapping(path = "/index", method = RequestMethod.GET)
-	public ModelAndView sample(HttpServletRequest request, ModelAndView mv) {
+	public ModelAndView sample(HttpServletRequest request, ModelAndView mv, HttpSession session) {
 
 		if (!new File(Common.RootPath).exists()) {
 			logger.info(Common.RootPath + " 경로가 존재하지 않습니다.");
@@ -180,6 +180,11 @@ public class LoginController {
 		
 		// 버전 정보 추가
 		mv.addObject("appVersion", VersionUtil.getVersion());
+		
+		// admin 권한 확인을 위한 사용자 ID 추가
+		String memberId = (String) session.getAttribute("memberId");
+		mv.addObject("memberId", memberId);
+		mv.addObject("isAdmin", "admin".equals(memberId));
 
 		return mv;
 	}
