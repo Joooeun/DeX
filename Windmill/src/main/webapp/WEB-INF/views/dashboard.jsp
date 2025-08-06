@@ -61,16 +61,26 @@
             var statusText = conn.status === 'connected' ? '연결됨' : '연결실패';
             var formattedTime = formatDateTime(conn.lastChecked);
             
+            // 상태에 따른 CSS 클래스 결정
+            var statusClass = '';
+            if (conn.status === 'connected') {
+                statusClass = 'connected';
+            } else if (conn.status === 'error') {
+                statusClass = 'error';
+            } else {
+                statusClass = 'disconnected';
+            }
+            
             var connectionCard = 
-                '<div class="col-md-3 col-sm-4 col-xs-6" style="margin-bottom: 15px;" id="card-' + conn.connectionName + '">' +
-                    '<div class="connection-card" style="border-color: ' + conn.color + ';" onclick="refreshSingleConnection(\'' + conn.connectionName + '\')">' +
-                        '<div class="fa-database" style="color: ' + conn.color + ';">' +
+                '<div class="col-md-2 col-sm-3 col-xs-4" style="margin-bottom: 15px;" id="card-' + conn.connectionName + '">' +
+                    '<div class="connection-card ' + statusClass + '" onclick="refreshSingleConnection(\'' + conn.connectionName + '\')">' +
+                        '<div>' +
                             '<i class="fa fa-database"></i>' +
                         '</div>' +
                         '<div class="connection-name">' +
                             conn.connectionName +
                         '</div>' +
-                        '<div class="status-text" style="color: ' + conn.color + ';" id="status-' + conn.connectionName + '">' +
+                        '<div class="status-text" id="status-' + conn.connectionName + '">' +
                             '<i class="fa ' + statusIcon + '"></i> ' + statusText +
                         '</div>' +
                         '<div class="last-checked" id="lastChecked-' + conn.connectionName + '">' +
@@ -95,21 +105,28 @@
             var statusText = conn.status === 'connected' ? '연결됨' : '연결실패';
             var formattedTime = formatDateTime(conn.lastChecked);
             
+            // 상태에 따른 CSS 클래스 결정
+            var statusClass = '';
+            if (conn.status === 'connected') {
+                statusClass = 'connected';
+            } else if (conn.status === 'error') {
+                statusClass = 'error';
+            } else {
+                statusClass = 'disconnected';
+            }
+            
             // 상태 텍스트 업데이트
             $('#status-' + conn.connectionName).html('<i class="fa ' + statusIcon + '"></i> ' + statusText);
             
-            // 시간 업데이트
+            // 마지막 확인 시간 업데이트
             $('#lastChecked-' + conn.connectionName).text(formattedTime);
             
-            // 색상과 테두리 업데이트 (부드러운 전환 효과)
+            // 카드 클래스 업데이트
             var connectionCard = card.find('.connection-card');
-            connectionCard.css('border-color', conn.color);
-            
-            // 데이터베이스 아이콘 색상 업데이트
-            connectionCard.find('.fa-database').css('color', conn.color);
+            connectionCard.removeClass('connected disconnected error').addClass(statusClass);
             
             // 상태 아이콘 색상 업데이트
-            $('#status-' + conn.connectionName).css('color', conn.color);
+            //$('#status-' + conn.connectionName).css('color', conn.color);
         }
 
         // 단일 연결 상태 수동 새로고침
@@ -203,7 +220,7 @@
                             color: function(ctx) {
                                 return ctx.dataset.borderColor;
                               },
-                              font: {size: 16, weight:'bold'},
+                              font: {size: 18, weight:'bold'},
                               offset: 8,
                               opacity: function(ctx) {
                                 return ctx.active ? 1 : 0.8;
@@ -225,7 +242,7 @@
                     },
                     //aspectRatio: 3 / 4,
                     layout: {
-                        padding: 25
+                        padding: 30
                     },
                 }
             });
@@ -241,7 +258,11 @@
                         data: [],
                         backgroundColor: 'rgba(255, 99, 132, 0.8)',
                         borderColor: 'rgba(255, 99, 132, 1)',
-                        borderWidth: 1
+                        borderWidth: 1,
+                        datalabels: {
+                        	align: 'end',
+                            anchor: 'end',
+                          }
                     }]
                 },
                 options: {
@@ -256,7 +277,10 @@
                     	legend: {
                     		display: false,
                         },
-                    }
+                    },
+                    layout: {
+                        padding: 15
+                    },
                 }
             });
         }
@@ -339,44 +363,87 @@
     <%@include file="common/common.jsp"%>
     <style type="text/css">
         .connection-card {
-            border: 2px solid #ddd;
-            border-radius: 10px;
-            padding: 15px;
+            border: none;
+            border-radius: 16px;
+            padding: 20px;
             text-align: center;
-            background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
-            height: 100px;
+            height: 120px;
             display: flex;
             flex-direction: column;
             justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .connection-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
         
         .connection-card:hover {
-            transform: scale(1.05);
+            transform: translateY(-8px);
+            box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+        }
+        
+        .connection-card:hover::before {
+            opacity: 1;
+        }
+        
+        .connection-card.connected {
+            background: #28a745;
+        }
+        
+        .connection-card.disconnected {
+            background: #dc3545;
+        }
+        
+        .connection-card.error {
+            background: #dc3545;
         }
         
         .connection-card .fa-database {
-            font-size: 24px;
-            margin-bottom: 10px;
+            font-size: 28px;
+            margin-bottom: 3px;
+            color: rgba(255,255,255,0.9);
+            position: relative;
+            z-index: 1;
         }
         
         .connection-card .connection-name {
-            font-weight: bold;
-            margin-bottom: 5px;
-            color: #333;
+            font-weight: 600;
+            margin-bottom: 1px;
+            color: rgba(255,255,255,0.95);
+            font-size: 16px;
+            position: relative;
+            z-index: 1;
         }
         
         .connection-card .status-text {
-            font-size: 12px;
-            margin-bottom: 5px;
+            font-size: 11px;
+            margin-bottom: 6px;
+            color: rgba(255,255,255,0.8);
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
         }
         
         .connection-card .last-checked {
-            font-size: 10px;
-            color: #666;
-            margin-top: 5px;
+            font-size: 9px;
+            color: rgba(255,255,255,0.7);
+            margin-top: 2px;
+            position: relative;
+            z-index: 1;
         }
     </style>
 </head>
@@ -415,8 +482,8 @@
                                 <i class="fa fa-bar-chart"></i> APPL_COUNT
                             </h3>
                         </div>
-                        <div class="box-body">
-                            <canvas id="applCountChart" style="height: 200px;"></canvas>
+                        <div class="box-body" style="height: 250px; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="applCountChart" style="max-height: 100%; max-width: 100%;"></canvas>
                         </div>
                     </div>
                 </div>
@@ -429,8 +496,8 @@
                                 <i class="fa fa-bar-chart"></i> LOCK_WAIT_COUNT
                             </h3>
                         </div>
-                        <div class="box-body">
-                            <canvas id="lockWaitCountChart" style="height: 200px;"></canvas>
+                        <div class="box-body" style="height: 250px; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="lockWaitCountChart" style="max-height: 200px%; max-width: 100%;"></canvas>
                         </div>
                     </div>
                 </div>
