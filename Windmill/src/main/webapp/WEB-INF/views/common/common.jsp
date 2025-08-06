@@ -7,6 +7,7 @@
 <link href="/resources/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
 <script src="/resources/plugins/jQuery/jQuery-2.1.4.min.js"></script>
 <script src="/resources/plugins/chartjs/ChartJs.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <script src="/resources/bootstrap/js/bootstrap.js"></script>
 <link rel="shortcut icon" href="#">
 

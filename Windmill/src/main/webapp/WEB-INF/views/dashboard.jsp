@@ -37,7 +37,6 @@
 
         // 연결 상태 표시 업데이트 함수
         function updateConnectionStatusDisplay(connections) {
-            console.log(connections);
             var container = $('#connectionStatusContainer');
             
             // 초기 로드인지 확인 (컨테이너가 비어있으면 초기 로드)
@@ -174,35 +173,60 @@
 
         // 차트 초기화 함수
         function initializeCharts() {
-            // APPL_COUNT 차트 (가로 막대그래프)
+            // Chart.js datalabels 플러그인 등록
+            Chart.register(ChartDataLabels);
+            // APPL_COUNT 차트 (도넛 그래프)
             var applCountCtx = document.getElementById('applCountChart').getContext('2d');
             applCountChart = new Chart(applCountCtx, {
-                type: 'bar',
+                type: 'doughnut',
                 data: {
                     labels: [],
                     datasets: [{
                         label: 'APPL_COUNT',
                         data: [],
-                        backgroundColor: 'rgba(54, 162, 235, 0.8)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
+                        backgroundColor: [
+                            'rgba(76, 175, 80, 0.7)',
+                            'rgba(255, 193, 7, 0.7)',
+                            'rgba(244, 67, 54, 0.7)',
+                            'rgba(158, 158, 158, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(76, 175, 80, 1)',
+                            'rgba(255, 193, 7, 1)',
+                            'rgba(244, 67, 54, 1)',
+                            'rgba(158, 158, 158, 1)'
+                        ],
+                        //borderWidth: 2,
+                        datalabels: {
+                        	align: 'end',
+                            anchor: 'end',
+                            color: function(ctx) {
+                                return ctx.dataset.borderColor;
+                              },
+                              font: {size: 16, weight:'bold'},
+                              offset: 8,
+                              opacity: function(ctx) {
+                                return ctx.active ? 1 : 0.8;
+                              }
+                          }
+                        
                     }]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y', // 가로 막대그래프를 위한 설정
-                    scales: {
-                        x: {
-                            beginAtZero: true
-                        }
-                    },
+                    //maintainAspectRatio: false,
                     plugins: {
-                        title: {
-                            display: true,
-                            text: 'APPL_COUNT'
-                        }
-                    }
+                        legend: {
+                        	display : false,
+                            position: 'chartArea',
+                            offset:9
+                        },
+                       
+                    },
+                    //aspectRatio: 3 / 4,
+                    layout: {
+                        padding: 25
+                    },
                 }
             });
 
@@ -229,10 +253,9 @@
                         }
                     },
                     plugins: {
-                        title: {
-                            display: true,
-                            text: 'LOCK_WAIT_COUNT'
-                        }
+                    	legend: {
+                    		display: false,
+                        },
                     }
                 }
             });
@@ -245,30 +268,61 @@
                 type: 'post',
                 url: '/Dashboard/applCount',
                 success: function(result) {
-                    if (result && result.labels && result.data) {
-                        applCountChart.data.labels = result.labels;
-                        applCountChart.data.datasets[0].data = result.data;
-                        applCountChart.update('none'); // 애니메이션 없이 업데이트
+                    console.log(JSON.stringify(result));
+                    if (result && result.result && Array.isArray(result.result)) {
+                        var labels = [];
+                        var data = [];
+                        
+                        // result 배열에서 [color, value] 형태의 데이터 추출
+                        for (var i = 0; i < result.result.length; i++) {
+                            if (result.result[i] && result.result[i].length >= 2) {
+                                labels.push(result.result[i][0]); // color
+                                data.push(result.result[i][1]);  // value
+                            }
+                        }
+                        
+                        applCountChart.data.labels = labels;
+                        applCountChart.data.datasets[0].data = data;
+                        applCountChart.update(); // 애니메이션과 함께 업데이트
                     }
                 },
                 error: function() {
                     console.error('APPL_COUNT 데이터 조회 실패');
-                }
-            });
-
-            // LOCK_WAIT_COUNT 데이터 조회
-            $.ajax({
-                type: 'post',
-                url: '/Dashboard/lockWaitCount',
-                success: function(result) {
-                    if (result && result.labels && result.data) {
-                        lockWaitCountChart.data.labels = result.labels;
-                        lockWaitCountChart.data.datasets[0].data = result.data;
-                        lockWaitCountChart.update('none'); // 애니메이션 없이 업데이트
-                    }
                 },
-                error: function() {
-                    console.error('LOCK_WAIT_COUNT 데이터 조회 실패');
+                complete: function() {
+                    // APPL_COUNT 완료 후 LOCK_WAIT_COUNT 조회
+                    $.ajax({
+                        type: 'post',
+                        url: '/Dashboard/lockWaitCount',
+                        success: function(result) {
+                            console.log(JSON.stringify(result));
+                            if (result && result.result && Array.isArray(result.result)) {
+                                var labels = [];
+                                var data = [];
+                                
+                                // result 배열에서 [color, value] 형태의 데이터 추출
+                                for (var i = 0; i < result.result.length; i++) {
+                                    if (result.result[i] && result.result[i].length >= 2) {
+                                        labels.push(result.result[i][0]); // color
+                                        data.push(result.result[i][1]);  // value
+                                    }
+                                }
+                                
+                                lockWaitCountChart.data.labels = labels;
+                                lockWaitCountChart.data.datasets[0].data = data;
+                                lockWaitCountChart.update(); // 애니메이션과 함께 업데이트
+                            }
+                        },
+                        error: function() {
+                            console.error('LOCK_WAIT_COUNT 데이터 조회 실패');
+                        },
+                        complete: function() {
+                            // 모든 차트 업데이트 완료 후 30초 후에 다시 실행
+                            setTimeout(function() {
+                                updateCharts();
+                            }, 10000);
+                        }
+                    });
                 }
             });
         }
@@ -277,11 +331,6 @@
         function startChartMonitoring() {
             // 초기 데이터 로드
             updateCharts();
-            
-            // 30초마다 차트 데이터 업데이트
-            setInterval(function() {
-                updateCharts();
-            }, 30000);
         }
     </script>
 <head>
@@ -359,7 +408,7 @@
 
             <!-- APPL_COUNT 차트 -->
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-2">
                     <div class="box box-info">
                         <div class="box-header with-border">
                             <h3 class="box-title">
@@ -367,13 +416,13 @@
                             </h3>
                         </div>
                         <div class="box-body">
-                            <canvas id="applCountChart" style="height: 300px;"></canvas>
+                            <canvas id="applCountChart" style="height: 200px;"></canvas>
                         </div>
                     </div>
                 </div>
 
                 <!-- LOCK_WAIT_COUNT 차트 -->
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="box box-warning">
                         <div class="box-header with-border">
                             <h3 class="box-title">
@@ -381,7 +430,7 @@
                             </h3>
                         </div>
                         <div class="box-body">
-                            <canvas id="lockWaitCountChart" style="height: 300px;"></canvas>
+                            <canvas id="lockWaitCountChart" style="height: 200px;"></canvas>
                         </div>
                     </div>
                 </div>

@@ -34,15 +34,10 @@ public class DashboardController {
     @RequestMapping(path = "/Dashboard/applCount", method = RequestMethod.POST)
     public @ResponseBody Map<String, Object> getApplCount(HttpServletRequest request, HttpSession session) {
         Map<String, Object> result = new HashMap<>();
-        String memberId = (String) session.getAttribute("memberId");
-        if (memberId == null || !"admin".equals(memberId)) {
-            result.put("error", "Unauthorized");
-            return result;
-        }
 
         try {
             // APPL_COUNT SQL 실행
-            Map<String, List> sqlResult = executeDashboardSQL("APPL_COUNT", memberId, com.getIp(request));
+            Map<String, List> sqlResult = executeDashboardSQL("APPL_COUNT");
             
             if (sqlResult.containsKey("error")) {
                 result.put("error", sqlResult.get("error"));
@@ -54,17 +49,8 @@ public class DashboardController {
             List<String> labels = new ArrayList<>();
             List<Integer> data = new ArrayList<>();
 
-            for (Map<String, String> row : rowbody) {
-                if (row.containsKey("color") && row.containsKey("결과값")) {
-                    labels.add(row.get("color"));
-                    try {
-                        data.add(Integer.parseInt(row.get("결과값")));
-                    } catch (NumberFormatException e) {
-                        data.add(0);
-                    }
-                }
-            }
-
+            
+            result.put("result", rowbody);
             result.put("labels", labels);
             result.put("data", data);
 
@@ -79,15 +65,10 @@ public class DashboardController {
     @RequestMapping(path = "/Dashboard/lockWaitCount", method = RequestMethod.POST)
     public @ResponseBody Map<String, Object> getLockWaitCount(HttpServletRequest request, HttpSession session) {
         Map<String, Object> result = new HashMap<>();
-        String memberId = (String) session.getAttribute("memberId");
-        if (memberId == null || !"admin".equals(memberId)) {
-            result.put("error", "Unauthorized");
-            return result;
-        }
 
         try {
             // LOCK_WAIT_COUNT SQL 실행
-            Map<String, List> sqlResult = executeDashboardSQL("LOCK_WAIT_COUNT", memberId, com.getIp(request));
+            Map<String, List> sqlResult = executeDashboardSQL("LOCK_WAIT_COUNT");
             
             if (sqlResult.containsKey("error")) {
                 result.put("error", sqlResult.get("error"));
@@ -98,18 +79,7 @@ public class DashboardController {
             List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
             List<String> labels = new ArrayList<>();
             List<Integer> data = new ArrayList<>();
-
-            for (Map<String, String> row : rowbody) {
-                if (row.containsKey("color") && row.containsKey("결과값")) {
-                    labels.add(row.get("color"));
-                    try {
-                        data.add(Integer.parseInt(row.get("결과값")));
-                    } catch (NumberFormatException e) {
-                        data.add(0);
-                    }
-                }
-            }
-
+            result.put("result", rowbody);
             result.put("labels", labels);
             result.put("data", data);
 
@@ -124,7 +94,7 @@ public class DashboardController {
     /**
      * 대시보드 SQL 실행 공통 메서드
      */
-    private Map<String, List> executeDashboardSQL(String sqlName, String memberId, String ip) throws Exception {
+    private Map<String, List> executeDashboardSQL(String sqlName) throws Exception {
         // SQL 파일 경로 설정
         String sqlPath = "/Users/jooeunpark/git/DeX/Menu/src/001_DashBoard/" + sqlName + ".sql";
         String propertiesPath = "/Users/jooeunpark/git/DeX/Menu/src/001_DashBoard/" + sqlName + ".properties";
@@ -152,8 +122,6 @@ public class DashboardController {
 
         // LogInfoDTO 설정
         LogInfoDTO logInfo = new LogInfoDTO();
-        logInfo.setId(memberId);
-        logInfo.setIp(ip);
         logInfo.setConnection(connectionName);
         logInfo.setPath(sqlPath);
         logInfo.setSql(sql);

@@ -922,29 +922,38 @@ public class Common {
 	}
 
 	public List<Map<String, Object>> getJsonObjectFromString(String jsonStr) {
+		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+
+		// null 또는 빈 문자열 체크
+		if (jsonStr == null || jsonStr.trim().isEmpty()) {
+			logger.debug("JSON 문자열이 null이거나 비어있습니다.");
+			return list;
+		}
 
 		JSONArray jsonArray = new JSONArray();
-
 		JSONParser jsonParser = new JSONParser();
 
 		try {
-
 			jsonArray = (JSONArray) jsonParser.parse(jsonStr);
-
 		} catch (ParseException e) {
-			e.printStackTrace();
+			logger.error("JSON 파싱 오류: {}", e.getMessage());
+			return list;
+		} catch (Exception e) {
+			logger.error("JSON 처리 중 예상치 못한 오류: {}", e.getMessage());
+			return list;
 		}
 
-		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
-
 		if (jsonArray != null) {
-
 			int jsonSize = jsonArray.size();
-
 			for (int i = 0; i < jsonSize; i++) {
-
-				Map<String, Object> map = getMapFromJsonObject((JSONObject) jsonArray.get(i));
-				list.add(map);
+				try {
+					Map<String, Object> map = getMapFromJsonObject((JSONObject) jsonArray.get(i));
+					if (map != null) {
+						list.add(map);
+					}
+				} catch (Exception e) {
+					logger.error("JSON 객체 처리 중 오류 (인덱스 {}): {}", i, e.getMessage());
+				}
 			}
 		}
 
@@ -952,19 +961,24 @@ public class Common {
 	}
 
 	public static Map<String, Object> getMapFromJsonObject(JSONObject jsonObject) {
+		// null 체크
+		if (jsonObject == null) {
+			logger.debug("JSONObject가 null입니다.");
+			return null;
+		}
 
 		Map<String, Object> map = null;
 
 		try {
-
 			map = new ObjectMapper().readValue(jsonObject.toJSONString(), Map.class);
-
 		} catch (JsonParseException e) {
-			e.printStackTrace();
+			logger.error("JSON 파싱 오류: {}", e.getMessage());
 		} catch (JsonMappingException e) {
-			e.printStackTrace();
+			logger.error("JSON 매핑 오류: {}", e.getMessage());
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("JSON 처리 중 I/O 오류: {}", e.getMessage());
+		} catch (Exception e) {
+			logger.error("JSON 객체 처리 중 예상치 못한 오류: {}", e.getMessage());
 		}
 
 		return map;
