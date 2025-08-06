@@ -46,10 +46,25 @@ public class ConnectionStatusService {
     
     @PreDestroy
     public void stopMonitoring() {
+        logger.info("Connection status monitoring stopping...");
         isRunning = false;
-        if (monitoringThread != null) {
+        
+        if (monitoringThread != null && monitoringThread.isAlive()) {
             monitoringThread.interrupt();
+            try {
+                // 모니터링 스레드가 종료될 때까지 최대 10초 대기
+                monitoringThread.join(10000);
+                if (monitoringThread.isAlive()) {
+                    logger.warn("모니터링 스레드가 10초 내에 종료되지 않았습니다.");
+                } else {
+                    logger.info("모니터링 스레드가 정상적으로 종료되었습니다.");
+                }
+            } catch (InterruptedException e) {
+                logger.warn("모니터링 스레드 종료 대기 중 인터럽트 발생");
+                Thread.currentThread().interrupt();
+            }
         }
+        
         logger.info("Connection status monitoring stopped");
     }
     
@@ -129,26 +144,39 @@ public class ConnectionStatusService {
     // 타임아웃이 있는 연결 테스트 메서드
     private boolean testConnectionWithTimeout(Map<String, String> connConfig, int timeoutMs) {
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        Future<Boolean> future = executor.submit(() -> {
+        try {
+            Future<Boolean> future = executor.submit(() -> {
+                try {
+                    return com.testConnection(connConfig);
+                } catch (Exception e) {
+                    return false;
+                }
+            });
+            
             try {
-                return com.testConnection(connConfig);
+                // 타임아웃 설정
+                boolean result = future.get(timeoutMs, TimeUnit.MILLISECONDS);
+                return result;
+            } catch (TimeoutException e) {
+                future.cancel(true);
+                return false;
             } catch (Exception e) {
                 return false;
             }
-        });
-        
-        try {
-            // 타임아웃 설정
-            boolean result = future.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } finally {
+            // ExecutorService 정리
             executor.shutdown();
-            return result;
-        } catch (TimeoutException e) {
-            future.cancel(true);
-            executor.shutdownNow();
-            return false;
-        } catch (Exception e) {
-            executor.shutdown();
-            return false;
+            try {
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    executor.shutdownNow();
+                    if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                        logger.warn("ExecutorService가 정상적으로 종료되지 않았습니다.");
+                    }
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
         }
     }
     
