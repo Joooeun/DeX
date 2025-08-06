@@ -49,7 +49,7 @@ public class DashboardController {
             String sqlName = chartName.toUpperCase();
             
             // SQL 실행
-            Map<String, List> sqlResult = executeDashboardSQL(sqlName);
+            Map<String, Object> sqlResult = executeDashboardSQL(sqlName);
             
             if (sqlResult.containsKey("error")) {
                 result.put("error", sqlResult.get("error"));
@@ -71,16 +71,36 @@ public class DashboardController {
     /**
      * 대시보드 SQL 실행 공통 메서드
      */
-    private Map<String, List> executeDashboardSQL(String sqlName) throws Exception {
+    private Map<String, Object> executeDashboardSQL(String sqlName) throws Exception {
         // SQL 파일 경로 설정 (Common 클래스의 SrcPath 사용)
-        String sqlPath = com.getSrcPath() + "001_DashBoard/" + sqlName + ".sql";
-        String propertiesPath = com.getSrcPath() + "001_DashBoard/" + sqlName + ".properties";
+        String dashboardPath = com.getSrcPath() + "001_DashBoard/";
+        String sqlPath = dashboardPath + sqlName + ".sql";
+        String propertiesPath = dashboardPath + sqlName + ".properties";
+        
+        // 001_DashBoard 폴더 존재 여부 확인
+        File dashboardDir = new File(dashboardPath);
+        if (!dashboardDir.exists() || !dashboardDir.isDirectory()) {
+            logger.warn("대시보드 폴더가 존재하지 않습니다: {}", dashboardPath);
+            Map<String, Object> result = new HashMap<>();
+            result.put("error", "대시보드 폴더를 찾을 수 없습니다: " + dashboardPath);
+            return result;
+        }
         
         File sqlFile = new File(sqlPath);
         File propertiesFile = new File(propertiesPath);
 
         if (!sqlFile.exists()) {
-            throw new IOException("SQL 파일을 찾을 수 없습니다: " + sqlPath);
+            logger.warn("SQL 파일을 찾을 수 없습니다: {}", sqlPath);
+            Map<String, Object> result = new HashMap<>();
+            result.put("error", "SQL 파일을 찾을 수 없습니다: " + sqlPath);
+            return result;
+        }
+
+        if (!propertiesFile.exists()) {
+            logger.warn("Properties 파일을 찾을 수 없습니다: {}", propertiesPath);
+            Map<String, Object> result = new HashMap<>();
+            result.put("error", "Properties 파일을 찾을 수 없습니다: " + propertiesPath);
+            return result;
         }
 
         // SQL 파일 읽기
@@ -106,6 +126,9 @@ public class DashboardController {
         logInfo.setLimit(1000); // 기본 제한
 
         // 공통 SQL 실행 서비스 사용
-        return sqlExecuteService.executeSQL(logInfo);
+        Map<String, List> sqlResult = sqlExecuteService.executeSQL(logInfo);
+        Map<String, Object> result = new HashMap<>();
+        result.putAll(sqlResult);
+        return result;
     }
 } 

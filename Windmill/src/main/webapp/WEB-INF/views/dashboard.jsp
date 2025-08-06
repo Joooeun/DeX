@@ -17,6 +17,7 @@
         // 페이지 언로드 시 연결 모니터링 중지
         $(window).on('beforeunload', function() {
             stopConnectionMonitoring();
+            stopChartMonitoring();
         });
 
         // 연결 상태 새로고침 함수
@@ -59,19 +60,28 @@
         
         // 연결 카드 생성 함수
         function createConnectionCard(conn) {
-            var statusIcon = conn.status === 'connected' ? 'fa-check-circle' : 'fa-times-circle';
-            var statusText = conn.status === 'connected' ? '연결됨' : '연결실패';
-            var formattedTime = formatDateTime(conn.lastChecked);
+            var statusIcon, statusText, statusClass;
             
-            // 상태에 따른 CSS 클래스 결정
-            var statusClass = '';
+            // 상태에 따른 아이콘, 텍스트, 클래스 결정
             if (conn.status === 'connected') {
+                statusIcon = 'fa-check-circle';
+                statusText = '연결됨';
                 statusClass = 'connected';
+            } else if (conn.status === 'checking') {
+                statusIcon = 'fa-spinner fa-spin';
+                statusText = '확인중';
+                statusClass = 'checking';
             } else if (conn.status === 'error') {
+                statusIcon = 'fa-exclamation-triangle';
+                statusText = '오류';
                 statusClass = 'error';
             } else {
+                statusIcon = 'fa-times-circle';
+                statusText = '연결실패';
                 statusClass = 'disconnected';
             }
+            
+            var formattedTime = formatDateTime(conn.lastChecked);
             
             var connectionCard = 
                 '<div class="col-md-2 col-sm-3 col-xs-4" style="margin-bottom: 15px;" id="card-' + conn.connectionName + '">' +
@@ -103,19 +113,28 @@
                 return;
             }
             
-            var statusIcon = conn.status === 'connected' ? 'fa-check-circle' : 'fa-times-circle';
-            var statusText = conn.status === 'connected' ? '연결됨' : '연결실패';
-            var formattedTime = formatDateTime(conn.lastChecked);
+            var statusIcon, statusText, statusClass;
             
-            // 상태에 따른 CSS 클래스 결정
-            var statusClass = '';
+            // 상태에 따른 아이콘, 텍스트, 클래스 결정
             if (conn.status === 'connected') {
+                statusIcon = 'fa-check-circle';
+                statusText = '연결됨';
                 statusClass = 'connected';
+            } else if (conn.status === 'checking') {
+                statusIcon = 'fa-spinner fa-spin';
+                statusText = '확인중';
+                statusClass = 'checking';
             } else if (conn.status === 'error') {
+                statusIcon = 'fa-exclamation-triangle';
+                statusText = '오류';
                 statusClass = 'error';
             } else {
+                statusIcon = 'fa-times-circle';
+                statusText = '연결실패';
                 statusClass = 'disconnected';
             }
+            
+            var formattedTime = formatDateTime(conn.lastChecked);
             
             // 상태 텍스트 업데이트
             $('#status-' + conn.connectionName).html('<i class="fa ' + statusIcon + '"></i> ' + statusText);
@@ -125,7 +144,7 @@
             
             // 카드 클래스 업데이트
             var connectionCard = card.find('.connection-card');
-            connectionCard.removeClass('connected disconnected error').addClass(statusClass);
+            connectionCard.removeClass('connected disconnected error checking').addClass(statusClass);
             
             // 상태 아이콘 색상 업데이트
             //$('#status-' + conn.connectionName).css('color', conn.color);
@@ -399,27 +418,45 @@
 
         // 차트 데이터 업데이트 함수
         function updateCharts() {
+            console.log('차트 데이터 업데이트 시작');
+            
             // 모든 차트 데이터를 병렬로 요청
             Promise.all([
                 // APPL_COUNT 데이터 조회
                 $.ajax({
                     type: 'post',
-                    url: '/Dashboard/APPL_COUNT'
+                    url: '/Dashboard/APPL_COUNT',
+                    timeout: 10000 // 10초 타임아웃
+                }).catch(function(error) {
+                    console.error('APPL_COUNT 데이터 조회 실패:', error);
+                    return { error: 'APPL_COUNT 조회 실패', result: [] };
                 }),
                 // LOCK_WAIT_COUNT 데이터 조회
                 $.ajax({
                     type: 'post',
-                    url: '/Dashboard/LOCK_WAIT_COUNT'
+                    url: '/Dashboard/LOCK_WAIT_COUNT',
+                    timeout: 10000
+                }).catch(function(error) {
+                    console.error('LOCK_WAIT_COUNT 데이터 조회 실패:', error);
+                    return { error: 'LOCK_WAIT_COUNT 조회 실패', result: [] };
                 }),
                 // ACTIVE_LOG 데이터 조회
                 $.ajax({
                     type: 'post',
-                    url: '/Dashboard/ACTIVE_LOG'
+                    url: '/Dashboard/ACTIVE_LOG',
+                    timeout: 10000
+                }).catch(function(error) {
+                    console.error('ACTIVE_LOG 데이터 조회 실패:', error);
+                    return { error: 'ACTIVE_LOG 조회 실패', result: [] };
                 }),
                 // FILESYSTEM 데이터 조회
                 $.ajax({
                     type: 'post',
-                    url: '/Dashboard/FILE_SYSTEM'
+                    url: '/Dashboard/FILE_SYSTEM',
+                    timeout: 10000
+                }).catch(function(error) {
+                    console.error('FILESYSTEM 데이터 조회 실패:', error);
+                    return { error: 'FILESYSTEM 조회 실패', result: [] };
                 })
             ]).then(function(results) {
                 // 차트 설정 정의
@@ -490,34 +527,92 @@
                 ];
 
                 // 모든 차트 업데이트
-                chartConfigs.forEach(function(config) {
-                    if (config.data && config.data.result && Array.isArray(config.data.result)) {
-                        var processedData = config.processData(config.data.result);
-                        
-                        config.chart.data.labels = processedData.labels;
-                        config.chart.data.datasets[0].data = processedData.data;
-                        
-                        // LOCK_WAIT_COUNT 차트의 경우 Y축 최대값 설정
-                        if (processedData.yAxisMax) {
-                            config.chart.options.scales.y.max = processedData.yAxisMax;
+                chartConfigs.forEach(function(config, index) {
+                    try {
+                        // 에러가 있는 경우 처리
+                        if (config.data && config.data.error) {
+                            console.warn('차트 데이터 에러:', config.data.error);
+                            // 에러 상태를 차트에 표시 (빈 데이터로 설정)
+                            config.chart.data.labels = ['데이터 없음'];
+                            config.chart.data.datasets[0].data = [1];
+                            config.chart.update();
+                            return;
                         }
                         
-                        config.chart.update();
+                        // 정상 데이터 처리
+                        if (config.data && config.data.result && Array.isArray(config.data.result)) {
+                            var processedData = config.processData(config.data.result);
+                            
+                            // 데이터 유효성 검사
+                            if (processedData && processedData.labels && processedData.data) {
+                                config.chart.data.labels = processedData.labels;
+                                config.chart.data.datasets[0].data = processedData.data;
+                                
+                                // LOCK_WAIT_COUNT 차트의 경우 Y축 최대값 설정
+                                if (processedData.yAxisMax) {
+                                    config.chart.options.scales.y.max = processedData.yAxisMax;
+                                }
+                                
+                                config.chart.update();
+                                console.log('차트 업데이트 성공:', index);
+                            } else {
+                                console.warn('차트 데이터 형식 오류:', index, processedData);
+                                // 기본 데이터로 설정
+                                config.chart.data.labels = ['데이터 없음'];
+                                config.chart.data.datasets[0].data = [1];
+                                config.chart.update();
+                            }
+                        } else {
+                            console.warn('차트 데이터가 없습니다:', index, config.data);
+                            // 기본 데이터로 설정
+                            config.chart.data.labels = ['데이터 없음'];
+                            config.chart.data.datasets[0].data = [1];
+                            config.chart.update();
+                        }
+                    } catch (error) {
+                        console.error('차트 업데이트 중 오류 발생:', index, error);
+                        // 에러 발생 시 기본 데이터로 설정
+                        try {
+                            config.chart.data.labels = ['오류'];
+                            config.chart.data.datasets[0].data = [1];
+                            config.chart.update();
+                        } catch (chartError) {
+                            console.error('차트 복구 중 오류:', chartError);
+                        }
                     }
                 });
 
-                // 모든 차트 업데이트 완료 후 10초 후에 다시 실행
-                setTimeout(function() {
-                    updateCharts();
-                }, 10000);
-
+                console.log('모든 차트 업데이트 완료');
+                
+                // 다음 업데이트 스케줄링
+                scheduleNextChartUpdate();
             }).catch(function(error) {
-                console.error('차트 데이터 조회 중 오류 발생:', error);
-                // 오류 발생 시에도 10초 후에 다시 시도
-                setTimeout(function() {
-                    updateCharts();
-                }, 10000);
+                console.error('차트 데이터 조회 중 전체 오류 발생:', error);
+                // 전체 실패 시에도 다음 업데이트 스케줄링
+                scheduleNextChartUpdate();
             });
+        }
+
+        // 다음 차트 업데이트 스케줄링
+        function scheduleNextChartUpdate() {
+            // 기존 타이머가 있으면 제거
+            if (window.chartUpdateTimer) {
+                clearTimeout(window.chartUpdateTimer);
+            }
+            
+            // 10초 후에 다시 실행
+            window.chartUpdateTimer = setTimeout(function() {
+                updateCharts();
+            }, 10000);
+        }
+
+        // 차트 모니터링 중지
+        function stopChartMonitoring() {
+            if (window.chartUpdateTimer) {
+                clearTimeout(window.chartUpdateTimer);
+                window.chartUpdateTimer = null;
+            }
+            console.log('차트 모니터링 중지');
         }
 
         // 차트 모니터링 시작 함수
@@ -579,6 +674,10 @@
         
         .connection-card.error {
             background: #dc3545;
+        }
+        
+        .connection-card.checking {
+            background: #ffc107;
         }
         
         .connection-card .fa-database {

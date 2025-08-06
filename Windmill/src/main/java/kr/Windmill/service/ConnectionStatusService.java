@@ -34,6 +34,27 @@ public class ConnectionStatusService {
     public void startMonitoring() {
         logger.info("Connection status monitoring started");
         isRunning = true;
+        
+        // 연결 목록을 미리 확인중 상태로 초기화
+        try {
+            List<String> connectionList = com.ConnectionnList("DB");
+            logger.info("초기 연결 목록 로드: {}", connectionList);
+            
+            for (String connection : connectionList) {
+                String connectionName = connection.split("\\.")[0];
+                ConnectionStatusDTO status = new ConnectionStatusDTO(
+                    connectionName,
+                    "checking",  // 확인중 상태
+                    "#ffc107"    // 노란색
+                );
+                status.setLastChecked(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+                connectionStatusMap.put(connectionName, status);
+                logger.info("연결 상태 초기화: {} - 확인중", connectionName);
+            }
+        } catch (Exception e) {
+            logger.error("초기 연결 목록 로드 중 오류 발생", e);
+        }
+        
         monitoringThread = new Thread(this::monitorConnections, "ConnectionStatusMonitor");
         monitoringThread.setDaemon(true);
         monitoringThread.start();

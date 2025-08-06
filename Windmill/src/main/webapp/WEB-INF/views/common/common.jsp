@@ -8,6 +8,7 @@
 <script src="/resources/plugins/jQuery/jQuery-2.1.4.min.js"></script>
 <script src="/resources/plugins/chartjs/ChartJs.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
 <script src="/resources/bootstrap/js/bootstrap.js"></script>
 <link rel="shortcut icon" href="#">
 
