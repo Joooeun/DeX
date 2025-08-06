@@ -9,9 +9,12 @@ echo "=== Windmill 개발 빌드 시작 ==="
 CURRENT_VERSION=$(grep -o '<version>.*</version>' pom.xml | head -1 | sed 's/<version>\(.*\)<\/version>/\1/')
 echo "현재 버전: $CURRENT_VERSION"
 
-# Maven 클린 및 패키지
+# 개발 환경 경로 설정 확인
+echo "개발 환경 경로: /Users/jooeunpark/git/DeX/Menu"
+
+# Maven 클린 및 패키지 (dev 프로파일 사용)
 echo "Maven 빌드 시작..."
-mvn clean package -DskipTests
+mvn clean package -Pdev -DskipTests
 
 if [ $? -eq 0 ]; then
     echo "Maven 빌드 성공"
@@ -23,6 +26,7 @@ if [ $? -eq 0 ]; then
     echo "=== 빌드 완료 ==="
     echo "버전: $CURRENT_VERSION"
     echo "WAR 파일: target/ROOT.war"
+    echo "환경: 개발 (dev 프로파일)"
 else
     echo "Maven 빌드 실패"
     exit 1

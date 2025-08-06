@@ -9,6 +9,9 @@ echo "=== Windmill 프로덕션 빌드 시작 ==="
 CURRENT_VERSION=$(grep -o '<version>.*</version>' pom.xml | head -1 | sed 's/<version>\(.*\)<\/version>/\1/')
 echo "현재 버전: $CURRENT_VERSION"
 
+# 프로덕션 환경 경로 설정 확인
+echo "프로덕션 환경 경로: /mobis/DEX/MENU"
+
 # 버전 파싱 (major.minor.patch 형식)
 IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
 MAJOR=${VERSION_PARTS[0]}
@@ -45,9 +48,9 @@ else
     echo "pom.xml 버전 업데이트 완료"
 fi
 
-# Maven 클린 및 패키지
+# Maven 클린 및 패키지 (production 프로파일 사용)
 echo "Maven 빌드 시작..."
-mvn clean package -DskipTests
+mvn clean package -Pproduction -DskipTests
 
 if [ $? -eq 0 ]; then
     echo "Maven 빌드 성공"
@@ -59,6 +62,7 @@ if [ $? -eq 0 ]; then
     echo "=== 빌드 완료 ==="
     echo "버전: $NEW_VERSION"
     echo "WAR 파일: target/ROOT.war"
+    echo "환경: 프로덕션 (production 프로파일)"
     echo ""
     echo "배포 방법:"
     echo "1. target/ROOT.war 파일을 Tomcat webapps 디렉토리에 복사"
