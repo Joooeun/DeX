@@ -82,12 +82,17 @@ var table;
 var column=[];
 var data;
 var tableoption;
+var isPaused = false; // 일시정지 상태 변수
+var refreshTimer = null; // 타이머 변수
 
 var temp_column;
 
 var tableHeight=0;
 
 	$(document).ready(function() {
+		
+		// 일시정지 버튼 초기화
+		$("#pauseBtn").hide();
 
 		ctx = document.getElementById('myChart');
 		myChart = myChart = new Chart(ctx, {
@@ -287,19 +292,71 @@ var tableHeight=0;
 	}
 
 	function refresh() {
+		// 일시정지 상태면 타이머 중단
+		if (isPaused) {
+			return;
+		}
+		
 		timeRemain--;
 		$("#excutebtn").val('wait...' + timeRemain + 's')
 		if (timeRemain == 0) {
 			timeRemain = $("#refreshtimeout").val();
 			excute();
-
 		} else {
-			setTimeout(() => {
+			refreshTimer = setTimeout(() => {
 				refresh();
 			}, 1000);
 		}
+	}
 
+	// 일시정지/재개 토글 함수
+	function togglePause() {
+		if (isPaused) {
+			// 재개
+			isPaused = false;
+			$("#pauseBtn").html('<i class="fa fa-pause"></i> 일시정지');
+			$("#pauseBtn").removeClass('btn-warning').addClass('btn-info');
+			// 타이머 재시작
+			if (timeRemain > 0) {
+				refresh();
+			}
+		} else {
+			// 일시정지
+			isPaused = true;
+			$("#pauseBtn").html('<i class="fa fa-play"></i> 재개');
+			$("#pauseBtn").removeClass('btn-info').addClass('btn-warning');
+			// 타이머 중단
+			if (refreshTimer) {
+				clearTimeout(refreshTimer);
+				refreshTimer = null;
+			}
+		}
+	}
 
+	// 자동 새로고침 시작 함수
+	function startAutoRefresh() {
+		if ($("#refreshtimeout").val() > 0) {
+			timeRemain = $("#refreshtimeout").val();
+			isPaused = false;
+			$("#pauseBtn").show();
+			$("#pauseBtn").html('<i class="fa fa-pause"></i> 일시정지');
+			$("#pauseBtn").removeClass('btn-warning').addClass('btn-info');
+			// 자동 재실행 중에는 실행 버튼 비활성화 유지
+			$("#excutebtn").attr('disabled', true);
+			refresh();
+		}
+	}
+
+	// 자동 새로고침 중지 함수
+	function stopAutoRefresh() {
+		isPaused = true;
+		if (refreshTimer) {
+			clearTimeout(refreshTimer);
+			refreshTimer = null;
+		}
+		$("#pauseBtn").hide();
+		$("#excutebtn").attr('disabled', false);
+		$("#excutebtn").val('실행');
 	}
 
 	function commit() {
@@ -518,18 +575,22 @@ var tableHeight=0;
 				$("#result-text").text('total : ' + data.length + ' records, on ' + dateFormat2(ondate));
 				$("#save").css('display', 'block');
 
-
-				$("#excutebtn").attr('disabled', false);
 				$("#loadingdiv").css('display','none')
 
 				if ($("#refreshtimeout").val() > 0) {
-					timeRemain = $("#refreshtimeout").val();
-					refresh();
+					startAutoRefresh();
+				} else {
+					// 자동 재실행이 아닌 경우에만 버튼 활성화
+					$("#excutebtn").attr('disabled', false);
+					$("#excutebtn").val('실행');
 				}
 			},
 			error: function(error) {
 				$("#excutebtn").attr('disabled', false);
+				$("#excutebtn").val('실행');
 				$("#loadingdiv").css('display','none')
+				// 에러 발생 시 자동 새로고침 중지
+				stopAutoRefresh();
 				console.log(JSON.stringify(error))
 				alert('시스템오류');
 			}
@@ -827,8 +888,14 @@ var tableHeight=0;
 									</c:choose>
 								</c:forEach>
 							</div>
-							<div class="col-sm-2 col-md-1 pull-right">
-								<input type="hidden" id="sendvalue" name="sendvalue"><input id="excutebtn" type="submit" class="form-control" value="실행">
+							<div class="col-sm-4 col-md-2 pull-right">
+								<input type="hidden" id="sendvalue" name="sendvalue">
+								<div style="display: flex; gap: 5px;">
+									<button id="pauseBtn" type="button" class="btn btn-info btn-sm" style="display: none; flex: 1;" onclick="togglePause()">
+										<i class="fa fa-pause"></i> 일시정지
+									</button>
+									<input id="excutebtn" type="submit" class="btn btn-primary" value="실행" style="flex: 1;">
+								</div>
 								<input id="Path" name="Path" value="${Path}" type="hidden">
 								<!-- <input
 										id="excutebtn" type="submit" class="form-control" value="실행">  -->
