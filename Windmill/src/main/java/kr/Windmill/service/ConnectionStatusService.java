@@ -1,5 +1,6 @@
 package kr.Windmill.service;
 
+import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -8,11 +9,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
@@ -36,12 +32,11 @@ public class ConnectionStatusService {
     
     @PostConstruct
     public void startMonitoring() {
-        isRunning = true;
-        monitoringThread = new Thread(this::monitorConnections);
-        monitoringThread.setDaemon(true);
-        monitoringThread.setName("ConnectionStatusMonitor");
-        monitoringThread.start();
         logger.info("Connection status monitoring started");
+        isRunning = true;
+        monitoringThread = new Thread(this::monitorConnections, "ConnectionStatusMonitor");
+        monitoringThread.setDaemon(true);
+        monitoringThread.start();
     }
     
     @PreDestroy
@@ -83,12 +78,21 @@ public class ConnectionStatusService {
     }
     
     private void updateAllConnectionStatuses() {
-        List<String> connectionList = com.ConnectionnList("DB");
-		
-		for (String connection : connectionList) {
-		    String connectionName = connection.split("\\.")[0];
-		    updateConnectionStatus(connectionName);
-		}
+        try {
+            // Common 클래스의 기존 로그 활용 (Setproperties에서 이미 출력됨)
+            logger.info("=== 연결 상태 확인 시작 ===");
+            
+            List<String> connectionList = com.ConnectionnList("DB");
+            logger.info("발견된 연결 목록: {}", connectionList);
+            
+            for (String connection : connectionList) {
+                String connectionName = connection.split("\\.")[0];
+                logger.info("연결 상태 확인 중: {}", connectionName);
+                updateConnectionStatus(connectionName);
+            }
+        } catch (Exception e) {
+            logger.error("연결 목록 조회 중 오류 발생", e);
+        }
     }
     
     private void updateConnectionStatus(String connectionName) {
@@ -96,7 +100,7 @@ public class ConnectionStatusService {
             Map<String, String> connConfig = com.ConnectionConf(connectionName);
             
             // 5초 타임아웃으로 연결 테스트
-            boolean isConnected = testConnectionWithTimeout(connConfig, 5000);
+            boolean isConnected = com.testConnection(connConfig);
             
             // 기존 상태가 있으면 업데이트, 없으면 새로 생성
             ConnectionStatusDTO status = connectionStatusMap.get(connectionName);
@@ -138,45 +142,6 @@ public class ConnectionStatusService {
             status.setErrorMessage(e.getMessage());
             connectionStatusMap.put(connectionName, status);
             logger.error("DB 연결 상태 확인 완료: {} - 오류발생: {}", connectionName, e.getMessage());
-        }
-    }
-    
-    // 타임아웃이 있는 연결 테스트 메서드
-    private boolean testConnectionWithTimeout(Map<String, String> connConfig, int timeoutMs) {
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        try {
-            Future<Boolean> future = executor.submit(() -> {
-                try {
-                    return com.testConnection(connConfig);
-                } catch (Exception e) {
-                    return false;
-                }
-            });
-            
-            try {
-                // 타임아웃 설정
-                boolean result = future.get(timeoutMs, TimeUnit.MILLISECONDS);
-                return result;
-            } catch (TimeoutException e) {
-                future.cancel(true);
-                return false;
-            } catch (Exception e) {
-                return false;
-            }
-        } finally {
-            // ExecutorService 정리
-            executor.shutdown();
-            try {
-                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    executor.shutdownNow();
-                    if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                        logger.warn("ExecutorService가 정상적으로 종료되지 않았습니다.");
-                    }
-                }
-            } catch (InterruptedException e) {
-                executor.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
         }
     }
     

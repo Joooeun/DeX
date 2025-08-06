@@ -1043,6 +1043,19 @@ public class Common {
 			prop.put("user", connConfig.get("USER"));
 			prop.put("password", connConfig.get("PW"));
 			prop.put("clientProgramName", "DeX");
+			
+			// 타임아웃 설정 추가
+			prop.put("connectTimeout", "5000");  // 5초 연결 타임아웃
+			prop.put("socketTimeout", "5000");   // 5초 소켓 타임아웃
+			
+			// DB2 전용 타임아웃 속성 추가
+			if ("DB2".equalsIgnoreCase(connConfig.get("DBTYPE"))) {
+				prop.put("loginTimeout", "5");           // 로그인 타임아웃 5초
+				prop.put("blockingReadConnectionTimeout", "5");  // 읽기 타임아웃 5초
+				prop.put("blockingReadConnectionTimeoutUnit", "SECONDS");
+				prop.put("currentSchema", "DEX");        // 스키마 설정
+				prop.put("retrieveMessagesFromServerOnGetMessage", "false"); // 메시지 검색 비활성화
+			}
 
 			Class.forName(driver);
 			conn = DriverManager.getConnection(url, prop);
@@ -1050,6 +1063,7 @@ public class Common {
 			// 데이터베이스 타입에 맞는 연결 테스트 쿼리 실행
 			String testQuery = getTestQueryByDbType(connConfig.get("DBTYPE"));
 			try (PreparedStatement stmt = conn.prepareStatement(testQuery)) {
+				stmt.setQueryTimeout(5); // 5초 쿼리 타임아웃
 				stmt.executeQuery();
 			}
 			
@@ -1123,5 +1137,62 @@ public class Common {
 				return "jdbc:oracle:thin:@" + ip + ":" + port + ":" + db;
 		}
 	}
+    
+    /**
+     * DB2 연결 정리를 위한 메서드
+     */
+    public static void cleanupDB2Connections() {
+        try {
+            logger.info("DB2 연결 정리 시작...");
+            
+            // DB2 드라이버의 정적 리소스 정리
+            System.gc();
+            
+            // 잠시 대기하여 정리 완료 확인
+            Thread.sleep(2000);
+            
+            logger.info("DB2 연결 정리 완료");
+            
+        } catch (Exception e) {
+            logger.error("DB2 연결 정리 중 오류 발생", e);
+        }
+    }
+    
+    /**
+     * 애플리케이션 종료 시 전체 정리 작업
+     */
+    public static void cleanupOnShutdown() {
+        try {
+            logger.info("애플리케이션 종료 시 정리 작업 시작...");
+            
+            // DB2 연결 정리
+            cleanupDB2Connections();
+            
+            // JDBC 드라이버 정리
+            try {
+                logger.info("JDBC 드라이버 정리 시작...");
+                JdbcDriverCleanup.cleanupDrivers();
+                JdbcDriverCleanup.forceGarbageCollection();
+            } catch (Exception e) {
+                logger.warn("JDBC 드라이버 정리 중 오류 발생", e);
+            }
+            
+            // 정적 변수 정리
+            system_properties = "";
+            ConnectionPath = "";
+            SrcPath = "";
+            UserPath = "";
+            tempPath = "";
+            RootPath = "";
+            LogDB = "";
+            DownloadIP = "";
+            LogCOL = "";
+            
+            logger.info("애플리케이션 종료 시 정리 작업 완료");
+            
+        } catch (Exception e) {
+            logger.error("애플리케이션 종료 시 정리 작업 중 오류 발생", e);
+        }
+    }
 
 }

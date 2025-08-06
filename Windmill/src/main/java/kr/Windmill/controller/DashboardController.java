@@ -72,9 +72,9 @@ public class DashboardController {
      * 대시보드 SQL 실행 공통 메서드
      */
     private Map<String, List> executeDashboardSQL(String sqlName) throws Exception {
-        // SQL 파일 경로 설정
-        String sqlPath = "/Users/jooeunpark/git/DeX/Menu/src/001_DashBoard/" + sqlName + ".sql";
-        String propertiesPath = "/Users/jooeunpark/git/DeX/Menu/src/001_DashBoard/" + sqlName + ".properties";
+        // SQL 파일 경로 설정 (Common 클래스의 SrcPath 사용)
+        String sqlPath = com.getSrcPath() + "001_DashBoard/" + sqlName + ".sql";
+        String propertiesPath = com.getSrcPath() + "001_DashBoard/" + sqlName + ".properties";
         
         File sqlFile = new File(sqlPath);
         File propertiesFile = new File(propertiesPath);
