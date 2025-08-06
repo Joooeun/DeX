@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -31,13 +32,24 @@ public class DashboardController {
     @Autowired
     private SQLExecuteService sqlExecuteService;
 
-    @RequestMapping(path = "/Dashboard/applCount", method = RequestMethod.POST)
-    public @ResponseBody Map<String, Object> getApplCount(HttpServletRequest request, HttpSession session) {
+    /**
+     * 대시보드 차트 데이터 조회 공통 메서드
+     * @param chartName 차트명 (예: applCount, lockWaitCount, activeLog, filesystem)
+     */
+    @RequestMapping(path = "/Dashboard/{chartName}", method = RequestMethod.POST)
+    public @ResponseBody Map<String, Object> getChartData(
+            @PathVariable String chartName, 
+            HttpServletRequest request, 
+            HttpSession session) {
+        
         Map<String, Object> result = new HashMap<>();
 
         try {
-            // APPL_COUNT SQL 실행
-            Map<String, List> sqlResult = executeDashboardSQL("APPL_COUNT");
+            // 차트명을 대문자로 변환하여 SQL 파일명 생성
+            String sqlName = chartName.toUpperCase();
+            
+            // SQL 실행
+            Map<String, List> sqlResult = executeDashboardSQL(sqlName);
             
             if (sqlResult.containsKey("error")) {
                 result.put("error", sqlResult.get("error"));
@@ -46,45 +58,10 @@ public class DashboardController {
 
             // SQL 결과를 차트 데이터로 변환
             List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
-            List<String> labels = new ArrayList<>();
-            List<Integer> data = new ArrayList<>();
-
-            
             result.put("result", rowbody);
-            result.put("labels", labels);
-            result.put("data", data);
 
         } catch (Exception e) {
-            logger.error("APPL_COUNT 실행 오류", e);
-            result.put("error", e.getMessage());
-        }
-
-        return result;
-    }
-
-    @RequestMapping(path = "/Dashboard/lockWaitCount", method = RequestMethod.POST)
-    public @ResponseBody Map<String, Object> getLockWaitCount(HttpServletRequest request, HttpSession session) {
-        Map<String, Object> result = new HashMap<>();
-
-        try {
-            // LOCK_WAIT_COUNT SQL 실행
-            Map<String, List> sqlResult = executeDashboardSQL("LOCK_WAIT_COUNT");
-            
-            if (sqlResult.containsKey("error")) {
-                result.put("error", sqlResult.get("error"));
-                return result;
-            }
-
-            // SQL 결과를 차트 데이터로 변환
-            List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
-            List<String> labels = new ArrayList<>();
-            List<Integer> data = new ArrayList<>();
-            result.put("result", rowbody);
-            result.put("labels", labels);
-            result.put("data", data);
-
-        } catch (Exception e) {
-            logger.error("LOCK_WAIT_COUNT 실행 오류", e);
+            logger.error("{} 실행 오류", chartName.toUpperCase(), e);
             result.put("error", e.getMessage());
         }
 
@@ -128,65 +105,7 @@ public class DashboardController {
         logInfo.setParamList(new ArrayList<>()); // 파라미터 없음
         logInfo.setLimit(1000); // 기본 제한
 
-        // 공통 SQL 실행 서비스 사용 (LogInfoDTO에 이미 memberId와 ip가 설정되어 있음)
+        // 공통 SQL 실행 서비스 사용
         return sqlExecuteService.executeSQL(logInfo);
-    }
-
-    @RequestMapping(path = "/Dashboard/activeLog", method = RequestMethod.POST)
-    public @ResponseBody Map<String, Object> getActiveLog(HttpServletRequest request, HttpSession session) {
-        Map<String, Object> result = new HashMap<>();
-
-        try {
-            // ACTIVE_LOG SQL 실행
-            Map<String, List> sqlResult = executeDashboardSQL("ACTIVE_LOG");
-            
-            if (sqlResult.containsKey("error")) {
-                result.put("error", sqlResult.get("error"));
-                return result;
-            }
-
-            // SQL 결과를 차트 데이터로 변환
-            List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
-            List<String> labels = new ArrayList<>();
-            List<Integer> data = new ArrayList<>();
-            result.put("result", rowbody);
-            result.put("labels", labels);
-            result.put("data", data);
-
-        } catch (Exception e) {
-            logger.error("ACTIVE_LOG 실행 오류", e);
-            result.put("error", e.getMessage());
-        }
-
-        return result;
-    }
-
-    @RequestMapping(path = "/Dashboard/filesystem", method = RequestMethod.POST)
-    public @ResponseBody Map<String, Object> getFilesystem(HttpServletRequest request, HttpSession session) {
-        Map<String, Object> result = new HashMap<>();
-
-        try {
-            // FILESYSTEM SQL 실행
-            Map<String, List> sqlResult = executeDashboardSQL("FILESYSTEM");
-            
-            if (sqlResult.containsKey("error")) {
-                result.put("error", sqlResult.get("error"));
-                return result;
-            }
-
-            // SQL 결과를 차트 데이터로 변환
-            List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
-            List<String> labels = new ArrayList<>();
-            List<Integer> data = new ArrayList<>();
-            result.put("result", rowbody);
-            result.put("labels", labels);
-            result.put("data", data);
-
-        } catch (Exception e) {
-            logger.error("FILESYSTEM 실행 오류", e);
-            result.put("error", e.getMessage());
-        }
-
-        return result;
     }
 } 

@@ -404,96 +404,107 @@
                 // APPL_COUNT 데이터 조회
                 $.ajax({
                     type: 'post',
-                    url: '/Dashboard/applCount'
+                    url: '/Dashboard/APPL_COUNT'
                 }),
                 // LOCK_WAIT_COUNT 데이터 조회
                 $.ajax({
                     type: 'post',
-                    url: '/Dashboard/lockWaitCount'
+                    url: '/Dashboard/LOCK_WAIT_COUNT'
                 }),
                 // ACTIVE_LOG 데이터 조회
                 $.ajax({
                     type: 'post',
-                    url: '/Dashboard/activeLog'
+                    url: '/Dashboard/ACTIVE_LOG'
                 }),
                 // FILESYSTEM 데이터 조회
                 $.ajax({
                     type: 'post',
-                    url: '/Dashboard/filesystem'
+                    url: '/Dashboard/FILE_SYSTEM'
                 })
             ]).then(function(results) {
-                // APPL_COUNT 차트 업데이트
-                if (results[0] && results[0].result && Array.isArray(results[0].result)) {
-                    var labels = [];
-                    var data = [];
-                    
-                    for (var i = 0; i < results[0].result.length; i++) {
-                        if (results[0].result[i] && results[0].result[i].length >= 2) {
-                            labels.push(results[0].result[i][0]); // color
-                            data.push(results[0].result[i][1]);  // value
+                // 차트 설정 정의
+                var chartConfigs = [
+                    {
+                        chart: applCountChart,
+                        data: results[0],
+                        processData: function(result) {
+                            var labels = [];
+                            var data = [];
+                            for (var i = 0; i < result.length; i++) {
+                                if (result[i] && result[i].length >= 2) {
+                                    labels.push(result[i][0]); // color
+                                    data.push(result[i][1]);  // value
+                                }
+                            }
+                            return { labels: labels, data: data };
+                        }
+                    },
+                    {
+                        chart: lockWaitCountChart,
+                        data: results[1],
+                        processData: function(result) {
+                            var labels = [];
+                            var data = [];
+                            for (var i = 0; i < result.length; i++) {
+                                if (result[i] && result[i].length >= 2) {
+                                    labels.push(result[i][0]); // color
+                                    data.push(result[i][1]);  // value
+                                }
+                            }
+                            // 최대값 계산하여 Y축 최대값 설정 (정수로)
+                            var maxValue = Math.max(...data);
+                            var yAxisMax = Math.ceil(maxValue * 1.1);
+                            return { labels: labels, data: data, yAxisMax: yAxisMax };
+                        }
+                    },
+                    {
+                        chart: activeLogChart,
+                        data: results[2],
+                        processData: function(result) {
+                            var labels = [];
+                            var data = [];
+                            for (var i = 0; i < result.length; i++) {
+                                if (result[i] && result[i].length >= 2) {
+                                    labels.push(result[i][0]); // color
+                                    data.push(result[i][1]);  // value
+                                }
+                            }
+                            return { labels: labels, data: data };
+                        }
+                    },
+                    {
+                        chart: filesystemChart,
+                        data: results[3],
+                        processData: function(result) {
+                            var labels = [];
+                            var data = [];
+                            for (var i = 0; i < result.length; i++) {
+                                if (result[i] && result[i].length >= 2) {
+                                    labels.push(result[i][0]); // name
+                                    data.push(result[i][1]);  // value (0-100%)
+                                }
+                            }
+                            return { labels: labels, data: data };
                         }
                     }
-                    
-                    applCountChart.data.labels = labels;
-                    applCountChart.data.datasets[0].data = data;
-                    applCountChart.update();
-                }
+                ];
 
-                // LOCK_WAIT_COUNT 차트 업데이트
-                if (results[1] && results[1].result && Array.isArray(results[1].result)) {
-                    var labels = [];
-                    var data = [];
-                    
-                    for (var i = 0; i < results[1].result.length; i++) {
-                        if (results[1].result[i] && results[1].result[i].length >= 2) {
-                            labels.push(results[1].result[i][0]); // color
-                            data.push(results[1].result[i][1]);  // value
+                // 모든 차트 업데이트
+                chartConfigs.forEach(function(config) {
+                    if (config.data && config.data.result && Array.isArray(config.data.result)) {
+                        var processedData = config.processData(config.data.result);
+                        
+                        config.chart.data.labels = processedData.labels;
+                        config.chart.data.datasets[0].data = processedData.data;
+                        
+                        // LOCK_WAIT_COUNT 차트의 경우 Y축 최대값 설정
+                        if (processedData.yAxisMax) {
+                            config.chart.options.scales.y.max = processedData.yAxisMax;
                         }
+                        
+                        config.chart.update();
                     }
-                    
-                    // 최대값 계산하여 Y축 최대값 설정 (정수로)
-                    var maxValue = Math.max(...data);
-                    var yAxisMax = Math.ceil(maxValue * 1.1);
-                    
-                    lockWaitCountChart.data.labels = labels;
-                    lockWaitCountChart.data.datasets[0].data = data;
-                    lockWaitCountChart.options.scales.y.max = yAxisMax;
-                    lockWaitCountChart.update();
-                }
-
-                // ACTIVE_LOG 차트 업데이트
-                if (results[2] && results[2].result && Array.isArray(results[2].result)) {
-                    var labels = [];
-                    var data = [];
-                    
-                    for (var i = 0; i < results[2].result.length; i++) {
-                        if (results[2].result[i] && results[2].result[i].length >= 2) {
-                            labels.push(results[2].result[i][0]); // color
-                            data.push(results[2].result[i][1]);  // value
-                        }
-                    }
-                    
-                    activeLogChart.data.labels = labels;
-                    activeLogChart.data.datasets[0].data = data;
-                    activeLogChart.update();
-                }
-
-                // FILESYSTEM 차트 업데이트
-                if (results[3] && results[3].result && Array.isArray(results[3].result)) {
-                    var labels = [];
-                    var data = [];
-                    
-                    for (var i = 0; i < results[3].result.length; i++) {
-                        if (results[3].result[i] && results[3].result[i].length >= 2) {
-                            labels.push(results[3].result[i][0]); // name
-                            data.push(results[3].result[i][1]);  // value (0-100%)
-                        }
-                    }
-                    
-                    filesystemChart.data.labels = labels;
-                    filesystemChart.data.datasets[0].data = data;
-                    filesystemChart.update();
-                }
+                });
 
                 // 모든 차트 업데이트 완료 후 10초 후에 다시 실행
                 setTimeout(function() {
