@@ -53,12 +53,65 @@
     background: #ffc107;
 }
 
-.connection-card .fa-database {
+.connection-card .fa-database,
+.connection-card .fa-server {
     font-size: 28px;
     margin-bottom: 3px;
     color: rgba(255,255,255,0.9);
     position: relative;
     z-index: 1;
+}
+
+/* 도넛 차트 컨테이너 스타일 */
+.doughnut-charts-container {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
+    height: 150px;
+}
+
+.doughnut-chart-item {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.doughnut-chart-item .doughnut-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.doughnut-chart-item canvas {
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 5px;
+}
+
+.doughnut-chart-item .doughnut-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .doughnut-charts-container {
+        flex-direction: column;
+        gap: 15px;
+        height: auto;
+        padding: 20px;
+    }
 }
 
 .connection-card .connection-name {
@@ -182,34 +235,6 @@
     z-index: 1;
 }
 
-/* 게이지 차트 스타일 */
-.gauge-container {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-
-.gauge-item {
-    text-align: center;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    padding: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    min-width: 80px;
-}
-
-.gauge-item canvas {
-    max-width: 100%;
-    height: auto;
-}
-
-.gauge-label {
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.8);
-    margin-top: 5px;
-    font-weight: 600;
-    text-transform: uppercase;
-}
 
 /* 반응형 */
 @media (max-width: 768px) {
@@ -222,9 +247,6 @@
         width: 100%;
     }
     
-    .gauge-container {
-        justify-content: center;
-    }
 }
 
 /* DEX 상태 카드 스타일 */
@@ -303,63 +325,6 @@
     z-index: 1;
 }
 
-/* 개선된 게이지 차트 스타일 */
-.gauge-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: auto;
-    max-height: 200px;
-    padding: 10px;
-}
-
-.gauge-row {
-    display: flex;
-    justify-content: space-around;
-    width: 100%;
-    margin-bottom: 15px;
-    gap: 15px;
-}
-
-.gauge-item {
-    text-align: center;
-    flex: 1;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 12px 8px;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    transition: all 0.3s ease;
-}
-
-
-.gauge-item canvas {
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
-    padding: 5px;
-    height: 60px !important;
-    max-height: 60px !important;
-    width: 100px !important;
-    max-width: 100px !important;
-}
-
-.gauge-label {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.9);
-    margin-top: 8px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.gauge-value {
-    font-size: 14px;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.95);
-    margin-top: 4px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
 
 .process-info {
     font-size: 9px;
@@ -380,30 +345,3 @@
     align-items: center;
     height: 100%;
 }
-
-/* 게이지 차트 애니메이션 */
-@keyframes gaugePulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.02); }
-    100% { transform: scale(1); }
-}
-
-.gauge-item.animated {
-    animation: gaugePulse 2s ease-in-out infinite;
-}
-
-/* 게이지 색상 상태 */
-.gauge-item.critical {
-    background: rgba(220, 53, 69, 0.2);
-    border-color: rgba(220, 53, 69, 0.4);
-}
-
-.gauge-item.warning {
-    background: rgba(255, 193, 7, 0.2);
-    border-color: rgba(255, 193, 7, 0.4);
-}
-
-.gauge-item.normal {
-    background: rgba(40, 167, 69, 0.2);
-    border-color: rgba(40, 167, 69, 0.4);
-} 

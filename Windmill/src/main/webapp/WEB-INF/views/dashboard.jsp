@@ -2,14 +2,17 @@
     <script>
         // 연결 상태 모니터링 관련 변수
         var connectionStatusInterval;
+        var dexStatusInterval;
         var applCountChart;
         var lockWaitCountChart;
         var activeLogChart;
         var filesystemChart;
+        var dexStatusChart;
 
         // 페이지 로드 시 연결 모니터링 시작
         $(document).ready(function() {
             startConnectionMonitoring();
+            startDexStatusMonitoring();
             initializeCharts();
             startChartMonitoring();
         });
@@ -17,6 +20,7 @@
         // 페이지 언로드 시 연결 모니터링 중지
         $(window).on('beforeunload', function() {
             stopConnectionMonitoring();
+            stopDexStatusMonitoring();
             stopChartMonitoring();
         });
 
@@ -209,6 +213,314 @@
             }
         }
 
+        // DEX 상태 새로고침 함수
+        function refreshDexStatus() {
+            $.ajax({
+                type: 'post',
+                url: '/DexStatus/status',
+                timeout: 10000,
+                success: function(result) {
+                    updateDexStatusDisplay(result);
+                    scheduleNextDexRefresh();
+                },
+                error: function(xhr, status, error) {
+                    console.error('DEX 상태 조회 실패:', error);
+                    scheduleNextDexRefresh();
+                }
+            });
+        }
+
+        // DEX 상태 표시 업데이트 함수
+        function updateDexStatusDisplay(dexStatuses) {
+            var container = $('#dexStatusContainer');
+            
+            if (container.children().length === 0) {
+                // 초기 로드: 전체 카드 생성
+                dexStatuses.forEach(function(status) {
+                    createDexStatusCard(status);
+                });
+            } else {
+                // 업데이트: 기존 카드의 상태만 변경
+                dexStatuses.forEach(function(status) {
+                    updateDexStatusCard(status);
+                });
+            }
+            
+            // CPU/메모리 차트 업데이트 (프로세스 상태에서)
+            var processStatus = dexStatuses.find(function(status) {
+                return status.statusName === 'dex_process';
+            });
+            
+            if (processStatus) {
+                updateDoughnutCharts(processStatus);
+            }
+        }
+
+        // DEX 상태 카드 생성 함수
+        function createDexStatusCard(status) {
+            var statusIcon, statusText, statusClass;
+            
+            if (status.status === 'running' || status.status === 'available') {
+                statusIcon = 'fa-check-circle';
+                statusText = status.status === 'running' ? '실행중' : '정상';
+                statusClass = 'connected';
+            } else if (status.status === 'checking') {
+                statusIcon = 'fa-spinner fa-spin';
+                statusText = '확인중';
+                statusClass = 'checking';
+            } else if (status.status === 'error') {
+                statusIcon = 'fa-exclamation-triangle';
+                statusText = '오류';
+                statusClass = 'error';
+            } else {
+                statusIcon = 'fa-times-circle';
+                statusText = status.status === 'stopped' ? '중지됨' : '사용불가';
+                statusClass = 'disconnected';
+            }
+            
+            var formattedTime = formatDateTime(status.lastChecked);
+            
+            var dexStatusCard = 
+                '<div class="col-md-12" style="margin-bottom: 15px;" id="dex-card-' + status.statusName + '">' +
+                    '<div class="connection-card ' + statusClass + '" onclick="refreshSingleDexStatus(\'' + status.statusName + '\')">' +
+                        '<div>' +
+                            '<i class="fa fa-server"></i>' +
+                        '</div>' +
+                        '<div class="connection-name">' +
+                            status.displayName +
+                        '</div>' +
+                        '<div class="status-text" id="dex-status-' + status.statusName + '">' +
+                            '<i class="fa ' + statusIcon + '"></i> ' + statusText +
+                        '</div>' +
+                        '<div class="last-checked" id="dex-lastChecked-' + status.statusName + '">' +
+                            formattedTime +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            
+            $('#dexStatusContainer').append(dexStatusCard);
+            
+
+        }
+
+        // DEX 상태 카드 업데이트 함수
+        function updateDexStatusCard(status) {
+            var card = $('#dex-card-' + status.statusName);
+            if (card.length === 0) {
+                createDexStatusCard(status);
+                return;
+            }
+            
+            var statusIcon, statusText, statusClass;
+            
+            if (status.status === 'running' || status.status === 'available') {
+                statusIcon = 'fa-check-circle';
+                statusText = status.status === 'running' ? '실행중' : '정상';
+                statusClass = 'connected';
+            } else if (status.status === 'checking') {
+                statusIcon = 'fa-spinner fa-spin';
+                statusText = '확인중';
+                statusClass = 'checking';
+            } else if (status.status === 'error') {
+                statusIcon = 'fa-exclamation-triangle';
+                statusText = '오류';
+                statusClass = 'error';
+            } else {
+                statusIcon = 'fa-times-circle';
+                statusText = status.status === 'stopped' ? '중지됨' : '사용불가';
+                statusClass = 'disconnected';
+            }
+            
+            var formattedTime = formatDateTime(status.lastChecked);
+            
+            // 상태 텍스트 업데이트
+            $('#dex-status-' + status.statusName).html('<i class="fa ' + statusIcon + '"></i> ' + statusText);
+            
+            // 마지막 확인 시간 업데이트
+            $('#dex-lastChecked-' + status.statusName).text(formattedTime);
+            
+            // 카드 클래스 업데이트
+            var dexStatusCard = card.find('.connection-card');
+            dexStatusCard.removeClass('connected disconnected error checking').addClass(statusClass);
+        }
+
+        // 단일 DEX 상태 수동 새로고침
+        function refreshSingleDexStatus(statusName) {
+            $.ajax({
+                type: 'post',
+                url: '/DexStatus/refresh',
+                data: {
+                    statusName: statusName
+                },
+                timeout: 10000,
+                success: function(result) {
+                    if (result === 'success') {
+                        setTimeout(function() {
+                            refreshDexStatus();
+                        }, 500);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('DEX 상태 새로고침 실패:', error);
+                }
+            });
+        }
+
+        // DEX 상태 모니터링 시작
+        function startDexStatusMonitoring() {
+            console.log('DEX 상태 모니터링 시작');
+            refreshDexStatus();
+        }
+        
+        // DEX 상태 모니터링 중지
+        function stopDexStatusMonitoring() {
+            console.log('DEX 상태 모니터링 중지');
+            if (dexStatusInterval) {
+                clearTimeout(dexStatusInterval);
+                dexStatusInterval = null;
+            }
+        }
+        
+        // 다음 DEX 상태 새로고침 스케줄링
+        function scheduleNextDexRefresh() {
+            if (dexStatusInterval) {
+                clearTimeout(dexStatusInterval);
+            }
+            dexStatusInterval = setTimeout(function() {
+                refreshDexStatus();
+            }, 10000); // 10초마다 새로고침
+        }
+
+        // 도넛 차트 생성 함수
+        function createDoughnutChart(canvasId, value, label, unit) {
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js가 로드되지 않았습니다.');
+                return;
+            }
+            
+            var canvas = document.getElementById(canvasId);
+            if (!canvas) {
+                console.error('Canvas 요소를 찾을 수 없습니다: ' + canvasId);
+                return;
+            }
+            
+            var ctx = canvas.getContext('2d');
+            
+            // 기존 차트가 있으면 제거
+            var existingChart = Chart.getChart(canvas);
+            if (existingChart) {
+                existingChart.destroy();
+            }
+            
+            // 값이 숫자가 아니면 0으로 설정
+            if (typeof value !== 'number' || isNaN(value)) {
+                value = 0;
+            }
+            
+            // 값에 따른 색상 결정
+            var color;
+            if (value >= 80) {
+                color = 'rgb(231, 24, 49)'; // 빨간색 (위험)
+            } else if (value >= 60) {
+                color = 'rgb(239, 198, 0)'; // 노란색 (경고)
+            } else {
+                color = 'rgb(140, 214, 16)'; // 초록색 (정상)
+            }
+            
+            try {
+                var doughnutChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: [label, '남은 용량'],
+                        datasets: [{
+                            data: [value, 100 - value],
+                            backgroundColor: [color, 'rgba(255, 255, 255, 0.1)'],
+                            borderColor: [color, 'rgba(255, 255, 255, 0.1)'],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '60%',
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                enabled: true,
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: 'rgba(255, 255, 255, 0.9)',
+                                bodyColor: 'rgba(255, 255, 255, 0.9)',
+                                borderColor: color,
+                                borderWidth: 1,
+                                cornerRadius: 8,
+                                displayColors: true,
+                                callbacks: {
+                                    label: function(context) {
+                                        if (context.label === label) {
+                                            return context.label + ': ' + context.parsed + '%';
+                                        } else {
+                                            return context.label + ': ' + context.parsed + '%';
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeOutQuart'
+                        }
+                    }
+                });
+                
+                // 차트 객체를 전역 변수에 저장
+                window[canvasId + '_chart'] = doughnutChart;
+                console.log('도넛 차트 생성 완료:', canvasId);
+                
+            } catch (error) {
+                console.error('도넛 차트 생성 중 오류:', error);
+            }
+        }
+
+        // 도넛 차트 업데이트 함수
+        function updateDoughnutChart(canvasId, value) {
+            var chart;
+            if (canvasId === 'cpu-doughnut') {
+                chart = window['cpu-doughnut_chart'];
+            } else if (canvasId === 'memory-doughnut') {
+                chart = window['memory-doughnut_chart'];
+            }
+            
+            if (chart) {
+                // 차트 데이터 업데이트 (새로운 구조에 맞게)
+                chart.data.datasets[0].data = [value, 100 - value];
+                
+                // 부드러운 애니메이션으로 업데이트
+                chart.update('active');
+            } else {
+                console.warn('도넛 차트를 찾을 수 없습니다: ' + canvasId);
+            }
+        }
+
+
+
+        // 도넛 차트 업데이트 함수 (DEX 상태 업데이트 시)
+        function updateDoughnutCharts(status) {
+            if (status.statusName === 'dex_process') {
+                if (status.cpuUsage !== undefined) {
+                    updateDoughnutChart('cpu-doughnut', status.cpuUsage);
+                    $('#cpu-value').text(status.cpuUsage.toFixed(1) + '%');
+                }
+                if (status.memoryUsage !== undefined) {
+                    updateDoughnutChart('memory-doughnut', status.memoryUsage);
+                    $('#memory-value').text(status.memoryUsage.toFixed(1) + '%');
+                }
+            }
+        }
+
+
+
         // 차트 초기화 함수
         function initializeCharts() {
             // Chart.js datalabels 플러그인 등록
@@ -223,15 +535,15 @@
                         label: 'APPL_COUNT',
                         data: [],
                         backgroundColor: [
-                            'rgba(76, 175, 80, 0.7)',
-                            'rgba(255, 193, 7, 0.7)',
-                            'rgba(244, 67, 54, 0.7)',
+                            'rgba(140, 214, 16, 0.7)',
+                            'rgba(239, 198, 0, 0.7)',
+                            'rgba(231, 24, 49, 0.7)',
                             'rgba(158, 158, 158, 0.7)'
                         ],
                         borderColor: [
-                            'rgba(76, 175, 80, 1)',
-                            'rgba(255, 193, 7, 1)',
-                            'rgba(244, 67, 54, 1)',
+                            'rgba(140, 214, 16, 1)',
+                            'rgba(239, 198, 0, 1)',
+                            'rgba(231, 24, 49, 1)',
                             'rgba(158, 158, 158, 1)'
                         ],
                         //borderWidth: 2,
@@ -277,8 +589,8 @@
                     datasets: [{
                         label: 'LOCK_WAIT_COUNT',
                         data: [],
-                        backgroundColor: 'rgba(255, 99, 132, 0.8)',
-                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(140, 214, 16, 0.8)',
+                        borderColor: 'rgba(140, 214, 16, 1)',
                         borderWidth: 1,
                         datalabels: {
                         	align: 'end',
@@ -317,21 +629,21 @@
                         backgroundColor: function(context) {
                             var value = context.dataset.data[context.dataIndex];
                             if (value >= 80) {
-                                return 'rgba(220, 53, 69, 0.8)'; // 빨간색 (80% 이상)
+                                return 'rgba(231, 24, 49, 0.8)'; // 빨간색 (80% 이상)
                             } else if (value >= 60) {
-                                return 'rgba(255, 193, 7, 0.8)'; // 노란색 (60-79%)
+                                return 'rgba(239, 198, 0, 0.8)'; // 노란색 (60-79%)
                             } else {
-                                return 'rgba(40, 167, 69, 0.8)'; // 초록색 (60% 미만)
+                                return 'rgba(140, 214, 16, 0.8)'; // 초록색 (60% 미만)
                             }
                         },
                         borderColor: function(context) {
                             var value = context.dataset.data[context.dataIndex];
                             if (value >= 80) {
-                                return 'rgba(220, 53, 69, 1)';
+                                return 'rgba(231, 24, 49, 1)';
                             } else if (value >= 60) {
-                                return 'rgba(255, 193, 7, 1)';
+                                return 'rgba(239, 198, 0, 1)';
                             } else {
-                                return 'rgba(40, 167, 69, 1)';
+                                return 'rgba(140, 214, 16, 1)';
                             }
                         },
                         borderWidth: 1
@@ -372,21 +684,21 @@
                         backgroundColor: function(context) {
                             var value = context.dataset.data[context.dataIndex];
                             if (value >= 80) {
-                                return 'rgba(220, 53, 69, 0.8)'; // 빨간색 (80% 이상)
+                                return 'rgba(231, 24, 49, 0.8)'; // 빨간색 (80% 이상)
                             } else if (value >= 60) {
-                                return 'rgba(255, 193, 7, 0.8)'; // 노란색 (60-79%)
+                                return 'rgba(239, 198, 0, 0.8)'; // 노란색 (60-79%)
                             } else {
-                                return 'rgba(40, 167, 69, 0.8)'; // 초록색 (60% 미만)
+                                return 'rgba(140, 214, 16, 0.8)'; // 초록색 (60% 미만)
                             }
                         },
                         borderColor: function(context) {
                             var value = context.dataset.data[context.dataIndex];
                             if (value >= 80) {
-                                return 'rgba(220, 53, 69, 1)';
+                                return 'rgba(231, 24, 49, 1)';
                             } else if (value >= 60) {
-                                return 'rgba(255, 193, 7, 1)';
+                                return 'rgba(239, 198, 0, 1)';
                             } else {
-                                return 'rgba(40, 167, 69, 1)';
+                                return 'rgba(140, 214, 16, 1)';
                             }
                         },
                         borderWidth: 1
@@ -414,6 +726,126 @@
                     }
                 }
             });
+
+            const COLORS = ['rgb(140, 214, 16)', 'rgb(239, 198, 0)', 'rgb(231, 24, 49)'];
+            const MIN = 0;
+            const MAX = 100;
+            
+            function index(perc) {
+            	  return perc < 70 ? 0 : perc < 90 ? 1 : 2;
+            	}
+
+            // DEX CPU 사용률 도넛 차트
+            var cpuDoughnutCtx = document.getElementById('cpu-doughnut').getContext('2d');
+            window['cpu-doughnut_chart'] = new Chart(cpuDoughnutCtx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [0, 100],
+                        backgroundColor(ctx) {
+                            if (ctx.type !== 'data') {
+                                return;
+                            }
+                            if (ctx.index === 1) {
+                                return 'rgb(234, 234, 234)';
+                            }
+                            return COLORS[index(ctx.raw)];
+                        }
+                    }]
+                },
+                options: {
+                    aspectRatio: 2,
+                    circumference: 180,
+                    rotation: -90,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        },
+                        annotation: {
+                            annotations: {
+                                cpuLabel: {
+                                    type: 'doughnutLabel',
+                                    content: ({chart}) => {
+                                        const value = chart.data.datasets[0].data[0] || 0;
+                                        return [
+                                            value.toFixed(1) + '%',
+                                            'CPU 사용률'
+                                        ];
+                                    },
+                                    drawTime: 'beforeDraw',
+                                    position: {
+                                        y: '-50%'
+                                    },
+                                    font: [{size: 24, weight: 'bold'}, {size: 12}],
+                                    color: ({chart}) => {
+                                        const value = chart.data.datasets[0].data[0] || 0;
+                                        return [COLORS[index(value)], 'grey'];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+                        // DEX 메모리 사용률 도넛 차트
+            var memoryDoughnutCtx = document.getElementById('memory-doughnut').getContext('2d');
+            window['memory-doughnut_chart'] = new Chart(memoryDoughnutCtx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [0, 100],
+                        backgroundColor(ctx) {
+                            if (ctx.type !== 'data') {
+                                return;
+                            }
+                            if (ctx.index === 1) {
+                                return 'rgb(234, 234, 234)';
+                            }
+                            return COLORS[index(ctx.raw)];
+                        }
+                    }]
+                },
+                options: {
+                    aspectRatio: 2,
+                    circumference: 180,
+                    rotation: -90,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        },
+                        annotation: {
+                            annotations: {
+                                memoryLabel: {
+                                    type: 'doughnutLabel',
+                                    content: ({chart}) => {
+                                        const value = chart.data.datasets[0].data[0] || 0;
+                                        return [
+                                            value.toFixed(1) + '%',
+                                            '메모리 사용률'
+                                        ];
+                                    },
+                                    drawTime: 'beforeDraw',
+                                    position: {
+                                        y: '-50%'
+                                    },
+                                    font: [{size: 24, weight: 'bold'}, {size: 12}],
+                                    color: ({chart}) => {
+                                        const value = chart.data.datasets[0].data[0] || 0;
+                                        return [COLORS[index(value)], 'grey'];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         // 차트 데이터 업데이트 함수
@@ -423,41 +855,66 @@
             // 모든 차트 데이터를 병렬로 요청
             Promise.all([
                 // APPL_COUNT 데이터 조회
-                $.ajax({
-                    type: 'post',
-                    url: '/Dashboard/APPL_COUNT',
-                    timeout: 10000 // 10초 타임아웃
-                }).catch(function(error) {
-                    console.error('APPL_COUNT 데이터 조회 실패:', error);
-                    return { error: 'APPL_COUNT 조회 실패', result: [] };
+                new Promise(function(resolve, reject) {
+                    $.ajax({
+                        type: 'post',
+                        url: '/Dashboard/APPL_COUNT',
+                        timeout: 10000,
+                        success: function(data) {
+                            resolve(data);
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('APPL_COUNT 데이터 조회 실패:', error);
+                            resolve({ error: 'APPL_COUNT 조회 실패', result: [] });
+                        }
+                    });
                 }),
                 // LOCK_WAIT_COUNT 데이터 조회
-                $.ajax({
-                    type: 'post',
-                    url: '/Dashboard/LOCK_WAIT_COUNT',
-                    timeout: 10000
-                }).catch(function(error) {
-                    console.error('LOCK_WAIT_COUNT 데이터 조회 실패:', error);
-                    return { error: 'LOCK_WAIT_COUNT 조회 실패', result: [] };
+                new Promise(function(resolve, reject) {
+                    $.ajax({
+                        type: 'post',
+                        url: '/Dashboard/LOCK_WAIT_COUNT',
+                        timeout: 10000,
+                        success: function(data) {
+                            resolve(data);
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('LOCK_WAIT_COUNT 데이터 조회 실패:', error);
+                            resolve({ error: 'LOCK_WAIT_COUNT 조회 실패', result: [] });
+                        }
+                    });
                 }),
                 // ACTIVE_LOG 데이터 조회
-                $.ajax({
-                    type: 'post',
-                    url: '/Dashboard/ACTIVE_LOG',
-                    timeout: 10000
-                }).catch(function(error) {
-                    console.error('ACTIVE_LOG 데이터 조회 실패:', error);
-                    return { error: 'ACTIVE_LOG 조회 실패', result: [] };
+                new Promise(function(resolve, reject) {
+                    $.ajax({
+                        type: 'post',
+                        url: '/Dashboard/ACTIVE_LOG',
+                        timeout: 10000,
+                        success: function(data) {
+                            resolve(data);
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('ACTIVE_LOG 데이터 조회 실패:', error);
+                            resolve({ error: 'ACTIVE_LOG 조회 실패', result: [] });
+                        }
+                    });
                 }),
                 // FILESYSTEM 데이터 조회
-                $.ajax({
-                    type: 'post',
-                    url: '/Dashboard/FILE_SYSTEM',
-                    timeout: 10000
-                }).catch(function(error) {
-                    console.error('FILESYSTEM 데이터 조회 실패:', error);
-                    return { error: 'FILESYSTEM 조회 실패', result: [] };
-                })
+                new Promise(function(resolve, reject) {
+                    $.ajax({
+                        type: 'post',
+                        url: '/Dashboard/FILE_SYSTEM',
+                        timeout: 10000,
+                        success: function(data) {
+                            resolve(data);
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('FILESYSTEM 데이터 조회 실패:', error);
+                            resolve({ error: 'FILESYSTEM 조회 실패', result: [] });
+                        }
+                    });
+                }),
+
             ]).then(function(results) {
                 // 차트 설정 정의
                 var chartConfigs = [
@@ -523,7 +980,8 @@
                             }
                             return { labels: labels, data: data };
                         }
-                    }
+                    },
+
                 ];
 
                 // 모든 차트 업데이트
@@ -625,95 +1083,7 @@
     <meta charset="UTF-8">
     <title>대시보드 - DeX</title>
     <%@include file="common/common.jsp"%>
-    <style type="text/css">
-        .connection-card {
-            border: none;
-            border-radius: 16px;
-            padding: 20px;
-            text-align: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
-            height: 120px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .connection-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        
-        .connection-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 16px 48px rgba(0,0,0,0.2);
-        }
-        
-        .connection-card:hover::before {
-            opacity: 1;
-        }
-        
-        .connection-card.connected {
-            background: #28a745;
-        }
-        
-        .connection-card.disconnected {
-            background: #dc3545;
-        }
-        
-        .connection-card.error {
-            background: #dc3545;
-        }
-        
-        .connection-card.checking {
-            background: #ffc107;
-        }
-        
-        .connection-card .fa-database {
-            font-size: 28px;
-            margin-bottom: 3px;
-            color: rgba(255,255,255,0.9);
-            position: relative;
-            z-index: 1;
-        }
-        
-        .connection-card .connection-name {
-            font-weight: 600;
-            margin-bottom: 1px;
-            color: rgba(255,255,255,0.95);
-            font-size: 16px;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .connection-card .status-text {
-            font-size: 11px;
-            margin-bottom: 6px;
-            color: rgba(255,255,255,0.8);
-            font-weight: 500;
-            position: relative;
-            z-index: 1;
-        }
-        
-        .connection-card .last-checked {
-            font-size: 9px;
-            color: rgba(255,255,255,0.7);
-            margin-top: 2px;
-            position: relative;
-            z-index: 1;
-        }
-    </style>
+    <link href="/resources/css/dashboard.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body class="sidebar-mini skin-purple-light">
@@ -794,6 +1164,51 @@
                         </div>
                         <div class="box-body" style="height: 250px; display: flex; align-items: center; justify-content: center;">
                             <canvas id="filesystemChart" style="max-height: 200px; max-width: 100%;"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DEX 상태 모니터링 -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="box box-primary">
+                        <div class="box-header with-border">
+                            <h3 class="box-title">
+                                <i class="fa fa-server"></i> DEX 상태 모니터링
+                            </h3>
+                            <div class="box-tools pull-right">
+                                <button type="button" class="btn btn-box-tool" onclick="refreshDexStatus()">
+                                    <i class="fa fa-refresh"></i> 새로고침
+                                </button>
+                            </div>
+                        </div>
+                        <div class="box-body">
+                            <div class="row">
+                                <!-- DEX 상태 카드들 (왼쪽 세로 배치) -->
+                                <div class="col-md-2">
+                                    <div id="dexStatusContainer">
+                                        <!-- DEX 상태가 여기에 동적으로 추가됩니다 -->
+                                    </div>
+                                </div>
+                                <!-- DEX 도넛 차트들 (오른쪽 가로 배치) -->
+                                <div class="col-md-6">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="doughnut-chart-item">
+                                                <div class="doughnut-label">CPU 사용률</div>
+                                                <canvas id="cpu-doughnut" width="1200" height="1200"></canvas>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="doughnut-chart-item">
+                                                <div class="doughnut-label">메모리 사용률</div>
+                                                <canvas id="memory-doughnut" width="1200" height="1200"></canvas>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
