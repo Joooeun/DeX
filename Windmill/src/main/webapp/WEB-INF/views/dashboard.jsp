@@ -848,24 +848,35 @@
             });
         }
 
-        // 차트 데이터 업데이트 함수
+        // 차트 데이터 해시 저장 변수
+        var chartHashes = {
+            'APPL_COUNT': null,
+            'LOCK_WAIT_COUNT': null,
+            'ACTIVE_LOG': null,
+            'FILE_SYSTEM': null
+        };
+
+        // 차트 데이터 업데이트 함수 (해시 비교 방식)
         function updateCharts() {
             console.log('차트 데이터 업데이트 시작');
             
-            // 모든 차트 데이터를 병렬로 요청
+            // 모든 차트 데이터를 병렬로 요청 (해시 포함)
             Promise.all([
                 // APPL_COUNT 데이터 조회
                 new Promise(function(resolve, reject) {
                     $.ajax({
                         type: 'post',
                         url: '/Dashboard/APPL_COUNT',
+                        data: {
+                            lastHash: chartHashes['APPL_COUNT']
+                        },
                         timeout: 10000,
                         success: function(data) {
-                            resolve(data);
+                            resolve({type: 'APPL_COUNT', data: data});
                         },
                         error: function(xhr, status, error) {
                             console.error('APPL_COUNT 데이터 조회 실패:', error);
-                            resolve({ error: 'APPL_COUNT 조회 실패', result: [] });
+                            resolve({type: 'APPL_COUNT', error: 'APPL_COUNT 조회 실패', result: [] });
                         }
                     });
                 }),
@@ -874,13 +885,16 @@
                     $.ajax({
                         type: 'post',
                         url: '/Dashboard/LOCK_WAIT_COUNT',
+                        data: {
+                            lastHash: chartHashes['LOCK_WAIT_COUNT']
+                        },
                         timeout: 10000,
                         success: function(data) {
-                            resolve(data);
+                            resolve({type: 'LOCK_WAIT_COUNT', data: data});
                         },
                         error: function(xhr, status, error) {
                             console.error('LOCK_WAIT_COUNT 데이터 조회 실패:', error);
-                            resolve({ error: 'LOCK_WAIT_COUNT 조회 실패', result: [] });
+                            resolve({type: 'LOCK_WAIT_COUNT', error: 'LOCK_WAIT_COUNT 조회 실패', result: [] });
                         }
                     });
                 }),
@@ -889,13 +903,16 @@
                     $.ajax({
                         type: 'post',
                         url: '/Dashboard/ACTIVE_LOG',
+                        data: {
+                            lastHash: chartHashes['ACTIVE_LOG']
+                        },
                         timeout: 10000,
                         success: function(data) {
-                            resolve(data);
+                            resolve({type: 'ACTIVE_LOG', data: data});
                         },
                         error: function(xhr, status, error) {
                             console.error('ACTIVE_LOG 데이터 조회 실패:', error);
-                            resolve({ error: 'ACTIVE_LOG 조회 실패', result: [] });
+                            resolve({type: 'ACTIVE_LOG', error: 'ACTIVE_LOG 조회 실패', result: [] });
                         }
                     });
                 }),
@@ -904,136 +921,93 @@
                     $.ajax({
                         type: 'post',
                         url: '/Dashboard/FILE_SYSTEM',
+                        data: {
+                            lastHash: chartHashes['FILE_SYSTEM']
+                        },
                         timeout: 10000,
                         success: function(data) {
-                            resolve(data);
+                            resolve({type: 'FILE_SYSTEM', data: data});
                         },
                         error: function(xhr, status, error) {
                             console.error('FILESYSTEM 데이터 조회 실패:', error);
-                            resolve({ error: 'FILESYSTEM 조회 실패', result: [] });
+                            resolve({type: 'FILE_SYSTEM', error: 'FILESYSTEM 조회 실패', result: [] });
                         }
                     });
                 }),
 
             ]).then(function(results) {
-                // 차트 설정 정의
-                var chartConfigs = [
-                    {
-                        chart: applCountChart,
-                        data: results[0],
-                        processData: function(result) {
-                            var labels = [];
-                            var data = [];
-                            for (var i = 0; i < result.length; i++) {
-                                if (result[i] && result[i].length >= 2) {
-                                    labels.push(result[i][0]); // color
-                                    data.push(result[i][1]);  // value
-                                }
-                            }
-                            return { labels: labels, data: data };
+                // 각 결과를 차트 타입별로 처리
+                results.forEach(function(result) {
+                    var chartType = result.type;
+                    var data = result.data;
+                    
+                    // 변경 감지 확인
+                    if (data && data.changed === false) {
+                        console.log(chartType + ' 데이터 변경 없음 - 업데이트 생략');
+                        // 해시 업데이트
+                        if (data.hash) {
+                            chartHashes[chartType] = data.hash;
                         }
-                    },
-                    {
-                        chart: lockWaitCountChart,
-                        data: results[1],
-                        processData: function(result) {
-                            var labels = [];
-                            var data = [];
-                            for (var i = 0; i < result.length; i++) {
-                                if (result[i] && result[i].length >= 2) {
-                                    labels.push(result[i][0]); // color
-                                    data.push(result[i][1]);  // value
-                                }
-                            }
-                            // 최대값 계산하여 Y축 최대값 설정 (정수로)
-                            var maxValue = Math.max(...data);
-                            var yAxisMax = Math.ceil(maxValue * 1.1);
-                            return { labels: labels, data: data, yAxisMax: yAxisMax };
-                        }
-                    },
-                    {
-                        chart: activeLogChart,
-                        data: results[2],
-                        processData: function(result) {
-                            var labels = [];
-                            var data = [];
-                            for (var i = 0; i < result.length; i++) {
-                                if (result[i] && result[i].length >= 2) {
-                                    labels.push(result[i][0]); // color
-                                    data.push(result[i][1]);  // value
-                                }
-                            }
-                            return { labels: labels, data: data };
-                        }
-                    },
-                    {
-                        chart: filesystemChart,
-                        data: results[3],
-                        processData: function(result) {
-                            var labels = [];
-                            var data = [];
-                            for (var i = 0; i < result.length; i++) {
-                                if (result[i] && result[i].length >= 2) {
-                                    labels.push(result[i][0]); // name
-                                    data.push(result[i][1]);  // value (0-100%)
-                                }
-                            }
-                            return { labels: labels, data: data };
-                        }
-                    },
-
-                ];
-
-                // 모든 차트 업데이트
-                chartConfigs.forEach(function(config, index) {
+                        return; // 이 차트는 업데이트하지 않음
+                    }
+                    
+                    // 데이터가 변경되었거나 에러인 경우
+                    var chartConfig = getChartConfig(chartType);
+                    if (!chartConfig) return;
+                    
                     try {
                         // 에러가 있는 경우 처리
-                        if (config.data && config.data.error) {
-                            console.warn('차트 데이터 에러:', config.data.error);
+                        if (data && data.error) {
+                            console.warn('차트 데이터 에러:', data.error);
                             // 에러 상태를 차트에 표시 (빈 데이터로 설정)
-                            config.chart.data.labels = ['데이터 없음'];
-                            config.chart.data.datasets[0].data = [1];
-                            config.chart.update();
+                            chartConfig.chart.data.labels = ['데이터 없음'];
+                            chartConfig.chart.data.datasets[0].data = [1];
+                            chartConfig.chart.update();
                             return;
                         }
                         
                         // 정상 데이터 처리
-                        if (config.data && config.data.result && Array.isArray(config.data.result)) {
-                            var processedData = config.processData(config.data.result);
+                        if (data && data.result && Array.isArray(data.result)) {
+                            var processedData = chartConfig.processData(data.result);
                             
                             // 데이터 유효성 검사
                             if (processedData && processedData.labels && processedData.data) {
-                                config.chart.data.labels = processedData.labels;
-                                config.chart.data.datasets[0].data = processedData.data;
+                                chartConfig.chart.data.labels = processedData.labels;
+                                chartConfig.chart.data.datasets[0].data = processedData.data;
                                 
                                 // LOCK_WAIT_COUNT 차트의 경우 Y축 최대값 설정
                                 if (processedData.yAxisMax) {
-                                    config.chart.options.scales.y.max = processedData.yAxisMax;
+                                    chartConfig.chart.options.scales.y.max = processedData.yAxisMax;
                                 }
                                 
-                                config.chart.update();
-                                console.log('차트 업데이트 성공:', index);
+                                chartConfig.chart.update();
+                                console.log(chartType + ' 차트 업데이트 성공');
+                                
+                                // 해시 업데이트
+                                if (data.hash) {
+                                    chartHashes[chartType] = data.hash;
+                                }
                             } else {
-                                console.warn('차트 데이터 형식 오류:', index, processedData);
+                                console.warn('차트 데이터 형식 오류:', chartType, processedData);
                                 // 기본 데이터로 설정
-                                config.chart.data.labels = ['데이터 없음'];
-                                config.chart.data.datasets[0].data = [1];
-                                config.chart.update();
+                                chartConfig.chart.data.labels = ['데이터 없음'];
+                                chartConfig.chart.data.datasets[0].data = [1];
+                                chartConfig.chart.update();
                             }
                         } else {
-                            console.warn('차트 데이터가 없습니다:', index, config.data);
+                            console.warn('차트 데이터가 없습니다:', chartType, data);
                             // 기본 데이터로 설정
-                            config.chart.data.labels = ['데이터 없음'];
-                            config.chart.data.datasets[0].data = [1];
-                            config.chart.update();
+                            chartConfig.chart.data.labels = ['데이터 없음'];
+                            chartConfig.chart.data.datasets[0].data = [1];
+                            chartConfig.chart.update();
                         }
                     } catch (error) {
-                        console.error('차트 업데이트 중 오류 발생:', index, error);
+                        console.error('차트 업데이트 중 오류 발생:', chartType, error);
                         // 에러 발생 시 기본 데이터로 설정
                         try {
-                            config.chart.data.labels = ['오류'];
-                            config.chart.data.datasets[0].data = [1];
-                            config.chart.update();
+                            chartConfig.chart.data.labels = ['오류'];
+                            chartConfig.chart.data.datasets[0].data = [1];
+                            chartConfig.chart.update();
                         } catch (chartError) {
                             console.error('차트 복구 중 오류:', chartError);
                         }
@@ -1049,6 +1023,73 @@
                 // 전체 실패 시에도 다음 업데이트 스케줄링
                 scheduleNextChartUpdate();
             });
+        }
+
+        // 차트 설정을 반환하는 함수
+        function getChartConfig(chartType) {
+            var chartConfigs = {
+                'APPL_COUNT': {
+                    chart: applCountChart,
+                    processData: function(result) {
+                        var labels = [];
+                        var data = [];
+                        for (var i = 0; i < result.length; i++) {
+                            if (result[i] && result[i].length >= 2) {
+                                labels.push(result[i][0]); // color
+                                data.push(result[i][1]);  // value
+                            }
+                        }
+                        return { labels: labels, data: data };
+                    }
+                },
+                'LOCK_WAIT_COUNT': {
+                    chart: lockWaitCountChart,
+                    processData: function(result) {
+                        var labels = [];
+                        var data = [];
+                        for (var i = 0; i < result.length; i++) {
+                            if (result[i] && result[i].length >= 2) {
+                                labels.push(result[i][0]); // color
+                                data.push(result[i][1]);  // value
+                            }
+                        }
+                        // 최대값 계산하여 Y축 최대값 설정 (정수로)
+                        var maxValue = Math.max(...data);
+                        var yAxisMax = Math.ceil(maxValue * 1.1);
+                        return { labels: labels, data: data, yAxisMax: yAxisMax };
+                    }
+                },
+                'ACTIVE_LOG': {
+                    chart: activeLogChart,
+                    processData: function(result) {
+                        var labels = [];
+                        var data = [];
+                        for (var i = 0; i < result.length; i++) {
+                            if (result[i] && result[i].length >= 2) {
+                                labels.push(result[i][0]); // color
+                                data.push(result[i][1]);  // value
+                            }
+                        }
+                        return { labels: labels, data: data };
+                    }
+                },
+                'FILE_SYSTEM': {
+                    chart: filesystemChart,
+                    processData: function(result) {
+                        var labels = [];
+                        var data = [];
+                        for (var i = 0; i < result.length; i++) {
+                            if (result[i] && result[i].length >= 2) {
+                                labels.push(result[i][0]); // name
+                                data.push(result[i][1]);  // value (0-100%)
+                            }
+                        }
+                        return { labels: labels, data: data };
+                    }
+                }
+            };
+            
+            return chartConfigs[chartType];
         }
 
         // 다음 차트 업데이트 스케줄링

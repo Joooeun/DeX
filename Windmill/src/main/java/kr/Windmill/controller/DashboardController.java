@@ -2,10 +2,14 @@ package kr.Windmill.controller;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -17,6 +21,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import kr.Windmill.service.LogInfoDTO;
@@ -33,12 +38,14 @@ public class DashboardController {
     private SQLExecuteService sqlExecuteService;
 
     /**
-     * 대시보드 차트 데이터 조회 공통 메서드
+     * 대시보드 차트 데이터 조회 공통 메서드 (해시 비교 방식)
      * @param chartName 차트명 (예: applCount, lockWaitCount, activeLog, filesystem)
+     * @param lastHash 클라이언트가 보낸 이전 해시값
      */
     @RequestMapping(path = "/Dashboard/{chartName}", method = RequestMethod.POST)
     public @ResponseBody Map<String, Object> getChartData(
-            @PathVariable String chartName, 
+            @PathVariable String chartName,
+            @RequestParam(required = false) String lastHash,
             HttpServletRequest request, 
             HttpSession session) {
         
@@ -58,7 +65,21 @@ public class DashboardController {
 
             // SQL 결과를 차트 데이터로 변환
             List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
-            result.put("result", rowbody);
+            
+            // 현재 데이터의 해시값 생성
+            String currentHash = generateHash(rowbody);
+            
+            // 해시값 비교
+            if (currentHash.equals(lastHash)) {
+                // 데이터가 변경되지 않음
+                result.put("changed", false);
+                result.put("hash", currentHash);
+            } else {
+                // 데이터가 변경됨
+                result.put("changed", true);
+                result.put("hash", currentHash);
+                result.put("result", rowbody);
+            }
 
         } catch (Exception e) {
             logger.error("{} 실행 오류", chartName.toUpperCase(), e);
@@ -130,5 +151,31 @@ public class DashboardController {
         Map<String, Object> result = new HashMap<>();
         result.putAll(sqlResult);
         return result;
+    }
+    
+    /**
+     * 데이터의 해시값을 생성하는 메서드
+     * @param data 해시를 생성할 데이터
+     * @return MD5 해시값 (16진수 문자열)
+     */
+    private String generateHash(Object data) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonString = mapper.writeValueAsString(data);
+            
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] hashBytes = md.digest(jsonString.getBytes("UTF-8"));
+            
+            // 16진수 문자열로 변환
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            logger.error("해시 생성 중 오류 발생", e);
+            // 해시 생성 실패 시 데이터의 hashCode 사용
+            return String.valueOf(data.hashCode());
+        }
     }
 } 
