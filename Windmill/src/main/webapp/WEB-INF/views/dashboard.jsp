@@ -19,9 +19,36 @@
 
         // 페이지 언로드 시 연결 모니터링 중지
         $(window).on('beforeunload', function() {
+            console.log('페이지 언로드 시작 - 모든 타이머 정리');
+            
+            // 모든 타이머 즉시 정리
             stopConnectionMonitoring();
             stopDexStatusMonitoring();
             stopChartMonitoring();
+            
+            // 추가 정리 작업
+            if (window.chartUpdateTimer) {
+                clearTimeout(window.chartUpdateTimer);
+                window.chartUpdateTimer = null;
+            }
+            
+            // Chart.js 차트들 정리
+            if (typeof Chart !== 'undefined') {
+                var charts = Chart.instances;
+                if (charts) {
+                    for (var i = 0; i < charts.length; i++) {
+                        if (charts[i]) {
+                            charts[i].destroy();
+                        }
+                    }
+                }
+            }
+            
+            // 전역 변수 정리
+            connectionStatusInterval = null;
+            dexStatusInterval = null;
+            
+            console.log('모든 타이머 및 리소스 정리 완료');
         });
 
         // 연결 상태 새로고침 함수

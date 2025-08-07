@@ -30,13 +30,21 @@ public class ApplicationShutdownListener implements ServletContextListener {
             WebApplicationContext context = WebApplicationContextUtils.getWebApplicationContext(sce.getServletContext());
             
             if (context != null) {
-                // ConnectionStatusService는 @PreDestroy로 자동 정리됨
-                logger.info("Spring 컨텍스트에서 ConnectionStatusService 자동 정리 대기 중...");
+                // ConnectionStatusService와 DexStatusService는 @PreDestroy로 자동 정리됨
+                logger.info("Spring 컨텍스트에서 서비스 자동 정리 대기 중...");
+                
+                // 최대 5초 대기 후 강제 종료
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e) {
+                    logger.warn("서비스 정리 대기 중 인터럽트 발생");
+                    Thread.currentThread().interrupt();
+                }
             }
             
             // JDBC 드라이버 정리는 Common.cleanupOnShutdown()에서 처리됨
             
-            // Common 클래스의 정리 작업 실행
+            // Common 클래스의 정리 작업 실행 (타임아웃 적용)
             try {
                 logger.info("Common 클래스 정리 작업 시작...");
                 Common.cleanupOnShutdown();
@@ -44,7 +52,7 @@ public class ApplicationShutdownListener implements ServletContextListener {
                 logger.warn("Common 클래스 정리 작업 중 오류 발생", e);
             }
             
-            // 추가 정리 작업
+            // 추가 정리 작업 (빠른 정리)
             cleanupResources();
             
             logger.info("Windmill 애플리케이션이 안전하게 종료되었습니다.");

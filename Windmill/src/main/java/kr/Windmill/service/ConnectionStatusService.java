@@ -68,10 +68,13 @@ public class ConnectionStatusService {
         if (monitoringThread != null && monitoringThread.isAlive()) {
             monitoringThread.interrupt();
             try {
-                // 모니터링 스레드가 종료될 때까지 최대 10초 대기
-                monitoringThread.join(10000);
+                // 모니터링 스레드가 종료될 때까지 최대 3초 대기 (10초에서 단축)
+                monitoringThread.join(3000);
                 if (monitoringThread.isAlive()) {
-                    logger.warn("모니터링 스레드가 10초 내에 종료되지 않았습니다.");
+                    logger.warn("모니터링 스레드가 3초 내에 종료되지 않았습니다. 강제 종료합니다.");
+                    // 강제 종료를 위해 추가 인터럽트
+                    monitoringThread.interrupt();
+                    monitoringThread.join(1000); // 추가 1초 대기
                 } else {
                     logger.info("모니터링 스레드가 정상적으로 종료되었습니다.");
                 }
@@ -81,6 +84,8 @@ public class ConnectionStatusService {
             }
         }
         
+        // 연결 상태 맵 정리
+        connectionStatusMap.clear();
         logger.info("Connection status monitoring stopped");
     }
     

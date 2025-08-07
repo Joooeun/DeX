@@ -53,13 +53,25 @@ public class DexStatusService {
         if (monitoringThread != null && monitoringThread.isAlive()) {
             monitoringThread.interrupt();
             try {
-                monitoringThread.join(10000);
+                // 모니터링 스레드가 종료될 때까지 최대 3초 대기 (10초에서 단축)
+                monitoringThread.join(3000);
+                if (monitoringThread.isAlive()) {
+                    logger.warn("DEX 모니터링 스레드가 3초 내에 종료되지 않았습니다. 강제 종료합니다.");
+                    // 강제 종료를 위해 추가 인터럽트
+                    monitoringThread.interrupt();
+                    monitoringThread.join(1000); // 추가 1초 대기
+                } else {
+                    logger.info("DEX 모니터링 스레드가 정상적으로 종료되었습니다.");
+                }
             } catch (InterruptedException e) {
+                logger.warn("DEX 모니터링 스레드 종료 대기 중 인터럽트 발생");
                 Thread.currentThread().interrupt();
             }
         }
         
+        // 상태 맵 정리
         dexStatusMap.clear();
+        logger.info("DEX 상태 모니터링 중지 완료");
     }
     
     private void initializeDexStatus() {
