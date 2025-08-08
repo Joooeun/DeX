@@ -40,8 +40,8 @@ public class LoginInterceptor implements HandlerInterceptor {
 			SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			String strNowDate = simpleDateFormat.format(new Date());
 
-			System.out.println(strNowDate + " " + memberId + " " + request.getRequestURI()
-					+ (request.getParameter("Path") != null ? " " + request.getParameter("Path") : ""));
+			logger.info("{} {} {}{}", strNowDate, memberId, request.getRequestURI(),
+					(request.getParameter("Path") != null ? " " + request.getParameter("Path") : ""));
 		}
 
 		if (memberId != null) {

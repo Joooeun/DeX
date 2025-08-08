@@ -397,6 +397,9 @@ var tableHeight=0;
 		$("#loadingdiv").css('display','block')
 
 		let ondate = new Date();
+		
+		// 2025-04-29 limit 2만으로 제한
+		var limit = ${not empty limit}
 
 		await $.ajax({
 			type: 'post',
@@ -410,7 +413,10 @@ var tableHeight=0;
 				/* autocommit : $("#autocommit").prop('checked'), */
 				audit: ${audit == null ? false : audit},
 				Connection: $("#connectionlist").val(),
-				limit: $("#limit").val(),
+				
+				// 2025-04-29 limit 2만으로 제한
+				// 환경설정에 limit이 설정되어 있는데 0이나 2만 이상으로 조회하는 경우 2만으로 제한, 
+				limit: $("#limit").val() == 0 ? (limit ? 20000 : 0) : (limit ?  Math.min(20000,  $("#limit").val()) : $("#limit").val()),
 				params : JSON.stringify(params)
 			},
 			success: function(result, status, jqXHR) {

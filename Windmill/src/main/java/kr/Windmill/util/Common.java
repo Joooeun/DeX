@@ -257,7 +257,7 @@ public class Common {
 							list.add(element);
 						}
 					} else {
-						System.out.println("파일 확인 필요 : " + tempFile.getPath());
+						logger.warn("파일 확인 필요: {}", tempFile.getPath());
 					}
 
 				} else if (tempFile.isDirectory()) {
@@ -337,8 +337,7 @@ public class Common {
 
 		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
 
-			System.out.println("file : " + file.getPath());
-
+			logger.error("파일 복호화 실패: {}", file.getPath(), e);
 			e.printStackTrace();
 		}
 		return str;

@@ -44,7 +44,7 @@ public class FileController {
 	@RequestMapping(path = "/FileRead")
 	public ModelAndView FileRead(HttpServletRequest request, ModelAndView mv, HttpSession session) throws IOException {
 		
-		System.out.println("PATH :"+request.getParameter("Path"));
+		logger.info("PATH: {}", request.getParameter("Path"));
 		mv.addObject("Path", request.getParameter("Path"));
 
 		return mv;

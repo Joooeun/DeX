@@ -45,7 +45,8 @@ public class LoginController {
 	public String login(HttpServletRequest request, Model model, HttpServletResponse response) {
 
 		HttpSession session = request.getSession();
-		System.out.println("Timeout : " + Common.Timeout + " min");
+		// System.out.println("Timeout : " + Common.Timeout + " min");
+		logger.info("Timeout : {} min", Common.Timeout);
 		session.setMaxInactiveInterval(Common.Timeout * 60);
 
 		try {
@@ -55,7 +56,8 @@ public class LoginController {
 
 			if (userIds.contains(request.getParameter("id"))) {
 
-				System.out.println("id : " + request.getParameter("id"));
+				// System.out.println("id : " + request.getParameter("id"));
+				logger.info("Login attempt for id: {}", request.getParameter("id"));
 
 				Map<String, String> map = com.UserConf(request.getParameter("id"));
 
@@ -236,9 +238,9 @@ public class LoginController {
 	@RequestMapping(value = "/userRemove")
 	public String userRemove(HttpServletRequest request) {
 
-		System.out.println("logout");
-
 		HttpSession session = request.getSession();
+		// System.out.println("logout");
+		logger.info("User logout: {}", session.getAttribute("memberId"));
 		session.invalidate();
 
 		return "redirect:/index";
