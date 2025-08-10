@@ -1,5 +1,9 @@
 <%@include file="common/common.jsp"%>
 <c:set var="textlimit" value="1900000" />
+
+<!-- ======================================== -->
+<!-- SQL 실행 페이지 - 스타일 정의 -->
+<!-- ======================================== -->
 <style>
 ::-webkit-scrollbar {
 	width: 10px;
@@ -69,31 +73,42 @@
 	font-family: D2Coding !important;
 }
 </style>
+
+<!-- ======================================== -->
+<!-- SQL 실행 페이지 - JavaScript 변수 및 함수 -->
+<!-- ======================================== -->
 <script>
 
+// 차트 관련 변수
 var ctx;
 var myChart;
 var graphcolor = ['#FF583A','#4B963E', '#FF9032', '#23439F','#FEDD0F','#561475', '#F2626B','#89E077','#FEBA4F','#83C3FF', '#FFEA7F','#C381FD', '#525252']
 
+// SQL 텍스트 저장 변수
 var sql_text = "";
 
+// 자동 새로고침 관련 변수
 var timeRemain = null;
+var isPaused = false; // 일시정지 상태 변수
+var refreshTimer = null; // 타이머 변수
+
+// 테이블 관련 변수
 var table;
 var column=[];
 var data;
 var tableoption;
-var isPaused = false; // 일시정지 상태 변수
-var refreshTimer = null; // 타이머 변수
-
 var temp_column;
-
 var tableHeight=0;
 
+	// ========================================
+	// 페이지 로드 시 초기화 함수
+	// ========================================
 	$(document).ready(function() {
 		
 		// 일시정지 버튼 초기화
 		$("#pauseBtn").hide();
 
+		// 차트 초기화
 		ctx = document.getElementById('myChart');
 		myChart = myChart = new Chart(ctx, {
 			type: 'line',
@@ -112,6 +127,9 @@ var tableHeight=0;
 			}
 		});
 
+		// ========================================
+		// 데이터베이스 연결 목록 조회
+		// ========================================
 		$.ajax({
 			type: 'post',
 			url: "/Connection/list",
@@ -146,6 +164,9 @@ var tableHeight=0;
 			}
 		});
 
+		// ========================================
+		// 키보드 단축키 이벤트 처리 (F1~F12)
+		// ========================================
 		$(document).keydown(function(event) {
 			if (event.keyCode == '112') {
 				sendSql($("#F1").val());
@@ -174,7 +195,11 @@ var tableHeight=0;
 			}
 		});
 
+		// ========================================
+		// 텍스트 영역 이벤트 처리 (Ctrl+Enter, 입력 제한)
+		// ========================================
 		document.querySelectorAll(".formtextarea").forEach((element) => {
+			// Ctrl+Enter로 폼 제출
 			element.addEventListener("keydown", function(e) {
 				if (e.ctrlKey && e.keyCode == 13) {
 
@@ -184,6 +209,7 @@ var tableHeight=0;
 				}
 			})
 
+			// 텍스트 입력 시 라인 번호 업데이트 및 길이 제한
 			element.addEventListener('input', function() {
 				const lineNumbersEle = document.getElementById('line-numbers');
 				const lines = $(this).val().split('\n');
@@ -201,6 +227,9 @@ var tableHeight=0;
 
 		});
 
+		// ========================================
+		// 파라미터 입력 필드 이벤트 처리 (Enter 키)
+		// ========================================
 		document.querySelectorAll(".paramvalue input").forEach((element) => {
 			element.addEventListener("keydown", function(e) {
 				if (e.keyCode == 13) {
@@ -212,11 +241,17 @@ var tableHeight=0;
 		});
 
 
+		// ========================================
+		// 결과 행 클릭 이벤트 처리
+		// ========================================
 		$(document).on("click", ".Resultrow", function() {
 			$(".Resultrow").removeClass('success');
 			$(this).addClass('success');
 		});
 
+		// ========================================
+		// 개행 보기 체크박스 이벤트 처리
+		// ========================================
 		$(document).on("change", "#newline", function() {
 			
 			if(column==null)
@@ -253,10 +288,16 @@ var tableHeight=0;
 			}
 		});
 
+		// ========================================
+		// 텍스트 영역 스크롤 동기화
+		// ========================================
 		$('.formtextarea').on('scroll', () => {
 			$('.container__lines').scrollTop($('.formtextarea').scrollTop());
 		});
 
+		// ========================================
+		// 파일 다운로드 이벤트 처리
+		// ========================================
 		$(document).on("click", "#save_excel", function() {
 			table.download("xlsx", `${title}_${memberId}_` + dateFormat()+".xlsx");
 		});
@@ -267,6 +308,9 @@ var tableHeight=0;
 		
 		
 		
+		// ========================================
+		// 결과 테이블 확장/축소 버튼 이벤트
+		// ========================================
 		$("#expenda").click(function() {
 		    $([document.documentElement, document.body]).animate({
 		        scrollTop: $("#result_table").offset().top-50
@@ -275,6 +319,9 @@ var tableHeight=0;
 
 	});
 	
+	// ========================================
+	// SQL 실행 시작 함수
+	// ========================================
 	function startexcute() {
 
 		if ($("#excutebtn").attr('disabled') == 'disabled') {
@@ -291,6 +338,9 @@ var tableHeight=0;
 		return false;
 	}
 
+	// ========================================
+	// 자동 새로고침 타이머 함수
+	// ========================================
 	function refresh() {
 		// 일시정지 상태면 타이머 중단
 		if (isPaused) {
@@ -309,7 +359,9 @@ var tableHeight=0;
 		}
 	}
 
+	// ========================================
 	// 일시정지/재개 토글 함수
+	// ========================================
 	function togglePause() {
 		if (isPaused) {
 			// 재개
@@ -333,7 +385,9 @@ var tableHeight=0;
 		}
 	}
 
+	// ========================================
 	// 자동 새로고침 시작 함수
+	// ========================================
 	function startAutoRefresh() {
 		if ($("#refreshtimeout").val() > 0) {
 			timeRemain = $("#refreshtimeout").val();
@@ -347,7 +401,9 @@ var tableHeight=0;
 		}
 	}
 
+	// ========================================
 	// 자동 새로고침 중지 함수
+	// ========================================
 	function stopAutoRefresh() {
 		isPaused = true;
 		if (refreshTimer) {
@@ -359,6 +415,9 @@ var tableHeight=0;
 		$("#excutebtn").val('실행');
 	}
 
+	// ========================================
+	// 트랜잭션 커밋 함수
+	// ========================================
 	function commit() {
 		$.ajax({
 			type: 'post',
@@ -372,11 +431,15 @@ var tableHeight=0;
 		});
 	}
 	
+	// ========================================
+	// SQL 실행 메인 함수
+	// ========================================
 	async function excute() {
 
 		var log = {};
 		var params=[];
 
+		// 파라미터 유효성 검사 및 수집
 		for (var i = 0; i < $(".paramvalue").length; i++) {
 
 			if ($(".paramvalue").eq(i).attr('required') == 'required' && $(".paramvalue").eq(i).val() == "") {
@@ -392,8 +455,8 @@ var tableHeight=0;
 			}
 		}
 
+		// 실행 버튼 비활성화 및 로딩 표시
 		$("#excutebtn").attr('disabled', true);
-
 		$("#loadingdiv").css('display','block')
 
 		let ondate = new Date();
@@ -401,6 +464,7 @@ var tableHeight=0;
 		// 2025-04-29 limit 2만으로 제한
 		var limit = ${not empty limit}
 
+		// SQL 실행 AJAX 요청
 		await $.ajax({
 			type: 'post',
 			url: '/SQL/excute',
@@ -421,10 +485,12 @@ var tableHeight=0;
 			},
 			success: function(result, status, jqXHR) {
 				
+				// 테이블 높이 계산 (최초 1회만)
 				if(tableHeight==0){
 					tableHeight = Math.max(200,$("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 200);
 				}
 				
+				// 세션 만료 체크
 				if (jqXHR.getResponseHeader("SESSION_EXPIRED") === "true") {
 					alert("세션이 만료되었습니다.");
 					window.parent.location.href = "/Login";
@@ -435,15 +501,17 @@ var tableHeight=0;
 				var newline = $("#newline").prop('checked');
 				
 
+				// 결과 헤더 처리
 				if (result.rowhead!=null) {
 					
+					// 컬럼 정보가 변경된 경우에만 재생성
 					if(JSON.stringify(result.rowhead)==JSON.stringify(temp_column)){
 						
 					}else{
 						temp_column = result.rowhead
 						column = [];
 						
-						
+						// 컬럼 정의 생성
 						for (var title = 0; title < result.rowhead.length; title++) {
 							
 							
@@ -484,13 +552,16 @@ var tableHeight=0;
 
 					
 
+					// 차트 데이터가 있는 경우 차트 생성
 					if(result.rowbody.length>0)
 					chart(result);
 
 				}
 				
+				// 가상 스크롤 버퍼 설정
 				var v_buffer = 40;
 
+				// 결과 데이터 변환
 				data = result.rowbody.map((item, index) => {
 					
 					var obj = {};
@@ -517,6 +588,7 @@ var tableHeight=0;
 					return obj
 				})
 
+				// 테이블 옵션 설정
 				tableoption = {
 					maxHeight: "85vh",
 					height: tableHeight,
@@ -544,7 +616,8 @@ var tableHeight=0;
 				    }
 				}
 			    
-				table = new Tabulator("#result_table", {
+							    // Tabulator 테이블 생성
+			    table = new Tabulator("#result_table", {
 					data: data,
 					columns: newline ? column.map((item)=>{
 						return {...item, width:undefined}
@@ -553,6 +626,7 @@ var tableHeight=0;
 					height: $('#result_table').hasClass( "in" )?"85vh":tableoption.height,
 				});
 				
+				// 컬럼 크기 조정 이벤트 처리
 				table.on("columnResized", function(col){
 				    
 					column = column.map((it, idx)=>{
@@ -565,6 +639,7 @@ var tableHeight=0;
 				});
 				
 					
+				// 결과 테이블 축소 상태 설정
 				if(!$('#result_table').hasClass( "collapse" )){
 					$('#result_table').addClass('collapse');
 					$('#result_table').attr('aria-expanded', 'false');
@@ -574,15 +649,18 @@ var tableHeight=0;
 				}
 					
 
+				// 테이블 다시 그리기
 				setTimeout(() => {
 					table.redraw();
 				}, 100);
 
+				// 결과 정보 표시
 				$("#result-text").text('total : ' + data.length + ' records, on ' + dateFormat2(ondate));
 				$("#save").css('display', 'block');
 
 				$("#loadingdiv").css('display','none')
 
+				// 자동 새로고침 처리
 				if ($("#refreshtimeout").val() > 0) {
 					startAutoRefresh();
 				} else {
@@ -592,6 +670,7 @@ var tableHeight=0;
 				}
 			},
 			error: function(error) {
+				// 에러 처리
 				$("#excutebtn").attr('disabled', false);
 				$("#excutebtn").val('실행');
 				$("#loadingdiv").css('display','none')
@@ -603,6 +682,9 @@ var tableHeight=0;
 		});
 	}
 	
+	// ========================================
+	// 연결 세션 설정 함수
+	// ========================================
 	function sessionCon(value) {
 
 		const list = "${DB}" == "" ? [] : "${DB}".split(",");
@@ -626,6 +708,9 @@ var tableHeight=0;
 	}
 
 
+	// ========================================
+	// 유틸리티 함수들
+	// ========================================
 	function ConvertSystemSourcetoHtml(str) {
 		/* str = str.replace(/</g,"&lt;");
 		str = str.replace(/>/g,"&gt;");
@@ -640,6 +725,9 @@ var tableHeight=0;
 	}
 
 
+	// ========================================
+	// 파일 읽기 함수
+	// ========================================
 	function readfile() {
 		$.ajax({
 			type: 'post',
@@ -653,6 +741,9 @@ var tableHeight=0;
 		});
 	}
 
+	// ========================================
+	// 차트 생성 함수
+	// ========================================
 	function chart(result) {
 		
 		if(myChart.data.labels.length==1){	
@@ -666,7 +757,7 @@ var tableHeight=0;
 			var datasets = [];
 			var maxdata = 0;	
 			
-	
+			// 데이터셋 생성
 			for (var i = 1; i < labels.length; i++) {
 				
 				var data = result.rowbody.map((item)=>parseInt(item[i])) 
@@ -705,6 +796,9 @@ var tableHeight=0;
 		}
 	}
 	
+	// ========================================
+	// 차트 업데이트 함수
+	// ========================================
 	function updateChart(result) {
         
         var datasets = [];
@@ -730,6 +824,9 @@ var tableHeight=0;
 		myChart.update('none');
     }
 
+	// ========================================
+	// 랜덤 색상 생성 함수
+	// ========================================
 	function random_rgba() {
 		var o = Math.round,
 			r = Math.random,
@@ -739,6 +836,9 @@ var tableHeight=0;
 	}
 
 
+	// ========================================
+	// 배열 전치(transpose) 함수
+	// ========================================
 	function transpose(a) {
 
 		// Calculate the width and height of the Array
@@ -774,6 +874,9 @@ var tableHeight=0;
 		return t;
 	}
 
+	// ========================================
+	// 날짜 포맷 함수 (YYYYMMDD_HHMMSS)
+	// ========================================
 	function dateFormat() {
 
 		let date = new Date();
@@ -793,6 +896,9 @@ var tableHeight=0;
 		return date.getFullYear() + "" + month + "" + day + '_' + hour + minute + second;
 	}
 
+	// ========================================
+	// 날짜 포맷 함수 (YYYY-MM-DD HH:MM:SS)
+	// ========================================
 	function dateFormat2(date) {
 
 		let month = date.getMonth() + 1;
@@ -810,6 +916,9 @@ var tableHeight=0;
 		return date.getFullYear() + "-" + month + "-" + day + " " + hour + ":" + minute + ":" + second;
 	}
 
+	// ========================================
+	// Limit 값 체크 함수
+	// ========================================
 	function checkLimit(limit) {
 		if (limit.value == '') {
 			$(limit).val(0)
@@ -817,9 +926,15 @@ var tableHeight=0;
 	}
 	
 </script>
+
+<!-- ======================================== -->
+<!-- SQL 실행 페이지 - HTML 구조 -->
+<!-- ======================================== -->
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper" style="margin-left: 0; position: relative;" id="test">
-	<!-- Content Header (Page header) -->
+	<!-- ======================================== -->
+	<!-- 페이지 헤더 영역 -->
+	<!-- ======================================== -->
 	<section class="content-header">
 		<h1>${title}</h1>
 		<span>${desc}</span>
@@ -834,7 +949,13 @@ var tableHeight=0;
 
 		</ol>
 	</section>
+	<!-- ======================================== -->
+	<!-- 메인 콘텐츠 영역 -->
+	<!-- ======================================== -->
 	<section class="content">
+		<!-- ======================================== -->
+		<!-- 파라미터 입력 영역 -->
+		<!-- ======================================== -->
 		<div class="row" id="top">
 			<div class="col-xs-12">
 				<div class="box box-default collapse in">
@@ -918,6 +1039,9 @@ var tableHeight=0;
 				</div>
 			</div>
 		</div>
+		<!-- ======================================== -->
+		<!-- 결과 표시 영역 -->
+		<!-- ======================================== -->
 		<div class="row" id="Resultbox">
 			<div class="col-xs-12">
 				<div class="box">
@@ -977,6 +1101,9 @@ var tableHeight=0;
 				</div>
 			</div>
 		</div>
+		<!-- ======================================== -->
+		<!-- 단축키 영역 -->
+		<!-- ======================================== -->
 		<div class="row" id="Keybox">
 			<div class="col-xs-12">
 				<div class="box box-default" style="margin-bottom: 0px">
@@ -997,6 +1124,9 @@ var tableHeight=0;
 			<input id="refreshtimeout" value="${refreshtimeout}" type="hidden">
 		</c:if>
 	</section>
+	<!-- ======================================== -->
+	<!-- 로딩 표시 영역 -->
+	<!-- ======================================== -->
 	<div id="loadingdiv" style="position: absolute; width: 100%; height: 100%; background-color: #43407520; top: 0; align-content: center; text-align: center; display: none;">
 		<img alt="loading..." src="/resources/img/loading.gif" style="width: 50px;">
 	</div>
