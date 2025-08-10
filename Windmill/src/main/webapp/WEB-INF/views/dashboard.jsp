@@ -1203,7 +1203,7 @@
                             </h3>
                         </div>
                         <div class="box-body" style="height: 250px; display: flex; align-items: center; justify-content: center;">
-                            <canvas id="lockWaitCountChart" style="max-height: 200px%; max-width: 100%;"></canvas>
+                            <canvas id="lockWaitCountChart" style="max-height: 200px; max-width: 100%;"></canvas>
                         </div>
                     </div>
                 </div>
@@ -1254,13 +1254,13 @@
                         <div class="box-body">
                             <div class="row">
                                 <!-- DEX 상태 카드들 (왼쪽 세로 배치) -->
-                                <div class="col-md-2">
+                                <div class="col-md-4">
                                     <div id="dexStatusContainer">
                                         <!-- DEX 상태가 여기에 동적으로 추가됩니다 -->
                                     </div>
                                 </div>
                                 <!-- DEX 도넛 차트들 (오른쪽 가로 배치) -->
-                                <div class="col-md-6">
+                                <div class="col-md-8">
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="doughnut-chart-item">
