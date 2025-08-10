@@ -327,6 +327,9 @@ var changePW
 						<li class="treeview"><a href="/User" target="iframe"> <i class="fa fa-user"></i> <span>User</span>
 
 						</a></li>
+						
+						<li class="treeview"><a href="/SQLTemplate" target="iframe"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span>
+						</a></li>
 					</c:if>
 
 					<li class="treeview"><a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span>

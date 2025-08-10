@@ -1,5 +1,6 @@
 package kr.Windmill.config;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -87,8 +88,29 @@ public class LoginInterceptor implements HandlerInterceptor {
 	@Override
 	public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)
 			throws Exception {
-		// TODO Auto-generated method stub
-
+		
+		// 시스템 프로퍼티 설정 오류 처리
+		if (ex != null) {
+			if (ex instanceof FileNotFoundException) {
+				FileNotFoundException fnfe = (FileNotFoundException) ex;
+				if (fnfe.getMessage() != null && fnfe.getMessage().contains("${system.root.path}")) {
+					logger.error("시스템 프로퍼티 설정 오류: " + fnfe.getMessage());
+					
+					// Setting 화면으로 리다이렉트
+					if (!isAjaxRequest(request)) {
+						try {
+							response.sendRedirect("/Setting");
+						} catch (IOException e) {
+							logger.error("리다이렉트 실패", e);
+						}
+					}
+					return;
+				}
+			}
+			
+			// 기타 예외는 로깅만
+			logger.error("요청 처리 중 오류 발생: " + request.getRequestURI(), ex);
+		}
 	}
 
 }
