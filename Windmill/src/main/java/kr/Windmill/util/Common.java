@@ -61,6 +61,7 @@ public class Common {
 	public static String SrcPath = "";
 	public static String UserPath = "";
 	public static String tempPath = "";
+	public static String JdbcPath = ""; // JDBC 드라이버 폴더 경로
 	public static String RootPath = "";
 	public static String LogDB = "";
 	public static String DownloadIP = "";
@@ -90,11 +91,15 @@ public class Common {
 		SrcPath = props.getProperty("Root") + File.separator + "src" + File.separator;
 		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
 		UserPath = props.getProperty("Root") + File.separator + "user" + File.separator;
+		JdbcPath = props.getProperty("Root") + File.separator + "jdbc" + File.separator;
 		Timeout = Integer.parseInt(props.getProperty("Timeout") == null ? "15" : props.getProperty("Timeout"));
 		LogDB = props.getProperty("LogDB");
 		DownloadIP = props.getProperty("DownloadIP");
 		LogCOL = props.getProperty("LogCOL");
 		logger.info("RootPath : " + RootPath + " / Timeout : " + Timeout + " / LogDB : " + LogDB);
+
+		// JDBC 폴더 생성
+		createJdbcDirectory();
 
 	}
 
@@ -121,6 +126,7 @@ public class Common {
 		map.put("PW", bytetostr(props.getProperty("PW")));
 		map.put("DB", bytetostr(props.getProperty("DB")));
 		map.put("DBTYPE", bytetostr(props.getProperty("DBTYPE")));
+		map.put("JDBC_DRIVER_FILE", bytetostr(props.getProperty("JDBC_DRIVER_FILE")));
 		return map;
 	}
 
@@ -506,32 +512,27 @@ public class Common {
 		String driver = "";
 		String jdbc = "";
 
-		switch (dbtype) {
-		case "DB2":
+		// JDBC 드라이버 파일 정보 설정
+		String jdbcDriverFile = map.get("JDBC_DRIVER_FILE");
+		if (jdbcDriverFile != null && !jdbcDriverFile.trim().isEmpty()) {
+			// 사용자 지정 드라이버 파일 사용
+			Map<String, String> driverInfo = extractDriverInfo(jdbcDriverFile.trim());
+			driver = driverInfo.get("driverClass");
+		} else {
+			// 기본 드라이버는 DB2 사용
 			driver = "com.ibm.db2.jcc.DB2Driver";
-			jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
-			break;
-		case "ORACLE":
-			driver = "oracle.jdbc.driver.OracleDriver";
-			jdbc = "jdbc:oracle:thin:@" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
-			break;
-		case "PostgreSQL":
-			driver = "org.postgresql.Driver";
-			jdbc = "jdbc:postgresql://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
-			break;
-		case "Tibero":
-			driver = "com.tmax.tibero.jdbc.TbDriver";
-			jdbc = "jdbc:tibero:thin:@" + map.get("IP") + ":" + map.get("PORT") + ":" + map.get("DB");
-			break;
-
-		default:
-			driver = "com.ibm.db2.jcc.DB2Driver";
-			jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
-			break;
 		}
+
+		// JDBC URL 생성 (공통 메서드 사용)
+		jdbc = createJdbcUrl(dbtype, map.get("IP"), map.get("PORT"), map.get("DB"));
 
 		prop.put("user", map.get("USER"));
 		prop.put("password", map.get("PW"));
+
+		// JDBC 드라이버 파일 정보 설정
+		if (jdbcDriverFile != null && !jdbcDriverFile.trim().isEmpty()) {
+			connection.setJdbcDriverFile(jdbcDriverFile.trim());
+		}
 
 		connection.setDbtype(dbtype);
 		connection.setProp(prop);
@@ -1184,6 +1185,7 @@ public class Common {
             SrcPath = "";
             UserPath = "";
             tempPath = "";
+            JdbcPath = "";
             RootPath = "";
             LogDB = "";
             DownloadIP = "";
@@ -1196,4 +1198,239 @@ public class Common {
         }
     }
 
+    /**
+     * JDBC 드라이버 목록을 반환합니다.
+     */
+    public static List<String> getJdbcDriverList() {
+        List<String> driverList = new ArrayList<>();
+        File jdbcDir = new File(JdbcPath);
+
+        if (jdbcDir.exists() && jdbcDir.isDirectory()) {
+            File[] files = jdbcDir.listFiles((dir, name) -> 
+                name.toLowerCase().endsWith(".jar"));
+
+            if (files != null) {
+                for (File file : files) {
+                    driverList.add(file.getName());
+                }
+            }
+        }
+
+        return driverList;
+    }
+
+    /**
+     * JDBC 드라이버 파일의 경로를 반환합니다.
+     */
+    public static String getJdbcDriverPath(String driverFileName) {
+        return JdbcPath + driverFileName;
+    }
+
+    /**
+     * JDBC 드라이버 파일이 존재하는지 확인합니다.
+     */
+    public static boolean isJdbcDriverExists(String driverFileName) {
+        if (driverFileName == null || driverFileName.trim().isEmpty()) {
+            return false;
+        }
+        File driverFile = new File(getJdbcDriverPath(driverFileName));
+        return driverFile.exists() && driverFile.isFile();
+    }
+
+    /**
+     * JDBC 드라이버 파일에서 정보를 추출합니다.
+     */
+    public Map<String, String> extractDriverInfo(String driverFileName) {
+        Map<String, String> driverInfo = new HashMap<>();
+
+        if (driverFileName == null || driverFileName.trim().isEmpty()) {
+            driverInfo.put("error", "드라이버 파일명이 지정되지 않았습니다.");
+            return driverInfo;
+        }
+
+        try {
+            String driverClass = getDriverClassFromFileName(driverFileName);
+            String version = getVersionFromFileName(driverFileName);
+            String description = getDescriptionFromFileName(driverFileName);
+
+            driverInfo.put("driverClass", driverClass);
+            driverInfo.put("version", version);
+            driverInfo.put("description", description);
+
+        } catch (Exception e) {
+            logger.error("드라이버 정보 추출 실패: " + driverFileName, e);
+            driverInfo.put("error", "드라이버 정보를 추출할 수 없습니다: " + e.getMessage());
+        }
+
+        return driverInfo;
+    }
+
+    /**
+     * 파일명에서 드라이버 클래스명을 추출합니다.
+     */
+    private String getDriverClassFromFileName(String fileName) {
+        String lowerFileName = fileName.toLowerCase();
+
+        if (lowerFileName.contains("db2")) {
+            return "com.ibm.db2.jcc.DB2Driver";
+        } else if (lowerFileName.contains("oracle") || lowerFileName.contains("ojdbc")) {
+            return "oracle.jdbc.driver.OracleDriver";
+        } else if (lowerFileName.contains("postgresql") || lowerFileName.contains("postgres")) {
+            return "org.postgresql.Driver";
+        } else if (lowerFileName.contains("tibero")) {
+            return "com.tmax.tibero.jdbc.TbDriver";
+        } else if (lowerFileName.contains("mysql")) {
+            return "com.mysql.cj.jdbc.Driver";
+        } else if (lowerFileName.contains("mariadb")) {
+            return "org.mariadb.jdbc.Driver";
+        } else if (lowerFileName.contains("sqlserver") || lowerFileName.contains("mssql")) {
+            return "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+        } else {
+            // 기본값
+            return "com.ibm.db2.jcc.DB2Driver";
+        }
+    }
+
+    /**
+     * 파일명에서 버전 정보를 추출합니다.
+     */
+    private String getVersionFromFileName(String fileName) {
+        // 파일명에서 버전 패턴 찾기 (예: ojdbc8-12.2.0.1.jar -> 12.2.0.1)
+        java.util.regex.Pattern versionPattern = java.util.regex.Pattern.compile("(\\d+\\.\\d+\\.\\d+(\\.\\d+)?)");
+        java.util.regex.Matcher matcher = versionPattern.matcher(fileName);
+
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+
+        return "Unknown";
+    }
+
+    /**
+     * 파일명에서 설명을 추출합니다.
+     */
+    private String getDescriptionFromFileName(String fileName) {
+        String lowerFileName = fileName.toLowerCase();
+
+        if (lowerFileName.contains("db2")) {
+            return "IBM DB2 JDBC Driver";
+        } else if (lowerFileName.contains("oracle") || lowerFileName.contains("ojdbc")) {
+            return "Oracle JDBC Driver";
+        } else if (lowerFileName.contains("postgresql") || lowerFileName.contains("postgres")) {
+            return "PostgreSQL JDBC Driver";
+        } else if (lowerFileName.contains("tibero")) {
+            return "Tibero JDBC Driver";
+        } else if (lowerFileName.contains("mysql")) {
+            return "MySQL JDBC Driver";
+        } else if (lowerFileName.contains("mariadb")) {
+            return "MariaDB JDBC Driver";
+        } else if (lowerFileName.contains("sqlserver") || lowerFileName.contains("mssql")) {
+            return "SQL Server JDBC Driver";
+        } else {
+            return "Unknown JDBC Driver";
+        }
+    }
+
+    private static void createJdbcDirectory() {
+        File jdbcDir = new File(JdbcPath);
+        if (!jdbcDir.exists()) {
+            try {
+                boolean created = jdbcDir.mkdirs();
+                logger.info("JDBC 폴더 생성 여부: " + created + " - " + JdbcPath);
+            } catch (Exception e) {
+                logger.error("JDBC 폴더 생성 실패: " + JdbcPath, e);
+            }
+        }
+    }
+
+    // JDBC URL 생성 메서드
+    public String createJdbcUrl(String dbtype, String ip, String port, String db) {
+        String jdbcUrl = "";
+
+        switch (dbtype) {
+        case "DB2":
+            jdbcUrl = "jdbc:db2://" + ip + ":" + port + "/" + db;
+            break;
+        case "ORACLE":
+            jdbcUrl = "jdbc:oracle:thin:@" + ip + ":" + port + "/" + db;
+            break;
+        case "PostgreSQL":
+            jdbcUrl = "jdbc:postgresql://" + ip + ":" + port + "/" + db;
+            break;
+        case "Tibero":
+            jdbcUrl = "jdbc:tibero:thin:@" + ip + ":" + port + ":" + db;
+            break;
+        default:
+            jdbcUrl = "jdbc:db2://" + ip + ":" + port + "/" + db;
+            break;
+        }
+
+        logger.info("JDBC URL 생성: {} -> {}", dbtype, jdbcUrl);
+        return jdbcUrl;
+    }
+
+    // 동적 드라이버를 사용한 연결 생성
+    public Connection createConnectionWithDynamicDriver(String jdbc, Properties prop, String jdbcDriverFile, String driverClass) throws Exception {
+        java.sql.Driver driverInstance = loadDriverDynamically(jdbcDriverFile, driverClass);
+
+        // 연결 시도
+        if (driverInstance != null) {
+            // 동적으로 로드된 드라이버 인스턴스 사용
+            logger.info("동적 드라이버 인스턴스로 연결 시도");
+            Connection connection = driverInstance.connect(jdbc, prop);
+            if (connection == null) {
+                logger.warn("동적 드라이버 연결이 null을 반환했습니다. DriverManager로 재시도합니다.");
+                return DriverManager.getConnection(jdbc, prop);
+            }
+            return connection;
+        } else {
+            // DriverManager 사용
+            logger.info("DriverManager로 연결 시도");
+            return DriverManager.getConnection(jdbc, prop);
+        }
+    }
+
+    // 동적 드라이버 로딩을 위한 헬퍼 메서드
+    private java.sql.Driver loadDriverDynamically(String jdbcDriverFile, String driverClass) throws Exception {
+        if (jdbcDriverFile != null && !jdbcDriverFile.trim().isEmpty()) {
+            String jdbcFilePath = JdbcPath + jdbcDriverFile.trim();
+            File jdbcFile = new File(jdbcFilePath);
+
+            logger.info("JDBC 드라이버 파일 경로: {}", jdbcFilePath);
+            logger.info("JDBC 드라이버 파일 존재 여부: {}", jdbcFile.exists());
+
+            if (jdbcFile.exists()) {
+                try {
+                    // URLClassLoader를 사용하여 JAR 파일을 동적으로 로드
+                    java.net.URLClassLoader classLoader = new java.net.URLClassLoader(
+                        new java.net.URL[]{jdbcFile.toURI().toURL()},
+                        Common.class.getClassLoader()
+                    );
+
+                    logger.info("ClassLoader 생성 성공");
+
+                    // 드라이버 클래스를 동적으로 로드
+                    Class<?> driverClassObj = classLoader.loadClass(driverClass);
+                    logger.info("드라이버 클래스 로드 성공: {}", driverClass);
+
+                    // 드라이버 인스턴스 생성
+                    java.sql.Driver driverInstance = (java.sql.Driver) driverClassObj.newInstance();
+                    logger.info("드라이버 인스턴스 생성 성공");
+
+                    logger.info("동적 드라이버 로드 성공: {}", jdbcFilePath);
+                    return driverInstance;
+                } catch (Exception e) {
+                    logger.error("동적 드라이버 로드 실패: {}", e.getMessage(), e);
+                    throw e;
+                }
+            } else {
+                throw new ClassNotFoundException("JDBC 드라이버 파일을 찾을 수 없습니다: " + jdbcFilePath);
+            }
+        } else {
+            // 기본 드라이버 로드
+            logger.info("기본 드라이버 로드: {}", driverClass);
+            Class.forName(driverClass);
+            return null; // 기본 드라이버는 DriverManager에서 처리
+        }
+    }
 }

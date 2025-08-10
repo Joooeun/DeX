@@ -10,6 +10,7 @@ public class ConnectionDTO {
 	private String driver;
 	private String jdbc;
 	private String dbName;
+	private String jdbcDriverFile; // JDBC 드라이버 파일명
 	
 
 	public Properties getProp() {
@@ -52,4 +53,11 @@ public class ConnectionDTO {
 		this.dbName = dbName;
 	}
 
+	public String getJdbcDriverFile() {
+		return jdbcDriverFile;
+	}
+
+	public void setJdbcDriverFile(String jdbcDriverFile) {
+		this.jdbcDriverFile = jdbcDriverFile;
+	}
 }

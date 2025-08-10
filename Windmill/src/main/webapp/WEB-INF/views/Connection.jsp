@@ -107,7 +107,142 @@ var arr;
 				    }
 				  }
 				});
+
+		// JDBC 드라이버 목록 로드
+		loadJdbcDrivers();
+	});
+
+	// JDBC 드라이버 목록 로드
+	function loadJdbcDrivers() {
+		$.ajax({
+			type: 'post',
+			url: '/Connection/jdbcDrivers',
+			success: function(result) {
+				var select = $('#JDBC_DRIVER_FILE');
+				select.find('option:not(:first)').remove();
+				
+				result.forEach(function(driver) {
+					select.append('<option value="' + driver + '">' + driver + '</option>');
+				});
+			},
+			error: function() {
+				console.log('JDBC 드라이버 목록 로드 실패');
+			}
+		});
+	}
+
+	// DB TYPE 변경 시 기본 드라이버 자동 선택
+	$(document).on('change', '#DBTYPE', function() {
+		var dbType = $(this).val();
+		// DB2는 기본 드라이버 사용, 다른 DB는 사용자가 업로드한 드라이버 필요
+		if (dbType === 'DB2') {
+			$('#JDBC_DRIVER_FILE').val('');
+			$('#JDBC_DRIVER_FILE').trigger('change');
+		}
+	});
+
+	// JDBC 드라이버 파일 선택 시 자동 정보 추출
+	$(document).on('change', '#JDBC_DRIVER_FILE', function() {
+		var selectedDriver = $(this).val();
+		if (selectedDriver) {
+			$.ajax({
+				type: 'post',
+				url: '/Connection/driverInfo',
+				data: { driverFile: selectedDriver },
+				success: function(result) {
+					// 드라이버 정보를 히든 필드에 저장 (나중에 서버에서 사용)
+					$('#hidden_driver_info').val(JSON.stringify(result));
+					
+					// 사용자에게 정보 표시
+					var infoText = '드라이버 정보: ' + result.driverClass;
+					if (result.version) {
+						infoText += ' (버전: ' + result.version + ')';
+					}
+					$('#driver_info_display').text(infoText).show();
+				},
+				error: function() {
+					$('#driver_info_display').text('드라이버 정보를 가져올 수 없습니다.').show();
+				}
 			});
+		} else {
+			$('#driver_info_display').hide();
+		}
+	});
+
+	/*
+	// JDBC 드라이버 목록 새로고침
+	function refreshJdbcDrivers() {
+		loadJdbcDrivers();
+		alert('JDBC 드라이버 목록이 새로고침되었습니다.');
+	}
+
+	// JDBC 폴더 열기
+	function openJdbcFolder() {
+		$.ajax({
+			type: 'post',
+			url: '/Connection/openJdbcFolder',
+			success: function(result) {
+				alert('JDBC 폴더가 열렸습니다: ' + result.path);
+			},
+			error: function() {
+				alert('JDBC 폴더 열기 실패');
+			}
+		});
+	}
+	*/
+
+	// 연결 테스트 함수
+	function testConnection() {
+		// 필수 필드 검증
+		if (!$('#IP').val() || !$('#PORT').val() || !$('#USER').val() || !$('#PW').val() || !$('#DBTYPE').val()) {
+			alert('연결 테스트를 위해 IP, PORT, USER, PW, DB TYPE을 모두 입력해주세요.');
+			return;
+		}
+
+		// 테스트 버튼 비활성화
+		$('button[onclick="testConnection()"]').prop('disabled', true).text('테스트 중...');
+		$('#test_result').hide();
+
+		// 테스트 데이터 준비
+		var testData = {
+			IP: $('#IP').val(),
+			PORT: $('#PORT').val(),
+			DB: $('#DB').val(),
+			USER: $('#USER').val(),
+			PW: $('#PW').val(),
+			DBTYPE: $('#DBTYPE').val(),
+			JDBC_DRIVER_FILE: $('#JDBC_DRIVER_FILE').val()
+		};
+
+		$.ajax({
+			type: 'post',
+			url: '/Connection/testConnection',
+			data: testData,
+			success: function(result) {
+				var resultDiv = $('#test_result');
+				if (result.success) {
+					resultDiv.html('<div class="alert alert-success"><i class="fa fa-check"></i> 연결 성공!<br>' + 
+						'<small>드라이버: ' + result.driverClass + '<br>' +
+						'버전: ' + result.version + '<br>' +
+						'소요시간: ' + result.duration + 'ms</small></div>');
+				} else {
+					resultDiv.html('<div class="alert alert-danger"><i class="fa fa-times"></i> 연결 실패!<br>' + 
+						'<small>오류: ' + result.error + '</small></div>');
+				}
+				resultDiv.show();
+			},
+			error: function(xhr, status, error) {
+				var resultDiv = $('#test_result');
+				resultDiv.html('<div class="alert alert-danger"><i class="fa fa-times"></i> 연결 테스트 실패!<br>' + 
+					'<small>오류: ' + error + '</small></div>');
+				resultDiv.show();
+			},
+			complete: function() {
+				// 테스트 버튼 다시 활성화
+				$('button[onclick="testConnection()"]').prop('disabled', false).text('연결 테스트');
+			}
+		});
+	}
 	
 	function ConnectionDetail(value) {
 		if (value == 'create') {
@@ -120,6 +255,7 @@ var arr;
 			$('#USER').val('');
 			$('#PW').val('');
 			$('#DBTYPE').val('');
+			$('#JDBC_DRIVER_FILE').val('');
 			return;
 		} else {
 			$('#name_input').css("display", "none");
@@ -144,11 +280,29 @@ var arr;
 				$('#PW').val(result.PW);
 				$('#DBTYPE').val(result.DBTYPE);
 				$('#DBTYPE').val(result.DBTYPE).prop("selected", true);
+				
+				// JDBC 드라이버 파일 설정
+				if (result.JDBC_DRIVER_FILE) {
+					$('#JDBC_DRIVER_FILE').val(result.JDBC_DRIVER_FILE);
+					$('#JDBC_DRIVER_FILE').trigger('change');
+				} else {
+					// DB TYPE에 따른 기본 드라이버 자동 선택
+					autoSelectDriver(result.DBTYPE);
+				}
 			},
 			error : function() {
 				alert("시스템 에러");
 			}
 		});
+	}
+	
+	// DB TYPE에 따른 기본 드라이버 자동 선택
+	function autoSelectDriver(dbType) {
+		// DB2는 기본 드라이버 사용, 다른 DB는 사용자가 업로드한 드라이버 필요
+		if (dbType === 'DB2') {
+			$('#JDBC_DRIVER_FILE').val('');
+			$('#JDBC_DRIVER_FILE').trigger('change');
+		}
 	}
 	function save() {
 		var filename = $("#connectionlist").val();
@@ -166,7 +320,8 @@ var arr;
 				DB : $('#DB').val(),
 				USER : $('#USER').val(),
 				PW : $('#PW').val(),
-				DBTYPE : $('#DBTYPE').val()
+				DBTYPE : $('#DBTYPE').val(),
+				JDBC_DRIVER_FILE : $('#JDBC_DRIVER_FILE').val()
 			},
 			success : function(result) {
 				alert("저장 되었습니다.");
@@ -260,13 +415,44 @@ var arr;
 							<input type="text" class="form-control" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." id="PW" placeholder="PW" name="PW">
 						</div>
 					</div>
+
+
+					<div class="form-group row">
+						<div class="col-md-4" style="margin: 2px 0;">
+							<label for="JDBC_DRIVER_FILE">JDBC Driver File (선택)</label>
+							<select class="form-control" id="JDBC_DRIVER_FILE" name="JDBC_DRIVER_FILE">
+								<option value="">기본 드라이버 사용</option>
+							</select>
+							<div id="driver_info_display" style="display:none; margin-top: 5px; font-size: 12px; color: #666;"></div>
+							<input type="hidden" id="hidden_driver_info" name="hidden_driver_info" value="">
+						</div>
+						<!-- 
+						<div class="col-md-4" style="margin: 2px 0;">
+							<label>&nbsp;</label>
+							<button type="button" class="btn btn-info form-control" onclick="refreshJdbcDrivers()">JDBC 드라이버 목록 새로고침</button>
+						</div>
+						<div class="col-md-4" style="margin: 2px 0;">
+							<label>&nbsp;</label>
+							<button type="button" class="btn btn-success form-control" onclick="openJdbcFolder()">JDBC 폴더 열기</button>
+						</div>
+						-->
+					</div>
 				</div>
 				<!-- /.box-body -->
 				<div class="box-footer">
-					<button type="submit" class="btn btn-primary form-control">저장</button>
+					<div class="row">
+						<div class="col-md-6">
+							<button type="button" class="btn btn-success form-control" onclick="testConnection()">연결 테스트</button>
+						</div>
+						<div class="col-md-6">
+							<button type="submit" class="btn btn-primary form-control">저장</button>
+						</div>
+					</div>
+					<div id="test_result" style="margin-top: 10px; display: none;">
+						<!-- 테스트 결과가 여기에 표시됩니다 -->
+					</div>
 				</div>
 			</form>
 		</div>
 	</section>
 </div>
-No newline at end of file
