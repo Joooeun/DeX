@@ -32,14 +32,20 @@ import com.jcraft.jsch.Session;
 
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
 public class FileController {
 
 	private static final Logger logger = LoggerFactory.getLogger(FileController.class);
-
-	Common com = new Common();
-	Log cLog = new Log();
+	private final Common com;
+	private final Log cLog;
+	
+	@Autowired
+	public FileController(Common common, Log log) {
+		this.com = common;
+		this.cLog = log;
+	}
 
 	@RequestMapping(path = "/FileRead")
 	public ModelAndView FileRead(HttpServletRequest request, ModelAndView mv, HttpSession session) throws IOException {

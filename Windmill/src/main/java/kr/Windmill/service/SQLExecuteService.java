@@ -23,13 +23,22 @@ import kr.Windmill.service.ConnectionDTO;
 import kr.Windmill.service.LogInfoDTO;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class SQLExecuteService {
 
     private static final Logger logger = LoggerFactory.getLogger(SQLExecuteService.class);
-    private Common com = new Common();
-    private Log cLog = new Log();
+    private final Common com;
+    private final Log cLog;
+    private final ConnectionPoolManager connectionPoolManager;
+    
+    @Autowired
+    public SQLExecuteService(Common common, Log log, ConnectionPoolManager connectionPoolManager) {
+        this.com = common;
+        this.cLog = log;
+        this.connectionPoolManager = connectionPoolManager;
+    }
 
     public enum SqlType {
         CALL, EXECUTE, UPDATE

@@ -22,13 +22,20 @@ import org.springframework.web.servlet.ModelAndView;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
 import kr.Windmill.util.VersionUtil;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
 public class LoginController {
 
 	private static final Logger logger = LoggerFactory.getLogger(LoginController.class);
-	Common com = new Common();
-	Log cLog = new Log();
+	private final Common com;
+	private final Log cLog;
+	
+	@Autowired
+	public LoginController(Common common, Log log) {
+		this.com = common;
+		this.cLog = log;
+	}
 
 	@RequestMapping(path = "/", method = RequestMethod.GET)
 	public String sample() {

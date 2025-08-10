@@ -35,11 +35,16 @@ import kr.Windmill.util.Log;
 public class SQLController {
 
 	private static final Logger logger = LoggerFactory.getLogger(SQLController.class);
-	Common com = new Common();
-	Log cLog = new Log();
+	private final Common com;
+	private final Log cLog;
+	private final SQLExecuteService sqlExecuteService;
 	
 	@Autowired
-	private SQLExecuteService sqlExecuteService;
+	public SQLController(Common common, Log log, SQLExecuteService sqlExecuteService) {
+		this.com = common;
+		this.cLog = log;
+		this.sqlExecuteService = sqlExecuteService;
+	}
 
 	@RequestMapping(path = "/SQL")
 	public ModelAndView SQLmain(HttpServletRequest request, ModelAndView mv, HttpSession session) {

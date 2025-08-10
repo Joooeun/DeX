@@ -15,10 +15,18 @@ import org.slf4j.LoggerFactory;
 
 import kr.Windmill.service.ConnectionDTO;
 import kr.Windmill.service.LogInfoDTO;
+import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
 
+@Component
 public class Log {
 	private static final Logger logger = LoggerFactory.getLogger(Log.class);
-	Common com = new Common();
+	private final Common com;
+	
+	@Autowired
+	public Log(Common common) {
+		this.com = common;
+	}
 
 //	public void tablecheck() {
 //

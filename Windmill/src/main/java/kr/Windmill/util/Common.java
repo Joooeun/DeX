@@ -50,7 +50,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import crypt.AES256Cipher;
 import kr.Windmill.service.ConnectionDTO;
 import kr.Windmill.service.LogInfoDTO;
+import org.springframework.stereotype.Component;
 
+@Component
 public class Common {
 	private static final Logger logger = LoggerFactory.getLogger(Common.class);
 
