@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import kr.Windmill.service.ConnectionDTO;
 import kr.Windmill.service.LogInfoDTO;
+import kr.Windmill.service.ConnectionPoolManager;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -22,10 +23,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 public class Log {
 	private static final Logger logger = LoggerFactory.getLogger(Log.class);
 	private final Common com;
+	private final ConnectionPoolManager connectionPoolManager;
 	
 	@Autowired
-	public Log(Common common) {
+	public Log(Common common, ConnectionPoolManager connectionPoolManager) {
 		this.com = common;
+		this.connectionPoolManager = connectionPoolManager;
 	}
 
 //	public void tablecheck() {
@@ -294,7 +297,13 @@ public class Log {
 		}
 
 		try {
+			// Common을 사용하여 연결 설정 가져오기
 			ConnectionDTO connection = com.getConnection(com.LogDB);
+			
+			// DataSource 캐싱 확인
+			if (!connectionPoolManager.hasDataSource(com.LogDB)) {
+				connectionPoolManager.getDataSource(com.LogDB); // DataSource 생성 및 캐싱
+			}
 
 			com.updatequery("INSERT INTO DEXLOG (USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID)" + "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", connection.getDbtype(), connection.getJdbc(), connection.getProp(), data, new ArrayList<Map<String, String>>());
 		} catch (SQLException e) {

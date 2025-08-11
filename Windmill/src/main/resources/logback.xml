@@ -4,21 +4,21 @@
 	<appender name="info"
 		class="ch.qos.logback.core.ConsoleAppender">
 		<encoder>
-			<pattern>▶ %green(%d{yyyy-MM-dd HH:mm:ss.SSS}) %highlight(%5level) - %yellow(%msg%n)</pattern>
+			<pattern>▶ %green(%d{yy/MM/dd HH:mm:ss}) %cyan([%class{0}:%line]) %highlight(%5level) - %yellow(%msg%n)</pattern>
 		</encoder>
 	</appender>
 
 	<appender name="info2"
 		class="ch.qos.logback.core.ConsoleAppender">
 		<encoder>
-			<pattern>▶ %5level [%d{yyyy-MM-dd HH:mm:ss.SSS}] %msg%n</pattern>
+			<pattern>▶ %5level [%d{yy/MM/dd HH:mm:ss}] %msg [%class{0}.%method:%line]%n</pattern>
 		</encoder>
 	</appender>
 
 	<appender name="console"
 		class="ch.qos.logback.core.ConsoleAppender">
 		<encoder>
-			<pattern>▶ %-5level %d{HH:mm:ss.SSS} [%class{0}][%method:%line] - %msg%n</pattern>
+			<pattern>▶ %-5level %d{yy/MM/dd HH:mm:ss} [%class{0}][%method:%line] - %msg%n</pattern>
 		</encoder>
 	</appender>
 
@@ -33,7 +33,7 @@
 				기록된다. -->
 		</filter> <!-- 레벨별 필터링이 필요없을 경우 filter class 관련된 부분을 삭제하면 됨 -->
 		<encoder>
-			<pattern>[%d{yyyy-MM-dd HH:mm:ss.SSS}] %msg%n</pattern> <!-- 해당 패턴 네이밍으로 현재 로그가 기록됨 -->
+			<pattern>[%d{yy/MM/dd HH:mm:ss}] %msg [%class{0}.%method:%line]%n</pattern> <!-- 해당 패턴 네이밍으로 현재 로그가 기록됨 -->
 		</encoder>
 		<rollingPolicy
 			class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">

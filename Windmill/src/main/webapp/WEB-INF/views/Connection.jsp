@@ -222,12 +222,46 @@ var arr;
 				var resultDiv = $('#test_result');
 				if (result.success) {
 					resultDiv.html('<div class="alert alert-success"><i class="fa fa-check"></i> 연결 성공!<br>' + 
-						'<small>드라이버: ' + result.driverClass + '<br>' +
-						'버전: ' + result.version + '<br>' +
+						'<small>드라이버: ' + (result.driverClass || '기본 드라이버') + '<br>' +
+						'버전: ' + (result.version || '알 수 없음') + '<br>' +
 						'소요시간: ' + result.duration + 'ms</small></div>');
 				} else {
-					resultDiv.html('<div class="alert alert-danger"><i class="fa fa-times"></i> 연결 실패!<br>' + 
-						'<small>오류: ' + result.error + '</small></div>');
+					var errorIcon = '';
+					var errorClass = 'alert-danger';
+					
+					// 오류 유형에 따른 아이콘과 스타일 설정
+					if (result.errorType === 'NETWORK_ERROR') {
+						errorIcon = '<i class="fa fa-wifi"></i> ';
+						errorClass = 'alert-warning';
+					} else if (result.errorType === 'AUTHENTICATION_ERROR') {
+						errorIcon = '<i class="fa fa-user-times"></i> ';
+						errorClass = 'alert-danger';
+					} else if (result.errorType === 'DRIVER_NOT_FOUND') {
+						errorIcon = '<i class="fa fa-cog"></i> ';
+						errorClass = 'alert-info';
+					} else if (result.errorType === 'DATABASE_NOT_FOUND') {
+						errorIcon = '<i class="fa fa-database"></i> ';
+						errorClass = 'alert-warning';
+					} else if (result.errorType === 'TIMEOUT_ERROR') {
+						errorIcon = '<i class="fa fa-clock-o"></i> ';
+						errorClass = 'alert-warning';
+					} else if (result.errorType === 'PERMISSION_ERROR') {
+						errorIcon = '<i class="fa fa-lock"></i> ';
+						errorClass = 'alert-danger';
+					} else {
+						errorIcon = '<i class="fa fa-exclamation-triangle"></i> ';
+					}
+					
+					var errorHtml = '<div class="alert ' + errorClass + '">' + errorIcon + '연결 실패!<br>' +
+						'<small><strong>오류:</strong> ' + result.error + '</small>';
+					
+					// 원본 오류 메시지가 있으면 추가 표시
+					if (result.originalError && result.originalError !== result.error) {
+						errorHtml += '<br><small><strong>상세 오류:</strong> ' + result.originalError + '</small>';
+					}
+					
+					errorHtml += '</div>';
+					resultDiv.html(errorHtml);
 				}
 				resultDiv.show();
 			},
@@ -402,8 +436,9 @@ var arr;
 								<option value="" selected disabled hidden>DB TYPE</option>
 								<option value="ORACLE">ORACLE</option>
 								<option value="DB2">DB2</option>
-								<option value="Tibero">Tibero</option>
-								<option value="PostgreSQL">PostgreSQL</option>
+								<option value="TIBERO">TIBERO</option>
+								<option value="POSTGRESQL">POSTGRESQL</option>
+								<option value="MYSQL">MYSQL</option>
 							</select>
 						</div>
 						<div class="col-md-4" style="margin: 2px 0;">

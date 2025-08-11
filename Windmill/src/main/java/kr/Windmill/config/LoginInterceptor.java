@@ -6,6 +6,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -23,6 +24,17 @@ public class LoginInterceptor implements HandlerInterceptor {
 
 	private static final String AJAX_HEADER_NAME = "X-Requested-With";
 	private static final String AJAX_HEADER_VALUE = "XMLHttpRequest";
+	
+	// 로그에서 제외할 URL 패턴들
+	private static final List<Pattern> EXCLUDED_PATTERNS = Arrays.asList(
+		Pattern.compile("^/$"),                    // 루트
+		Pattern.compile("^/index$"),               // 인덱스
+		Pattern.compile("^/index2$"),              // 인덱스2
+		Pattern.compile("^/SQL/list$"),            // SQL 리스트
+		Pattern.compile("^/Connection/.*"),     // 연결 
+		Pattern.compile("^/Dashboard.*"),          // 대시보드 관련 모든 URL
+		Pattern.compile("^/DexStatus.*")           // DEX 상태 관련 모든 URL
+	);
 
 	// 요청을 컨트롤러에 보내기 전 작업
 	@Override
@@ -34,10 +46,12 @@ public class LoginInterceptor implements HandlerInterceptor {
 
 		String memberId = (String) session.getAttribute("memberId");
 
-		List vowelsList = Arrays
-				.asList("/,/index,/index2,/SQL/list,/Connection/list,/Connection/sessionCon".split(","));
-
-		if (!vowelsList.contains(request.getRequestURI())) {
+		// 패턴 기반 URL 체크
+		String requestURI = request.getRequestURI();
+		boolean isExcluded = EXCLUDED_PATTERNS.stream()
+			.anyMatch(pattern -> pattern.matcher(requestURI).matches());
+		
+		if (!isExcluded) {
 			SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			String strNowDate = simpleDateFormat.format(new Date());
 

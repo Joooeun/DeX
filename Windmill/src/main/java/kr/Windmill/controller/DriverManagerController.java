@@ -2,6 +2,7 @@ package kr.Windmill.controller;
 
 import kr.Windmill.service.DynamicDriverManager;
 import kr.Windmill.service.ConnectionPoolManager;
+import kr.Windmill.util.Common;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -174,7 +175,7 @@ public class DriverManagerController {
             systemInfo.put("javaVersion", System.getProperty("java.version"));
             systemInfo.put("osName", System.getProperty("os.name"));
             systemInfo.put("userHome", System.getProperty("user.home"));
-            systemInfo.put("driverLibPath", System.getProperty("user.home") + "/dex-drivers");
+            systemInfo.put("driverLibPath", Common.getJdbcDriverPath(""));
             
             result.put("systemInfo", systemInfo);
             

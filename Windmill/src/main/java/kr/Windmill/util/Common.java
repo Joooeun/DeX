@@ -433,6 +433,7 @@ public class Common {
 		Connection con = null;
 		PreparedStatement pstmt = null;
 		try {
+			// 동적 드라이버 로딩 사용 (ConnectionDTO 정보가 없는 경우 기본 방식)
 			con = DriverManager.getConnection(jdbc, prop);
 
 			con.setAutoCommit(false);
@@ -1038,6 +1039,39 @@ public class Common {
 
 
 
+	public String getDriverByDbType(String dbType) {
+		switch (dbType.toUpperCase()) {
+			case "ORACLE":
+				return "oracle.jdbc.driver.OracleDriver";
+			case "POSTGRESQL":
+				return "org.postgresql.Driver";
+			case "TIBERO":
+				return "com.tmax.tibero.jdbc.TbDriver";
+			case "DB2":
+				return "com.ibm.db2.jcc.DB2Driver";
+			case "MYSQL":
+				return "com.mysql.jdbc.Driver";
+			default:
+				return "oracle.jdbc.driver.OracleDriver";
+		}
+	}
+	
+	public String getTestQueryByDbType(String dbType) {
+		switch (dbType.toUpperCase()) {
+			case "ORACLE":
+				return "SELECT 1 FROM DUAL";
+			case "POSTGRESQL":
+				return "SELECT current_database(), current_user, version()";  // 더 엄격한 테스트
+			case "TIBERO":
+				return "SELECT 1 FROM DUAL";
+			case "DB2":
+				return "SELECT 1 FROM SYSIBM.SYSDUMMY1";
+			case "MYSQL":
+				return "SELECT DATABASE(), USER(), VERSION()";  // 더 엄격한 테스트
+			default:
+				return "SELECT 1 FROM DUAL";
+		}
+	}
 
     
     /**
@@ -1247,25 +1281,28 @@ public class Common {
     public String createJdbcUrl(String dbtype, String ip, String port, String db) {
         String jdbcUrl = "";
 
-        switch (dbtype) {
+        switch (dbtype.toUpperCase()) {
         case "DB2":
             jdbcUrl = "jdbc:db2://" + ip + ":" + port + "/" + db;
             break;
         case "ORACLE":
             jdbcUrl = "jdbc:oracle:thin:@" + ip + ":" + port + "/" + db;
             break;
-        case "PostgreSQL":
+        case "POSTGRESQL":
             jdbcUrl = "jdbc:postgresql://" + ip + ":" + port + "/" + db;
             break;
-        case "Tibero":
+        case "TIBERO":
             jdbcUrl = "jdbc:tibero:thin:@" + ip + ":" + port + ":" + db;
+            break;
+        case "MYSQL":
+            jdbcUrl = "jdbc:mysql://" + ip + ":" + port + "/" + db;
             break;
         default:
             jdbcUrl = "jdbc:db2://" + ip + ":" + port + "/" + db;
             break;
         }
 
-        logger.info("JDBC URL 생성: {} -> {}", dbtype, jdbcUrl);
+        		logger.debug("JDBC URL 생성: {} -> {}", dbtype, jdbcUrl);
         return jdbcUrl;
     }
 
@@ -1276,7 +1313,7 @@ public class Common {
         // 연결 시도
         if (driverInstance != null) {
             // 동적으로 로드된 드라이버 인스턴스 사용
-            logger.info("동적 드라이버 인스턴스로 연결 시도");
+            logger.debug("동적 드라이버 인스턴스로 연결 시도");
             Connection connection = driverInstance.connect(jdbc, prop);
             if (connection == null) {
                 logger.warn("동적 드라이버 연결이 null을 반환했습니다. DriverManager로 재시도합니다.");
@@ -1285,7 +1322,7 @@ public class Common {
             return connection;
         } else {
             // DriverManager 사용
-            logger.info("DriverManager로 연결 시도");
+            logger.debug("DriverManager로 연결 시도");
             return DriverManager.getConnection(jdbc, prop);
         }
     }
@@ -1296,8 +1333,8 @@ public class Common {
             String jdbcFilePath = JdbcPath + jdbcDriverFile.trim();
             File jdbcFile = new File(jdbcFilePath);
 
-            logger.info("JDBC 드라이버 파일 경로: {}", jdbcFilePath);
-            logger.info("JDBC 드라이버 파일 존재 여부: {}", jdbcFile.exists());
+            logger.debug("JDBC 드라이버 파일 경로: {}", jdbcFilePath);
+            logger.debug("JDBC 드라이버 파일 존재 여부: {}", jdbcFile.exists());
 
             if (jdbcFile.exists()) {
                 try {
@@ -1307,17 +1344,17 @@ public class Common {
                         Common.class.getClassLoader()
                     );
 
-                    logger.info("ClassLoader 생성 성공");
+                    		logger.debug("ClassLoader 생성 성공");
 
                     // 드라이버 클래스를 동적으로 로드
                     Class<?> driverClassObj = classLoader.loadClass(driverClass);
-                    logger.info("드라이버 클래스 로드 성공: {}", driverClass);
+                    		logger.debug("드라이버 클래스 로드 성공: {}", driverClass);
 
                     // 드라이버 인스턴스 생성
                     java.sql.Driver driverInstance = (java.sql.Driver) driverClassObj.newInstance();
                     logger.info("드라이버 인스턴스 생성 성공");
 
-                    logger.info("동적 드라이버 로드 성공: {}", jdbcFilePath);
+                    		logger.debug("동적 드라이버 로드 성공: {}", jdbcFilePath);
                     return driverInstance;
                 } catch (Exception e) {
                     logger.error("동적 드라이버 로드 실패: {}", e.getMessage(), e);
@@ -1328,7 +1365,7 @@ public class Common {
             }
         } else {
             // 기본 드라이버 로드
-            logger.info("기본 드라이버 로드: {}", driverClass);
+            logger.debug("기본 드라이버 로드: {}", driverClass);
             Class.forName(driverClass);
             return null; // 기본 드라이버는 DriverManager에서 처리
         }

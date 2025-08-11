@@ -165,14 +165,6 @@
 			<version>1.15</version>
 		</dependency>
 
-		<!-- DeXcrypto JAR file -->
-		<dependency>
-			<groupId>kr.Windmill</groupId>
-			<artifactId>DeXcrypto</artifactId>
-			<version>1.0</version>
-			<scope>system</scope>
-			<systemPath>${project.basedir}/src/main/webapp/WEB-INF/lib/DeXcrypto.jar</systemPath>
-		</dependency>
 
 		<!-- javax.annotation-api for @PostConstruct and @PreDestroy -->
 		<dependency>

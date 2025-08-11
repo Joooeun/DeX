@@ -17,13 +17,11 @@ import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import kr.Windmill.service.ConnectionDTO;
-import kr.Windmill.service.LogInfoDTO;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
-import org.springframework.beans.factory.annotation.Autowired;
 
 @Service
 public class SQLExecuteService {
@@ -32,12 +30,14 @@ public class SQLExecuteService {
     private final Common com;
     private final Log cLog;
     private final ConnectionPoolManager connectionPoolManager;
+    private final ConnectionService connectionService;
     
     @Autowired
-    public SQLExecuteService(Common common, Log log, ConnectionPoolManager connectionPoolManager) {
+    public SQLExecuteService(Common common, Log log, ConnectionPoolManager connectionPoolManager, ConnectionService connectionService) {
         this.com = common;
         this.cLog = log;
         this.connectionPoolManager = connectionPoolManager;
+        this.connectionService = connectionService;
     }
 
     public enum SqlType {
@@ -53,10 +53,14 @@ public class SQLExecuteService {
      */
     public Map<String, List> executeSQL(LogInfoDTO data) throws Exception {
         data.setStart(Instant.now());
-        ConnectionDTO connection = com.getConnection(data.getConnection());
+        
+        // 연결 이름으로 ConnectionDTO 가져오기 (캐싱됨)
+        ConnectionDTO connection = connectionService.createConnectionDTO(data.getConnection());
+        
+        // DataSource 가져오기 (이미 동적 드라이버 로딩이 적용됨)
+        javax.sql.DataSource dataSource = connectionPoolManager.getDataSource(data.getConnection());
+        
         Properties prop = connection.getProp();
-
-        Class.forName(connection.getDriver());
         prop.put("clientProgramName", "DeX");
 
         String sql = data.getSql().length() > 0 ? data.getSql() : com.FileRead(new File(data.getPath()));
@@ -238,18 +242,75 @@ public class SQLExecuteService {
 
             if (result.get("rowbody") != null)
                 singleList.addAll(result.get("rowbody"));
-            singleList.addAll(com.updatequery(sql.trim(), connection.getDbtype(), connection.getJdbc(), prop, null, mapping));
-            result.put("rowbody", singleList);
+            try {
+                // DataSource에서 직접 Connection 가져오기 (동적 드라이버 로딩 적용됨)
+                javax.sql.DataSource dataSource = connectionPoolManager.getDataSource(data.getConnection());
+                try (java.sql.Connection conn = dataSource.getConnection()) {
+                    singleList.addAll(executeUpdateWithConnection(conn, sql.trim(), mapping));
+                }
+                result.put("rowbody", singleList);
 
-            data.setRows(singleList.size());
-            data.setEnd(Instant.now());
-            data.setResult("Success");
-            Duration timeElapsed = Duration.between(singleStart, data.getEnd());
+                data.setRows(singleList.size());
+                data.setEnd(Instant.now());
+                data.setResult("Success");
+                Duration timeElapsed = Duration.between(singleStart, data.getEnd());
 
-            cLog.log_end(data, " sql 실행 종료 : 성공 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
-            cLog.log_DB(data);
+                cLog.log_end(data, " sql 실행 종료 : 성공 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
+                cLog.log_DB(data);
+            } catch (Exception e) {
+                // 에러 발생 시에도 결과에 담기
+                List<String> errorRow = new ArrayList<>();
+                errorRow.add("error");
+                errorRow.add("0");
+                errorRow.add(sql + " - " + e.getMessage());
+                singleList.add(errorRow);
+                result.put("rowbody", singleList);
+
+                data.setRows(0);
+                data.setEnd(Instant.now());
+                data.setResult("Error: " + e.getMessage());
+                Duration timeElapsed = Duration.between(singleStart, data.getEnd());
+
+                cLog.log_end(data, " sql 실행 종료 : 실패 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + " / 오류: " + e.getMessage() + "\n");
+                cLog.log_DB(data);
+                
+                logger.error("SQL 실행 실패: {}", e.getMessage(), e);
+            }
         }
 
+        return result;
+    }
+    
+    /**
+     * Connection을 사용한 UPDATE SQL 실행
+     */
+    private List<List<String>> executeUpdateWithConnection(java.sql.Connection conn, String sql, List<Map<String, String>> mapping) throws SQLException {
+        List<List<String>> result = new ArrayList<>();
+        
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            // 파라미터 바인딩
+            for (int i = 0; i < mapping.size(); i++) {
+                switch (mapping.get(i).get("type")) {
+                    case "string":
+                    case "text":
+                    case "varchar":
+                        pstmt.setString(i + 1, mapping.get(i).get("value"));
+                        break;
+                    default:
+                        pstmt.setInt(i + 1, Integer.parseInt(mapping.get(i).get("value")));
+                        break;
+                }
+            }
+            
+            int rowcnt = pstmt.executeUpdate();
+            
+            List<String> row = new ArrayList<>();
+            row.add("success");
+            row.add(Integer.toString(rowcnt));
+            row.add(sql);
+            result.add(row);
+        }
+        
         return result;
     }
 

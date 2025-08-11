@@ -3,6 +3,7 @@ package kr.Windmill.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import kr.Windmill.util.Common;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -102,7 +103,7 @@ public class DynamicDriverManager {
      */
     private void loadExternalDrivers() {
         // 드라이버 JAR 파일들이 저장된 디렉토리
-        String driverLibPath = System.getProperty("user.home") + "/dex-drivers";
+        String driverLibPath = Common.getJdbcDriverPath("");
         File driverLibDir = new File(driverLibPath);
         
         if (!driverLibDir.exists()) {
@@ -133,11 +134,11 @@ public class DynamicDriverManager {
         String jarPath = jarFile.getAbsolutePath();
         String jarName = jarFile.getName();
         
-        logger.info("JAR 파일에서 드라이버 로드 시작: {}", jarName);
+        logger.debug("JAR 파일에서 드라이버 로드 시작: {}", jarName);
         
         // JAR 파일이 이미 로드되었는지 확인
         if (loadedDrivers.containsKey(jarPath)) {
-            logger.info("이미 로드된 JAR 파일: {}", jarName);
+            logger.debug("이미 로드된 JAR 파일: {}", jarName);
             return;
         }
         
@@ -172,7 +173,7 @@ public class DynamicDriverManager {
         loadedDrivers.put(jarPath, loadedDriver);
         classLoaders.put(jarPath, classLoader);
         
-        logger.info("드라이버 로드 성공: {} (버전: {})", driverClassName, version);
+        logger.debug("드라이버 로드 성공: {} (버전: {})", driverClassName, version);
     }
     
     /**

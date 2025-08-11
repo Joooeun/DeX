@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PreDestroy;
 import javax.sql.DataSource;
 import java.io.IOException;
+import java.net.URLClassLoader;
+import java.sql.DriverManager;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Properties;
@@ -53,7 +55,7 @@ public class ConnectionPoolManager {
      */
     private DataSource createDataSource(String connectionId) {
         try {
-            logger.info("DataSource 생성 시작: {}", connectionId);
+            logger.debug("DataSource 생성 시작: {}", connectionId);
             
             // 연결 설정 가져오기
             ConnectionDTO connection = common.getConnection(connectionId);
@@ -62,8 +64,35 @@ public class ConnectionPoolManager {
             // HikariCP 설정
             HikariConfig config = new HikariConfig();
             
-            // 기본 연결 정보 설정
-            config.setDriverClassName(connection.getDriver());
+            // 동적 드라이버 로드가 필요한 경우 처리
+            if (connection.getJdbcDriverFile() != null && !connection.getJdbcDriverFile().trim().isEmpty()) {
+                try {
+                    // 동적 드라이버 로드
+                    java.sql.Driver driver = loadDriverDynamically(connection.getJdbcDriverFile(), connection.getDriver());
+                    
+                    // Thread Context ClassLoader 설정 (HikariCP가 동적 드라이버를 찾을 수 있도록)
+                    ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
+                    try {
+                        // 동적으로 로드된 드라이버의 ClassLoader를 Thread Context ClassLoader로 설정
+                        Thread.currentThread().setContextClassLoader(driver.getClass().getClassLoader());
+                        
+                        // HikariCP 설정
+                        config.setDriverClassName(connection.getDriver());
+                        
+                        logger.info("동적 드라이버를 위한 Thread Context ClassLoader 설정 완료: {}", connection.getDriver());
+                    } finally {
+                        // 원래 ClassLoader 복원
+                        Thread.currentThread().setContextClassLoader(originalClassLoader);
+                    }
+                } catch (Exception e) {
+                    logger.error("동적 드라이버 로드 실패: {}", connection.getJdbcDriverFile(), e);
+                    throw new RuntimeException("동적 드라이버 로드 실패", e);
+                }
+            } else {
+                // 기본 드라이버 사용
+                config.setDriverClassName(connection.getDriver());
+            }
+            
             config.setJdbcUrl(connection.getJdbc());
             config.setUsername(connection.getProp().getProperty("user"));
             config.setPassword(connection.getProp().getProperty("password"));
@@ -90,7 +119,7 @@ public class ConnectionPoolManager {
             // DataSource 생성
             HikariDataSource dataSource = new HikariDataSource(config);
             
-            logger.info("DataSource 생성 완료: {} (최대 연결: {})", connectionId, config.getMaximumPoolSize());
+            logger.debug("DataSource 생성 완료: {} (최대 연결: {})", connectionId, config.getMaximumPoolSize());
             
             return dataSource;
             
@@ -226,5 +255,51 @@ public class ConnectionPoolManager {
      */
     public int getDataSourceCount() {
         return dataSourceMap.size();
+    }
+    
+    /**
+     * 동적으로 JDBC 드라이버를 로드합니다.
+     * @param jdbcDriverFile JDBC 드라이버 파일 경로
+     * @param driverClass 드라이버 클래스명
+     * @return 로드된 드라이버 인스턴스
+     * @throws Exception 드라이버 로드 실패 시
+     */
+    private java.sql.Driver loadDriverDynamically(String jdbcDriverFile, String driverClass) throws Exception {
+        try {
+            // JDBC 드라이버 파일 경로 확인
+            String driverPath = common.getJdbcDriverPath(jdbcDriverFile);
+            logger.info("JDBC 드라이버 파일 경로: {}", driverPath);
+            
+            // 파일 존재 여부 확인
+            boolean fileExists = common.isJdbcDriverExists(jdbcDriverFile);
+            logger.info("JDBC 드라이버 파일 존재 여부: {}", fileExists);
+            
+            if (!fileExists) {
+                throw new RuntimeException("JDBC 드라이버 파일을 찾을 수 없습니다: " + jdbcDriverFile);
+            }
+            
+            // URLClassLoader 생성
+            java.net.URL[] urls = new java.net.URL[]{new java.io.File(driverPath).toURI().toURL()};
+            URLClassLoader classLoader = new URLClassLoader(urls, Thread.currentThread().getContextClassLoader());
+            logger.debug("ClassLoader 생성 성공");
+            
+            // 드라이버 클래스 로드
+            Class<?> driverClazz = classLoader.loadClass(driverClass);
+            logger.debug("드라이버 클래스 로드 성공: {}", driverClass);
+            
+            // 드라이버 인스턴스 생성
+            java.sql.Driver driver = (java.sql.Driver) driverClazz.getDeclaredConstructor().newInstance();
+            logger.info("드라이버 인스턴스 생성 성공");
+            
+            // DriverManager에 등록
+            DriverManager.registerDriver(driver);
+            logger.debug("동적 드라이버 로드 성공: {}", jdbcDriverFile);
+            
+            return driver;
+            
+        } catch (Exception e) {
+            logger.error("동적 드라이버 로드 실패: {}", jdbcDriverFile, e);
+            throw e;
+        }
     }
 }
