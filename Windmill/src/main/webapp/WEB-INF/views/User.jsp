@@ -1,7 +1,5 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<%@ include file="common/header.jsp" %>
-
-<div class="content-wrapper">
+<%@include file="common/common.jsp"%>
+<div class="content-wrapper" style="margin-left: 0">
     <section class="content-header">
         <h1>사용자 관리</h1>
     </section>
@@ -328,4 +326,4 @@ function assignGroup() {
 }
 </script>
 
-<%@ include file="common/footer.jsp" %>
+</body>
