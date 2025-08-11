@@ -22,6 +22,7 @@ import org.springframework.web.servlet.ModelAndView;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
 import kr.Windmill.util.VersionUtil;
+import kr.Windmill.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
@@ -30,11 +31,13 @@ public class LoginController {
 	private static final Logger logger = LoggerFactory.getLogger(LoginController.class);
 	private final Common com;
 	private final Log cLog;
+	private final UserService userService;
 	
 	@Autowired
-	public LoginController(Common common, Log log) {
+	public LoginController(Common common, Log log, UserService userService) {
 		this.com = common;
 		this.cLog = log;
+		this.userService = userService;
 	}
 
 	@RequestMapping(path = "/", method = RequestMethod.GET)
@@ -52,84 +55,64 @@ public class LoginController {
 	public String login(HttpServletRequest request, Model model, HttpServletResponse response) {
 
 		HttpSession session = request.getSession();
-		// System.out.println("Timeout : " + Common.Timeout + " min");
 		logger.info("Timeout : {} min", Common.Timeout);
 		session.setMaxInactiveInterval(Common.Timeout * 60);
 
+		String userId = request.getParameter("id");
+		String password = request.getParameter("pw");
+		String ipAddress = com.getIp(request);
+		String userAgent = request.getHeader("User-Agent");
+
 		try {
-			List<Map<String, String>> userList = com.UserList();
+			// 데이터베이스 기반 로그인 처리
+			Map<String, Object> loginResult = userService.login(userId, password, ipAddress, userAgent);
+			
+			if ((Boolean) loginResult.get("success")) {
+				// 로그인 성공
+				session.setAttribute("memberId", userId);
+				session.setAttribute("sessionId", loginResult.get("sessionId"));
+				session.setAttribute("changePW", false); // 임시 비밀번호 여부는 DB에서 확인 필요
+				
+				cLog.userLog(userId, ipAddress, " 로그인 성공");
 
-			List<String> userIds = userList.stream().map(user -> user.get("id")).collect(Collectors.toList());
+				response.setHeader("Cache-Control", "no-cache, no-store");
+				response.setHeader("Pragma", "no-cache");
+				response.setDateHeader("Expires", 0);
 
-			if (userIds.contains(request.getParameter("id"))) {
-
-				// System.out.println("id : " + request.getParameter("id"));
-				logger.info("Login attempt for id: {}", request.getParameter("id"));
-
-				Map<String, String> map = com.UserConf(request.getParameter("id"));
-
-				if (!map.get("IP").equals("") && !map.get("IP").equals(com.getIp(request))) {
-
-					logger.info(request.getParameter("id") + " 로그인 실패.. 접속 ip : " + com.getIp(request));
-					model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
-					return "/common/messageRedirect";
-				}
-
-				if (map.get("TEMPPW").equals("true") && map.get("PW").equals(request.getParameter("pw"))) {
-
-					session.setAttribute("memberId", request.getParameter("id"));
-					session.setAttribute("changePW", true);
-					cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 성공, 비밀번호 변경 필요");
-
-					response.setHeader("Cache-Control", "no-cache, no-store");
-					response.setHeader("Pragma", "no-cache");
-					response.setDateHeader("Expires", 0);
-
-					return "redirect:/index";
-
-				} else if (map.get("PW").equals(request.getParameter("pw"))) {
-
-					session.setAttribute("memberId", request.getParameter("id"));
-					session.setAttribute("changePW", false);
-					cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 성공");
-
-					response.setHeader("Cache-Control", "no-cache, no-store");
-					response.setHeader("Pragma", "no-cache");
-					response.setDateHeader("Expires", 0);
-
-					return "redirect:/index";
-
-				} else {
-					cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 실패 / 입력 : " + request.getParameter("pw"));
-					model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
-					return "/common/messageRedirect";
-				}
-
+				return "redirect:/index";
 			} else {
-
-				cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 실패..");
+				// 로그인 실패
+				cLog.userLog(userId, ipAddress, " 로그인 실패: " + loginResult.get("message"));
 				model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
 				return "/common/messageRedirect";
 			}
-		} catch (Exception e) {
 
-			model.addAttribute("params", com.showMessageAndRedirect("계정정보를 불러오는데 실패했습니다.", "/", "GET"));
+		} catch (Exception e) {
+			logger.error("로그인 처리 중 오류 발생", e);
+			cLog.userLog(userId, ipAddress, " 로그인 처리 오류: " + e.getMessage());
+			model.addAttribute("params", com.showMessageAndRedirect("로그인 처리 중 오류가 발생했습니다.", "/", "GET"));
 			return "/common/messageRedirect";
 		}
+	}
 
-//		AES256Cipher a256 = AES256Cipher.getInstance();
-//
-//		if (a256.AES_Encode(request.getParameter("id")).equals("r57xendzrXD8pJMPJx9DMg==")
-//				&& a256.AES_Encode(request.getParameter("pw")).equals("hAZgHLTCL9SSLBqsCMMm/g==")) {
-//			session.setAttribute("memberId", request.getParameter("id"));
-//			logger.info(request.getParameter("id") + " login." + getIp(request));
-//		} else {
-//			logger.info("faild login.." + a256.AES_Encode(request.getParameter("id")) + " / "
-//					+ a256.AES_Encode(request.getParameter("pw")));
-//		}
-
-//		System.out.println("session : " + session.getAttribute("memberId"));
-
+	// 로그아웃 처리
+	@RequestMapping(path = "/logout")
+	public String logout(HttpServletRequest request, Model model) {
+		HttpSession session = request.getSession();
+		String userId = (String) session.getAttribute("memberId");
+		String sessionId = (String) session.getAttribute("sessionId");
+		
+		if (userId != null && sessionId != null) {
+			try {
+				userService.logout(sessionId, userId);
+				cLog.userLog(userId, com.getIp(request), " 로그아웃");
+			} catch (Exception e) {
+				logger.error("로그아웃 처리 중 오류 발생", e);
+			}
+		}
+		
+		session.invalidate();
+		return "redirect:/Login";
 	}
 
 	@RequestMapping(path = "/index", method = RequestMethod.GET)
