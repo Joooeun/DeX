@@ -1,77 +1,94 @@
 package kr.Windmill.service;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import kr.Windmill.util.Common;
+import kr.Windmill.util.Log;
 
 @Service
 public class DexStatusService {
     
-    private static final Logger logger = LoggerFactory.getLogger(DexStatusService.class);
-    
-    private final Common com = new Common();
+    private final Common com;
+    private final Log cLog;
     private final Map<String, DexStatusDTO> dexStatusMap = new ConcurrentHashMap<>();
-    private Thread monitoringThread;
+    private ScheduledExecutorService scheduler;
     private volatile boolean isRunning = false;
+    
+    @Autowired
+    public DexStatusService(Common common, Log log) {
+        this.com = common;
+        this.cLog = log;
+    }
     
     @PostConstruct
     public void startMonitoring() {
-        logger.info("DEX 상태 모니터링 시작");
+        cLog.monitoringLog("DEX_STATUS", "DEX 상태 모니터링 시작");
         isRunning = true;
         
         // 초기 상태 설정
         initializeDexStatus();
         
-        monitoringThread = new Thread(this::monitorDexStatus, "DexStatusMonitor");
-        monitoringThread.setDaemon(true);
-        monitoringThread.start();
+        // ScheduledExecutorService 사용
+        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "DexStatusMonitor");
+            t.setDaemon(true);
+            return t;
+        });
+        
+        // 30초마다 상태 업데이트 실행
+        scheduler.scheduleAtFixedRate(this::updateAllDexStatuses, 0, 30, TimeUnit.SECONDS);
     }
     
     @PreDestroy
     public void stopMonitoring() {
-        logger.info("DEX 상태 모니터링 중지");
+        cLog.monitoringLog("DEX_STATUS", "DEX 상태 모니터링 중지");
         isRunning = false;
         
-        if (monitoringThread != null && monitoringThread.isAlive()) {
-            monitoringThread.interrupt();
+        if (scheduler != null && !scheduler.isShutdown()) {
             try {
-                // 모니터링 스레드가 종료될 때까지 최대 3초 대기 (10초에서 단축)
-                monitoringThread.join(3000);
-                if (monitoringThread.isAlive()) {
-                    logger.warn("DEX 모니터링 스레드가 3초 내에 종료되지 않았습니다. 강제 종료합니다.");
-                    // 강제 종료를 위해 추가 인터럽트
-                    monitoringThread.interrupt();
-                    monitoringThread.join(1000); // 추가 1초 대기
+                // 스케줄러 종료 요청
+                scheduler.shutdown();
+                
+                // 최대 5초 대기
+                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                    cLog.monitoringLog("DEX_STATUS_WARN", "스케줄러가 5초 내에 종료되지 않았습니다. 강제 종료합니다.");
+                    scheduler.shutdownNow();
+                    
+                    // 추가 2초 대기
+                    if (!scheduler.awaitTermination(2, TimeUnit.SECONDS)) {
+                        cLog.monitoringLog("DEX_STATUS_ERROR", "스케줄러 강제 종료 실패");
+                    }
                 } else {
-                    logger.info("DEX 모니터링 스레드가 정상적으로 종료되었습니다.");
+                    cLog.monitoringLog("DEX_STATUS", "스케줄러가 정상적으로 종료되었습니다.");
                 }
             } catch (InterruptedException e) {
-                logger.warn("DEX 모니터링 스레드 종료 대기 중 인터럽트 발생");
+                cLog.monitoringLog("DEX_STATUS_WARN", "스케줄러 종료 대기 중 인터럽트 발생");
+                scheduler.shutdownNow();
                 Thread.currentThread().interrupt();
             }
         }
         
         // 상태 맵 정리
         dexStatusMap.clear();
-        logger.info("DEX 상태 모니터링 중지 완료");
+        cLog.monitoringLog("DEX_STATUS", "DEX 상태 모니터링 중지 완료");
     }
     
     private void initializeDexStatus() {
@@ -95,44 +112,35 @@ public class DexStatusService {
         );
         dexStatusMap.put("dex_service", serviceStatus);
         
-        logger.info("DEX 상태 초기화 완료");
+        cLog.monitoringLog("DEX_STATUS", "DEX 상태 초기화 완료");
     }
     
-    private void monitorDexStatus() {
-        logger.info("DEX 상태 모니터링 스레드 시작");
-        while (isRunning) {
-            try {
-                logger.info("=== DEX 상태 업데이트 시작 ===");
-                updateAllDexStatuses();
-                logger.info("=== DEX 상태 업데이트 완료 ===");
-                Thread.sleep(30000); // 30초마다 확인
-            } catch (InterruptedException e) {
-                logger.info("DEX 상태 모니터링 스레드 인터럽트됨");
-                Thread.currentThread().interrupt();
-                break;
-            } catch (Exception e) {
-                logger.error("DEX 상태 모니터링 중 오류 발생", e);
-            }
-        }
-        logger.info("DEX 상태 모니터링 스레드 종료");
-    }
+
     
     private void updateAllDexStatuses() {
+        if (!isRunning) {
+            return; // 모니터링이 중지된 경우 실행하지 않음
+        }
+        
         try {
+            cLog.monitoringLog("DEX_STATUS", "=== DEX 상태 업데이트 시작 ===");
+            
             // DEX 프로세스 상태 확인
             updateProcessStatus();
             
             // DEX 서비스 상태 확인
             updateServiceStatus();
             
+            cLog.monitoringLog("DEX_STATUS", "=== DEX 상태 업데이트 완료 ===");
+            
         } catch (Exception e) {
-            logger.error("DEX 상태 업데이트 중 오류 발생", e);
+            cLog.monitoringLog("DEX_STATUS_ERROR", "DEX 상태 업데이트 중 오류 발생: " + e.getMessage());
         }
     }
     
     private void updateProcessStatus() {
         try {
-            logger.info("DEX 프로세스 상태 확인 중...");
+            cLog.monitoringLog("DEX_PROCESS", "DEX 프로세스 상태 확인 중...");
             
             ProcessInfo processInfo = checkDexProcessDetailed();
             
@@ -145,8 +153,8 @@ public class DexStatusService {
                 status.setCpuUsage(processInfo.getCpuUsage());
                 status.setMemoryUsage(processInfo.getMemoryUsage());
                 status.setPid(processInfo.getPid());
-                logger.info("DEX 프로세스 정상 실행 중 - PID: {}, CPU: {}%, MEM: {}%", 
-                    processInfo.getPid(), processInfo.getCpuUsage(), processInfo.getMemoryUsage());
+                cLog.monitoringLog("DEX_PROCESS", "DEX 프로세스 정상 실행 중 - PID: " + processInfo.getPid() + 
+                    ", CPU: " + processInfo.getCpuUsage() + "%, MEM: " + processInfo.getMemoryUsage() + "%");
             } else {
                 status.setStatus("stopped");
                 status.setColor("#dc3545");
@@ -155,12 +163,12 @@ public class DexStatusService {
                 status.setCpuUsage(0.0);
                 status.setMemoryUsage(0.0);
                 status.setPid("");
-                logger.warn("DEX 프로세스 중지됨");
+                cLog.monitoringLog("DEX_PROCESS_WARN", "DEX 프로세스 중지됨");
             }
             status.setLastChecked(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             
         } catch (Exception e) {
-            logger.error("프로세스 상태 확인 중 오류", e);
+            cLog.monitoringLog("DEX_PROCESS_ERROR", "프로세스 상태 확인 중 오류: " + e.getMessage());
             DexStatusDTO status = dexStatusMap.get("dex_process");
             status.setStatus("error");
             status.setColor("#dc3545");
@@ -176,7 +184,7 @@ public class DexStatusService {
         ProcessInfo processInfo = new ProcessInfo();
         
         try {
-            logger.info("DEX 프로세스 상세 확인 시작...");
+            cLog.monitoringLog("DEX_PROCESS", "DEX 프로세스 상세 확인 시작...");
             
             // ps aux 명령어로 상세 프로세스 정보 확인
             ProcessBuilder pb = new ProcessBuilder("ps", "aux");
@@ -216,7 +224,7 @@ public class DexStatusService {
                             processInfo.setMemoryUsage(memValue);
                             processInfo.setPid(pid);
                         } catch (NumberFormatException e) {
-                            logger.warn("CPU/메모리 값 파싱 실패: CPU={}, MEM={}", cpu, mem);
+                            cLog.monitoringLog("DEX_PROCESS_WARN", "CPU/메모리 값 파싱 실패: CPU=" + cpu + ", MEM=" + mem);
                         }
                         
                         detailInfo.append(String.format("PID: %s, CPU: %s%%, MEM: %s%%, VSZ: %sKB, RSS: %sKB, TIME: %s\n", 
@@ -225,7 +233,7 @@ public class DexStatusService {
                         detailInfo.append("프로세스: ").append(line.trim()).append("\n");
                     }
                     
-                    logger.info("발견된 Tomcat 프로세스: {}", line.trim());
+                    cLog.monitoringLog("DEX_PROCESS", "발견된 Tomcat 프로세스: " + line.trim());
                 }
             }
             
@@ -239,10 +247,10 @@ public class DexStatusService {
             }
             
             processInfo.setDetailInfo(detailInfo.toString());
-            logger.info("프로세스 상세 확인 완료 - 발견된 Tomcat 프로세스: {}개", processCount);
+            cLog.monitoringLog("DEX_PROCESS", "프로세스 상세 확인 완료 - 발견된 Tomcat 프로세스: " + processCount + "개");
             
         } catch (Exception e) {
-            logger.error("프로세스 상세 확인 중 오류", e);
+            cLog.monitoringLog("DEX_PROCESS_ERROR", "프로세스 상세 확인 중 오류: " + e.getMessage());
             processInfo.setRunning(false);
             processInfo.setDetailInfo("오류: " + e.getMessage());
         }
@@ -309,7 +317,7 @@ public class DexStatusService {
     
     private void updateServiceStatus() {
         try {
-            logger.info("DEX 서비스 상태 확인 중...");
+            cLog.monitoringLog("DEX_SERVICE", "DEX 서비스 상태 확인 중...");
             
             boolean isServiceAvailable = checkDexService();
             
@@ -318,17 +326,17 @@ public class DexStatusService {
                 status.setStatus("available");
                 status.setColor("#28a745");
                 status.setMessage("서비스 정상 작동");
-                logger.info("DEX 서비스 정상 작동");
+                cLog.monitoringLog("DEX_SERVICE", "DEX 서비스 정상 작동");
             } else {
                 status.setStatus("unavailable");
                 status.setColor("#dc3545");
                 status.setMessage("서비스 응답 없음");
-                logger.warn("DEX 서비스 응답 없음");
+                cLog.monitoringLog("DEX_SERVICE_WARN", "DEX 서비스 응답 없음");
             }
             status.setLastChecked(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
             
         } catch (Exception e) {
-            logger.error("서비스 상태 확인 중 오류", e);
+            cLog.monitoringLog("DEX_SERVICE_ERROR", "서비스 상태 확인 중 오류: " + e.getMessage());
             DexStatusDTO status = dexStatusMap.get("dex_service");
             status.setStatus("error");
             status.setColor("#dc3545");
@@ -338,7 +346,7 @@ public class DexStatusService {
     
     private boolean checkDexService() {
         try {
-            logger.info("DEX 서비스 확인 시작...");
+            cLog.monitoringLog("DEX_SERVICE", "DEX 서비스 확인 시작...");
             
             // 현재 애플리케이션의 메인 페이지 접근 테스트
             String testUrl = "http://localhost:8080/";
@@ -352,11 +360,11 @@ public class DexStatusService {
             int responseCode = connection.getResponseCode();
             connection.disconnect();
             
-            logger.info("서비스 확인 완료 - 응답 코드: {}", responseCode);
+            cLog.monitoringLog("DEX_SERVICE", "서비스 확인 완료 - 응답 코드: " + responseCode);
             return responseCode == 200;
             
         } catch (Exception e) {
-            logger.error("서비스 확인 중 오류", e);
+            cLog.monitoringLog("DEX_SERVICE_ERROR", "서비스 확인 중 오류: " + e.getMessage());
             return false;
         }
     }
@@ -371,7 +379,7 @@ public class DexStatusService {
     
     // 수동으로 특정 상태 업데이트
     public void updateDexStatusManually(String statusName) {
-        logger.info("수동 DEX 상태 확인 요청: {}", statusName);
+        cLog.monitoringLog("DEX_STATUS_MANUAL", "수동 DEX 상태 확인 요청: " + statusName);
         
         if ("dex_process".equals(statusName)) {
             updateProcessStatus();
@@ -379,6 +387,6 @@ public class DexStatusService {
             updateServiceStatus();
         }
         
-        logger.info("수동 DEX 상태 확인 완료: {}", statusName);
+        cLog.monitoringLog("DEX_STATUS_MANUAL", "수동 DEX 상태 확인 완료: " + statusName);
     }
 } 

@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
 import kr.Windmill.service.ConnectionStatusDTO;
-import kr.Windmill.service.ConnectionStatusService;
+import kr.Windmill.service.ConnectionService;
 import kr.Windmill.util.Common;
 
 @Controller
@@ -32,9 +32,9 @@ public class ConnectionController {
 
 	private static final Logger logger = LoggerFactory.getLogger(ConnectionController.class);
 
-	@Autowired
-	private ConnectionStatusService connectionStatusService;
-	
+		@Autowired
+	private ConnectionService connectionService;
+
 	Common com = new Common();
 
 	@RequestMapping(path = "/Connection", method = RequestMethod.GET)
@@ -117,7 +117,7 @@ public class ConnectionController {
 	@RequestMapping(path = "/Connection/status")
 	public List<ConnectionStatusDTO> getConnectionStatus(HttpServletRequest request, HttpSession session) {
 		String id = (String) session.getAttribute("memberId");
-		return connectionStatusService.getConnectionStatusesForUser(id);
+		return connectionService.getConnectionStatusesForUser(id);
 	}
 
 	@ResponseBody
@@ -125,7 +125,7 @@ public class ConnectionController {
 	public String refreshConnectionStatus(HttpServletRequest request, HttpSession session) {
 		String connectionName = request.getParameter("connectionName");
 		if (connectionName != null && !connectionName.isEmpty()) {
-			connectionStatusService.updateConnectionStatusManually(connectionName);
+			connectionService.updateConnectionStatusManually(connectionName);
 			return "success";
 		}
 		return "error";
@@ -192,15 +192,15 @@ public class ConnectionController {
 
 			if (jdbcDriverFile != null && !jdbcDriverFile.trim().isEmpty()) {
 				// 사용자 지정 드라이버 파일 사용
-				Map<String, String> driverInfo = com.extractDriverInfo(jdbcDriverFile.trim());
+				Map<String, String> driverInfo = connectionService.extractDriverInfo(jdbcDriverFile.trim());
 				driverClass = driverInfo.get("driverClass");
 			} else {
 				// 기본 드라이버는 DB2 사용
 				driverClass = "com.ibm.db2.jcc.DB2Driver";
 			}
 
-			// JDBC URL 생성 (Common의 공통 메서드 사용)
-			jdbcUrl = com.createJdbcUrl(dbtype, ip, port, db);
+			// JDBC URL 생성 (ConnectionService의 공통 메서드 사용)
+			jdbcUrl = connectionService.createJdbcUrl(dbtype, ip, port, db);
 
 			testConnection.setDriver(driverClass);
 			testConnection.setJdbc(jdbcUrl);
@@ -208,8 +208,8 @@ public class ConnectionController {
 			// 실제 연결 테스트 (Common의 공통 메서드 사용)
 			java.sql.Connection conn = null;
 			try {
-				// Common의 동적 드라이버 연결 메서드 사용
-				conn = com.createConnectionWithDynamicDriver(jdbcUrl, prop, jdbcDriverFile, driverClass);
+				// ConnectionService의 동적 드라이버 연결 메서드 사용
+				conn = connectionService.createConnectionWithDynamicDriver(jdbcUrl, prop, jdbcDriverFile, driverClass);
 
 				// 연결 성공
 				long endTime = System.currentTimeMillis();
@@ -217,7 +217,7 @@ public class ConnectionController {
 
 				result.put("success", true);
 				result.put("driverClass", driverClass);
-				result.put("version", com.extractDriverInfo(jdbcDriverFile != null ? jdbcDriverFile : "").get("version"));
+				result.put("version", connectionService.extractDriverInfo(jdbcDriverFile != null ? jdbcDriverFile : "").get("version"));
 				result.put("duration", duration);
 				result.put("message", "연결이 성공적으로 완료되었습니다.");
 

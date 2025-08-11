@@ -14,8 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,15 +25,22 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import kr.Windmill.service.LogInfoDTO;
 import kr.Windmill.service.SQLExecuteService;
 import kr.Windmill.util.Common;
+import kr.Windmill.util.Log;
 
 @Controller
 public class DashboardController {
 
-    private static final Logger logger = LoggerFactory.getLogger(DashboardController.class);
-    private Common com = new Common();
+    private final Common com;
+    private final Log cLog;
     
     @Autowired
     private SQLExecuteService sqlExecuteService;
+    
+    @Autowired
+    public DashboardController(Common common, Log log) {
+        this.com = common;
+        this.cLog = log;
+    }
 
     /**
      * 대시보드 차트 데이터 조회 공통 메서드 (해시 비교 방식)
@@ -55,10 +60,14 @@ public class DashboardController {
             // 차트명을 대문자로 변환하여 SQL 파일명 생성
             String sqlName = chartName.toUpperCase();
             
+            // 모니터링 로그 기록
+            cLog.monitoringLog("DASHBOARD", "차트 데이터 요청: " + chartName + " (해시: " + lastHash + ")");
+            
             // SQL 실행
             Map<String, Object> sqlResult = executeDashboardSQL(sqlName);
             
             if (sqlResult.containsKey("error")) {
+                cLog.monitoringLog("DASHBOARD_ERROR", "차트 " + chartName + " 실행 오류: " + sqlResult.get("error"));
                 result.put("error", sqlResult.get("error"));
                 return result;
             }
@@ -72,17 +81,19 @@ public class DashboardController {
             // 해시값 비교
             if (currentHash.equals(lastHash)) {
                 // 데이터가 변경되지 않음
+                cLog.monitoringLog("DASHBOARD_CACHE", "차트 " + chartName + " 데이터 변경 없음 (캐시 사용)");
                 result.put("changed", false);
                 result.put("hash", currentHash);
             } else {
                 // 데이터가 변경됨
+                cLog.monitoringLog("DASHBOARD_UPDATE", "차트 " + chartName + " 데이터 업데이트 (행 수: " + rowbody.size() + ")");
                 result.put("changed", true);
                 result.put("hash", currentHash);
                 result.put("result", rowbody);
             }
 
         } catch (Exception e) {
-            logger.error("{} 실행 오류", chartName.toUpperCase(), e);
+            cLog.monitoringLog("DASHBOARD_EXCEPTION", "차트 " + chartName + " 예외 발생: " + e.getMessage());
             result.put("error", e.getMessage());
         }
 
@@ -101,7 +112,7 @@ public class DashboardController {
         // 001_DashBoard 폴더 존재 여부 확인
         File dashboardDir = new File(dashboardPath);
         if (!dashboardDir.exists() || !dashboardDir.isDirectory()) {
-            logger.warn("대시보드 폴더가 존재하지 않습니다: {}", dashboardPath);
+            cLog.monitoringLog("DASHBOARD_PATH_ERROR", "대시보드 폴더 없음: " + dashboardPath);
             Map<String, Object> result = new HashMap<>();
             result.put("error", "대시보드 폴더를 찾을 수 없습니다: " + dashboardPath);
             return result;
@@ -111,14 +122,14 @@ public class DashboardController {
         File propertiesFile = new File(propertiesPath);
 
         if (!sqlFile.exists()) {
-            logger.warn("SQL 파일을 찾을 수 없습니다: {}", sqlPath);
+            cLog.monitoringLog("DASHBOARD_FILE_ERROR", "SQL 파일 없음: " + sqlPath);
             Map<String, Object> result = new HashMap<>();
             result.put("error", "SQL 파일을 찾을 수 없습니다: " + sqlPath);
             return result;
         }
 
         if (!propertiesFile.exists()) {
-            logger.warn("Properties 파일을 찾을 수 없습니다: {}", propertiesPath);
+            cLog.monitoringLog("DASHBOARD_FILE_ERROR", "Properties 파일 없음: " + propertiesPath);
             Map<String, Object> result = new HashMap<>();
             result.put("error", "Properties 파일을 찾을 수 없습니다: " + propertiesPath);
             return result;
@@ -147,9 +158,19 @@ public class DashboardController {
         logInfo.setLimit(1000); // 기본 제한
 
         // 공통 SQL 실행 서비스 사용
+        cLog.monitoringLog("DASHBOARD_SQL_EXEC", "SQL 실행 시작: " + sqlName + " (연결: " + connectionName + ")");
         Map<String, List> sqlResult = sqlExecuteService.executeSQL(logInfo);
         Map<String, Object> result = new HashMap<>();
         result.putAll(sqlResult);
+        
+        // SQL 실행 결과 로그
+        if (sqlResult.containsKey("error")) {
+            cLog.monitoringLog("DASHBOARD_SQL_ERROR", "SQL 실행 실패: " + sqlName + " - " + sqlResult.get("error"));
+        } else {
+            List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
+            cLog.monitoringLog("DASHBOARD_SQL_SUCCESS", "SQL 실행 성공: " + sqlName + " (결과 행 수: " + (rowbody != null ? rowbody.size() : 0) + ")");
+        }
+        
         return result;
     }
     
@@ -173,7 +194,6 @@ public class DashboardController {
             }
             return sb.toString();
         } catch (Exception e) {
-            logger.error("해시 생성 중 오류 발생", e);
             // 해시 생성 실패 시 데이터의 hashCode 사용
             return String.valueOf(data.hashCode());
         }
