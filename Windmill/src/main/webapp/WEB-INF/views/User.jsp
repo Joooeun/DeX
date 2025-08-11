@@ -105,6 +105,106 @@
     </div>
 </div>
 
+<!-- 사용자 권한 상세 관리 모달 -->
+<div class="modal fade" id="permissionModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">사용자 권한 관리</h4>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="permissionUserId">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>SQL 템플릿 권한</h5>
+                        <div id="sqlTemplatePermissions" class="permission-section">
+                            <!-- SQL 템플릿 권한 목록이 여기에 로드됩니다 -->
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>연결 정보 권한</h5>
+                        <div id="connectionPermissions" class="permission-section">
+                            <!-- 연결 정보 권한 목록이 여기에 로드됩니다 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="savePermissions()">저장</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 사용자 활동 로그 모달 -->
+<div class="modal fade" id="activityLogModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <h4 class="modal-title">사용자 활동 로그</h4>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="logUserId">
+                <div class="form-group">
+                    <label for="logDateRange">기간 선택</label>
+                    <select class="form-control" id="logDateRange" onchange="loadActivityLogs()">
+                        <option value="7">최근 7일</option>
+                        <option value="30">최근 30일</option>
+                        <option value="90">최근 90일</option>
+                        <option value="all">전체</option>
+                    </select>
+                </div>
+                <div class="table-responsive">
+                    <table id="activityLogTable" class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>시간</th>
+                                <th>활동</th>
+                                <th>IP 주소</th>
+                                <th>상세 정보</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.permission-section {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.permission-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.permission-item:last-child {
+    border-bottom: none;
+}
+
+.permission-checkbox {
+    margin-right: 10px;
+}
+</style>
+
 <script>
 $(document).ready(function() {
     loadUserList();
@@ -145,6 +245,8 @@ function displayUserList(userList) {
             '<td>' +
                 '<button class="btn btn-xs btn-info" onclick="editUser(\'' + user.USER_ID + '\')">수정</button> ' +
                 '<button class="btn btn-xs btn-warning" onclick="showGroupModal(\'' + user.USER_ID + '\')">그룹</button> ' +
+                '<button class="btn btn-xs btn-success" onclick="showPermissionModal(\'' + user.USER_ID + '\')">권한</button> ' +
+                '<button class="btn btn-xs btn-primary" onclick="showActivityLogModal(\'' + user.USER_ID + '\')">로그</button> ' +
                 '<button class="btn btn-xs btn-danger" onclick="deleteUser(\'' + user.USER_ID + '\')">삭제</button>' +
             '</td>' +
             '</tr>';
@@ -322,6 +424,172 @@ function assignGroup() {
         error: function() {
             alert('그룹 할당 중 오류가 발생했습니다.');
         }
+    });
+}
+
+// 권한 관리 모달 표시
+function showPermissionModal(userId) {
+    $('#permissionUserId').val(userId);
+    loadUserPermissions(userId);
+    $('#permissionModal').modal('show');
+}
+
+// 사용자 권한 로드
+function loadUserPermissions(userId) {
+    // SQL 템플릿 권한 로드
+    $.ajax({
+        url: '/User/sqlTemplatePermissions',
+        type: 'GET',
+        data: { userId: userId },
+        success: function(response) {
+            if (response.success) {
+                displaySqlTemplatePermissions(response.data);
+            }
+        }
+    });
+    
+    // 연결 정보 권한 로드
+    $.ajax({
+        url: '/User/connectionPermissions',
+        type: 'GET',
+        data: { userId: userId },
+        success: function(response) {
+            if (response.success) {
+                displayConnectionPermissions(response.data);
+            }
+        }
+    });
+}
+
+// SQL 템플릿 권한 표시
+function displaySqlTemplatePermissions(permissions) {
+    var container = $('#sqlTemplatePermissions');
+    container.empty();
+    
+    permissions.forEach(function(permission) {
+        var item = '<div class="permission-item">' +
+            '<div>' +
+                '<input type="checkbox" class="permission-checkbox" id="sql_' + permission.TEMPLATE_ID + '" ' +
+                (permission.HAS_PERMISSION ? 'checked' : '') + '>' +
+                '<label for="sql_' + permission.TEMPLATE_ID + '">' + permission.TEMPLATE_NAME + '</label>' +
+            '</div>' +
+            '<small class="text-muted">' + permission.CATEGORY_PATH + '</small>' +
+            '</div>';
+        container.append(item);
+    });
+}
+
+// 연결 정보 권한 표시
+function displayConnectionPermissions(permissions) {
+    var container = $('#connectionPermissions');
+    container.empty();
+    
+    permissions.forEach(function(permission) {
+        var item = '<div class="permission-item">' +
+            '<div>' +
+                '<input type="checkbox" class="permission-checkbox" id="conn_' + permission.CONNECTION_ID + '" ' +
+                (permission.HAS_PERMISSION ? 'checked' : '') + '>' +
+                '<label for="conn_' + permission.CONNECTION_ID + '">' + permission.CONNECTION_NAME + '</label>' +
+            '</div>' +
+            '<small class="text-muted">' + permission.DB_TYPE + '</small>' +
+            '</div>';
+        container.append(item);
+    });
+}
+
+// 권한 저장
+function savePermissions() {
+    var userId = $('#permissionUserId').val();
+    var permissions = {
+        sqlTemplatePermissions: [],
+        connectionPermissions: []
+    };
+    
+    // SQL 템플릿 권한 수집
+    $('#sqlTemplatePermissions input[type="checkbox"]').each(function() {
+        var templateId = $(this).attr('id').replace('sql_', '');
+        permissions.sqlTemplatePermissions.push({
+            templateId: templateId,
+            hasPermission: $(this).is(':checked')
+        });
+    });
+    
+    // 연결 정보 권한 수집
+    $('#connectionPermissions input[type="checkbox"]').each(function() {
+        var connectionId = $(this).attr('id').replace('conn_', '');
+        permissions.connectionPermissions.push({
+            connectionId: connectionId,
+            hasPermission: $(this).is(':checked')
+        });
+    });
+    
+    $.ajax({
+        url: '/User/savePermissions',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            userId: userId,
+            permissions: permissions
+        }),
+        success: function(response) {
+            if (response.success) {
+                alert('권한이 저장되었습니다.');
+                $('#permissionModal').modal('hide');
+            } else {
+                alert(response.message);
+            }
+        },
+        error: function() {
+            alert('권한 저장 중 오류가 발생했습니다.');
+        }
+    });
+}
+
+// 활동 로그 모달 표시
+function showActivityLogModal(userId) {
+    $('#logUserId').val(userId);
+    $('#activityLogModal').modal('show');
+    loadActivityLogs();
+}
+
+// 활동 로그 로드
+function loadActivityLogs() {
+    var userId = $('#logUserId').val();
+    var dateRange = $('#logDateRange').val();
+    
+    $.ajax({
+        url: '/User/activityLogs',
+        type: 'GET',
+        data: { 
+            userId: userId,
+            dateRange: dateRange
+        },
+        success: function(response) {
+            if (response.success) {
+                displayActivityLogs(response.data);
+            } else {
+                alert(response.message);
+            }
+        },
+        error: function() {
+            alert('활동 로그 조회 중 오류가 발생했습니다.');
+        }
+    });
+}
+
+// 활동 로그 표시
+function displayActivityLogs(logs) {
+    var tbody = $('#activityLogTable tbody');
+    tbody.empty();
+    
+    logs.forEach(function(log) {
+        var row = '<tr>' +
+            '<td>' + formatDate(log.TIMESTAMP) + '</td>' +
+            '<td>' + log.ACTIVITY_TYPE + '</td>' +
+            '<td>' + (log.IP_ADDRESS || '-') + '</td>' +
+            '<td>' + (log.DETAILS || '-') + '</td>' +
+            '</tr>';
+        tbody.append(row);
     });
 }
 </script>

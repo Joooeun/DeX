@@ -331,4 +331,145 @@ public class UserController {
 
 		return result;
 	}
+
+	// SQL 템플릿 권한 조회
+	@ResponseBody
+	@RequestMapping("/sqlTemplatePermissions")
+	public Map<String, Object> getSqlTemplatePermissions(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", userService.getSqlTemplatePermissions(userId));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "SQL 템플릿 권한 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 연결 정보 권한 조회
+	@ResponseBody
+	@RequestMapping("/connectionPermissions")
+	public Map<String, Object> getConnectionPermissions(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", userService.getConnectionPermissions(userId));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "연결 정보 권한 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 권한 저장
+	@ResponseBody
+	@RequestMapping(value = "/savePermissions", method = RequestMethod.POST)
+	public Map<String, Object> saveUserPermissions(@RequestBody Map<String, Object> requestData, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			String userId = (String) requestData.get("userId");
+			Map<String, Object> permissions = (Map<String, Object>) requestData.get("permissions");
+
+			boolean success = userService.saveUserPermissions(userId, permissions, currentUserId);
+			if (success) {
+				result.put("success", true);
+				result.put("message", "권한이 저장되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "권한 저장에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "권한 저장 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 사용자 활동 로그 조회
+	@ResponseBody
+	@RequestMapping("/activityLogs")
+	public Map<String, Object> getUserActivityLogs(@RequestParam String userId, @RequestParam(required = false) String dateRange, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", userService.getUserActivityLogs(userId, dateRange));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "활동 로그 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
 }

@@ -18,6 +18,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Duration;
@@ -50,7 +51,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import crypt.AES256Cipher;
 import kr.Windmill.service.ConnectionDTO;
 import kr.Windmill.service.LogInfoDTO;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import kr.Windmill.service.UserService;
 
 @Component
 public class Common {
@@ -67,6 +71,9 @@ public class Common {
 	public static String DownloadIP = "";
 	public static String LogCOL = "";
 	public static int Timeout = 15;
+
+	@Autowired
+	private UserService userService;
 
 	public Common() {
 		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator + "system.properties";
@@ -131,29 +138,37 @@ public class Common {
 	}
 
 	public Map<String, String> UserConf(String UserName) throws IOException {
-		Map<String, String> map = new HashMap<>();
+		// DB 기반 사용자 설정 조회로 변경
+		try {
+			return userService.getUserConfig(UserName);
+		} catch (Exception e) {
+			logger.error("DB 기반 사용자 설정 조회 실패, 파일 기반으로 폴백: {}", UserName, e);
+			
+			// 파일 기반 폴백 (기존 코드)
+			Map<String, String> map = new HashMap<>();
 
-		map.put("UserName", UserName);
+			map.put("UserName", UserName);
 
-		String propFile = UserPath + UserName;
-		Properties props = new Properties();
-		String propStr = FileRead(new File(propFile));
+			String propFile = UserPath + UserName;
+			Properties props = new Properties();
+			String propStr = FileRead(new File(propFile));
 
-		if (!propStr.startsWith("#")) {
-			propStr = FileReadDec(new File(propFile));
+			if (!propStr.startsWith("#")) {
+				propStr = FileReadDec(new File(propFile));
+			}
+
+			props.load(new ByteArrayInputStream(propStr.getBytes()));
+
+			map.put("ID", UserName);
+			map.put("NAME", bytetostr(props.getProperty("NAME")));
+			map.put("IP", bytetostr(props.getProperty("IP")));
+			map.put("PW", bytetostr(props.getProperty("PW")));
+			map.put("TEMPPW", bytetostr(props.getProperty("TEMPPW")));
+			map.put("MENU", bytetostr(props.getProperty("MENU")));
+			map.put("CONNECTION", bytetostr(props.getProperty("CONNECTION")));
+
+			return map;
 		}
-
-		props.load(new ByteArrayInputStream(propStr.getBytes()));
-
-		map.put("ID", UserName);
-		map.put("NAME", bytetostr(props.getProperty("NAME")));
-		map.put("IP", bytetostr(props.getProperty("IP")));
-		map.put("PW", bytetostr(props.getProperty("PW")));
-		map.put("TEMPPW", bytetostr(props.getProperty("TEMPPW")));
-		map.put("MENU", bytetostr(props.getProperty("MENU")));
-		map.put("CONNECTION", bytetostr(props.getProperty("CONNECTION")));
-
-		return map;
 	}
 
 	public Map<String, String> SqlConf(String sqlPath) {
@@ -288,29 +303,36 @@ public class Common {
 	}
 
 	public List<Map<String, String>> UserList() throws IOException {
+		// DB 기반 사용자 목록 조회로 변경
+		try {
+			return userService.getUserListForCompatibility();
+		} catch (Exception e) {
+			logger.error("DB 기반 사용자 목록 조회 실패, 파일 기반으로 폴백", e);
+			
+			// 파일 기반 폴백 (기존 코드)
+			List<Map<String, String>> userlist = new ArrayList<>();
 
-		List<Map<String, String>> userlist = new ArrayList<>();
+			File dirFile = new File(UserPath);
+			File[] fileList = dirFile.listFiles();
+			Arrays.sort(fileList);
+			for (File tempFile : fileList) {
 
-		File dirFile = new File(UserPath);
-		File[] fileList = dirFile.listFiles();
-		Arrays.sort(fileList);
-		for (File tempFile : fileList) {
+				Map user = new HashMap<String, String>();
+				if (tempFile.isFile()) {
 
-			Map user = new HashMap<String, String>();
-			if (tempFile.isFile()) {
+					String tempFileName = tempFile.getName();
 
-				String tempFileName = tempFile.getName();
+					if (!tempFileName.contains(".")) {
+						user.put("id", tempFileName);
+						user.put("name", UserConf(tempFileName).get("NAME"));
+						userlist.add(user);
+					}
 
-				if (!tempFileName.contains(".")) {
-					user.put("id", tempFileName);
-					user.put("name", UserConf(tempFileName).get("NAME"));
-					userlist.add(user);
 				}
-
 			}
-		}
 
-		return userlist;
+			return userlist;
+		}
 	}
 
 	public String FileRead(File file) throws IOException {
