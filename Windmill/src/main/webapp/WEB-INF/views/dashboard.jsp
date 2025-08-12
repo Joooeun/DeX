@@ -19,7 +19,6 @@
 
         // 페이지 언로드 시 연결 모니터링 중지
         $(window).on('beforeunload', function() {
-            console.log('페이지 언로드 시작 - 모든 타이머 정리');
             
             // 모든 타이머 즉시 정리
             stopConnectionMonitoring();
@@ -48,7 +47,6 @@
             connectionStatusInterval = null;
             dexStatusInterval = null;
             
-            console.log('모든 타이머 및 리소스 정리 완료');
         });
 
         // 연결 상태 새로고침 함수
@@ -395,13 +393,11 @@
 
         // DEX 상태 모니터링 시작
         function startDexStatusMonitoring() {
-            console.log('DEX 상태 모니터링 시작');
             refreshDexStatus();
         }
         
         // DEX 상태 모니터링 중지
         function stopDexStatusMonitoring() {
-            console.log('DEX 상태 모니터링 중지');
             if (dexStatusInterval) {
                 clearTimeout(dexStatusInterval);
                 dexStatusInterval = null;
@@ -503,7 +499,6 @@
                 
                 // 차트 객체를 전역 변수에 저장
                 window[canvasId + '_chart'] = doughnutChart;
-                console.log('도넛 차트 생성 완료:', canvasId);
                 
             } catch (error) {
                 console.error('도넛 차트 생성 중 오류:', error);
@@ -517,6 +512,8 @@
                 chart = window['cpu-doughnut_chart'];
             } else if (canvasId === 'memory-doughnut') {
                 chart = window['memory-doughnut_chart'];
+            } else if (canvasId === 'activeLogChart') {
+                chart = window['activeLogChart'];
             }
             
             if (chart) {
@@ -552,6 +549,15 @@
         function initializeCharts() {
             // Chart.js datalabels 플러그인 등록
             Chart.register(ChartDataLabels);
+
+
+            const COLORS = ['rgb(140, 214, 16)', 'rgb(239, 198, 0)', 'rgb(231, 24, 49)'];
+            const MIN = 0;
+            const MAX = 100;
+            
+            function index(perc) {
+            	  return perc < 70 ? 0 : perc < 90 ? 1 : 2;
+            	}
             // APPL_COUNT 차트 (도넛 그래프)
             var applCountCtx = document.getElementById('applCountChart').getContext('2d');
             applCountChart = new Chart(applCountCtx, {
@@ -646,54 +652,55 @@
 
             // ACTIVE_LOG 차트 (가로 막대그래프 - 사용량)
             var activeLogCtx = document.getElementById('activeLogChart').getContext('2d');
-            activeLogChart = new Chart(activeLogCtx, {
-                type: 'bar',
+            window['activeLogChart'] = new Chart(activeLogCtx, {
+                type: 'doughnut',
                 data: {
-                    labels: [],
                     datasets: [{
-                        label: 'ACTIVE_LOG',
-                        data: [],
-                        backgroundColor: function(context) {
-                            var value = context.dataset.data[context.dataIndex];
-                            if (value >= 80) {
-                                return 'rgba(231, 24, 49, 0.8)'; // 빨간색 (80% 이상)
-                            } else if (value >= 60) {
-                                return 'rgba(239, 198, 0, 0.8)'; // 노란색 (60-79%)
-                            } else {
-                                return 'rgba(140, 214, 16, 0.8)'; // 초록색 (60% 미만)
+                        data: [0, 100],
+                        backgroundColor(ctx) {
+                            if (ctx.type !== 'data') {
+                                return;
                             }
-                        },
-                        borderColor: function(context) {
-                            var value = context.dataset.data[context.dataIndex];
-                            if (value >= 80) {
-                                return 'rgba(231, 24, 49, 1)';
-                            } else if (value >= 60) {
-                                return 'rgba(239, 198, 0, 1)';
-                            } else {
-                                return 'rgba(140, 214, 16, 1)';
+                            if (ctx.index === 1) {
+                                return 'rgb(234, 234, 234)';
                             }
-                        },
-                        borderWidth: 1
+                            return COLORS[index(ctx.raw)];
+                        }
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    indexAxis: 'y', // 가로 막대그래프
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            max: 100,
-                            ticks: {
-                                callback: function(value) {
-                                    return value + '%';
-                                }
-                            }
-                        }
-                    },
+                    aspectRatio: 2,
+                    circumference: 180,
+                    rotation: -90,
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        },
+                        annotation: {
+                            annotations: {
+                                cpuLabel: {
+                                    type: 'doughnutLabel',
+                                    content: ({chart}) => {
+                                        const value = chart.data.datasets[0].data[0] || 0;
+                                        return [
+                                            value.toFixed(1) + '%',
+                                            'CPU 사용률'
+                                        ];
+                                    },
+                                    drawTime: 'beforeDraw',
+                                    position: {
+                                        y: '-50%'
+                                    },
+                                    font: [{size: 24, weight: 'bold'}, {size: 12}],
+                                    color: ({chart}) => {
+                                        const value = chart.data.datasets[0].data[0] || 0;
+                                        return [COLORS[index(value)], 'grey'];
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -753,14 +760,6 @@
                     }
                 }
             });
-
-            const COLORS = ['rgb(140, 214, 16)', 'rgb(239, 198, 0)', 'rgb(231, 24, 49)'];
-            const MIN = 0;
-            const MAX = 100;
-            
-            function index(perc) {
-            	  return perc < 70 ? 0 : perc < 90 ? 1 : 2;
-            	}
 
             // DEX CPU 사용률 도넛 차트
             var cpuDoughnutCtx = document.getElementById('cpu-doughnut').getContext('2d');
@@ -885,7 +884,6 @@
 
         // 차트 데이터 업데이트 함수 (해시 비교 방식)
         function updateCharts() {
-            console.log('차트 데이터 업데이트 시작');
             
             // 모든 차트 데이터를 병렬로 요청 (해시 포함)
             Promise.all([
@@ -970,7 +968,6 @@
                     
                     // 변경 감지 확인
                     if (data && data.changed === false) {
-                        console.log(chartType + ' 데이터 변경 없음 - 업데이트 생략');
                         // 해시 업데이트
                         if (data.hash) {
                             chartHashes[chartType] = data.hash;
@@ -1007,8 +1004,11 @@
                                     chartConfig.chart.options.scales.y.max = processedData.yAxisMax;
                                 }
                                 
+                                if(chartType=="ACTIVE_LOG"){
+	                                updateDoughnutChart('activeLogChart', processedData.data[0]); 
+                                }
+                                
                                 chartConfig.chart.update();
-                                console.log(chartType + ' 차트 업데이트 성공');
                                 
                                 // 해시 업데이트
                                 if (data.hash) {
@@ -1041,7 +1041,6 @@
                     }
                 });
 
-                console.log('모든 차트 업데이트 완료');
                 
                 // 다음 업데이트 스케줄링
                 scheduleNextChartUpdate();
@@ -1138,7 +1137,6 @@
                 clearTimeout(window.chartUpdateTimer);
                 window.chartUpdateTimer = null;
             }
-            console.log('차트 모니터링 중지');
         }
 
         // 차트 모니터링 시작 함수
@@ -1159,7 +1157,7 @@
         <div class="content-wrapper" style="margin-left: 0; padding: 20px;">
             <div class="row">
                 <div class="col-md-12">
-                    <div class="box box-primary">
+                    <div class="box box-default">
                         <div class="box-header with-border">
                             <h3 class="box-title">
                                 <i class="fa fa-database"></i> 데이터베이스 연결 상태 모니터링
@@ -1181,8 +1179,8 @@
 
             <!-- APPL_COUNT 차트 -->
             <div class="row">
-                <div class="col-md-2">
-                    <div class="box box-info">
+                <div class="col-md-3">
+                    <div class="box box-default">
                         <div class="box-header with-border">
                             <h3 class="box-title">
                                 <i class="fa fa-bar-chart"></i> APPL_COUNT
@@ -1195,8 +1193,8 @@
                 </div>
 
                 <!-- LOCK_WAIT_COUNT 차트 -->
-                <div class="col-md-4">
-                    <div class="box box-warning">
+                <div class="col-md-3">
+                    <div class="box box-default">
                         <div class="box-header with-border">
                             <h3 class="box-title">
                                 <i class="fa fa-bar-chart"></i> LOCK_WAIT_COUNT
@@ -1210,7 +1208,7 @@
 
                 <!-- ACTIVE_LOG 차트 -->
                 <div class="col-md-3">
-                    <div class="box box-success">
+                    <div class="box box-default">
                         <div class="box-header with-border">
                             <h3 class="box-title">
                                 <i class="fa fa-bar-chart"></i> ACTIVE_LOG
@@ -1224,7 +1222,7 @@
 
                 <!-- FILESYSTEM 차트 -->
                 <div class="col-md-3">
-                    <div class="box box-danger">
+                    <div class="box box-default">
                         <div class="box-header with-border">
                             <h3 class="box-title">
                                 <i class="fa fa-bar-chart"></i> FILESYSTEM
@@ -1239,8 +1237,8 @@
 
             <!-- DEX 상태 모니터링 -->
             <div class="row">
-                <div class="col-md-12">
-                    <div class="box box-primary">
+                <div class="col-md-6">
+                    <div class="box box-default">
                         <div class="box-header with-border">
                             <h3 class="box-title">
                                 <i class="fa fa-server"></i> DEX 상태 모니터링
