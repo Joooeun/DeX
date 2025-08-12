@@ -805,21 +805,26 @@ var tableHeight=0;
 		
 		var labels = result.rowhead.map((item)=>item.title);
 		
-        myChart.data.labels = result.rowbody.map((item)=>item[0]);
-        for (var i = 1; i < labels.length; i++) {
-			
-			var data = result.rowbody.map((item)=>parseInt(item[i]))
-			//myChart.data.datasets[i-1].label = labels[i];
-			if (typeof myChart.data.datasets[i-1].data === "undefined") {
-				 sendErrorToServer({
-				        type: "debug",
-				        data : myChart.data.datasets[i-1]
-				        
-				    });
-			}else{
-				myChart.data.datasets[i-1].data = data;
+		try {
+	        myChart.data.labels = result.rowbody.map((item)=>item[0]);
+	        for (var i = 1; i < labels.length; i++) {
+	        	
+	        	var data = result.rowbody.map((item)=>parseInt(item[i]))
+				//myChart.data.datasets[i-1].label = labels[i];
+	        	myChart.data.datasets[i-1].data = data;
+	
 			}
-		};
+	        
+		} catch (e) {
+			console.error('차트 데이터 업데이트 중 오류 발생:', e);
+			sendErrorToServer({
+			        type: "debug",
+			        data : myChart.data,
+			        labels : labels, 
+					error:e.stack
+			        
+			    });
+		}
 		
 		myChart.update('none');
     }
@@ -940,12 +945,8 @@ var tableHeight=0;
 		<span>${desc}</span>
 
 		<ol class="breadcrumb">
-			<li>
-				<a href="#"><i class="icon ion-ios-home"></i> Home</a>
-			</li>
-			<li class="active">
-				<a href="#" onclick="readfile()">SQL</a>
-			</li>
+			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
+			<li class="active"><a href="#" onclick="readfile()">SQL</a></li>
 
 		</ol>
 	</section>
@@ -969,67 +970,70 @@ var tableHeight=0;
 
 					<form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:startexcute();">
 						<div class="box-body">
-							<div class="col-sm-10 col-md-11">
-								<c:if test="${!sql}">
+							<div class="row">
+								<div class="col-md-10">
+									<c:if test="${!sql}">
 
-									<div class="form-group" style="margin-bottom: 0">
-										<div id="container" class="textcontainer">
-											<div id="line-numbers" class="container__lines"></div>
-											<textarea class="col-sm-12 col-xs-12 formtextarea" maxlength="${textlimit}" id="sql_text" style="margin: 0 0 10px 0" rows="5" wrap='off'></textarea>
+										<div class="form-group" style="margin-bottom: 0">
+											<div id="container" class="textcontainer">
+												<div id="line-numbers" class="container__lines"></div>
+												<textarea class="col-sm-12 col-xs-12 formtextarea" maxlength="${textlimit}" id="sql_text" style="margin: 0 0 10px 0" rows="5" wrap='off'></textarea>
+											</div>
+											<span id="textcount">0</span> / <span>${textlimit}</span>
 										</div>
-										<span id="textcount">0</span> / <span>${textlimit}</span>
-									</div>
-								</c:if>
+									</c:if>
 
-								<c:forEach var="item" items="${Param}" varStatus="status">
-									<c:choose>
-										<c:when test="${item.type == 'text' || item.type == 'sql'}">
-											<div class="col-xs-12">
-												<div class="form-group" style="margin-bottom: 0">
-													<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 13px">${fn:toUpperCase(item.name)}</span>
-													<div id="container" class="textcontainer">
-
-														<div id="line-numbers" class="container__lines"></div>
-														<textarea class="paramvalue col-xs-12 formtextarea" maxlength="${textlimit}" paramtitle="${item.name}" rows="5" paramtype="${item.type}" style="padding: 0 2px;" wrap="off">${item.name=='memberId' ? memberId : item.value}</textarea>
-													</div>
-													<span id="textcount">0</span> / <span>${textlimit}</span>
-												</div>
-											</div>
-										</c:when>
-
-										<c:otherwise>
-											<div class="col-lg-2 col-md-3 col-sm-4 col-xs-5">
-												<div class="form-group ${item.required}">
-													<c:if test="${item.name != 'memberId' && item.hidden !='hidden'}">
+									<c:forEach var="item" items="${Param}" varStatus="status">
+										<c:choose>
+											<c:when test="${item.type == 'text' || item.type == 'sql'}">
+												<div class="col-xs-12">
+													<div class="form-group" style="margin-bottom: 0">
 														<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 13px">${fn:toUpperCase(item.name)}</span>
-													</c:if>
-													<div style="margin: 2px 0">
-														<input type="${item.name=='memberId' || item.hidden=='hidden' ? 'hidden' : 'text'}" class="form-control paramvalue" paramtitle="${item.name}" paramtype="${item.type}" value="${item.name == 'memberId' ? memberId : item.value}"
-															style="padding: 0 2px;" <c:if test="${item.required=='required'}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.disabled=='disabled'}">disabled</c:if>
-															<c:if test="${item.name=='memberId' || item.readonly=='readonly'}">readonly</c:if>>
+														<div id="container" class="textcontainer">
+
+															<div id="line-numbers" class="container__lines"></div>
+															<textarea class="paramvalue col-xs-12 formtextarea" maxlength="${textlimit}" paramtitle="${item.name}" rows="5" paramtype="${item.type}" style="padding: 0 2px;" wrap="off">${item.name=='memberId' ? memberId : item.value}</textarea>
+														</div>
+														<span id="textcount">0</span> / <span>${textlimit}</span>
 													</div>
 												</div>
-											</div>
+											</c:when>
 
-										</c:otherwise>
-									</c:choose>
-								</c:forEach>
-							</div>
-							<div class="col-sm-4 col-md-2 pull-right">
-								<input type="hidden" id="sendvalue" name="sendvalue">
-								<div style="display: flex; gap: 5px;">
-									<button id="pauseBtn" type="button" class="btn btn-info btn-sm" style="display: none; flex: 1;" onclick="togglePause()">
-										<i class="fa fa-pause"></i> 일시정지
-									</button>
-									<input id="excutebtn" type="submit" class="btn btn-primary" value="실행" style="flex: 1;">
+											<c:otherwise>
+												<div class="col-lg-2 col-md-3 col-sm-4 col-xs-5">
+													<div class="form-group ${item.required}">
+														<c:if test="${item.name != 'memberId' && item.hidden !='hidden'}">
+															<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 13px">${fn:toUpperCase(item.name)}</span>
+														</c:if>
+														<div style="margin: 2px 0">
+															<input type="${item.name=='memberId' || item.hidden=='hidden' ? 'hidden' : 'text'}" class="form-control paramvalue" paramtitle="${item.name}" paramtype="${item.type}"
+																value="${item.name == 'memberId' ? memberId : item.value}" style="padding: 0 2px;"
+																<c:if test="${item.required=='required'}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.disabled=='disabled'}">disabled</c:if>
+																<c:if test="${item.name=='memberId' || item.readonly=='readonly'}">readonly</c:if>>
+														</div>
+													</div>
+												</div>
+
+											</c:otherwise>
+										</c:choose>
+									</c:forEach>
 								</div>
-								<input id="Path" name="Path" value="${Path}" type="hidden">
-								<!-- <input
+								<div class="col-md-2">
+									<input type="hidden" id="sendvalue" name="sendvalue">
+									<div style="display: flex; gap: 5px;">
+										<button id="pauseBtn" type="button" class="btn btn-info btn-sm" style="display: none; flex: 1;" onclick="togglePause()">
+											<i class="fa fa-pause"></i> 일시정지
+										</button>
+										<input id="excutebtn" type="submit" class="btn btn-primary" value="실행" style="flex: 1;">
+									</div>
+									<input id="Path" name="Path" value="${Path}" type="hidden">
+									<!-- <input
 										id="excutebtn" type="submit" class="form-control" value="실행">  -->
-								<!-- <label><span
+									<!-- <label><span
 										style="font-size: small;">auto commit</span> <input
 										id="autocommit" type="checkbox" checked="checked" /> </label> -->
 
+								</div>
 							</div>
 						</div>
 					</form>
@@ -1048,24 +1052,15 @@ var tableHeight=0;
 					<div class="box-header with-border">
 						<!-- Nav tabs -->
 						<ul class="nav nav-tabs" role="tablist">
-							<li role="presentation" class="active">
-								<a href="#result" aria-controls="result" role="tab" data-toggle="tab">Result</a>
-							</li>
-							<li role="presentation">
-								<a href="#chart" aria-controls="chart" role="tab" data-toggle="tab">Chart</a>
-							</li>
+							<li role="presentation" class="active"><a href="#result" aria-controls="result" role="tab" data-toggle="tab">Result</a></li>
+							<li role="presentation"><a href="#chart" aria-controls="chart" role="tab" data-toggle="tab">Chart</a></li>
 							<!-- <li style="float: right; al"><i class="fa fa-floppy-o"></i></li> -->
-							<li style="float: right; margin-right: 5px">
-								<label style="margin: 0 3px 0 3px;">
-									limit&nbsp; <input type="number" min="0" max="500" id="limit" value="${empty limit ? 0 :  limit}" onblur="checkLimit(this)" />
-								</label>
-								<label style="margin: 0 3px 0 3px;">
-									<input type="checkbox" id="newline" <c:if test="${newline=='true'}"> checked </c:if> /> 개행보기
-								</label>
-								<!-- <label style="margin: 0 3px 0 3px;">
+							<li style="float: right; margin-right: 5px"><label style="margin: 0 3px 0 3px;"> limit&nbsp; <input type="number" min="0" max="500" id="limit" value="${empty limit ? 0 :  limit}"
+									onblur="checkLimit(this)" />
+							</label> <label style="margin: 0 3px 0 3px;"> <input type="checkbox" id="newline" <c:if test="${newline=='true'}"> checked </c:if> /> 개행보기
+							</label> <!-- <label style="margin: 0 3px 0 3px;">
 									<a><i class="fa fa-floppy-o"></i> 저장</a>
-								</label> -->
-							</li>
+								</label> --></li>
 
 						</ul>
 
