@@ -730,7 +730,7 @@ function displayConnectionPermissions(permissions) {
             '<div>' +
                 '<input type="checkbox" class="permission-checkbox" id="conn_' + permission.CONNECTION_ID + '" ' +
                 (permission.HAS_PERMISSION ? 'checked' : '') + '>' +
-                '<label for="conn_' + permission.CONNECTION_ID + '">' + permission.CONNECTION_NAME + '</label>' +
+                '<label for="conn_' + permission.CONNECTION_ID + '">' + permission.CONNECTION_ID + '</label>' +
             '</div>' +
             '<small class="text-muted">' + permission.DB_TYPE + '</small>' +
             '</div>';
@@ -1101,7 +1101,7 @@ function displayGroupConnectionPermissions(permissions) {
             '<div>' +
                 '<input type="checkbox" class="permission-checkbox" id="group_conn_' + permission.CONNECTION_ID + '" ' +
                 (permission.HAS_PERMISSION ? 'checked' : '') + '>' +
-                '<label for="group_conn_' + permission.CONNECTION_ID + '">' + permission.CONNECTION_NAME + '</label>' +
+                '<label for="group_conn_' + permission.CONNECTION_ID + '">' + permission.CONNECTION_ID + '</label>' +
             '</div>' +
             '<small class="text-muted">' + permission.DB_TYPE + '</small>' +
             '</div>';

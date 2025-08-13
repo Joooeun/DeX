@@ -113,18 +113,18 @@
             var formattedTime = formatDateTime(conn.lastChecked);
             
             var connectionCard = 
-                '<div class="col-md-2 col-sm-3 col-xs-4" style="margin-bottom: 15px;" id="card-' + conn.connectionName + '">' +
-                    '<div class="connection-card ' + statusClass + '" onclick="refreshSingleConnection(\'' + conn.connectionName + '\')">' +
+                '<div class="col-md-2 col-sm-3 col-xs-4" style="margin-bottom: 15px;" id="card-' + conn.connectionId + '">' +
+                    '<div class="connection-card ' + statusClass + '" onclick="refreshSingleConnection(\'' + conn.connectionId + '\')">' +
                         '<div>' +
                             '<i class="fa fa-database"></i>' +
                         '</div>' +
                         '<div class="connection-name">' +
-                            conn.connectionName +
+                            conn.connectionId +
                         '</div>' +
-                        '<div class="status-text" id="status-' + conn.connectionName + '">' +
+                        '<div class="status-text" id="status-' + conn.connectionId + '">' +
                             '<i class="fa ' + statusIcon + '"></i> ' + statusText +
                         '</div>' +
-                        '<div class="last-checked" id="lastChecked-' + conn.connectionName + '">' +
+                        '<div class="last-checked" id="lastChecked-' + conn.connectionId + '">' +
                             formattedTime +
                         '</div>' +
                     '</div>' +
@@ -135,7 +135,7 @@
         
         // 연결 카드 상태 업데이트 함수
         function updateConnectionCard(conn) {
-            var card = $('#card-' + conn.connectionName);
+            var card = $('#card-' + conn.connectionId);
             if (card.length === 0) {
                 // 카드가 없으면 새로 생성
                 createConnectionCard(conn);
@@ -166,26 +166,26 @@
             var formattedTime = formatDateTime(conn.lastChecked);
             
             // 상태 텍스트 업데이트
-            $('#status-' + conn.connectionName).html('<i class="fa ' + statusIcon + '"></i> ' + statusText);
+            $('#status-' + conn.connectionId).html('<i class="fa ' + statusIcon + '"></i> ' + statusText);
             
             // 마지막 확인 시간 업데이트
-            $('#lastChecked-' + conn.connectionName).text(formattedTime);
+            $('#lastChecked-' + conn.connectionId).text(formattedTime);
             
             // 카드 클래스 업데이트
             var connectionCard = card.find('.connection-card');
             connectionCard.removeClass('connected disconnected error checking').addClass(statusClass);
             
             // 상태 아이콘 색상 업데이트
-            //$('#status-' + conn.connectionName).css('color', conn.color);
+            			//$('#status-' + conn.connectionId).css('color', conn.color);
         }
 
         // 단일 연결 상태 수동 새로고침
-        function refreshSingleConnection(connectionName) {
+        function refreshSingleConnection(connectionId) {
             $.ajax({
                 type: 'post',
                 url: '/Connection/status/refresh',
                 data: {
-                    connectionName: connectionName
+                    connectionId: connectionId
                 },
                 success: function(result) {
                     if (result === 'success') {

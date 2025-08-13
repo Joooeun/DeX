@@ -140,25 +140,25 @@ public class DashboardController {
         
         // Properties 파일에서 연결 정보 읽기
         String propertiesContent = com.FileRead(propertiesFile);
-        String connectionName = "local"; // 기본값
+        String connectionId = "local"; // 기본값
         
         for (String line : propertiesContent.split("\r\n")) {
             if (line.startsWith("CONNECTION=")) {
-                connectionName = line.split("=")[1];
+                connectionId = line.split("=")[1];
                 break;
             }
         }
 
         // LogInfoDTO 설정
         LogInfoDTO logInfo = new LogInfoDTO();
-        logInfo.setConnection(connectionName);
+        logInfo.setConnectionId(connectionId);
         logInfo.setPath(sqlPath);
         logInfo.setSql(sql);
         logInfo.setParamList(new ArrayList<>()); // 파라미터 없음
         logInfo.setLimit(1000); // 기본 제한
 
         // 공통 SQL 실행 서비스 사용
-        cLog.monitoringLog("DASHBOARD_SQL_EXEC", "SQL 실행 시작: " + sqlName + " (연결: " + connectionName + ")");
+        cLog.monitoringLog("DASHBOARD_SQL_EXEC", "SQL 실행 시작: " + sqlName + " (연결: " + connectionId + ")");
         Map<String, List> sqlResult = sqlExecuteService.executeSQL(logInfo);
         Map<String, Object> result = new HashMap<>();
         result.putAll(sqlResult);

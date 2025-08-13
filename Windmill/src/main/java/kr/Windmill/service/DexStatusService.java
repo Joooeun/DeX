@@ -60,9 +60,11 @@ public class DexStatusService {
     @PreDestroy
     public void stopMonitoring() {
         cLog.monitoringLog("DEX_STATUS", "DEX 상태 모니터링 중지");
+        System.out.println("=== DexStatusService 정리 시작 ===");
         isRunning = false;
         
         if (scheduler != null && !scheduler.isShutdown()) {
+            System.out.println("DexStatusMonitor 스케줄러 종료 중...");
             try {
                 // 스케줄러 종료 요청
                 scheduler.shutdown();
@@ -70,25 +72,35 @@ public class DexStatusService {
                 // 최대 5초 대기
                 if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
                     cLog.monitoringLog("DEX_STATUS_WARN", "스케줄러가 5초 내에 종료되지 않았습니다. 강제 종료합니다.");
+                    System.out.println("DexStatusMonitor 스케줄러 강제 종료 시도...");
                     scheduler.shutdownNow();
                     
                     // 추가 2초 대기
                     if (!scheduler.awaitTermination(2, TimeUnit.SECONDS)) {
                         cLog.monitoringLog("DEX_STATUS_ERROR", "스케줄러 강제 종료 실패");
+                        System.out.println("DexStatusMonitor 스케줄러 강제 종료 실패");
+                    } else {
+                        System.out.println("DexStatusMonitor 스케줄러 강제 종료 완료");
                     }
                 } else {
                     cLog.monitoringLog("DEX_STATUS", "스케줄러가 정상적으로 종료되었습니다.");
+                    System.out.println("DexStatusMonitor 스케줄러 정상 종료 완료");
                 }
             } catch (InterruptedException e) {
                 cLog.monitoringLog("DEX_STATUS_WARN", "스케줄러 종료 대기 중 인터럽트 발생");
+                System.out.println("DexStatusMonitor 스케줄러 종료 중 인터럽트 발생");
                 scheduler.shutdownNow();
                 Thread.currentThread().interrupt();
             }
+        } else {
+            System.out.println("DexStatusMonitor 스케줄러가 이미 종료되었거나 존재하지 않습니다.");
         }
         
         // 상태 맵 정리
         dexStatusMap.clear();
+        System.out.println("DEX 상태 맵 정리 완료");
         cLog.monitoringLog("DEX_STATUS", "DEX 상태 모니터링 중지 완료");
+        System.out.println("=== DexStatusService 정리 완료 ===");
     }
     
     private void initializeDexStatus() {

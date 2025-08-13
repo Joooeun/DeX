@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class ConnectionStatusDTO {
-    private String connectionName;
+    private String connectionId;
     private String status; // "connected", "disconnected", "error"
     private String color; // "#28a745", "#dc3545"
     private String lastChecked;
@@ -12,20 +12,20 @@ public class ConnectionStatusDTO {
 
     public ConnectionStatusDTO() {}
 
-    public ConnectionStatusDTO(String connectionName, String status, String color) {
-        this.connectionName = connectionName;
+    public ConnectionStatusDTO(String connectionId, String status, String color) {
+        this.connectionId = connectionId;
         this.status = status;
         this.color = color;
         this.lastChecked = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 
     // Getters and Setters
-    public String getConnectionName() {
-        return connectionName;
+    public String getConnectionId() {
+        return connectionId;
     }
 
-    public void setConnectionName(String connectionName) {
-        this.connectionName = connectionName;
+    public void setConnectionId(String connectionId) {
+        this.connectionId = connectionId;
     }
 
     public String getStatus() {

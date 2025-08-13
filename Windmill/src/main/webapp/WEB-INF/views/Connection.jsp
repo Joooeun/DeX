@@ -101,8 +101,8 @@
 						<input type="hidden" id="editConnectionId">
 						<div class="form-group row">
 							<div class="col-md-6">
-								<label for="connectionName">연결명</label> <input type="text"
-									class="form-control" id="connectionName" required>
+								<label for="connectionId">연결 ID</label> <input type="text"
+									class="form-control" id="connectionId" required>
 							</div>
 							<div class="col-md-6">
 								<label for="connectionType">타입</label> <select
@@ -167,9 +167,10 @@
 							<div class="form-group row">
 								<div class="col-md-12">
 									<label for="testSql">테스트 SQL (선택)</label>
-									<textarea class="form-control" id="testSql" rows="3" 
+									<textarea class="form-control" id="testSql" rows="3"
 										placeholder="연결 테스트 시 실행할 SQL을 입력하세요. 비워두면 기본 테스트 쿼리가 사용됩니다."></textarea>
-									<small class="form-text text-muted">예: SELECT 1, SELECT COUNT(*) FROM DUAL, SELECT CURRENT_TIMESTAMP</small>
+									<small class="form-text text-muted">예: SELECT 1, SELECT
+										COUNT(*) FROM DUAL, SELECT CURRENT_TIMESTAMP</small>
 								</div>
 							</div>
 						</div>
@@ -207,21 +208,20 @@
 						</div>
 					</form>
 				</div>
-									<div class="modal-footer">
-						<button type="button" class="btn btn-success"
-							onclick="testConnection()">연결 테스트</button>
-						<button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
-						<button type="button" class="btn btn-primary"
-							onclick="saveConnection()">저장</button>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-success"
+						onclick="testConnection()">연결 테스트</button>
+					<button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
+					<button type="button" class="btn btn-primary"
+						onclick="saveConnection()">저장</button>
+				</div>
+
+				<!-- 테스트 결과 표시 영역 -->
+				<div id="testResultArea" style="display: none; margin-top: 10px;">
+					<div class="alert" id="testResultAlert" role="alert">
+						<span id="testResultIcon"></span> <span id="testResultMessage"></span>
 					</div>
-					
-					<!-- 테스트 결과 표시 영역 -->
-					<div id="testResultArea" style="display: none; margin-top: 10px;">
-						<div class="alert" id="testResultAlert" role="alert">
-							<span id="testResultIcon"></span>
-							<span id="testResultMessage"></span>
-						</div>
-					</div>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -300,7 +300,7 @@
 		connections
 				.forEach(function(connection) {
 					var row = '<tr>' + '<td>'
-							+ connection.CONNECTION_NAME
+							+ connection.CONNECTION_ID
 							+ '</td>'
 							+ '<td>'
 							+ getTypeBadge(connection.TYPE)
@@ -459,7 +459,7 @@
 					$('#editConnectionId').val(connectionId);
 
 					// 폼 필드 설정
-					$('#connectionName').val(connection.CONNECTION_NAME);
+					$('#connectionId').val(connection.CONNECTION_ID);
 					$('#connectionType').val(connectionType);
 					$('#connectionIP').val(connection.HOST_IP);
 					$('#connectionPort').val(connection.PORT);
@@ -480,12 +480,12 @@
 						$('#remotePath').val(connection.REMOTE_PATH);
 						$('#connectionTimeout').val(
 								connection.CONNECTION_TIMEOUT);
-											$('#dbFields').hide();
-					$('#sftpFields').show();
-				}
+						$('#dbFields').hide();
+						$('#sftpFields').show();
+					}
 
-				$('#testResultArea').hide(); // 테스트 결과 영역 숨기기
-				$('#connectionModal').modal('show');
+					$('#testResultArea').hide(); // 테스트 결과 영역 숨기기
+					$('#connectionModal').modal('show');
 				} else {
 					alert(response.message);
 				}
@@ -500,7 +500,6 @@
 
 		var connectionData = {
 			CONNECTION_ID : editConnectionId,
-			CONNECTION_NAME : $('#connectionName').val(),
 			TYPE : connectionType,
 			HOST_IP : $('#connectionIP').val(),
 			PORT : $('#connectionPort').val()
@@ -602,100 +601,88 @@
 
 	// 연결 테스트
 	function testConnection(connectionId) {
-		if (connectionId) {
-			// 기존 연결 테스트 (테이블에서)
-			$.ajax({
-				url : '/Connection/test',
-				type : 'POST',
-				data : {
-					connectionId : connectionId
-				},
-				success : function(response) {
-					if (response.success) {
-						alert('연결 테스트 성공: ' + response.message);
-					} else {
-						alert('연결 테스트 실패: ' + response.message);
-					}
-				}
-			});
-		} else {
-			// 모달에서 새 연결 테스트
-			var connectionType = $('#connectionType').val();
-			if (!connectionType) {
-				showTestResult(false, '연결 타입을 선택해주세요.');
-				return;
-			}
 
-			// 테스트 버튼 비활성화
-			$('button[onclick="testConnection()"]').prop('disabled', true).text('테스트 중...');
-			
-			// 이전 테스트 결과 숨기기
-			$('#testResultArea').hide();
-
-			var testData = {
-				TYPE : connectionType,
-				HOST_IP : $('#connectionIP').val(),
-				PORT : $('#connectionPort').val()
-			};
-
-			if (connectionType === 'DB') {
-				testData.DATABASE_NAME = $('#databaseName').val();
-				testData.DB_TYPE = $('#dbType').val();
-				testData.USERNAME = $('#dbUsername').val();
-				testData.PASSWORD = $('#dbPassword').val();
-				testData.JDBC_DRIVER_FILE = $('#jdbcDriverFile').val();
-				testData.TEST_SQL = $('#testSql').val();
-			} else {
-				testData.USERNAME = $('#sftpUsername').val();
-				testData.PASSWORD = $('#sftpPassword').val();
-				testData.PRIVATE_KEY_PATH = $('#privateKeyPath').val();
-				testData.REMOTE_PATH = $('#remotePath').val();
-				testData.CONNECTION_TIMEOUT = $('#connectionTimeout').val();
-			}
-
-			$.ajax({
-				url : '/Connection/test',
-				type : 'POST',
-				data : testData,
-				success : function(response) {
-					if (response.success) {
-						showTestResult(true, response.message);
-					} else {
-						showTestResult(false, response.message);
-					}
-				},
-				error : function() {
-					showTestResult(false, '연결 테스트 중 오류가 발생했습니다.');
-				},
-				complete : function() {
-					// 테스트 버튼 다시 활성화
-					$('button[onclick="testConnection()"]').prop('disabled', false).text('연결 테스트');
-				}
-			});
+		// 모달에서 새 연결 테스트
+		var connectionType = $('#connectionType').val();
+		if (!connectionType) {
+			showTestResult(false, '연결 타입을 선택해주세요.');
+			return;
 		}
+
+		// 테스트 버튼 비활성화
+		$('button[onclick="testConnection()"]').prop('disabled', true).text(
+				'테스트 중...');
+
+		// 이전 테스트 결과 숨기기
+		$('#testResultArea').hide();
+
+		var testData = {
+			TYPE : connectionType,
+			HOST_IP : $('#connectionIP').val(),
+			PORT : $('#connectionPort').val()
+		};
+
+		if (connectionType === 'DB') {
+			testData.DATABASE_NAME = $('#databaseName').val();
+			testData.DB_TYPE = $('#dbType').val();
+			testData.USERNAME = $('#dbUsername').val();
+			testData.PASSWORD = $('#dbPassword').val();
+			testData.JDBC_DRIVER_FILE = $('#jdbcDriverFile').val();
+			testData.TEST_SQL = $('#testSql').val();
+		} else {
+			testData.USERNAME = $('#sftpUsername').val();
+			testData.PASSWORD = $('#sftpPassword').val();
+			testData.PRIVATE_KEY_PATH = $('#privateKeyPath').val();
+			testData.REMOTE_PATH = $('#remotePath').val();
+			testData.CONNECTION_TIMEOUT = $('#connectionTimeout').val();
+		}
+
+		$.ajax({
+			url : '/Connection/test',
+			type : 'POST',
+			data : testData,
+			success : function(response) {
+				if (response.success) {
+					showTestResult(true, response.message);
+				} else {
+					showTestResult(false, response.message);
+				}
+			},
+			error : function() {
+				showTestResult(false, '연결 테스트 중 오류가 발생했습니다.');
+			},
+			complete : function() {
+				// 테스트 버튼 다시 활성화
+				$('button[onclick="testConnection()"]').prop('disabled', false)
+						.text('연결 테스트');
+			}
+		});
+
 	}
-	
+
 	// 테스트 결과를 화면에 표시
 	function showTestResult(success, message) {
 		var resultArea = $('#testResultArea');
 		var resultAlert = $('#testResultAlert');
 		var resultIcon = $('#testResultIcon');
 		var resultMessage = $('#testResultMessage');
-		
+
 		// 결과 영역 표시
 		resultArea.show();
-		
+
 		// 성공/실패에 따른 스타일 설정
 		if (success) {
-			resultAlert.removeClass('alert-danger alert-warning').addClass('alert-success');
+			resultAlert.removeClass('alert-danger alert-warning').addClass(
+					'alert-success');
 			resultIcon.html('<i class="fa fa-check-circle"></i> ');
 			resultMessage.text(message);
 		} else {
-			resultAlert.removeClass('alert-success alert-warning').addClass('alert-danger');
+			resultAlert.removeClass('alert-success alert-warning').addClass(
+					'alert-danger');
 			resultIcon.html('<i class="fa fa-times-circle"></i> ');
 			resultMessage.text(message);
 		}
-		
+
 		// 모달 스크롤을 결과 영역으로 이동
 		$('#connectionModal').scrollTop($('#connectionModal')[0].scrollHeight);
 	}

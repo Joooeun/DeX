@@ -164,12 +164,12 @@ public class UserGroupService {
     // 연결 정보 권한 조회
     public List<Map<String, Object>> getConnectionPermissions(String groupId) {
         try {
-            String sql = "SELECT c.CONNECTION_ID, c.CONNECTION_NAME, c.DB_TYPE, " +
+            String sql = "SELECT c.CONNECTION_ID, c.DB_TYPE, " +
                         "CASE WHEN p.GROUP_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
                         "FROM DATABASE_CONNECTION c " +
                         "LEFT JOIN CONNECTION_PERMISSIONS p ON c.CONNECTION_ID = p.CONNECTION_ID AND p.GROUP_ID = ? " +
                         "WHERE c.STATUS = 'ACTIVE' " +
-                        "ORDER BY c.CONNECTION_NAME";
+                        "ORDER BY c.CONNECTION_ID";
             return jdbcTemplate.queryForList(sql, groupId);
         } catch (Exception e) {
             e.printStackTrace();

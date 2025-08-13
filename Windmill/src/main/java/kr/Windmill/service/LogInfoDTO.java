@@ -16,7 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import kr.Windmill.controller.SQLController.SqlType;
 
 public class LogInfoDTO {
-	private String Connection;
+	private String connectionId;
 	private String id;
 	private String logId;
 	private int logNo = 0;
@@ -55,12 +55,12 @@ public class LogInfoDTO {
 		this.title = title;
 	}
 
-	public String getConnection() {
-		return Connection;
+	public String getConnectionId() {
+		return connectionId;
 	}
 
-	public void setConnection(String connection) {
-		Connection = connection;
+	public void setConnectionId(String connectionId) {
+		this.connectionId = connectionId;
 	}
 
 	public String getId() {

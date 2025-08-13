@@ -356,7 +356,7 @@ public class UserService {
     // 연결 정보 권한 조회
     public List<Map<String, Object>> getConnectionPermissions(String userId) {
         String sql = "SELECT cp.CONNECTION_ID, cp.ACCESS_TYPE, " +
-                    "CASE WHEN cp.CONNECTION_ID = '*' THEN '모든 연결' ELSE cp.CONNECTION_ID END AS CONNECTION_NAME " +
+                    "CASE WHEN cp.CONNECTION_ID = '*' THEN '모든 연결' ELSE cp.CONNECTION_ID END AS CONNECTION_ID_DISPLAY " +
                     "FROM CONNECTION_PERMISSIONS cp " +
                     "INNER JOIN USER_GROUP_MAPPING ugm ON cp.GROUP_ID = ugm.GROUP_ID " +
                     "WHERE ugm.USER_ID = ? " +

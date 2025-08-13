@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -33,6 +34,7 @@ import com.jcraft.jsch.Session;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @Controller
 public class FileController {
@@ -40,11 +42,13 @@ public class FileController {
 	private static final Logger logger = LoggerFactory.getLogger(FileController.class);
 	private final Common com;
 	private final Log cLog;
+	private final JdbcTemplate jdbcTemplate;
 	
 	@Autowired
-	public FileController(Common common, Log log) {
+	public FileController(Common common, Log log, JdbcTemplate jdbcTemplate) {
 		this.com = common;
 		this.cLog = log;
+		this.jdbcTemplate = jdbcTemplate;
 	}
 
 	@RequestMapping(path = "/FileRead")
@@ -60,7 +64,19 @@ public class FileController {
 	@RequestMapping(path = "/FILE/readfile")
 	public Map<String, String> readfile(HttpServletRequest request, Model model, HttpSession session1) throws ClassNotFoundException, JSchException, IOException {
 
-		Map<String, String> map = com.ConnectionConf(request.getParameter("Connection"));
+		Map<String, String> map = new HashMap<>();
+		try {
+			String sql = "SELECT * FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
+			Map<String, Object> connInfo = jdbcTemplate.queryForMap(sql, request.getParameter("connectionId"));
+			
+			map.put("USER", (String) connInfo.get("USERNAME"));
+			map.put("IP", (String) connInfo.get("HOST_IP"));
+			map.put("PORT", String.valueOf(connInfo.get("PORT")));
+			map.put("PW", (String) connInfo.get("PASSWORD"));
+		} catch (Exception e) {
+			logger.error("SFTP 연결 정보 조회 실패: {} - {}", request.getParameter("connectionId"), e.getMessage());
+			throw new RuntimeException("SFTP 연결 정보를 찾을 수 없습니다: " + request.getParameter("connectionId"));
+		}
 
 		// 1. JSch 객체를 생성한다.
 		JSch jsch = new JSch();
@@ -146,7 +162,19 @@ public class FileController {
 		}
 
 		String result = "";
-		Map<String, String> map = com.ConnectionConf(request.getParameter("Connection"));
+		Map<String, String> map = new HashMap<>();
+		try {
+			String sql = "SELECT * FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
+			Map<String, Object> connInfo = jdbcTemplate.queryForMap(sql, request.getParameter("connectionId"));
+			
+			map.put("USER", (String) connInfo.get("USERNAME"));
+			map.put("IP", (String) connInfo.get("HOST_IP"));
+			map.put("PORT", String.valueOf(connInfo.get("PORT")));
+			map.put("PW", (String) connInfo.get("PASSWORD"));
+		} catch (Exception e) {
+			logger.error("SFTP 연결 정보 조회 실패: {} - {}", request.getParameter("connectionId"), e.getMessage());
+			throw new RuntimeException("SFTP 연결 정보를 찾을 수 없습니다: " + request.getParameter("connectionId"));
+		}
 
 		String path = request.getParameter("FilePath");
 

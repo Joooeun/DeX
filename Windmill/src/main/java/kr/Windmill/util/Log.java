@@ -4,56 +4,30 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.sql.SQLException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import kr.Windmill.service.ConnectionDTO;
-import kr.Windmill.service.LogInfoDTO;
-import kr.Windmill.service.ConnectionPoolManager;
-import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+
+import kr.Windmill.service.LogInfoDTO;
 
 @Component
 public class Log {
 	private static final Logger logger = LoggerFactory.getLogger(Log.class);
 	private final Common com;
-	private final ConnectionPoolManager connectionPoolManager;
+	private final JdbcTemplate jdbcTemplate;
+	
 	
 	@Autowired
-	public Log(Common common, ConnectionPoolManager connectionPoolManager) {
+	public Log(Common common, JdbcTemplate jdbcTemplate) {
 		this.com = common;
-		this.connectionPoolManager = connectionPoolManager;
+		this.jdbcTemplate = jdbcTemplate;
 	}
 
-//	public void tablecheck() {
-//
-//		ConnectionDTO connection;
-//		try {
-//			connection = com.getConnection(com.LogDB);
-//
-//			Properties prop = connection.getProp();
-//
-//			Class.forName(connection.getDriver());
-//			prop.put("clientProgramName", "DeX");
-//
-//			com.excutequery("", connection.getDbtype(), connection.getJdbc(), prop, 1);
-//		} catch (IOException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (ClassNotFoundException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (SQLException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//	}
 
 	public void log_start(LogInfoDTO data, String msg) {
 
@@ -90,7 +64,7 @@ public class Log {
 			SimpleDateFormat simpleDateFormat2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			String strNowDate2 = simpleDateFormat2.format(Date.from(data.getStart()));
 
-			writer.write(strNowDate2 + " id : " + data.getId() + " / ip :  " + data.getIp() + "\nDB : " + data.getConnection() + " / MENU : " + data.getTitle() + msg);
+			writer.write(strNowDate2 + " id : " + data.getId() + " / ip :  " + data.getIp() + "\nDB : " + data.getConnectionId() + " / MENU : " + data.getTitle() + msg);
 			writer.close();
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -125,7 +99,7 @@ public class Log {
 			FileWriter fw = new FileWriter(file, true);
 			BufferedWriter writer = new BufferedWriter(fw);
 
-			writer.write("start:" + data.getLogId() + ":==============================================\n" + data.getLogsql() + "\nend:" + data.getLogId() + ":==============================================" + "\nDB : " + data.getConnection() + " / MENU : " + data.getTitle() + msg);
+			writer.write("start:" + data.getLogId() + ":==============================================\n" + data.getLogsql() + "\nend:" + data.getLogId() + ":==============================================" + "\nDB : " + data.getConnectionId() + " / MENU : " + data.getTitle() + msg);
 			writer.newLine();
 			writer.close();
 		} catch (IOException e) {
@@ -292,26 +266,75 @@ public class Log {
 
 	public void log_DB(LogInfoDTO data) {
 
-		if (data.getConnection().equals(com.LogDB) || !data.isAudit()) {
+		if (data.getConnectionId().equals(com.LogDB) || !data.isAudit()) {
 			return;
 		}
 
-		try {
-			// Common을 사용하여 연결 설정 가져오기
-			ConnectionDTO connection = com.getConnection(com.LogDB);
-			
-			// DataSource 캐싱 확인
-			if (!connectionPoolManager.hasDataSource(com.LogDB)) {
-				connectionPoolManager.getDataSource(com.LogDB); // DataSource 생성 및 캐싱
-			}
+		// JdbcTemplate을 사용하여 DEXLOG 테이블에 직접 저장 (톰캣 DB 설정 사용)
+		insertDexLog(data);
 
-			com.updatequery("INSERT INTO DEXLOG (USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID)" + "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", connection.getDbtype(), connection.getJdbc(), connection.getProp(), data, new ArrayList<Map<String, String>>());
-		} catch (SQLException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			logger.error(e.getMessage());
+	}
+	
+	/**
+	 * DEXLOG 테이블에 로그를 저장합니다 (톰캣 DB 설정 사용).
+	 */
+	private void insertDexLog(LogInfoDTO data) {
+		// 실행 시간 계산
+		long duration = 0;
+		if (data.getStart() != null && data.getEnd() != null) {
+			duration = java.time.Duration.between(data.getStart(), data.getEnd()).toMillis();
 		}
+		
+		// DEXLOG 테이블에 삽입 (기존 Log.java와 동일한 구조)
+		String sql = "INSERT INTO DEXLOG (" +
+			"USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, " +
+			"SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID_REF" +
+			") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		
+		jdbcTemplate.update(sql,
+			data.getId(),                                    // USER_ID
+			data.getIp(),                                    // IP
+			data.getConnectionId(),                           // CONN_DB
+			data.getTitle(),                                // MENU
+			getExecutionType(data.getLogsql()),             // SQL_TYPE
+			data.getRows(),                                 // RESULT_ROWS
+			data.getLogsql(),                               // SQL_TEXT
+			data.getResult(),                               // RESULT_MSG
+			duration,                                       // DURATION
+			data.getStart(),                                // EXECUTE_DATE
+			data.getParams(),                               // XML_LOG (파라미터 정보)
+			data.getLogId()                                 // LOG_ID_REF
+		);
+		
+		logger.debug("DEXLOG 저장 완료: {} - {}", data.getId(), data.getConnectionId());
+	}
+	
 
+	
+	/**
+	 * SQL 텍스트에서 실행 타입을 추출합니다.
+	 */
+	private String getExecutionType(String sql) {
+		if (sql == null || sql.trim().isEmpty()) {
+			return "UNKNOWN";
+		}
+		
+		String firstWord = sql.trim().split("\\s+")[0].toUpperCase();
+		
+		switch (firstWord) {
+			case "SELECT":
+				return "SELECT";
+			case "INSERT":
+				return "INSERT";
+			case "UPDATE":
+				return "UPDATE";
+			case "DELETE":
+				return "DELETE";
+			case "CALL":
+				return "CALL";
+			default:
+				return "OTHER";
+		}
 	}
 
 }

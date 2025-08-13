@@ -161,7 +161,6 @@ CREATE TABLE SQL_TEMPLATE_SHORTCUT (
 -- 데이터베이스 연결 정보
 CREATE TABLE DATABASE_CONNECTION (
     CONNECTION_ID VARCHAR(100) NOT NULL PRIMARY KEY,
-    CONNECTION_NAME VARCHAR(200) NOT NULL,
     DB_TYPE VARCHAR(20) NOT NULL,
     HOST_IP VARCHAR(45) NOT NULL,
     PORT INTEGER,
@@ -187,7 +186,6 @@ CREATE TABLE DATABASE_CONNECTION (
 -- SFTP 연결 정보
 CREATE TABLE SFTP_CONNECTION (
     SFTP_CONNECTION_ID VARCHAR(100) NOT NULL PRIMARY KEY,
-    CONNECTION_NAME VARCHAR(200) NOT NULL,
     HOST_IP VARCHAR(45) NOT NULL,
     PORT INTEGER DEFAULT 22,
     USERNAME VARCHAR(100) NOT NULL,
@@ -205,7 +203,28 @@ CREATE TABLE SFTP_CONNECTION (
 );
 
 -- =====================================================
--- 4. 시스템 설정 테이블
+-- 4. 로그 테이블
+-- =====================================================
+
+-- DeX 로그 테이블
+CREATE TABLE DEXLOG (
+    LOG_ID BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    USER_ID VARCHAR(50),
+    ACTION_TYPE VARCHAR(50) NOT NULL,    -- LOGIN, LOGOUT, SQL_EXECUTE, CONNECTION_TEST, etc.
+    RESOURCE_TYPE VARCHAR(50),           -- SQL_TEMPLATE, CONNECTION, USER, etc.
+    RESOURCE_ID VARCHAR(100),            -- 리소스 ID
+    DETAIL_MESSAGE CLOB,                 -- 상세 메시지
+    IP_ADDRESS VARCHAR(45),
+    USER_AGENT VARCHAR(500),
+    SESSION_ID VARCHAR(100),
+    EXECUTION_TIME INTEGER,              -- 실행 시간 (ms)
+    STATUS VARCHAR(20) DEFAULT 'SUCCESS', -- SUCCESS, FAIL, ERROR
+    ERROR_MESSAGE VARCHAR(1000),
+    CREATED_TIMESTAMP TIMESTAMP DEFAULT CURRENT TIMESTAMP
+);
+
+-- =====================================================
+-- 5. 시스템 설정 테이블
 -- =====================================================
 
 -- 시스템 설정
@@ -225,7 +244,7 @@ CREATE TABLE SYSTEM_SETTING (
 );
 
 -- =====================================================
--- 5. 인덱스 생성
+-- 6. 인덱스 생성
 -- =====================================================
 
 -- 사용자 관리 인덱스
@@ -281,8 +300,15 @@ CREATE INDEX IDX_SFTP_CONNECTION_HOST ON SFTP_CONNECTION(HOST_IP, PORT);
 CREATE INDEX IDX_SYSTEM_SETTING_CATEGORY ON SYSTEM_SETTING(CATEGORY);
 CREATE INDEX IDX_SYSTEM_SETTING_SYSTEM ON SYSTEM_SETTING(IS_SYSTEM);
 
+-- 로그 인덱스
+CREATE INDEX IDX_DEXLOG_USER ON DEXLOG(USER_ID);
+CREATE INDEX IDX_DEXLOG_ACTION ON DEXLOG(ACTION_TYPE);
+CREATE INDEX IDX_DEXLOG_RESOURCE ON DEXLOG(RESOURCE_TYPE, RESOURCE_ID);
+CREATE INDEX IDX_DEXLOG_TIMESTAMP ON DEXLOG(CREATED_TIMESTAMP);
+CREATE INDEX IDX_DEXLOG_STATUS ON DEXLOG(STATUS);
+
 -- =====================================================
--- 6. 외래키 제약 조건 연결 (데이터 삽입 후 추가)
+-- 7. 외래키 제약 조건 연결 (데이터 삽입 후 추가)
 -- =====================================================
 
 -- 주의: SQL_TEMPLATE_PERMISSIONS와 CONNECTION_PERMISSIONS 테이블의 
@@ -291,7 +317,7 @@ CREATE INDEX IDX_SYSTEM_SETTING_SYSTEM ON SYSTEM_SETTING(IS_SYSTEM);
 -- 애플리케이션 레벨에서 데이터 무결성을 보장합니다.
 
 -- =====================================================
--- 6. 기본 그룹 생성
+-- 8. 기본 그룹 생성
 -- =====================================================
 
 INSERT INTO USER_GROUPS (GROUP_ID, GROUP_NAME, GROUP_DESCRIPTION, STATUS, CREATED_BY, CREATED_TIMESTAMP)
@@ -301,7 +327,7 @@ VALUES
 ('VIEWER_GROUP', '조회 전용 그룹', '조회만 가능한 사용자 그룹', 'ACTIVE', 'SYSTEM', CURRENT TIMESTAMP);
 
 -- =====================================================
--- 7. 관리자 계정 생성
+-- 9. 관리자 계정 생성
 -- =====================================================
 
 -- 관리자 사용자 생성 (암호화된 비밀번호: 1234)
@@ -314,7 +340,7 @@ INSERT INTO USER_GROUP_MAPPING (USER_ID, GROUP_ID, ASSIGNED_BY, ASSIGNED_TIMESTA
 VALUES ('admin', 'ADMIN_GROUP', 'SYSTEM', CURRENT TIMESTAMP);
 
 -- =====================================================
--- 8. 관리자 권한 설정 (와일드카드 권한)
+-- 10. 관리자 권한 설정 (와일드카드 권한)
 -- =====================================================
 
 -- 관리자에게 모든 SQL 템플릿 권한 부여 (와일드카드)
@@ -326,7 +352,7 @@ INSERT INTO CONNECTION_PERMISSIONS (GROUP_ID, CONNECTION_ID, ACCESS_TYPE, GRANTE
 VALUES ('ADMIN_GROUP', '*', 'ADMIN', 'SYSTEM', CURRENT TIMESTAMP);
 
 -- =====================================================
--- 9. 테스트 사용자 생성 (선택사항)
+-- 11. 테스트 사용자 생성 (선택사항)
 -- =====================================================
 
 -- 테스트 사용자 생성 (비밀번호: test123)
@@ -339,24 +365,21 @@ INSERT INTO USER_GROUP_MAPPING (USER_ID, GROUP_ID, ASSIGNED_BY, ASSIGNED_TIMESTA
 VALUES ('testuser', 'USER_GROUP', 'SYSTEM', CURRENT TIMESTAMP);
 
 -- =====================================================
--- 10. 초기 시스템 설정 데이터 삽입
+-- 12. 초기 시스템 설정 데이터 삽입
 -- =====================================================
 
 INSERT INTO SYSTEM_SETTING (SETTING_KEY, SETTING_VALUE, SETTING_TYPE, DESCRIPTION, CATEGORY, IS_SYSTEM, IS_REQUIRED) VALUES
-('ROOT_PATH', '${system.root.path}', 'STRING', '시스템 루트 경로', 'SYSTEM', TRUE, TRUE),
+('ROOT_PATH', '/Users/jooeunpark/git/DeX/Menu', 'STRING', '시스템 루트 경로', 'SYSTEM', TRUE, TRUE),
 ('TIMEOUT', '600', 'NUMBER', '기본 타임아웃 (초)', 'PERFORMANCE', TRUE, TRUE),
 ('LOG_DB', 'logDB', 'STRING', '로그 데이터베이스명', 'SYSTEM', TRUE, TRUE),
 ('DOWNLOAD_IP_PATTERN', '10.240.13.*', 'STRING', '다운로드 허용 IP 패턴', 'SECURITY', TRUE, TRUE),
-('JDBC_PATH', '${system.root.path}/jdbc', 'STRING', 'JDBC 드라이버 경로', 'SYSTEM', TRUE, TRUE),
-('CONNECTION_PATH', '${system.root.path}/Connection', 'STRING', '연결 정보 경로', 'SYSTEM', TRUE, TRUE),
-('SRC_PATH', '${system.root.path}/src', 'STRING', 'SQL 소스 경로', 'SYSTEM', TRUE, TRUE),
-('USER_PATH', '${system.root.path}/user', 'STRING', '사용자 정보 경로', 'SYSTEM', TRUE, TRUE),
-('TEMP_PATH', '${system.root.path}/temp', 'STRING', '임시 파일 경로', 'SYSTEM', TRUE, TRUE),
+('JDBC_PATH', '/Users/jooeunpark/git/DeX/Menu/jdbc', 'STRING', 'JDBC 드라이버 경로', 'SYSTEM', TRUE, TRUE),
+('SRC_PATH', '/Users/jooeunpark/git/DeX/Menu/src', 'STRING', 'SQL 소스 경로', 'SYSTEM', TRUE, TRUE),
 ('TEXT_LIMIT', '10000', 'NUMBER', '텍스트 입력 제한', 'UI', TRUE, TRUE),
 ('CHART_REFRESH_INTERVAL', '10', 'NUMBER', '차트 새로고침 간격 (초)', 'UI', TRUE, TRUE);
 
 -- =====================================================
--- 11. 테스트 데이터 삽입 (선택사항)
+-- 13. 테스트 데이터 삽입 (선택사항)
 -- =====================================================
 
 -- 테스트용 SQL 템플릿
@@ -374,11 +397,11 @@ INSERT INTO SQL_TEMPLATE_SHORTCUT (SOURCE_TEMPLATE_ID, TARGET_TEMPLATE_ID, SHORT
 ('test_sql', 'test_sql', 'F1', '상세보기', '0,1', TRUE);
 
 -- 테스트용 데이터베이스 연결
-INSERT INTO DATABASE_CONNECTION (CONNECTION_ID, CONNECTION_NAME, DB_TYPE, HOST_IP, PORT, DATABASE_NAME, USERNAME, PASSWORD, CREATED_BY) VALUES
-('test_db', '테스트 DB', 'DB2', 'localhost', 50000, 'SAMPLE', 'db2inst1', 'password', 'SYSTEM');
+INSERT INTO DATABASE_CONNECTION (CONNECTION_ID, DB_TYPE, HOST_IP, PORT, DATABASE_NAME, USERNAME, PASSWORD, CREATED_BY, TEST_SQL) VALUES
+('test_db', 'DB2', '192.168.219.124', 50000, 'SAMPLE', 'db2inst1', '1234', 'SYSTEM','SELECT 1 FROM SYSIBM.SYSDUMMY1');
 
 -- =====================================================
--- 12. 실제 데이터에 대한 권한 설정 (와일드카드 권한과 별도)
+-- 14. 실제 데이터에 대한 권한 설정 (와일드카드 권한과 별도)
 -- =====================================================
 
 -- 관리자 그룹에 실제 SQL 템플릿 권한 부여 (와일드카드 권한과 별도로 설정)
@@ -398,10 +421,3 @@ WHERE NOT EXISTS (
     SELECT 1 FROM CONNECTION_PERMISSIONS 
     WHERE GROUP_ID = 'ADMIN_GROUP' AND CONNECTION_ID = DATABASE_CONNECTION.CONNECTION_ID
 );
-
--- =====================================================
--- 13. 완료 메시지
--- =====================================================
-
-SELECT 'Windmill 완전 데이터베이스 스키마 설정이 완료되었습니다.' as MESSAGE FROM SYSIBM.SYSDUMMY1;
-

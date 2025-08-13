@@ -137,19 +137,20 @@ var tableHeight=0;
 				TYPE: "DB"
 			},
 			success: function(result) {
+				
 
 				const list = "${DB}" == "" ? [] : "${DB}".split(",")
 
-				for (var i = 0; i < result.length; i++) {
+				for (var i = 0; i < result.data.length; i++) {
 
-					if (list.length > 0 && !list.includes(result[i].split('.')[0])) {
+					if (list.length > 0 && !list.includes(result.data[i].split('.')[0])) {
 						continue;
 					}
 
-					if (result[i].split('.')[0] == $('#selectedConnection').val() || list.length == 1) {
-						$('#connectionlist').append("<option value=\"" + result[i].split('.')[0] + "\"  selected=\"selected\">" + result[i].split('.')[0] + "</option>");
+					if (result.data[i].split('.')[0] == $('#selectedConnection').val() || list.length == 1) {
+						$('#connectionlist').append("<option value=\"" + result.data[i].split('.')[0] + "\"  selected=\"selected\">" + result.data[i].split('.')[0] + "</option>");
 					} else {
-						$('#connectionlist').append("<option value='" + result[i].split('.')[0] + "'>" + result[i].split('.')[0] + "</option>");
+						$('#connectionlist').append("<option value='" + result.data[i].split('.')[0] + "'>" + result.data[i].split('.')[0] + "</option>");
 					}
 				}
 
@@ -423,7 +424,7 @@ var tableHeight=0;
 			type: 'post',
 			url: '/SQL/commit',
 			data: {
-				Connection: $("#connectionlist").val()
+				connectionId: $("#connectionlist").val()
 			},
 			error: function() {
 				alert("시스템 에러");
@@ -476,7 +477,7 @@ var tableHeight=0;
 				autocommit: true,
 				/* autocommit : $("#autocommit").prop('checked'), */
 				audit: ${audit == null ? false : audit},
-				Connection: $("#connectionlist").val(),
+				connectionId: $("#connectionlist").val(),
 				
 				// 2025-04-29 limit 2만으로 제한
 				// 환경설정에 limit이 설정되어 있는데 0이나 2만 이상으로 조회하는 경우 2만으로 제한, 
@@ -694,7 +695,7 @@ var tableHeight=0;
 				type: 'post',
 				url: '/Connection/sessionCon',
 				data: {
-					Connection: value
+					connectionId: value
 				},
 				success: function(result) {
 					//alert("성공")

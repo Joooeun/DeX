@@ -7,7 +7,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -25,7 +24,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
-import kr.Windmill.service.ConnectionDTO;
 import kr.Windmill.service.LogInfoDTO;
 import kr.Windmill.service.SQLExecuteService;
 import kr.Windmill.util.Common;
@@ -173,7 +171,7 @@ public class SQLController {
 	@RequestMapping(path = "/search_all_data", method = RequestMethod.GET)
 	public ModelAndView test(HttpServletRequest request, ModelAndView mv, HttpSession session) {
 
-		mv.addObject("Connection", session.getAttribute("Connection"));
+		mv.addObject("connectionId", session.getAttribute("connectionId"));
 
 		return mv;
 	}
