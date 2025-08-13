@@ -259,31 +259,7 @@ public class UserGroupController {
 		return result;
 	}
 
-	// 상위 그룹 목록 조회
-	@ResponseBody
-	@RequestMapping("/parentGroups")
-	public Map<String, Object> getParentGroupList(HttpSession session) {
-		Map<String, Object> result = new HashMap<>();
 
-		try {
-			String userId = (String) session.getAttribute("memberId");
-			if (userId == null) {
-				result.put("success", false);
-				result.put("message", "로그인이 필요합니다.");
-				return result;
-			}
-
-			result.put("success", true);
-			result.put("data", userGroupService.getParentGroupList());
-
-		} catch (Exception e) {
-			e.printStackTrace();
-			result.put("success", false);
-			result.put("message", "상위 그룹 목록 조회 중 오류가 발생했습니다.");
-		}
-
-		return result;
-	}
 
 	// 사용 가능한 사용자 목록 조회
 	@ResponseBody

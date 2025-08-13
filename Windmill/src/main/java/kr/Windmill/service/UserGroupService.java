@@ -35,9 +35,15 @@ public class UserGroupService {
     @Transactional
     public boolean createGroup(Map<String, Object> groupData) {
         try {
+            // groupId가 없으면 자동 생성
+            String groupId = (String) groupData.get("groupId");
+            if (groupId == null || groupId.trim().isEmpty()) {
+                groupId = "GROUP_" + System.currentTimeMillis();
+            }
+            
             String sql = "INSERT INTO USER_GROUPS (GROUP_ID, GROUP_NAME, GROUP_DESCRIPTION, STATUS, CREATED_BY) VALUES (?, ?, ?, ?, ?)";
             jdbcTemplate.update(sql, 
-                groupData.get("groupId"),
+                groupId,
                 groupData.get("groupName"),
                 groupData.get("description"),
                 groupData.get("status"),
@@ -88,11 +94,7 @@ public class UserGroupService {
         }
     }
     
-    // 상위 그룹 목록 조회
-    public List<Map<String, Object>> getParentGroupList() {
-        String sql = "SELECT GROUP_ID, GROUP_NAME FROM USER_GROUPS WHERE STATUS = 'ACTIVE' ORDER BY GROUP_NAME";
-        return jdbcTemplate.queryForList(sql);
-    }
+
     
     // 사용 가능한 사용자 목록 조회 (그룹에 속하지 않은 사용자)
     public List<Map<String, Object>> getAvailableUsers(String groupId) {

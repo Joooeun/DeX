@@ -140,7 +140,9 @@ public class Common {
 	public Map<String, String> UserConf(String UserName) throws IOException {
 		// DB 기반 사용자 설정 조회로 변경
 		try {
-			return userService.getUserConfig(UserName);
+			//임
+			Map<String, String> map = new HashMap<>();
+			return map;
 		} catch (Exception e) {
 			logger.error("DB 기반 사용자 설정 조회 실패, 파일 기반으로 폴백: {}", UserName, e);
 			
@@ -300,39 +302,6 @@ public class Common {
 
 		return list;
 
-	}
-
-	public List<Map<String, String>> UserList() throws IOException {
-		// DB 기반 사용자 목록 조회로 변경
-		try {
-			return userService.getUserListForCompatibility();
-		} catch (Exception e) {
-			logger.error("DB 기반 사용자 목록 조회 실패, 파일 기반으로 폴백", e);
-			
-			// 파일 기반 폴백 (기존 코드)
-			List<Map<String, String>> userlist = new ArrayList<>();
-
-			File dirFile = new File(UserPath);
-			File[] fileList = dirFile.listFiles();
-			Arrays.sort(fileList);
-			for (File tempFile : fileList) {
-
-				Map user = new HashMap<String, String>();
-				if (tempFile.isFile()) {
-
-					String tempFileName = tempFile.getName();
-
-					if (!tempFileName.contains(".")) {
-						user.put("id", tempFileName);
-						user.put("name", UserConf(tempFileName).get("NAME"));
-						userlist.add(user);
-					}
-
-				}
-			}
-
-			return userlist;
-		}
 	}
 
 	public String FileRead(File file) throws IOException {

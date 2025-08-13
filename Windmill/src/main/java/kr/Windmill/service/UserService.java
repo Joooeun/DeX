@@ -19,7 +19,7 @@ public class UserService {
     private JdbcTemplate jdbcTemplate;
     
     // 사용자 목록 조회 (페이징 포함)
-    public Map<String, Object> getUserList(String searchKeyword, int page, int pageSize) {
+    public Map<String, Object> getUserList(String searchKeyword, String groupFilter, int page, int pageSize) {
         Map<String, Object> result = new HashMap<>();
         
         // 전체 개수 조회
@@ -29,12 +29,22 @@ public class UserService {
         countSqlBuilder.append("LEFT JOIN USER_GROUPS ug ON ugm.GROUP_ID = ug.GROUP_ID ");
         
         List<Object> countParams = new ArrayList<>();
+        List<String> whereConditions = new ArrayList<>();
         
         if (searchKeyword != null && !searchKeyword.trim().isEmpty()) {
-            countSqlBuilder.append("WHERE (u.USER_ID LIKE ? OR u.USER_NAME LIKE ?) ");
+            whereConditions.add("(u.USER_ID LIKE ? OR u.USER_NAME LIKE ?)");
             String likePattern = "%" + searchKeyword.trim() + "%";
             countParams.add(likePattern);
             countParams.add(likePattern);
+        }
+        
+        if (groupFilter != null && !groupFilter.trim().isEmpty()) {
+            whereConditions.add("ugm.GROUP_ID = ?");
+            countParams.add(groupFilter);
+        }
+        
+        if (!whereConditions.isEmpty()) {
+            countSqlBuilder.append("WHERE ").append(String.join(" AND ", whereConditions));
         }
         
         int totalCount;
@@ -55,12 +65,22 @@ public class UserService {
         sqlBuilder.append("LEFT JOIN USER_GROUPS ug ON ugm.GROUP_ID = ug.GROUP_ID ");
         
         List<Object> params = new ArrayList<>();
+        List<String> dataWhereConditions = new ArrayList<>();
         
         if (searchKeyword != null && !searchKeyword.trim().isEmpty()) {
-            sqlBuilder.append("WHERE (u.USER_ID LIKE ? OR u.USER_NAME LIKE ?) ");
+            dataWhereConditions.add("(u.USER_ID LIKE ? OR u.USER_NAME LIKE ?)");
             String likePattern = "%" + searchKeyword.trim() + "%";
             params.add(likePattern);
             params.add(likePattern);
+        }
+        
+        if (groupFilter != null && !groupFilter.trim().isEmpty()) {
+            dataWhereConditions.add("ugm.GROUP_ID = ?");
+            params.add(groupFilter);
+        }
+        
+        if (!dataWhereConditions.isEmpty()) {
+            sqlBuilder.append("WHERE ").append(String.join(" AND ", dataWhereConditions));
         }
         
         sqlBuilder.append(") AS PAGED_DATA ");
@@ -86,8 +106,12 @@ public class UserService {
     }
     
     // 기존 메서드 호환성을 위한 오버로드
+    public Map<String, Object> getUserList(String searchKeyword, int page, int pageSize) {
+        return getUserList(searchKeyword, null, page, pageSize);
+    }
+    
     public List<Map<String, Object>> getUserList(String searchKeyword) {
-        Map<String, Object> result = getUserList(searchKeyword, 1, 5);
+        Map<String, Object> result = getUserList(searchKeyword, null, 1, 5);
         return (List<Map<String, Object>>) result.get("userList");
     }
     
