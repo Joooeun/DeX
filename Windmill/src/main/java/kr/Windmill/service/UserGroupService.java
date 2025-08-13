@@ -35,12 +35,11 @@ public class UserGroupService {
     @Transactional
     public boolean createGroup(Map<String, Object> groupData) {
         try {
-            String sql = "INSERT INTO USER_GROUPS (GROUP_ID, GROUP_NAME, DESCRIPTION, PARENT_GROUP_ID, STATUS, CREATED_BY) VALUES (?, ?, ?, ?, ?, ?)";
+            String sql = "INSERT INTO USER_GROUPS (GROUP_ID, GROUP_NAME, GROUP_DESCRIPTION, STATUS, CREATED_BY) VALUES (?, ?, ?, ?, ?)";
             jdbcTemplate.update(sql, 
                 groupData.get("groupId"),
                 groupData.get("groupName"),
                 groupData.get("description"),
-                groupData.get("parentGroupId"),
                 groupData.get("status"),
                 groupData.get("createdBy")
             );
@@ -55,11 +54,10 @@ public class UserGroupService {
     @Transactional
     public boolean updateGroup(String groupId, Map<String, Object> groupData) {
         try {
-            String sql = "UPDATE USER_GROUPS SET GROUP_NAME = ?, DESCRIPTION = ?, PARENT_GROUP_ID = ?, STATUS = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE GROUP_ID = ?";
+            String sql = "UPDATE USER_GROUPS SET GROUP_NAME = ?, GROUP_DESCRIPTION = ?, STATUS = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE GROUP_ID = ?";
             jdbcTemplate.update(sql,
                 groupData.get("groupName"),
                 groupData.get("description"),
-                groupData.get("parentGroupId"),
                 groupData.get("status"),
                 groupData.get("modifiedBy"),
                 groupId
@@ -99,10 +97,10 @@ public class UserGroupService {
     // 사용 가능한 사용자 목록 조회 (그룹에 속하지 않은 사용자)
     public List<Map<String, Object>> getAvailableUsers(String groupId) {
         String sql = "SELECT USER_ID, USER_NAME FROM USERS " +
-                    "WHERE USER_ID NOT IN (SELECT USER_ID FROM USER_GROUP_MAPPING WHERE GROUP_ID = ?) " +
+                    "WHERE USER_ID NOT IN (SELECT USER_ID FROM USER_GROUP_MAPPING) " +
                     "AND STATUS = 'ACTIVE' " +
                     "ORDER BY USER_NAME";
-        return jdbcTemplate.queryForList(sql, groupId);
+        return jdbcTemplate.queryForList(sql);
     }
     
     // 그룹 멤버 목록 조회
@@ -115,12 +113,16 @@ public class UserGroupService {
         return jdbcTemplate.queryForList(sql, groupId);
     }
     
-    // 사용자를 그룹에 추가
+    // 사용자를 그룹에 추가 (단일 그룹)
     @Transactional
     public boolean addUserToGroup(String groupId, String userId, String assignedBy) {
         try {
-            String sql = "INSERT INTO USER_GROUP_MAPPING (USER_ID, GROUP_ID, ASSIGNED_BY) VALUES (?, ?, ?)";
-            jdbcTemplate.update(sql, userId, groupId, assignedBy);
+            // 기존 그룹 할당 삭제 후 새로운 그룹 할당
+            String deleteSql = "DELETE FROM USER_GROUP_MAPPING WHERE USER_ID = ?";
+            jdbcTemplate.update(deleteSql, userId);
+            
+            String insertSql = "INSERT INTO USER_GROUP_MAPPING (USER_ID, GROUP_ID, ASSIGNED_BY) VALUES (?, ?, ?)";
+            jdbcTemplate.update(insertSql, userId, groupId, assignedBy);
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -147,7 +149,7 @@ public class UserGroupService {
             String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.CATEGORY_PATH, " +
                         "CASE WHEN p.GROUP_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
                         "FROM SQL_TEMPLATE t " +
-                        "LEFT JOIN SQL_TEMPLATE_GROUP_PERMISSIONS p ON t.TEMPLATE_ID = p.TEMPLATE_ID AND p.GROUP_ID = ? " +
+                        "LEFT JOIN SQL_TEMPLATE_PERMISSIONS p ON t.TEMPLATE_ID = p.TEMPLATE_ID AND p.GROUP_ID = ? " +
                         "WHERE t.STATUS = 'ACTIVE' " +
                         "ORDER BY t.CATEGORY_PATH, t.TEMPLATE_NAME";
             return jdbcTemplate.queryForList(sql, groupId);
@@ -163,7 +165,7 @@ public class UserGroupService {
             String sql = "SELECT c.CONNECTION_ID, c.CONNECTION_NAME, c.DB_TYPE, " +
                         "CASE WHEN p.GROUP_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
                         "FROM DATABASE_CONNECTION c " +
-                        "LEFT JOIN CONNECTION_GROUP_PERMISSIONS p ON c.CONNECTION_ID = p.CONNECTION_ID AND p.GROUP_ID = ? " +
+                        "LEFT JOIN CONNECTION_PERMISSIONS p ON c.CONNECTION_ID = p.CONNECTION_ID AND p.GROUP_ID = ? " +
                         "WHERE c.STATUS = 'ACTIVE' " +
                         "ORDER BY c.CONNECTION_NAME";
             return jdbcTemplate.queryForList(sql, groupId);
@@ -181,13 +183,13 @@ public class UserGroupService {
             List<Map<String, Object>> sqlPermissions = (List<Map<String, Object>>) permissions.get("sqlTemplatePermissions");
             if (sqlPermissions != null) {
                 // 기존 SQL 템플릿 권한 삭제
-                String deleteSqlSql = "DELETE FROM SQL_TEMPLATE_GROUP_PERMISSIONS WHERE GROUP_ID = ?";
+                String deleteSqlSql = "DELETE FROM SQL_TEMPLATE_PERMISSIONS WHERE GROUP_ID = ?";
                 jdbcTemplate.update(deleteSqlSql, groupId);
                 
                 // 새로운 SQL 템플릿 권한 추가
                 for (Map<String, Object> permission : sqlPermissions) {
                     if ((Boolean) permission.get("hasPermission")) {
-                        String insertSqlSql = "INSERT INTO SQL_TEMPLATE_GROUP_PERMISSIONS (GROUP_ID, TEMPLATE_ID, GRANTED_BY) VALUES (?, ?, ?)";
+                        String insertSqlSql = "INSERT INTO SQL_TEMPLATE_PERMISSIONS (GROUP_ID, TEMPLATE_ID, GRANTED_BY) VALUES (?, ?, ?)";
                         jdbcTemplate.update(insertSqlSql, groupId, permission.get("templateId"), modifiedBy);
                     }
                 }
@@ -197,13 +199,13 @@ public class UserGroupService {
             List<Map<String, Object>> connPermissions = (List<Map<String, Object>>) permissions.get("connectionPermissions");
             if (connPermissions != null) {
                 // 기존 연결 정보 권한 삭제
-                String deleteConnSql = "DELETE FROM CONNECTION_GROUP_PERMISSIONS WHERE GROUP_ID = ?";
+                String deleteConnSql = "DELETE FROM CONNECTION_PERMISSIONS WHERE GROUP_ID = ?";
                 jdbcTemplate.update(deleteConnSql, groupId);
                 
                 // 새로운 연결 정보 권한 추가
                 for (Map<String, Object> permission : connPermissions) {
                     if ((Boolean) permission.get("hasPermission")) {
-                        String insertConnSql = "INSERT INTO CONNECTION_GROUP_PERMISSIONS (GROUP_ID, CONNECTION_ID, GRANTED_BY) VALUES (?, ?, ?)";
+                        String insertConnSql = "INSERT INTO CONNECTION_PERMISSIONS (GROUP_ID, CONNECTION_ID, GRANTED_BY) VALUES (?, ?, ?)";
                         jdbcTemplate.update(insertConnSql, groupId, permission.get("connectionId"), modifiedBy);
                     }
                 }

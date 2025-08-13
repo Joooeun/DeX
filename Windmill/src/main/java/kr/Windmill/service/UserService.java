@@ -1,14 +1,16 @@
 package kr.Windmill.service;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.ArrayList;
+import kr.Windmill.util.Crypto;
 
 @Service
 public class UserService {
@@ -16,10 +18,77 @@ public class UserService {
     @Autowired
     private JdbcTemplate jdbcTemplate;
     
-    // 사용자 목록 조회
-    public List<Map<String, Object>> getUserList() {
-        String sql = "SELECT USER_ID, USER_NAME, STATUS, LAST_LOGIN_TIMESTAMP, LOGIN_FAIL_COUNT, CREATED_TIMESTAMP FROM USERS ORDER BY CREATED_TIMESTAMP DESC";
-        return jdbcTemplate.queryForList(sql);
+    // 사용자 목록 조회 (페이징 포함)
+    public Map<String, Object> getUserList(String searchKeyword, int page, int pageSize) {
+        Map<String, Object> result = new HashMap<>();
+        
+        // 전체 개수 조회
+        StringBuilder countSqlBuilder = new StringBuilder();
+        countSqlBuilder.append("SELECT COUNT(*) FROM USERS u ");
+        countSqlBuilder.append("LEFT JOIN USER_GROUP_MAPPING ugm ON u.USER_ID = ugm.USER_ID ");
+        countSqlBuilder.append("LEFT JOIN USER_GROUPS ug ON ugm.GROUP_ID = ug.GROUP_ID ");
+        
+        List<Object> countParams = new ArrayList<>();
+        
+        if (searchKeyword != null && !searchKeyword.trim().isEmpty()) {
+            countSqlBuilder.append("WHERE (u.USER_ID LIKE ? OR u.USER_NAME LIKE ?) ");
+            String likePattern = "%" + searchKeyword.trim() + "%";
+            countParams.add(likePattern);
+            countParams.add(likePattern);
+        }
+        
+        int totalCount;
+        if (countParams.isEmpty()) {
+            totalCount = jdbcTemplate.queryForObject(countSqlBuilder.toString(), Integer.class);
+        } else {
+            totalCount = jdbcTemplate.queryForObject(countSqlBuilder.toString(), countParams.toArray(), Integer.class);
+        }
+        
+        // 페이징된 데이터 조회 - DB2 표준 문법 사용
+        StringBuilder sqlBuilder = new StringBuilder();
+        sqlBuilder.append("SELECT * FROM (");
+        sqlBuilder.append("SELECT ROW_NUMBER() OVER (ORDER BY u.CREATED_TIMESTAMP DESC) AS RN, ");
+        sqlBuilder.append("u.USER_ID, u.USER_NAME, u.STATUS, u.IP_RESTRICTION, u.LAST_LOGIN_TIMESTAMP, u.LOGIN_FAIL_COUNT, u.CREATED_TIMESTAMP, ");
+        sqlBuilder.append("ug.GROUP_NAME ");
+        sqlBuilder.append("FROM USERS u ");
+        sqlBuilder.append("LEFT JOIN USER_GROUP_MAPPING ugm ON u.USER_ID = ugm.USER_ID ");
+        sqlBuilder.append("LEFT JOIN USER_GROUPS ug ON ugm.GROUP_ID = ug.GROUP_ID ");
+        
+        List<Object> params = new ArrayList<>();
+        
+        if (searchKeyword != null && !searchKeyword.trim().isEmpty()) {
+            sqlBuilder.append("WHERE (u.USER_ID LIKE ? OR u.USER_NAME LIKE ?) ");
+            String likePattern = "%" + searchKeyword.trim() + "%";
+            params.add(likePattern);
+            params.add(likePattern);
+        }
+        
+        sqlBuilder.append(") AS PAGED_DATA ");
+        sqlBuilder.append("WHERE RN BETWEEN ? AND ?");
+        
+        int startRow = (page - 1) * pageSize + 1;
+        int endRow = page * pageSize;
+        params.add(startRow);
+        params.add(endRow);
+        
+        List<Map<String, Object>> userList = jdbcTemplate.queryForList(sqlBuilder.toString(), params.toArray());
+        
+        // 페이징 정보 계산
+        int totalPages = (int) Math.ceil((double) totalCount / pageSize);
+        
+        result.put("userList", userList);
+        result.put("totalCount", totalCount);
+        result.put("currentPage", page);
+        result.put("pageSize", pageSize);
+        result.put("totalPages", totalPages);
+        
+        return result;
+    }
+    
+    // 기존 메서드 호환성을 위한 오버로드
+    public List<Map<String, Object>> getUserList(String searchKeyword) {
+        Map<String, Object> result = getUserList(searchKeyword, 1, 5);
+        return (List<Map<String, Object>>) result.get("userList");
     }
     
     // 사용자 상세 조회
@@ -33,12 +102,17 @@ public class UserService {
     @Transactional
     public boolean createUser(Map<String, Object> userData) {
         try {
-            String sql = "INSERT INTO USERS (USER_ID, USER_NAME, PASSWORD, STATUS, CREATED_BY) VALUES (?, ?, ?, ?, ?)";
+            // 비밀번호 암호화
+            String plainPassword = (String) userData.get("password");
+            String encryptedPassword = Crypto.crypt(plainPassword);
+            
+            String sql = "INSERT INTO USERS (USER_ID, USER_NAME, PASSWORD, STATUS, IP_RESTRICTION, CREATED_BY) VALUES (?, ?, ?, ?, ?, ?)";
             jdbcTemplate.update(sql, 
                 userData.get("userId"),
                 userData.get("userName"),
-                userData.get("password"),
+                encryptedPassword,  // 암호화된 비밀번호 저장
                 userData.get("status"),
+                userData.get("ipRestriction"),
                 userData.get("createdBy")
             );
             return true;
@@ -52,13 +126,27 @@ public class UserService {
     @Transactional
     public boolean updateUser(String userId, Map<String, Object> userData) {
         try {
-            String sql = "UPDATE USERS SET USER_NAME = ?, STATUS = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE USER_ID = ?";
-            jdbcTemplate.update(sql,
-                userData.get("userName"),
-                userData.get("status"),
-                userData.get("modifiedBy"),
-                userId
-            );
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("UPDATE USERS SET USER_NAME = ?, STATUS = ?, IP_RESTRICTION = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP");
+            
+            java.util.List<Object> params = new java.util.ArrayList<>();
+            params.add(userData.get("userName"));
+            params.add(userData.get("status"));
+            params.add(userData.get("ipRestriction"));
+            params.add(userData.get("modifiedBy"));
+            
+            // 비밀번호가 제공된 경우 암호화하여 업데이트
+            String password = (String) userData.get("password");
+            if (password != null && !password.trim().isEmpty()) {
+                String encryptedPassword = Crypto.crypt(password);
+                sqlBuilder.append(", PASSWORD = ?, PASSWORD_CHANGE_DATE = CURRENT DATE");
+                params.add(encryptedPassword);
+            }
+            
+            sqlBuilder.append(" WHERE USER_ID = ?");
+            params.add(userId);
+            
+            jdbcTemplate.update(sqlBuilder.toString(), params.toArray());
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -91,11 +179,11 @@ public class UserService {
             
             if (userInfo.isEmpty()) {
                 // 존재하지 않는 사용자 로그인 시도 로그
-                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', '사용자가 존재하지 않습니다')";
+                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', '계정정보가 일치하지 않습니다')";
                 jdbcTemplate.update(auditSql, userId, ipAddress, userAgent);
                 
                 result.put("success", false);
-                result.put("message", "사용자가 존재하지 않습니다.");
+                result.put("message", "계정정보가 일치하지 않습니다.");
                 return result;
             }
             
@@ -103,43 +191,57 @@ public class UserService {
             String status = (String) user.get("STATUS");
             Integer failCount = (Integer) user.get("LOGIN_FAIL_COUNT");
             
-            // 계정 상태 확인
-            if (!"ACTIVE".equals(status)) {
-                // 비활성 계정 로그인 시도 로그
-                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', '비활성화된 계정입니다')";
-                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent);
-                
+            // 비밀번호 확인 (암호화된 비밀번호 비교)
+            String passwordSql = "SELECT PASSWORD FROM USERS WHERE USER_ID = ?";
+            List<Map<String, Object>> passwordResult = jdbcTemplate.queryForList(passwordSql, userId);
+            
+            if (passwordResult.isEmpty()) {
                 result.put("success", false);
-                result.put("message", "비활성화된 계정입니다.");
+                result.put("message", "계정정보가 일치하지 않습니다.");
                 return result;
             }
             
-            // 로그인 실패 횟수 확인
-            if (failCount != null && failCount >= 5) {
-                // 계정 잠금 상태 로그인 시도 로그
-                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', '로그인 실패 횟수 초과로 계정이 잠겼습니다')";
-                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent);
-                
-                result.put("success", false);
-                result.put("message", "로그인 실패 횟수 초과로 계정이 잠겼습니다.");
-                return result;
-            }
+            String storedPassword = (String) passwordResult.get(0).get("PASSWORD");
+            String encryptedPassword = Crypto.crypt(password);
             
-            // 비밀번호 확인 (실제로는 암호화된 비밀번호 비교)
-            String passwordSql = "SELECT COUNT(*) FROM USERS WHERE USER_ID = ? AND PASSWORD = ?";
-            int passwordMatch = jdbcTemplate.queryForObject(passwordSql, Integer.class, userId, password);
-            
-            if (passwordMatch == 0) {
+            // 비밀번호가 틀린 경우
+            if (!storedPassword.equals(encryptedPassword)) {
                 // 로그인 실패 횟수 증가
                 String failSql = "UPDATE USERS SET LOGIN_FAIL_COUNT = LOGIN_FAIL_COUNT + 1 WHERE USER_ID = ?";
                 jdbcTemplate.update(failSql, userId);
                 
+                // 현재 실패 횟수 확인
+                String currentFailSql = "SELECT LOGIN_FAIL_COUNT FROM USERS WHERE USER_ID = ?";
+                Integer currentFailCount = jdbcTemplate.queryForObject(currentFailSql, Integer.class, userId);
+                
+                String errorMessage = "계정정보가 일치하지 않습니다.";
+                
+                // 5번 이상 실패하면 계정 잠금
+                if (currentFailCount != null && currentFailCount >= 5) {
+                    String lockSql = "UPDATE USERS SET STATUS = 'LOCKED' WHERE USER_ID = ?";
+                    jdbcTemplate.update(lockSql, userId);
+                    errorMessage = "로그인 실패 횟수 초과로 계정이 잠겼습니다. 관리자에게 문의하세요.";
+                }
+                
                 // 비밀번호 불일치 로그인 시도 로그
-                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', '비밀번호가 일치하지 않습니다')";
-                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent);
+                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', ?)";
+                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, errorMessage);
                 
                 result.put("success", false);
-                result.put("message", "비밀번호가 일치하지 않습니다.");
+                result.put("message", errorMessage);
+                return result;
+            }
+            
+            // 비밀번호가 맞은 경우 - 계정 상태 확인
+            if (!"ACTIVE".equals(status)) {
+                String statusMessage = "LOCKED".equals(status) ? "계정이 잠겨있습니다. 관리자에게 문의하세요." : "비활성화된 계정입니다.";
+                
+                // 계정 상태 문제 로그인 시도 로그
+                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', ?)";
+                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, statusMessage);
+                
+                result.put("success", false);
+                result.put("message", statusMessage);
                 return result;
             }
             
@@ -196,12 +298,18 @@ public class UserService {
         return jdbcTemplate.queryForList(sql);
     }
     
-    // 사용자 그룹 매핑
+    // 사용자 그룹 매핑 (단일 그룹)
     @Transactional
     public boolean assignUserToGroup(String userId, String groupId, String assignedBy) {
         try {
-            String sql = "INSERT INTO USER_GROUP_MAPPING (USER_ID, GROUP_ID, ASSIGNED_BY) VALUES (?, ?, ?)";
-            jdbcTemplate.update(sql, userId, groupId, assignedBy);
+            // 기존 그룹 매핑 삭제 (단일 그룹 정책)
+            String deleteSql = "DELETE FROM USER_GROUP_MAPPING WHERE USER_ID = ?";
+            jdbcTemplate.update(deleteSql, userId);
+            
+            // 새로운 그룹 매핑 추가
+            String insertSql = "INSERT INTO USER_GROUP_MAPPING (USER_ID, GROUP_ID, ASSIGNED_BY, ASSIGNED_TIMESTAMP) VALUES (?, ?, ?, CURRENT TIMESTAMP)";
+            jdbcTemplate.update(insertSql, userId, groupId, assignedBy);
+            
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -209,90 +317,75 @@ public class UserService {
         }
     }
     
-    // 사용자 그룹 해제
-    @Transactional
-    public boolean removeUserFromGroup(String userId, String groupId) {
-        try {
-            String sql = "DELETE FROM USER_GROUP_MAPPING WHERE USER_ID = ? AND GROUP_ID = ?";
-            jdbcTemplate.update(sql, userId, groupId);
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
     // SQL 템플릿 권한 조회
     public List<Map<String, Object>> getSqlTemplatePermissions(String userId) {
-        try {
-            String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.CATEGORY_PATH, " +
-                        "CASE WHEN p.USER_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
-                        "FROM SQL_TEMPLATE t " +
-                        "LEFT JOIN SQL_TEMPLATE_PERMISSIONS p ON t.TEMPLATE_ID = p.TEMPLATE_ID AND p.USER_ID = ? " +
-                        "WHERE t.STATUS = 'ACTIVE' " +
-                        "ORDER BY t.CATEGORY_PATH, t.TEMPLATE_NAME";
-            return jdbcTemplate.queryForList(sql, userId);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new java.util.ArrayList<>();
-        }
+        String sql = "SELECT stp.TEMPLATE_ID, stp.ACCESS_TYPE, stp.FOLDER_PATH, " +
+                    "CASE WHEN stp.TEMPLATE_ID = '*' THEN '모든 템플릿' ELSE stp.TEMPLATE_ID END AS TEMPLATE_NAME, " +
+                    "stp.FOLDER_PATH AS CATEGORY_PATH " +
+                    "FROM SQL_TEMPLATE_PERMISSIONS stp " +
+                    "INNER JOIN USER_GROUP_MAPPING ugm ON stp.GROUP_ID = ugm.GROUP_ID " +
+                    "WHERE ugm.USER_ID = ? " +
+                    "ORDER BY stp.TEMPLATE_ID, stp.FOLDER_PATH";
+        return jdbcTemplate.queryForList(sql, userId);
     }
-
+    
     // 연결 정보 권한 조회
     public List<Map<String, Object>> getConnectionPermissions(String userId) {
-        try {
-            String sql = "SELECT c.CONNECTION_ID, c.CONNECTION_NAME, c.DB_TYPE, " +
-                        "CASE WHEN p.USER_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
-                        "FROM DATABASE_CONNECTION c " +
-                        "LEFT JOIN CONNECTION_PERMISSIONS p ON c.CONNECTION_ID = p.CONNECTION_ID AND p.USER_ID = ? " +
-                        "WHERE c.STATUS = 'ACTIVE' " +
-                        "ORDER BY c.CONNECTION_NAME";
-            return jdbcTemplate.queryForList(sql, userId);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new java.util.ArrayList<>();
-        }
+        String sql = "SELECT cp.CONNECTION_ID, cp.ACCESS_TYPE, " +
+                    "CASE WHEN cp.CONNECTION_ID = '*' THEN '모든 연결' ELSE cp.CONNECTION_ID END AS CONNECTION_NAME " +
+                    "FROM CONNECTION_PERMISSIONS cp " +
+                    "INNER JOIN USER_GROUP_MAPPING ugm ON cp.GROUP_ID = ugm.GROUP_ID " +
+                    "WHERE ugm.USER_ID = ? " +
+                    "ORDER BY cp.CONNECTION_ID";
+        return jdbcTemplate.queryForList(sql, userId);
     }
-
+    
     // 사용자 권한 저장
     @Transactional
-    public boolean saveUserPermissions(String userId, Map<String, Object> permissions, String modifiedBy) {
+    public boolean saveUserPermissions(String userId, Map<String, Object> permissions, String savedBy) {
         try {
+            // 사용자의 그룹 ID 조회
+            String groupSql = "SELECT GROUP_ID FROM USER_GROUP_MAPPING WHERE USER_ID = ?";
+            List<Map<String, Object>> groupResult = jdbcTemplate.queryForList(groupSql, userId);
+            
+            if (groupResult.isEmpty()) {
+                return false; // 사용자가 그룹에 할당되지 않음
+            }
+            
+            String groupId = (String) groupResult.get(0).get("GROUP_ID");
+            
+            // 기존 권한 삭제
+            String deleteSqlTemplateSql = "DELETE FROM SQL_TEMPLATE_PERMISSIONS WHERE GROUP_ID = ?";
+            String deleteConnectionSql = "DELETE FROM CONNECTION_PERMISSIONS WHERE GROUP_ID = ?";
+            jdbcTemplate.update(deleteSqlTemplateSql, groupId);
+            jdbcTemplate.update(deleteConnectionSql, groupId);
+            
             // SQL 템플릿 권한 저장
-            List<Map<String, Object>> sqlPermissions = (List<Map<String, Object>>) permissions.get("sqlTemplatePermissions");
-            if (sqlPermissions != null) {
-                // 기존 SQL 템플릿 권한 삭제
-                String deleteSqlSql = "DELETE FROM SQL_TEMPLATE_PERMISSIONS WHERE USER_ID = ?";
-                jdbcTemplate.update(deleteSqlSql, userId);
-                
-                // 새로운 SQL 템플릿 권한 추가
-                for (Map<String, Object> permission : sqlPermissions) {
-                    if ((Boolean) permission.get("hasPermission")) {
-                        String insertSqlSql = "INSERT INTO SQL_TEMPLATE_PERMISSIONS (USER_ID, TEMPLATE_ID, GRANTED_BY) VALUES (?, ?, ?)";
-                        jdbcTemplate.update(insertSqlSql, userId, permission.get("templateId"), modifiedBy);
-                    }
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> sqlTemplatePermissions = (List<Map<String, Object>>) permissions.get("sqlTemplate");
+            if (sqlTemplatePermissions != null) {
+                for (Map<String, Object> permission : sqlTemplatePermissions) {
+                    String templateId = (String) permission.get("templateId");
+                    String accessType = (String) permission.get("accessType");
+                    String folderPath = (String) permission.get("folderPath");
+                    
+                    String insertSql = "INSERT INTO SQL_TEMPLATE_PERMISSIONS (GROUP_ID, TEMPLATE_ID, ACCESS_TYPE, FOLDER_PATH, GRANTED_BY) VALUES (?, ?, ?, ?, ?)";
+                    jdbcTemplate.update(insertSql, groupId, templateId, accessType, folderPath, savedBy);
                 }
             }
             
             // 연결 정보 권한 저장
-            List<Map<String, Object>> connPermissions = (List<Map<String, Object>>) permissions.get("connectionPermissions");
-            if (connPermissions != null) {
-                // 기존 연결 정보 권한 삭제
-                String deleteConnSql = "DELETE FROM CONNECTION_PERMISSIONS WHERE USER_ID = ?";
-                jdbcTemplate.update(deleteConnSql, userId);
-                
-                // 새로운 연결 정보 권한 추가
-                for (Map<String, Object> permission : connPermissions) {
-                    if ((Boolean) permission.get("hasPermission")) {
-                        String insertConnSql = "INSERT INTO CONNECTION_PERMISSIONS (USER_ID, CONNECTION_ID, GRANTED_BY) VALUES (?, ?, ?)";
-                        jdbcTemplate.update(insertConnSql, userId, permission.get("connectionId"), modifiedBy);
-                    }
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> connectionPermissions = (List<Map<String, Object>>) permissions.get("connection");
+            if (connectionPermissions != null) {
+                for (Map<String, Object> permission : connectionPermissions) {
+                    String connectionId = (String) permission.get("connectionId");
+                    String accessType = (String) permission.get("accessType");
+                    
+                    String insertSql = "INSERT INTO CONNECTION_PERMISSIONS (GROUP_ID, CONNECTION_ID, ACCESS_TYPE, GRANTED_BY) VALUES (?, ?, ?, ?)";
+                    jdbcTemplate.update(insertSql, groupId, connectionId, accessType, savedBy);
                 }
             }
-            
-            // 감사 로그 기록
-            String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, MODIFIED_BY, STATUS) VALUES (?, 'PERMISSION_UPDATE', 'USER', ?, 'SUCCESS')";
-            jdbcTemplate.update(auditSql, userId, modifiedBy);
             
             return true;
         } catch (Exception e) {
@@ -300,95 +393,185 @@ public class UserService {
             return false;
         }
     }
-
+    
     // 사용자 활동 로그 조회
     public List<Map<String, Object>> getUserActivityLogs(String userId, String dateRange) {
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, CREATED_TIMESTAMP, STATUS, ERROR_MESSAGE ");
+        sql.append("FROM AUDIT_LOGS WHERE USER_ID = ? ");
+        
+        List<Object> params = new ArrayList<>();
+        params.add(userId);
+        
+        if (dateRange != null && !dateRange.trim().isEmpty()) {
+            // 날짜 범위 조건 추가 (예: "7days", "30days")
+            if ("7days".equals(dateRange)) {
+                sql.append("AND CREATED_TIMESTAMP >= CURRENT DATE - 7 DAYS ");
+            } else if ("30days".equals(dateRange)) {
+                sql.append("AND CREATED_TIMESTAMP >= CURRENT DATE - 30 DAYS ");
+            }
+        }
+        
+        sql.append("ORDER BY CREATED_TIMESTAMP DESC");
+        
+        return jdbcTemplate.queryForList(sql.toString(), params.toArray());
+    }
+    
+    // 비밀번호 변경
+    @Transactional
+    public boolean changePassword(String userId, String oldPassword, String newPassword) {
         try {
-            String sql = "SELECT TIMESTAMP, ACTION_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE, DETAILS " +
-                        "FROM AUDIT_LOGS " +
-                        "WHERE USER_ID = ? ";
+            // 현재 비밀번호 확인
+            String currentPasswordSql = "SELECT PASSWORD FROM USERS WHERE USER_ID = ?";
+            String currentPassword = jdbcTemplate.queryForObject(currentPasswordSql, String.class, userId);
             
-            if (dateRange != null && !dateRange.equals("all")) {
-                int days = Integer.parseInt(dateRange);
-                sql += "AND TIMESTAMP >= CURRENT TIMESTAMP - " + days + " DAYS ";
+            if (!currentPassword.equals(Crypto.crypt(oldPassword))) {
+                return false; // 현재 비밀번호가 틀림
             }
             
-            sql += "ORDER BY TIMESTAMP DESC";
+            // 새 비밀번호로 업데이트
+            String updateSql = "UPDATE USERS SET PASSWORD = ?, PASSWORD_CHANGE_DATE = CURRENT DATE WHERE USER_ID = ?";
+            jdbcTemplate.update(updateSql, Crypto.crypt(newPassword), userId);
             
-            return jdbcTemplate.queryForList(sql, userId);
+            return true;
         } catch (Exception e) {
             e.printStackTrace();
-            return new java.util.ArrayList<>();
+            return false;
         }
     }
-
-    // Common.UserConf와 동일한 기능 - DB 기반 사용자 설정 조회
-    public Map<String, String> getUserConfig(String userId) {
+    
+    // 임시 비밀번호 설정
+    @Transactional
+    public boolean setTemporaryPassword(String userId, String tempPassword) {
         try {
-            String sql = "SELECT USER_ID, USER_NAME, STATUS, IP_ADDRESS, LAST_LOGIN_TIMESTAMP, " +
-                        "LOGIN_FAIL_COUNT, CREATED_TIMESTAMP " +
-                        "FROM USERS WHERE USER_ID = ?";
+            String sql = "UPDATE USERS SET PASSWORD = ?, PASSWORD_CHANGE_DATE = CURRENT DATE WHERE USER_ID = ?";
+            jdbcTemplate.update(sql, Crypto.crypt(tempPassword), userId);
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    // 임시 비밀번호 검증
+    public boolean validateTemporaryPassword(String userId, String tempPassword) {
+        try {
+            String sql = "SELECT PASSWORD FROM USERS WHERE USER_ID = ?";
+            String storedPassword = jdbcTemplate.queryForObject(sql, String.class, userId);
+            return storedPassword.equals(Crypto.crypt(tempPassword));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    // 사용자 비밀번호 초기화
+    @Transactional
+    public boolean resetUserPassword(String userId, String defaultPassword, String resetBy) {
+        try {
+            // 사용자 존재 여부 확인
+            String checkSql = "SELECT COUNT(*) FROM USERS WHERE USER_ID = ?";
+            int userCount = jdbcTemplate.queryForObject(checkSql, Integer.class, userId);
+            
+            if (userCount == 0) {
+                return false;
+            }
+            
+            // 비밀번호 초기화
+            String resetSql = "UPDATE USERS SET PASSWORD = ?, PASSWORD_CHANGE_DATE = CURRENT DATE, " +
+                            "LOGIN_FAIL_COUNT = 0, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " +
+                            "WHERE USER_ID = ?";
+            jdbcTemplate.update(resetSql, Crypto.crypt(defaultPassword), resetBy, userId);
+            
+            // 감사 로그 기록
+            String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, RESOURCE_ID, GRANTED_BY, STATUS) " +
+                            "VALUES (?, 'RESET_PASSWORD', 'USER', ?, ?, 'SUCCESS')";
+            jdbcTemplate.update(auditSql, userId, userId, resetBy);
+            
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    // 사용자 계정 초기화
+    @Transactional
+    public boolean resetUserAccount(String userId, String resetBy) {
+        try {
+            // 사용자 존재 여부 확인
+            String checkSql = "SELECT COUNT(*) FROM USERS WHERE USER_ID = ?";
+            int userCount = jdbcTemplate.queryForObject(checkSql, Integer.class, userId);
+            
+            if (userCount == 0) {
+                return false;
+            }
+            
+            // 계정 초기화 (비밀번호: 1234, 로그인 실패 횟수: 0, 상태: ACTIVE)
+            String resetSql = "UPDATE USERS SET PASSWORD = ?, PASSWORD_CHANGE_DATE = CURRENT DATE, " +
+                            "LOGIN_FAIL_COUNT = 0, STATUS = 'ACTIVE', MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " +
+                            "WHERE USER_ID = ?";
+            jdbcTemplate.update(resetSql, Crypto.crypt("1234"), resetBy, userId);
+            
+            // 기존 세션 삭제
+            String sessionSql = "DELETE FROM USER_SESSIONS WHERE USER_ID = ?";
+            jdbcTemplate.update(sessionSql, userId);
+            
+            // 감사 로그 기록
+            String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, RESOURCE_ID, GRANTED_BY, STATUS) " +
+                            "VALUES (?, 'RESET_ACCOUNT', 'USER', ?, ?, 'SUCCESS')";
+            jdbcTemplate.update(auditSql, userId, userId, resetBy);
+            
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    // 사용자 계정 잠금 해제
+    @Transactional
+    public boolean unlockUserAccount(String userId, String unlockedBy) {
+        try {
+            // 사용자 존재 여부 확인
+            String checkSql = "SELECT COUNT(*) FROM USERS WHERE USER_ID = ?";
+            int userCount = jdbcTemplate.queryForObject(checkSql, Integer.class, userId);
+            
+            if (userCount == 0) {
+                return false;
+            }
+            
+            // 계정 잠금 해제
+            String unlockSql = "UPDATE USERS SET LOGIN_FAIL_COUNT = 0, STATUS = 'ACTIVE', " +
+                             "MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " +
+                             "WHERE USER_ID = ?";
+            jdbcTemplate.update(unlockSql, unlockedBy, userId);
+            
+            // 감사 로그 기록
+            String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, RESOURCE_ID, GRANTED_BY, STATUS) " +
+                            "VALUES (?, 'UNLOCK_ACCOUNT', 'USER', ?, ?, 'SUCCESS')";
+            jdbcTemplate.update(auditSql, userId, userId, unlockedBy);
+            
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    // 사용자의 현재 그룹 조회
+    public Map<String, Object> getCurrentUserGroup(String userId) {
+        try {
+            String sql = "SELECT ugm.GROUP_ID, ug.GROUP_NAME " +
+                        "FROM USER_GROUP_MAPPING ugm " +
+                        "INNER JOIN USER_GROUPS ug ON ugm.GROUP_ID = ug.GROUP_ID " +
+                        "WHERE ugm.USER_ID = ?";
             
             List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, userId);
-            if (result.isEmpty()) {
-                return new HashMap<>();
-            }
-            
-            Map<String, Object> user = result.get(0);
-            Map<String, String> config = new HashMap<>();
-            
-            config.put("UserName", (String) user.get("USER_ID"));
-            config.put("ID", (String) user.get("USER_ID"));
-            config.put("NAME", (String) user.get("USER_NAME"));
-            config.put("IP", (String) user.get("IP_ADDRESS"));
-            config.put("STATUS", (String) user.get("STATUS"));
-            
-            // 연결 정보 권한 조회
-            String connectionSql = "SELECT c.CONNECTION_NAME FROM DATABASE_CONNECTION c " +
-                                 "INNER JOIN CONNECTION_PERMISSIONS p ON c.CONNECTION_ID = p.CONNECTION_ID " +
-                                 "WHERE p.USER_ID = ? AND c.STATUS = 'ACTIVE'";
-            List<Map<String, Object>> connections = jdbcTemplate.queryForList(connectionSql, userId);
-            String connectionList = connections.stream()
-                .map(conn -> (String) conn.get("CONNECTION_NAME"))
-                .collect(java.util.stream.Collectors.joining(","));
-            config.put("CONNECTION", connectionList);
-            
-            // 메뉴 권한 조회 (SQL 템플릿 기반)
-            String menuSql = "SELECT t.CATEGORY_PATH FROM SQL_TEMPLATE t " +
-                           "INNER JOIN SQL_TEMPLATE_PERMISSIONS p ON t.TEMPLATE_ID = p.TEMPLATE_ID " +
-                           "WHERE p.USER_ID = ? AND t.STATUS = 'ACTIVE' " +
-                           "GROUP BY t.CATEGORY_PATH";
-            List<Map<String, Object>> menus = jdbcTemplate.queryForList(menuSql, userId);
-            String menuList = menus.stream()
-                .map(menu -> (String) menu.get("CATEGORY_PATH"))
-                .collect(java.util.stream.Collectors.joining(","));
-            config.put("MENU", menuList);
-            
-            return config;
+            return result.isEmpty() ? null : result.get(0);
         } catch (Exception e) {
             e.printStackTrace();
-            return new HashMap<>();
-        }
-    }
-
-    // Common.UserList와 동일한 기능 - DB 기반 사용자 목록 조회
-    public List<Map<String, String>> getUserListForCompatibility() {
-        try {
-            String sql = "SELECT USER_ID, USER_NAME, STATUS FROM USERS ORDER BY USER_ID";
-            List<Map<String, Object>> result = jdbcTemplate.queryForList(sql);
-            
-            List<Map<String, String>> userList = new ArrayList<>();
-            for (Map<String, Object> user : result) {
-                Map<String, String> userMap = new HashMap<>();
-                userMap.put("id", (String) user.get("USER_ID"));
-                userMap.put("name", (String) user.get("USER_NAME"));
-                userList.add(userMap);
-            }
-            
-            return userList;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new ArrayList<>();
+            return null;
         }
     }
 }

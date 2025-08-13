@@ -11,6 +11,14 @@
                     <div class="box-header with-border">
                         <h3 class="box-title">사용자 목록</h3>
                         <div class="box-tools pull-right">
+                            <div class="input-group" style="width: 300px; margin-right: 10px;">
+                                <input type="text" class="form-control" id="searchKeyword" placeholder="사용자 ID 또는 이름으로 검색...">
+                                <span class="input-group-btn">
+                                    <button type="button" class="btn btn-default" onclick="searchUsers()">
+                                        <i class="fa fa-search"></i>
+                                    </button>
+                                </span>
+                            </div>
                             <button type="button" class="btn btn-primary btn-sm" onclick="showCreateUserModal()">
                                 <i class="fa fa-plus"></i> 새 사용자
                             </button>
@@ -23,6 +31,7 @@
                                     <th>사용자 ID</th>
                                     <th>이름</th>
                                     <th>상태</th>
+                                    <th>그룹</th>
                                     <th>마지막 로그인</th>
                                     <th>로그인 실패</th>
                                     <th>생성일</th>
@@ -32,6 +41,15 @@
                             <tbody>
                             </tbody>
                         </table>
+                        
+                        <!-- 페이징 컨트롤 -->
+                        <div class="text-center">
+                            <ul class="pagination" id="pagination">
+                            </ul>
+                            <div class="pagination-info">
+                                <span id="paginationInfo"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -71,6 +89,12 @@
                             <option value="LOCKED">잠금</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="groupId">그룹</label>
+                        <select class="form-control" id="groupId">
+                            <option value="">그룹을 선택하세요</option>
+                        </select>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -81,29 +105,7 @@
     </div>
 </div>
 
-<!-- 그룹 할당 모달 -->
-<div class="modal fade" id="groupModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                <h4 class="modal-title">그룹 할당</h4>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="groupUserId">
-                <div class="form-group">
-                    <label for="groupId">그룹</label>
-                    <select class="form-control" id="groupId">
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
-                <button type="button" class="btn btn-primary" onclick="assignGroup()">할당</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <!-- 사용자 권한 상세 관리 모달 -->
 <div class="modal fade" id="permissionModal" tabindex="-1" role="dialog">
@@ -209,16 +211,47 @@
 $(document).ready(function() {
     loadUserList();
     loadGroupList();
+    
+    // 검색 필드에서 Enter 키 이벤트 처리
+    $('#searchKeyword').on('keypress', function(e) {
+        if (e.which === 13) { // Enter 키
+            searchUsers();
+        }
+    });
+    
+    // 실시간 검색 (타이핑 후 500ms 대기)
+    var searchTimeout;
+    $('#searchKeyword').on('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(function() {
+            currentPage = 1; // 검색 시 첫 페이지로 이동
+            searchUsers();
+        }, 500);
+    });
 });
 
+// 전역 변수로 현재 페이지 관리
+var currentPage = 1;
+
 // 사용자 목록 로드
-function loadUserList() {
+function loadUserList(page) {
+    if (page) {
+        currentPage = page;
+    }
+    
+    var searchKeyword = $('#searchKeyword').val();
     $.ajax({
         url: '/User/list',
         type: 'GET',
+        data: { 
+            searchKeyword: searchKeyword,
+            page: currentPage,
+            pageSize: 5
+        },
         success: function(response) {
             if (response.success) {
                 displayUserList(response.data);
+                displayPagination(response.pagination);
             } else {
                 alert(response.message);
             }
@@ -227,6 +260,60 @@ function loadUserList() {
             alert('사용자 목록 조회 중 오류가 발생했습니다.');
         }
     });
+}
+
+// 사용자 검색
+function searchUsers() {
+    currentPage = 1; // 검색 시 첫 페이지로 이동
+    loadUserList();
+}
+
+// 페이징 UI 표시
+function displayPagination(pagination) {
+    var paginationContainer = $('#pagination');
+    var paginationInfo = $('#paginationInfo');
+    
+    paginationContainer.empty();
+    
+    var currentPage = pagination.currentPage;
+    var totalPages = pagination.totalPages;
+    var totalCount = pagination.totalCount;
+    var pageSize = pagination.pageSize;
+    
+    // 페이징 정보 표시
+    var startItem = (currentPage - 1) * pageSize + 1;
+    var endItem = Math.min(currentPage * pageSize, totalCount);
+    paginationInfo.text('전체 ' + totalCount + '개 중 ' + startItem + '-' + endItem + '개 표시');
+    
+    if (totalPages <= 1) {
+        return; // 페이지가 1개 이하면 페이징 버튼 숨김
+    }
+    
+    // 이전 페이지 버튼
+    if (currentPage > 1) {
+        paginationContainer.append('<li><a href="#" onclick="loadUserList(' + (currentPage - 1) + ')">&laquo;</a></li>');
+    } else {
+        paginationContainer.append('<li class="disabled"><a href="#">&laquo;</a></li>');
+    }
+    
+    // 페이지 번호 버튼들
+    var startPage = Math.max(1, currentPage - 2);
+    var endPage = Math.min(totalPages, currentPage + 2);
+    
+    for (var i = startPage; i <= endPage; i++) {
+        if (i === currentPage) {
+            paginationContainer.append('<li class="active"><a href="#">' + i + '</a></li>');
+        } else {
+            paginationContainer.append('<li><a href="#" onclick="loadUserList(' + i + ')">' + i + '</a></li>');
+        }
+    }
+    
+    // 다음 페이지 버튼
+    if (currentPage < totalPages) {
+        paginationContainer.append('<li><a href="#" onclick="loadUserList(' + (currentPage + 1) + ')">&raquo;</a></li>');
+    } else {
+        paginationContainer.append('<li class="disabled"><a href="#">&raquo;</a></li>');
+    }
 }
 
 // 사용자 목록 표시
@@ -239,12 +326,12 @@ function displayUserList(userList) {
             '<td>' + user.USER_ID + '</td>' +
             '<td>' + user.USER_NAME + '</td>' +
             '<td>' + getStatusBadge(user.STATUS) + '</td>' +
+            '<td>' + (user.GROUP_NAME || '-') + '</td>' +
             '<td>' + formatDate(user.LAST_LOGIN_TIMESTAMP) + '</td>' +
             '<td>' + (user.LOGIN_FAIL_COUNT || 0) + '</td>' +
             '<td>' + formatDate(user.CREATED_TIMESTAMP) + '</td>' +
             '<td>' +
                 '<button class="btn btn-xs btn-info" onclick="editUser(\'' + user.USER_ID + '\')">수정</button> ' +
-                '<button class="btn btn-xs btn-warning" onclick="showGroupModal(\'' + user.USER_ID + '\')">그룹</button> ' +
                 '<button class="btn btn-xs btn-success" onclick="showPermissionModal(\'' + user.USER_ID + '\')">권한</button> ' +
                 '<button class="btn btn-xs btn-primary" onclick="showActivityLogModal(\'' + user.USER_ID + '\')">로그</button> ' +
                 '<button class="btn btn-xs btn-danger" onclick="deleteUser(\'' + user.USER_ID + '\')">삭제</button>' +
@@ -326,10 +413,33 @@ function editUser(userId) {
                 $('#userName').val(user.USER_NAME);
                 $('#status').val(user.STATUS);
                 $('#password').attr('required', false);
+                
+                // 사용자의 현재 그룹 정보 로드
+                loadUserGroup(userId);
+                
                 $('#userModal').modal('show');
             } else {
                 alert(response.message);
             }
+        }
+    });
+}
+
+// 사용자의 현재 그룹 정보 로드
+function loadUserGroup(userId) {
+    $.ajax({
+        url: '/User/currentGroup',
+        type: 'GET',
+        data: { userId: userId },
+        success: function(response) {
+            if (response.success && response.data) {
+                $('#groupId').val(response.data.GROUP_ID);
+            } else {
+                $('#groupId').val('');
+            }
+        },
+        error: function() {
+            $('#groupId').val('');
         }
     });
 }
@@ -340,7 +450,8 @@ function saveUser() {
     var userData = {
         userId: $('#userId').val(),
         userName: $('#userName').val(),
-        status: $('#status').val()
+        status: $('#status').val(),
+        groupId: $('#groupId').val()
     };
     
     var password = $('#password').val();
@@ -360,7 +471,7 @@ function saveUser() {
             if (response.success) {
                 alert(response.message);
                 $('#userModal').modal('hide');
-                loadUserList();
+                loadUserList(currentPage);
             } else {
                 alert(response.message);
             }
@@ -382,7 +493,7 @@ function deleteUser(userId) {
         success: function(response) {
             if (response.success) {
                 alert(response.message);
-                loadUserList();
+                loadUserList(currentPage);
             } else {
                 alert(response.message);
             }
@@ -393,39 +504,7 @@ function deleteUser(userId) {
     });
 }
 
-// 그룹 할당 모달 표시
-function showGroupModal(userId) {
-    $('#groupUserId').val(userId);
-    $('#groupModal').modal('show');
-}
 
-// 그룹 할당
-function assignGroup() {
-    var userId = $('#groupUserId').val();
-    var groupId = $('#groupId').val();
-    
-    if (!groupId) {
-        alert('그룹을 선택해주세요.');
-        return;
-    }
-    
-    $.ajax({
-        url: '/User/assignGroup',
-        type: 'POST',
-        data: { userId: userId, groupId: groupId },
-        success: function(response) {
-            if (response.success) {
-                alert(response.message);
-                $('#groupModal').modal('hide');
-            } else {
-                alert(response.message);
-            }
-        },
-        error: function() {
-            alert('그룹 할당 중 오류가 발생했습니다.');
-        }
-    });
-}
 
 // 권한 관리 모달 표시
 function showPermissionModal(userId) {

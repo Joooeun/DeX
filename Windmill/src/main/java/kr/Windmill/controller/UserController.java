@@ -69,7 +69,10 @@ public class UserController {
 	// 사용자 목록 조회
 	@ResponseBody
 	@RequestMapping("/list")
-	public Map<String, Object> getUserList(HttpSession session) {
+	public Map<String, Object> getUserList(@RequestParam(required = false) String searchKeyword, 
+										  @RequestParam(defaultValue = "1") int page, 
+										  @RequestParam(defaultValue = "5") int pageSize, 
+										  HttpSession session) {
 		Map<String, Object> result = new HashMap<>();
 
 		try {
@@ -87,8 +90,10 @@ public class UserController {
 				return result;
 			}
 
+			Map<String, Object> userData = userService.getUserList(searchKeyword, page, pageSize);
 			result.put("success", true);
-			result.put("data", userService.getUserList());
+			result.put("data", userData.get("userList"));
+			result.put("pagination", userData);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -164,6 +169,12 @@ public class UserController {
 
 			boolean success = userService.createUser(userData);
 			if (success) {
+				// 그룹 할당 처리
+				String groupId = (String) userData.get("groupId");
+				if (groupId != null && !groupId.trim().isEmpty()) {
+					userService.assignUserToGroup((String) userData.get("userId"), groupId, currentUserId);
+				}
+				
 				result.put("success", true);
 				result.put("message", "사용자가 생성되었습니다.");
 			} else {
@@ -205,6 +216,12 @@ public class UserController {
 
 			boolean success = userService.updateUser(userId, userData);
 			if (success) {
+				// 그룹 할당 처리
+				String groupId = (String) userData.get("groupId");
+				if (groupId != null && !groupId.trim().isEmpty()) {
+					userService.assignUserToGroup(userId, groupId, currentUserId);
+				}
+				
 				result.put("success", true);
 				result.put("message", "사용자 정보가 수정되었습니다.");
 			} else {
@@ -468,6 +485,159 @@ public class UserController {
 			e.printStackTrace();
 			result.put("success", false);
 			result.put("message", "활동 로그 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 사용자 비밀번호 초기화
+	@ResponseBody
+	@RequestMapping(value = "/resetPassword", method = RequestMethod.POST)
+	public Map<String, Object> resetUserPassword(@RequestParam String userId, @RequestParam(required = false) String defaultPassword, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			// 기본 비밀번호 설정 (제공되지 않은 경우 "1234" 사용)
+			String password = (defaultPassword != null && !defaultPassword.trim().isEmpty()) ? defaultPassword : "1234";
+
+			boolean success = userService.resetUserPassword(userId, password, currentUserId);
+			if (success) {
+				result.put("success", true);
+				result.put("message", "비밀번호가 초기화되었습니다. (새 비밀번호: " + password + ")");
+			} else {
+				result.put("success", false);
+				result.put("message", "비밀번호 초기화에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "비밀번호 초기화 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 사용자 계정 초기화
+	@ResponseBody
+	@RequestMapping(value = "/resetAccount", method = RequestMethod.POST)
+	public Map<String, Object> resetUserAccount(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			boolean success = userService.resetUserAccount(userId, currentUserId);
+			if (success) {
+				result.put("success", true);
+				result.put("message", "사용자 계정이 초기화되었습니다. (새 비밀번호: 1234)");
+			} else {
+				result.put("success", false);
+				result.put("message", "계정 초기화에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "계정 초기화 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 사용자 계정 잠금 해제
+	@ResponseBody
+	@RequestMapping(value = "/unlockAccount", method = RequestMethod.POST)
+	public Map<String, Object> unlockUserAccount(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			boolean success = userService.unlockUserAccount(userId, currentUserId);
+			if (success) {
+				result.put("success", true);
+				result.put("message", "사용자 계정 잠금이 해제되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "계정 잠금 해제에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "계정 잠금 해제 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 사용자의 현재 그룹 조회
+	@ResponseBody
+	@RequestMapping("/currentGroup")
+	public Map<String, Object> getCurrentUserGroup(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", userService.getCurrentUserGroup(userId));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "사용자 그룹 조회 중 오류가 발생했습니다.");
 		}
 
 		return result;
