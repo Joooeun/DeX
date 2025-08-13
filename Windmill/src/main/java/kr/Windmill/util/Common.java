@@ -1307,13 +1307,13 @@ public class Common {
             logger.debug("동적 드라이버 인스턴스로 연결 시도");
             Connection connection = driverInstance.connect(jdbc, prop);
             if (connection == null) {
-                logger.warn("동적 드라이버 연결이 null을 반환했습니다. DriverManager로 재시도합니다.");
-                return DriverManager.getConnection(jdbc, prop);
+                logger.error("동적 드라이버 연결이 null을 반환했습니다. 선택한 JDBC 드라이버 파일이 올바르지 않을 수 있습니다.");
+                throw new SQLException("선택한 JDBC 드라이버 파일로 연결할 수 없습니다: " + jdbcDriverFile);
             }
             return connection;
         } else {
-            // DriverManager 사용
-            logger.debug("DriverManager로 연결 시도");
+            // 기본 드라이버 사용 (클래스패스에서)
+            logger.debug("기본 드라이버로 연결 시도");
             return DriverManager.getConnection(jdbc, prop);
         }
     }

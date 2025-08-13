@@ -28,6 +28,9 @@ import org.springframework.stereotype.Service;
 
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ConnectionService {
@@ -40,6 +43,9 @@ public class ConnectionService {
     private final Map<String, ConnectionStatusDTO> connectionStatusMap = new ConcurrentHashMap<>();
     private Thread monitoringThread;
     private volatile boolean isRunning = false;
+    
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
     
     @Autowired
     public ConnectionService(Common common, Log log, ConnectionPoolManager connectionPoolManager) {
@@ -318,31 +324,17 @@ public class ConnectionService {
         try {
             String driver = com.getDriverByDbType(connConfig.get("DBTYPE"));
             
-            // 캐시된 연결 정보가 있으면 사용, 없으면 새로 생성
-            String url;
-            Properties prop;
-            
-            // 연결 이름으로 캐시된 ConnectionDTO 확인
-            String connectionName = connConfig.get("DB"); // DB 이름을 연결 이름으로 사용
-            ConnectionDTO cachedConnection = connectionPoolManager.getConnectionConfig(connectionName);
-            
-            if (cachedConnection != null) {
-                // 캐시된 연결 정보 사용
-                url = cachedConnection.getJdbc();
-                prop = new Properties(cachedConnection.getProp());
-            } else {
-                // 새로 생성
-                url = com.createJdbcUrl(
-                    connConfig.get("DBTYPE"), 
-                    connConfig.get("IP"), 
-                    connConfig.get("PORT"), 
-                    connConfig.get("DB")
-                );
-                prop = new Properties();
-                prop.put("user", connConfig.get("USER"));
-                prop.put("password", connConfig.get("PW"));
-                prop.put("clientProgramName", "DeX");
-            }
+            // 연결 테스트는 항상 새로운 연결 정보로 생성 (캐시 사용 안함)
+            String url = com.createJdbcUrl(
+                connConfig.get("DBTYPE"), 
+                connConfig.get("IP"), 
+                connConfig.get("PORT"), 
+                connConfig.get("DB")
+            );
+            Properties prop = new Properties();
+            prop.put("user", connConfig.get("USER"));
+            prop.put("password", connConfig.get("PW"));
+            prop.put("clientProgramName", "DeX");
             
             // 타임아웃 설정 추가
             prop.put("connectTimeout", "5000");  // 5초 연결 타임아웃
@@ -397,43 +389,75 @@ public class ConnectionService {
      */
     public Map<String, Object> testConnectionWithDetails(Map<String, String> connConfig) {
         Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // 연결 타입 확인
+            String connectionType = connConfig.get("TYPE");
+            
+            if ("HOST".equals(connectionType)) {
+                // SFTP 연결 테스트
+                return testSftpConnection(connConfig);
+            } else {
+                // DB 연결 테스트
+                return testDatabaseConnection(connConfig);
+            }
+            
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", "예상치 못한 오류가 발생했습니다: " + e.getMessage());
+            result.put("errorType", "UNKNOWN_ERROR");
+            result.put("originalError", e.getMessage());
+            
+            String errorDetails = String.format("Connection test failed for %s:%s (Type: %s, User: %s) - Error: %s", 
+                connConfig.get("IP"), 
+                connConfig.get("PORT"), 
+                connConfig.get("TYPE"), 
+                connConfig.get("USER"), 
+                e.getMessage());
+            
+            logger.error(errorDetails, e);
+            return result;
+        }
+    }
+    
+    /**
+     * 데이터베이스 연결을 테스트합니다.
+     * @param connConfig 연결 설정 정보
+     * @return 테스트 결과
+     */
+    private Map<String, Object> testDatabaseConnection(Map<String, String> connConfig) {
+        Map<String, Object> result = new HashMap<>();
         Connection conn = null;
         
         try {
-            String driver = com.getDriverByDbType(connConfig.get("DBTYPE"));
-            
-            // 캐시된 연결 정보가 있으면 사용, 없으면 새로 생성
-            String url;
-            Properties prop;
-            
-            // 연결 이름으로 캐시된 ConnectionDTO 확인
-            String connectionName = connConfig.get("DB"); // DB 이름을 연결 이름으로 사용
-            ConnectionDTO cachedConnection = connectionPoolManager.getConnectionConfig(connectionName);
-            
-            if (cachedConnection != null) {
-                // 캐시된 연결 정보 사용
-                url = cachedConnection.getJdbc();
-                prop = new Properties(cachedConnection.getProp());
-            } else {
-                // 새로 생성
-                url = com.createJdbcUrl(
-                    connConfig.get("DBTYPE"), 
-                    connConfig.get("IP"), 
-                    connConfig.get("PORT"), 
-                    connConfig.get("DB")
-                );
-                prop = new Properties();
-                prop.put("user", connConfig.get("USER"));
-                prop.put("password", connConfig.get("PW"));
-                prop.put("clientProgramName", "DeX");
+            String dbType = connConfig.get("DBTYPE");
+            if (dbType == null || dbType.trim().isEmpty()) {
+                result.put("success", false);
+                result.put("error", "DB 타입이 지정되지 않았습니다.");
+                result.put("errorType", "INVALID_CONFIG");
+                return result;
             }
+            
+            String driver = com.getDriverByDbType(dbType);
+            
+            // 연결 테스트는 항상 새로운 연결 정보로 생성 (캐시 사용 안함)
+            String url = com.createJdbcUrl(
+                dbType, 
+                connConfig.get("IP"), 
+                connConfig.get("PORT"), 
+                connConfig.get("DB")
+            );
+            Properties prop = new Properties();
+            prop.put("user", connConfig.get("USER"));
+            prop.put("password", connConfig.get("PW"));
+            prop.put("clientProgramName", "DeX");
             
             // 타임아웃 설정 추가
             prop.put("connectTimeout", "5000");  // 5초 연결 타임아웃
             prop.put("socketTimeout", "5000");   // 5초 소켓 타임아웃
             
             // DB2 전용 타임아웃 속성 추가
-            if ("DB2".equalsIgnoreCase(connConfig.get("DBTYPE"))) {
+            if ("DB2".equalsIgnoreCase(dbType)) {
                 prop.put("loginTimeout", "5");           // 로그인 타임아웃 5초
                 prop.put("blockingReadConnectionTimeout", "5");  // 읽기 타임아웃 5초
                 prop.put("blockingReadConnectionTimeoutUnit", "SECONDS");
@@ -441,18 +465,22 @@ public class ConnectionService {
                 prop.put("retrieveMessagesFromServerOnGetMessage", "false"); // 메시지 검색 비활성화
             }
 
-            // 동적 드라이버 로딩을 사용한 연결 시도
+            // JDBC 드라이버 파일 검증 및 연결 시도
             try {
-                // JDBC 드라이버 파일 결정 (캐시된 정보 우선, 없으면 요청에서)
-                String jdbcDriverFile = null;
-                if (cachedConnection != null && cachedConnection.getJdbcDriverFile() != null) {
-                    jdbcDriverFile = cachedConnection.getJdbcDriverFile();
-                } else {
-                    jdbcDriverFile = connConfig.get("JDBC_DRIVER_FILE");
-                }
+                String jdbcDriverFile = connConfig.get("JDBC_DRIVER_FILE");
                 
                 if (jdbcDriverFile != null && !jdbcDriverFile.trim().isEmpty()) {
-                    // 동적 드라이버 로딩 사용
+                    // JDBC 드라이버 파일 존재 여부 확인
+                    String jdbcFilePath = com.JdbcPath + jdbcDriverFile.trim();
+                    java.io.File jdbcFile = new java.io.File(jdbcFilePath);
+                    if (!jdbcFile.exists()) {
+                        result.put("success", false);
+                        result.put("error", "선택한 JDBC 드라이버 파일을 찾을 수 없습니다: " + jdbcDriverFile);
+                        result.put("errorType", "DRIVER_FILE_NOT_FOUND");
+                        return result;
+                    }
+                    
+                    // 동적 드라이버 로딩 사용 (실패 시 폴백 없이 오류 발생)
                     conn = com.createConnectionWithDynamicDriver(url, prop, jdbcDriverFile, driver);
                 } else {
                     // 기본 드라이버 사용 (클래스패스에서)
@@ -471,7 +499,10 @@ public class ConnectionService {
                 String errorType = "CONNECTION_FAILED";
                 
                 // 오류 유형별 메시지 개선
-                if (errorMessage.contains("Connection refused") || errorMessage.contains("No route to host")) {
+                if (errorMessage.contains("선택한 JDBC 드라이버 파일로 연결할 수 없습니다")) {
+                    errorMessage = "선택한 JDBC 드라이버 파일이 DB 타입과 일치하지 않거나 올바르지 않습니다. 올바른 드라이버를 선택해주세요.";
+                    errorType = "DRIVER_MISMATCH";
+                } else if (errorMessage.contains("Connection refused") || errorMessage.contains("No route to host")) {
                     errorMessage = "서버에 연결할 수 없습니다. IP 주소와 포트를 확인해주세요.";
                     errorType = "NETWORK_ERROR";
                 } else if (errorMessage.contains("authentication failed") || errorMessage.contains("password")) {
@@ -495,21 +526,27 @@ public class ConnectionService {
                 return result;
             }
             
-            // 데이터베이스 타입에 맞는 연결 테스트 쿼리 실행
-            String testQuery = com.getTestQueryByDbType(connConfig.get("DBTYPE"));
+            // 연결 테스트용 SQL 실행
+            String testQuery = connConfig.get("TEST_SQL");
+            if (testQuery == null || testQuery.trim().isEmpty()) {
+                // TEST_SQL이 없으면 기본 테스트 쿼리 사용
+                testQuery = com.getTestQueryByDbType(dbType);
+            }
+            
             try (PreparedStatement stmt = conn.prepareStatement(testQuery)) {
                 stmt.setQueryTimeout(5); // 5초 쿼리 타임아웃
                 try (ResultSet rs = stmt.executeQuery()) {
                     if (rs.next()) {
                         // 연결 정보 로깅
-                        logger.info("연결 테스트 성공 - DB: {}, User: {}, Query: {}", 
+                        logger.info("DB 연결 테스트 성공 - DB: {}, User: {}, Query: {}", 
                             connConfig.get("DB"), connConfig.get("USER"), testQuery);
                     }
                 }
             } catch (SQLException e) {
                 result.put("success", false);
-                result.put("error", "연결은 성공했지만 쿼리 실행에 실패했습니다: " + e.getMessage());
+                result.put("error", "연결은 성공했지만 테스트 쿼리 실행에 실패했습니다: " + e.getMessage());
                 result.put("errorType", "QUERY_ERROR");
+                result.put("testQuery", testQuery);
                 return result;
             }
             
@@ -518,11 +555,11 @@ public class ConnectionService {
             
         } catch (Exception e) {
             result.put("success", false);
-            result.put("error", "예상치 못한 오류가 발생했습니다: " + e.getMessage());
+            result.put("error", "데이터베이스 연결 테스트 중 오류가 발생했습니다: " + e.getMessage());
             result.put("errorType", "UNKNOWN_ERROR");
             result.put("originalError", e.getMessage());
             
-            String errorDetails = String.format("Connection test failed for %s:%s (DB: %s, Type: %s, User: %s) - Error: %s", 
+            String errorDetails = String.format("Database connection test failed for %s:%s (DB: %s, Type: %s, User: %s) - Error: %s", 
                 connConfig.get("IP"), 
                 connConfig.get("PORT"), 
                 connConfig.get("DB"), 
@@ -540,6 +577,121 @@ public class ConnectionService {
                     logger.error("Error closing connection", e);
                 }
             }
+        }
+    }
+    
+    /**
+     * SFTP 연결을 테스트합니다.
+     * @param connConfig 연결 설정 정보
+     * @return 테스트 결과
+     */
+    private Map<String, Object> testSftpConnection(Map<String, String> connConfig) {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // SFTP 연결 테스트 (JSch 라이브러리 사용)
+            String host = connConfig.get("IP");
+            int port = Integer.parseInt(connConfig.get("PORT"));
+            String username = connConfig.get("USER");
+            String password = connConfig.get("PW");
+            String privateKeyPath = connConfig.get("PRIVATE_KEY_PATH");
+            String remotePath = connConfig.get("REMOTE_PATH");
+            int timeout = Integer.parseInt(connConfig.getOrDefault("CONNECTION_TIMEOUT", "30"));
+            
+            // JSch를 사용한 SFTP 연결 테스트
+            com.jcraft.jsch.JSch jsch = new com.jcraft.jsch.JSch();
+            com.jcraft.jsch.Session session = null;
+            com.jcraft.jsch.ChannelSftp channelSftp = null;
+            
+            try {
+                // 개인키가 있으면 추가
+                if (privateKeyPath != null && !privateKeyPath.trim().isEmpty()) {
+                    jsch.addIdentity(privateKeyPath);
+                }
+                
+                // 세션 생성
+                session = jsch.getSession(username, host, port);
+                session.setConfig("StrictHostKeyChecking", "no");
+                session.setTimeout(timeout * 1000); // 밀리초 단위
+                
+                // 비밀번호가 있으면 설정
+                if (password != null && !password.trim().isEmpty()) {
+                    session.setPassword(password);
+                }
+                
+                // 연결 시도
+                session.connect();
+                
+                // SFTP 채널 열기
+                channelSftp = (com.jcraft.jsch.ChannelSftp) session.openChannel("sftp");
+                channelSftp.connect();
+                
+                // 원격 경로가 있으면 접근 가능한지 확인
+                if (remotePath != null && !remotePath.trim().isEmpty()) {
+                    try {
+                        channelSftp.cd(remotePath);
+                        logger.info("SFTP 연결 테스트 성공 - Host: {}, User: {}, Path: {}", host, username, remotePath);
+                    } catch (Exception e) {
+                        result.put("success", false);
+                        result.put("error", "연결은 성공했지만 지정된 경로에 접근할 수 없습니다: " + remotePath);
+                        result.put("errorType", "PATH_ACCESS_ERROR");
+                        return result;
+                    }
+                } else {
+                    logger.info("SFTP 연결 테스트 성공 - Host: {}, User: {}", host, username);
+                }
+                
+                result.put("success", true);
+                return result;
+                
+            } catch (com.jcraft.jsch.JSchException e) {
+                String errorMessage = e.getMessage();
+                String errorType = "CONNECTION_FAILED";
+                
+                // 오류 유형별 메시지 개선
+                if (errorMessage.contains("Connection refused") || errorMessage.contains("No route to host")) {
+                    errorMessage = "서버에 연결할 수 없습니다. IP 주소와 포트를 확인해주세요.";
+                    errorType = "NETWORK_ERROR";
+                } else if (errorMessage.contains("Auth fail") || errorMessage.contains("authentication")) {
+                    errorMessage = "사용자명 또는 비밀번호가 올바르지 않습니다.";
+                    errorType = "AUTHENTICATION_ERROR";
+                } else if (errorMessage.contains("timeout")) {
+                    errorMessage = "연결 시간이 초과되었습니다. 네트워크 상태를 확인해주세요.";
+                    errorType = "TIMEOUT_ERROR";
+                } else if (errorMessage.contains("Permission denied")) {
+                    errorMessage = "SFTP 접근 권한이 없습니다.";
+                    errorType = "PERMISSION_ERROR";
+                }
+                
+                result.put("success", false);
+                result.put("error", errorMessage);
+                result.put("errorType", errorType);
+                result.put("originalError", e.getMessage());
+                return result;
+                
+            } finally {
+                if (channelSftp != null && channelSftp.isConnected()) {
+                    channelSftp.disconnect();
+                }
+                if (session != null && session.isConnected()) {
+                    session.disconnect();
+                }
+            }
+            
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", "SFTP 연결 테스트 중 오류가 발생했습니다: " + e.getMessage());
+            result.put("errorType", "UNKNOWN_ERROR");
+            result.put("originalError", e.getMessage());
+            
+            String errorDetails = String.format("SFTP connection test failed for %s:%s (User: %s) - Error: %s", 
+                connConfig.get("IP"), 
+                connConfig.get("PORT"), 
+                connConfig.get("USER"), 
+                e.getMessage());
+            
+            logger.error(errorDetails, e);
+            return result;
         }
     }
     
@@ -632,5 +784,387 @@ public class ConnectionService {
      */
     public ConnectionPoolManager getConnectionPoolManager() {
         return connectionPoolManager;
+    }
+    
+    // ==================== DB 기반 연결 관리 ====================
+    
+    /**
+     * 모든 연결 목록을 조회합니다 (DB + SFTP)
+     * @param userId 사용자 ID
+     * @return 연결 목록
+     */
+    public List<Map<String, Object>> getAllConnections(String userId) {
+        List<Map<String, Object>> allConnections = new ArrayList<>();
+        
+        // DB 연결 조회
+        List<Map<String, Object>> dbConnections = getDatabaseConnections(userId);
+        for (Map<String, Object> conn : dbConnections) {
+            conn.put("TYPE", "DB");
+        }
+        allConnections.addAll(dbConnections);
+        
+        // SFTP 연결 조회
+        List<Map<String, Object>> sftpConnections = getSftpConnections(userId);
+        for (Map<String, Object> conn : sftpConnections) {
+            conn.put("TYPE", "HOST");
+        }
+        allConnections.addAll(sftpConnections);
+        
+        return allConnections;
+    }
+    
+    /**
+     * 페이징을 포함한 연결 목록을 가져옵니다.
+     * @param userId 사용자 ID
+     * @param searchKeyword 검색 키워드
+     * @param typeFilter 타입 필터
+     * @param page 현재 페이지
+     * @param pageSize 페이지 크기
+     * @return 연결 목록과 페이징 정보
+     */
+    public Map<String, Object> getConnectionListWithPagination(String userId, String searchKeyword, String typeFilter, int page, int pageSize) {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // 전체 연결 목록 가져오기
+            List<Map<String, Object>> allConnections = getAllConnections(userId);
+            
+            // 검색 및 필터링 적용
+            List<Map<String, Object>> filteredConnections = filterConnections(allConnections, searchKeyword, typeFilter);
+            
+            // 페이징 계산
+            int totalCount = filteredConnections.size();
+            int totalPages = (int) Math.ceil((double) totalCount / pageSize);
+            int startIndex = (page - 1) * pageSize;
+            int endIndex = Math.min(startIndex + pageSize, totalCount);
+            
+            // 현재 페이지 데이터 추출
+            List<Map<String, Object>> pageData = new ArrayList<>();
+            if (startIndex < totalCount) {
+                pageData = filteredConnections.subList(startIndex, endIndex);
+            }
+            
+            // 페이징 정보 구성
+            Map<String, Object> pagination = new HashMap<>();
+            pagination.put("currentPage", page);
+            pagination.put("totalPages", totalPages);
+            pagination.put("totalCount", totalCount);
+            pagination.put("pageSize", pageSize);
+            pagination.put("startIndex", startIndex + 1);
+            pagination.put("endIndex", endIndex);
+            
+            result.put("connections", pageData);
+            result.put("pagination", pagination);
+            
+        } catch (Exception e) {
+            logger.error("페이징 연결 목록 조회 실패", e);
+            result.put("connections", new ArrayList<>());
+            result.put("pagination", new HashMap<>());
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 연결 목록을 검색 및 필터링합니다.
+     * @param connections 전체 연결 목록
+     * @param searchKeyword 검색 키워드
+     * @param typeFilter 타입 필터
+     * @return 필터링된 연결 목록
+     */
+    private List<Map<String, Object>> filterConnections(List<Map<String, Object>> connections, String searchKeyword, String typeFilter) {
+        return connections.stream()
+            .filter(conn -> {
+                // 타입 필터 적용
+                if (typeFilter != null && !typeFilter.isEmpty()) {
+                    String type = (String) conn.get("TYPE");
+                    if (!typeFilter.equals(type)) {
+                        return false;
+                    }
+                }
+                
+                // 검색 키워드 적용
+                if (searchKeyword != null && !searchKeyword.trim().isEmpty()) {
+                    String connectionName = (String) conn.get("CONNECTION_NAME");
+                    String hostIp = (String) conn.get("HOST_IP");
+                    
+                    boolean matchesName = connectionName != null && connectionName.toLowerCase().contains(searchKeyword.toLowerCase());
+                    boolean matchesIp = hostIp != null && hostIp.toLowerCase().contains(searchKeyword.toLowerCase());
+                    
+                    if (!matchesName && !matchesIp) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            })
+            .collect(Collectors.toList());
+    }
+    
+    /**
+     * 데이터베이스 연결 목록을 조회합니다
+     * @param userId 사용자 ID
+     * @return DB 연결 목록
+     */
+    public List<Map<String, Object>> getDatabaseConnections(String userId) {
+        String sql = "SELECT * FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_NAME";
+        List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql);
+        
+        // 권한 필터링 적용
+        return filterConnectionsByPermission(userId, connections, "DATABASE");
+    }
+    
+    /**
+     * SFTP 연결 목록을 조회합니다
+     * @param userId 사용자 ID
+     * @return SFTP 연결 목록
+     */
+    public List<Map<String, Object>> getSftpConnections(String userId) {
+        String sql = "SELECT * FROM SFTP_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_NAME";
+        List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql);
+        
+        // 권한 필터링 적용
+        return filterConnectionsByPermission(userId, connections, "SFTP");
+    }
+    
+    /**
+     * 연결 상세 정보를 조회합니다
+     * @param connectionId 연결 ID
+     * @param connectionType 연결 타입 (DB/HOST)
+     * @return 연결 상세 정보
+     */
+    public Map<String, Object> getConnectionDetail(String connectionId, String connectionType) {
+        if ("DB".equals(connectionType)) {
+            String sql = "SELECT * FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ?";
+            List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, connectionId);
+            return result.isEmpty() ? null : result.get(0);
+        } else {
+            String sql = "SELECT * FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ?";
+            List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, connectionId);
+            return result.isEmpty() ? null : result.get(0);
+        }
+    }
+    
+    /**
+     * 연결을 저장합니다 (생성 또는 수정)
+     * @param connectionData 연결 데이터
+     * @param userId 사용자 ID
+     * @return 저장 결과
+     */
+    @Transactional
+    public boolean saveConnection(Map<String, Object> connectionData, String userId) {
+        try {
+            String connectionType = (String) connectionData.get("TYPE");
+            
+            if ("DB".equals(connectionType)) {
+                return saveDatabaseConnection(connectionData, userId);
+            } else {
+                return saveSftpConnection(connectionData, userId);
+            }
+        } catch (Exception e) {
+            logger.error("연결 저장 실패", e);
+            return false;
+        }
+    }
+    
+    /**
+     * 데이터베이스 연결을 저장합니다
+     * @param connectionData 연결 데이터
+     * @param userId 사용자 ID
+     * @return 저장 결과
+     */
+    private boolean saveDatabaseConnection(Map<String, Object> connectionData, String userId) {
+        String connectionId = (String) connectionData.get("CONNECTION_ID");
+        boolean isNew = connectionId == null || connectionId.trim().isEmpty();
+        
+        if (isNew) {
+            // 새 연결 생성
+            connectionId = "DB_" + System.currentTimeMillis();
+            String sql = "INSERT INTO DATABASE_CONNECTION (CONNECTION_ID, CONNECTION_NAME, DB_TYPE, HOST_IP, PORT, " +
+                        "DATABASE_NAME, USERNAME, PASSWORD, JDBC_DRIVER_FILE, CONNECTION_POOL_SETTINGS, " +
+                        "CONNECTION_TIMEOUT, QUERY_TIMEOUT, MAX_POOL_SIZE, MIN_POOL_SIZE, CREATED_BY) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            
+            jdbcTemplate.update(sql,
+                connectionId,
+                connectionData.get("CONNECTION_NAME"),
+                connectionData.get("DB_TYPE"),
+                connectionData.get("HOST_IP"),
+                connectionData.get("PORT"),
+                connectionData.get("DATABASE_NAME"),
+                connectionData.get("USERNAME"),
+                connectionData.get("PASSWORD"),
+                connectionData.get("JDBC_DRIVER_FILE"),
+                connectionData.get("CONNECTION_POOL_SETTINGS"),
+                connectionData.get("CONNECTION_TIMEOUT"),
+                connectionData.get("QUERY_TIMEOUT"),
+                connectionData.get("MAX_POOL_SIZE"),
+                connectionData.get("MIN_POOL_SIZE"),
+                userId
+            );
+        } else {
+            // 기존 연결 수정
+            String sql = "UPDATE DATABASE_CONNECTION SET CONNECTION_NAME = ?, DB_TYPE = ?, HOST_IP = ?, PORT = ?, " +
+                        "DATABASE_NAME = ?, USERNAME = ?, PASSWORD = ?, JDBC_DRIVER_FILE = ?, " +
+                        "CONNECTION_POOL_SETTINGS = ?, CONNECTION_TIMEOUT = ?, QUERY_TIMEOUT = ?, " +
+                        "MAX_POOL_SIZE = ?, MIN_POOL_SIZE = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " +
+                        "WHERE CONNECTION_ID = ?";
+            
+            jdbcTemplate.update(sql,
+                connectionData.get("CONNECTION_NAME"),
+                connectionData.get("DB_TYPE"),
+                connectionData.get("HOST_IP"),
+                connectionData.get("PORT"),
+                connectionData.get("DATABASE_NAME"),
+                connectionData.get("USERNAME"),
+                connectionData.get("PASSWORD"),
+                connectionData.get("JDBC_DRIVER_FILE"),
+                connectionData.get("CONNECTION_POOL_SETTINGS"),
+                connectionData.get("CONNECTION_TIMEOUT"),
+                connectionData.get("QUERY_TIMEOUT"),
+                connectionData.get("MAX_POOL_SIZE"),
+                connectionData.get("MIN_POOL_SIZE"),
+                userId,
+                connectionId
+            );
+        }
+        
+        return true;
+    }
+    
+    /**
+     * SFTP 연결을 저장합니다
+     * @param connectionData 연결 데이터
+     * @param userId 사용자 ID
+     * @return 저장 결과
+     */
+    private boolean saveSftpConnection(Map<String, Object> connectionData, String userId) {
+        String connectionId = (String) connectionData.get("CONNECTION_ID");
+        boolean isNew = connectionId == null || connectionId.trim().isEmpty();
+        
+        if (isNew) {
+            // 새 연결 생성
+            connectionId = "SFTP_" + System.currentTimeMillis();
+            String sql = "INSERT INTO SFTP_CONNECTION (SFTP_CONNECTION_ID, CONNECTION_NAME, HOST_IP, PORT, " +
+                        "USERNAME, PASSWORD, PRIVATE_KEY_PATH, REMOTE_PATH, CONNECTION_TIMEOUT, CREATED_BY) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            
+            jdbcTemplate.update(sql,
+                connectionId,
+                connectionData.get("CONNECTION_NAME"),
+                connectionData.get("HOST_IP"),
+                connectionData.get("PORT"),
+                connectionData.get("USERNAME"),
+                connectionData.get("PASSWORD"),
+                connectionData.get("PRIVATE_KEY_PATH"),
+                connectionData.get("REMOTE_PATH"),
+                connectionData.get("CONNECTION_TIMEOUT"),
+                userId
+            );
+        } else {
+            // 기존 연결 수정
+            String sql = "UPDATE SFTP_CONNECTION SET CONNECTION_NAME = ?, HOST_IP = ?, PORT = ?, " +
+                        "USERNAME = ?, PASSWORD = ?, PRIVATE_KEY_PATH = ?, REMOTE_PATH = ?, " +
+                        "CONNECTION_TIMEOUT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " +
+                        "WHERE SFTP_CONNECTION_ID = ?";
+            
+            jdbcTemplate.update(sql,
+                connectionData.get("CONNECTION_NAME"),
+                connectionData.get("HOST_IP"),
+                connectionData.get("PORT"),
+                connectionData.get("USERNAME"),
+                connectionData.get("PASSWORD"),
+                connectionData.get("PRIVATE_KEY_PATH"),
+                connectionData.get("REMOTE_PATH"),
+                connectionData.get("CONNECTION_TIMEOUT"),
+                userId,
+                connectionId
+            );
+        }
+        
+        return true;
+    }
+    
+    /**
+     * 연결을 삭제합니다
+     * @param connectionId 연결 ID
+     * @param connectionType 연결 타입 (DB/HOST)
+     * @return 삭제 결과
+     */
+    @Transactional
+    public boolean deleteConnection(String connectionId, String connectionType) {
+        try {
+            if ("DB".equals(connectionType)) {
+                String sql = "UPDATE DATABASE_CONNECTION SET STATUS = 'DELETED' WHERE CONNECTION_ID = ?";
+                jdbcTemplate.update(sql, connectionId);
+            } else {
+                String sql = "UPDATE SFTP_CONNECTION SET STATUS = 'DELETED' WHERE SFTP_CONNECTION_ID = ?";
+                jdbcTemplate.update(sql, connectionId);
+            }
+            return true;
+        } catch (Exception e) {
+            logger.error("연결 삭제 실패: {}", connectionId, e);
+            return false;
+        }
+    }
+    
+    /**
+     * 사용자 권한에 따라 연결을 필터링합니다
+     * @param userId 사용자 ID
+     * @param connections 연결 목록
+     * @param connectionType 연결 타입
+     * @return 필터링된 연결 목록
+     */
+    private List<Map<String, Object>> filterConnectionsByPermission(String userId, List<Map<String, Object>> connections, String connectionType) {
+        // 관리자는 모든 연결에 접근 가능
+        if ("admin".equals(userId)) {
+            return connections;
+        }
+        
+        // 사용자의 그룹 조회
+        String groupId = getUserGroup(userId);
+        if (groupId == null) {
+            return new ArrayList<>();
+        }
+        
+        // 그룹의 연결 권한 조회
+        List<String> allowedConnections = getGroupConnectionPermissions(groupId, connectionType);
+        
+        // 권한이 있는 연결만 반환
+        return connections.stream()
+            .filter(conn -> {
+                String connId = (String) conn.get("CONNECTION_ID");
+                return allowedConnections.contains(connId);
+            })
+            .collect(Collectors.toList());
+    }
+    
+    /**
+     * 사용자의 그룹을 조회합니다
+     * @param userId 사용자 ID
+     * @return 그룹 ID
+     */
+    private String getUserGroup(String userId) {
+        String sql = "SELECT GROUP_ID FROM USER_GROUP_MAPPING WHERE USER_ID = ?";
+        try {
+            return jdbcTemplate.queryForObject(sql, String.class, userId);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    /**
+     * 그룹의 연결 권한을 조회합니다
+     * @param groupId 그룹 ID
+     * @param connectionType 연결 타입
+     * @return 권한이 있는 연결 ID 목록
+     */
+    private List<String> getGroupConnectionPermissions(String groupId, String connectionType) {
+        String sql = "SELECT CONNECTION_ID FROM CONNECTION_PERMISSIONS WHERE GROUP_ID = ?";
+        try {
+            return jdbcTemplate.queryForList(sql, String.class, groupId);
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
     }
 }
