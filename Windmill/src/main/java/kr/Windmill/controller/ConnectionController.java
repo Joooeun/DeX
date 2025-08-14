@@ -191,7 +191,7 @@ public class ConnectionController {
 		} catch (Exception e) {
 			logger.error("연결 저장 실패", e);
 			result.put("success", false);
-			result.put("message", "연결 저장 중 오류가 발생했습니다.");
+			result.put("message", "연결 저장 중 오류가 발생했습니다: " + e.getMessage());
 		}
 
 		return result;

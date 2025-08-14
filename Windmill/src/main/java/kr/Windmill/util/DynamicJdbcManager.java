@@ -636,7 +636,7 @@ public class DynamicJdbcManager implements Closeable {
 			for (Thread thread : threads) {
 				if (thread != null && thread.getName().startsWith("Timer-")) {
 					timerThreadCount++;
-					System.out.println("타이머 스레드 발견: " + thread.getName() + " - 강제 종료 시도");
+					System.out.println("타이머 스레드 발견: " + thread.getName() + " - 종료 시도");
 					try {
 						thread.interrupt();
 					} catch (Exception e) {

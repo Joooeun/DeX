@@ -72,7 +72,7 @@ public class DexStatusService {
                 // 최대 5초 대기
                 if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
                     cLog.monitoringLog("DEX_STATUS_WARN", "스케줄러가 5초 내에 종료되지 않았습니다. 강제 종료합니다.");
-                    System.out.println("DexStatusMonitor 스케줄러 강제 종료 시도...");
+                    System.out.println("DexStatusMonitor 스케줄러 종료 시도...");
                     scheduler.shutdownNow();
                     
                     // 추가 2초 대기

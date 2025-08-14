@@ -202,7 +202,7 @@ public class ConnectionService {
 				monitoringThread.join(3000);
 				if (monitoringThread.isAlive()) {
 					cLog.monitoringLog("CONNECTION_STATUS_WARN", "모니터링 스레드가 3초 내에 종료되지 않았습니다. 강제 종료합니다.");
-					System.out.println("ConnectionStatusMonitor 스레드 강제 종료 시도...");
+					System.out.println("ConnectionStatusMonitor 스레드 종료 시도...");
 					monitoringThread.interrupt();
 					monitoringThread.join(1000);
 				} else {
@@ -831,7 +831,7 @@ public class ConnectionService {
 	 * @return 저장 결과
 	 */
 	private boolean saveDatabaseConnection(Map<String, Object> connectionData, String userId) {
-		String connectionId = (String) connectionData.get("CONNECTION_ID");
+		String connectionId = (String) connectionData.get("editConnectionId");
 		boolean isNew = connectionId == null || connectionId.trim().isEmpty();
 
 		if (isNew) {
@@ -842,18 +842,18 @@ public class ConnectionService {
 					+ "CONNECTION_TIMEOUT, QUERY_TIMEOUT, MAX_POOL_SIZE, MIN_POOL_SIZE, CREATED_BY) "
 					+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-			jdbcTemplate.update(sql, connectionId, connectionData.get("DB_TYPE"), connectionData.get("HOST_IP"), connectionData.get("PORT"),
+			jdbcTemplate.update(sql, connectionData.get("CONNECTION_ID"), connectionData.get("DB_TYPE"), connectionData.get("HOST_IP"), connectionData.get("PORT"),
 					connectionData.get("DATABASE_NAME"), connectionData.get("USERNAME"), connectionData.get("PASSWORD"),
 					connectionData.get("JDBC_DRIVER_FILE"), connectionData.get("CONNECTION_POOL_SETTINGS"), connectionData.get("CONNECTION_TIMEOUT"),
 					connectionData.get("QUERY_TIMEOUT"), connectionData.get("MAX_POOL_SIZE"), connectionData.get("MIN_POOL_SIZE"), userId);
 		} else {
 			// 기존 연결 수정
-			String sql = "UPDATE DATABASE_CONNECTION SET DB_TYPE = ?, HOST_IP = ?, PORT = ?, "
+			String sql = "UPDATE DATABASE_CONNECTION SET CONNECTION_ID = ?, DB_TYPE = ?, HOST_IP = ?, PORT = ?, "
 					+ "DATABASE_NAME = ?, USERNAME = ?, PASSWORD = ?, JDBC_DRIVER_FILE = ?, "
 					+ "CONNECTION_POOL_SETTINGS = ?, CONNECTION_TIMEOUT = ?, QUERY_TIMEOUT = ?, "
 					+ "MAX_POOL_SIZE = ?, MIN_POOL_SIZE = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " + "WHERE CONNECTION_ID = ?";
 
-			jdbcTemplate.update(sql, connectionData.get("DB_TYPE"), connectionData.get("HOST_IP"), connectionData.get("PORT"),
+			jdbcTemplate.update(sql, connectionData.get("CONNECTION_ID"), connectionData.get("DB_TYPE"), connectionData.get("HOST_IP"), connectionData.get("PORT"),
 					connectionData.get("DATABASE_NAME"), connectionData.get("USERNAME"), connectionData.get("PASSWORD"),
 					connectionData.get("JDBC_DRIVER_FILE"), connectionData.get("CONNECTION_POOL_SETTINGS"), connectionData.get("CONNECTION_TIMEOUT"),
 					connectionData.get("QUERY_TIMEOUT"), connectionData.get("MAX_POOL_SIZE"), connectionData.get("MIN_POOL_SIZE"), userId,

@@ -64,7 +64,6 @@
 									<th>데이터베이스</th>
 									<th>사용자</th>
 									<th>상태</th>
-									<th>마지막 테스트</th>
 									<th>생성일</th>
 									<th>관리</th>
 								</tr>
@@ -321,9 +320,6 @@
 							+ getStatusBadge(connection.STATUS)
 							+ '</td>'
 							+ '<td>'
-							+ (connection.LAST_CONNECTION_TEST || '-')
-							+ '</td>'
-							+ '<td>'
 							+ formatDate(connection.CREATED_TIMESTAMP)
 							+ '</td>'
 							+ '<td>'
@@ -332,9 +328,6 @@
 							+ '\', \''
 							+ connection.TYPE
 							+ '\')">수정</button> '
-							+ '<button class="btn btn-xs btn-success" onclick="testConnection(\''
-							+ connection.CONNECTION_ID
-							+ '\')">테스트</button> '
 							+ '<button class="btn btn-xs btn-danger" onclick="deleteConnection(\''
 							+ connection.CONNECTION_ID + '\', \''
 							+ connection.TYPE + '\')">삭제</button>' + '</td>'
@@ -506,6 +499,7 @@
 		};
 
 		if (connectionType === 'DB') {
+			connectionData.CONNECTION_ID = $('#connectionId').val();
 			connectionData.DATABASE_NAME = $('#databaseName').val();
 			connectionData.DB_TYPE = $('#dbType').val();
 			connectionData.USERNAME = $('#dbUsername').val();
