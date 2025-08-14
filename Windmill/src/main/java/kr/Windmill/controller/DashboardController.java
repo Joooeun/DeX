@@ -1,15 +1,11 @@
 package kr.Windmill.controller;
 
 import java.io.File;
-import java.io.IOException;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -22,7 +18,9 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import kr.Windmill.service.LogInfoDTO;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import kr.Windmill.dto.log.LogInfoDto;
 import kr.Windmill.service.SQLExecuteService;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
@@ -149,8 +147,8 @@ public class DashboardController {
             }
         }
 
-        // LogInfoDTO 설정
-        LogInfoDTO logInfo = new LogInfoDTO();
+        // LogInfoDto 설정
+        LogInfoDto logInfo = new LogInfoDto();
         logInfo.setConnectionId(connectionId);
         logInfo.setPath(sqlPath);
         logInfo.setSql(sql);

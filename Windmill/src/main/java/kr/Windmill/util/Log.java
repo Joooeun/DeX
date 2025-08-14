@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import kr.Windmill.service.LogInfoDTO;
+import kr.Windmill.dto.log.LogInfoDto;
 
 @Component
 public class Log {
@@ -29,7 +29,7 @@ public class Log {
 	}
 
 
-	public void log_start(LogInfoDTO data, String msg) {
+	public void log_start(LogInfoDto data, String msg) {
 
 		// 파일은 모두 저장으로 변경 20240619
 //		if (data.getConnection().equals(LogDB) || !(data.isAudit() || data.getId().equals("admin"))) {
@@ -71,7 +71,7 @@ public class Log {
 		}
 	}
 
-	public void log_end(LogInfoDTO data, String msg) {
+	public void log_end(LogInfoDto data, String msg) {
 
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
 		String strNowDate = simpleDateFormat.format(Date.from(data.getStart()));
@@ -107,7 +107,7 @@ public class Log {
 		}
 	}
 
-	public void log_line(LogInfoDTO data, String msg) {
+	public void log_line(LogInfoDto data, String msg) {
 
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
 		String strNowDate = simpleDateFormat.format(Date.from(data.getStart()));
@@ -264,7 +264,7 @@ public class Log {
 		}
 	}
 
-	public void log_DB(LogInfoDTO data) {
+	public void log_DB(LogInfoDto data) {
 
 		if (data.getConnectionId().equals(com.LogDB) || !data.isAudit()) {
 			return;
@@ -278,7 +278,7 @@ public class Log {
 	/**
 	 * DEXLOG 테이블에 로그를 저장합니다 (톰캣 DB 설정 사용).
 	 */
-	private void insertDexLog(LogInfoDTO data) {
+	private void insertDexLog(LogInfoDto data) {
 		// 실행 시간 계산
 		long duration = 0;
 		if (data.getStart() != null && data.getEnd() != null) {

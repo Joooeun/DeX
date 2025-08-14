@@ -61,7 +61,7 @@ public class AppConfig {
         
         SqlSessionFactoryBean sessionFactoryBean = new SqlSessionFactoryBean();
         sessionFactoryBean.setDataSource(dataSource());
-        sessionFactoryBean.setTypeAliasesPackage("kr.Windmill.vo");
+        sessionFactoryBean.setTypeAliasesPackage("kr.Windmill.dto");
         sessionFactoryBean.setConfiguration(mybatisConfig);        
         return sessionFactoryBean;
     }

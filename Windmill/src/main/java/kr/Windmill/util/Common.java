@@ -11,16 +11,11 @@ import java.io.UnsupportedEncodingException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.sql.Types;
-import java.text.DecimalFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,7 +31,6 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.servlet.http.HttpServletRequest;
 
-import org.apache.commons.lang3.StringUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -52,7 +46,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import crypt.AES256Cipher;
-import kr.Windmill.service.LogInfoDTO;
+import kr.Windmill.dto.log.LogInfoDto;
 
 @Component
 public class Common {
@@ -369,12 +363,12 @@ public class Common {
 		return i;
 	}
 
-	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDTO data, List<Map<String, String>> mapping) throws SQLException {
+	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDto data, List<Map<String, String>> mapping) throws SQLException {
 
 		Connection con = null;
 		PreparedStatement pstmt = null;
 		try {
-			// 동적 드라이버 로딩 사용 (ConnectionDTO 정보가 없는 경우 기본 방식)
+			// 동적 드라이버 로딩 사용 (ConnectionDto 정보가 없는 경우 기본 방식)
 			con = DriverManager.getConnection(jdbc, prop);
 
 			con.setAutoCommit(false);

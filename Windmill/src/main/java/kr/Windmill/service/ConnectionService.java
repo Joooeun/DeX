@@ -1,13 +1,9 @@
 package kr.Windmill.service;
 
-import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Types;
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -23,7 +19,6 @@ import java.util.stream.Collectors;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +26,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import kr.Windmill.dto.connection.ConnectionStatusDto;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.DynamicJdbcManager;
 import kr.Windmill.util.Log;
@@ -44,7 +40,7 @@ public class ConnectionService {
 	private final Log cLog;
 	private final DynamicJdbcManager dynamicJdbcManager;
 
-	private final Map<String, ConnectionStatusDTO> connectionStatusMap = new ConcurrentHashMap<>();
+	private final Map<String, ConnectionStatusDto> connectionStatusMap = new ConcurrentHashMap<>();
 	private Thread monitoringThread;
 	private volatile boolean isRunning = false;
 
@@ -173,7 +169,7 @@ public class ConnectionService {
 			cLog.monitoringLog("CONNECTION_STATUS", "초기 연결 목록 로드: " + connectionList);
 
 			for (String connectionId : connectionList) {
-				ConnectionStatusDTO status = new ConnectionStatusDTO(connectionId, "checking", // 확인중 상태
+				ConnectionStatusDto status = new ConnectionStatusDto(connectionId, "checking", // 확인중 상태
 						"#ffc107" // 노란색
 				);
 				status.setLastChecked(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
@@ -270,9 +266,9 @@ public class ConnectionService {
 			boolean isConnected = testConnectionWithPool(connectionId);
 
 			// 기존 상태가 있으면 업데이트, 없으면 새로 생성
-			ConnectionStatusDTO status = connectionStatusMap.get(connectionId);
+			ConnectionStatusDto status = connectionStatusMap.get(connectionId);
 			if (status == null) {
-				status = new ConnectionStatusDTO(connectionId, isConnected ? "connected" : "disconnected", isConnected ? "#28a745" : "#dc3545");
+				status = new ConnectionStatusDto(connectionId, isConnected ? "connected" : "disconnected", isConnected ? "#28a745" : "#dc3545");
 			} else {
 				status.setStatus(isConnected ? "connected" : "disconnected");
 				status.setColor(isConnected ? "#28a745" : "#dc3545");
@@ -289,9 +285,9 @@ public class ConnectionService {
 			}
 
 		} catch (Exception e) {
-			ConnectionStatusDTO status = connectionStatusMap.get(connectionId);
+			ConnectionStatusDto status = connectionStatusMap.get(connectionId);
 			if (status == null) {
-				status = new ConnectionStatusDTO(connectionId, "error", "#dc3545");
+				status = new ConnectionStatusDto(connectionId, "error", "#dc3545");
 			} else {
 				status.setStatus("error");
 				status.setColor("#dc3545");
@@ -305,11 +301,11 @@ public class ConnectionService {
 
 	// ==================== 연결 상태 조회 ====================
 
-	public List<ConnectionStatusDTO> getAllConnectionStatuses() {
+	public List<ConnectionStatusDto> getAllConnectionStatuses() {
 		return new ArrayList<>(connectionStatusMap.values());
 	}
 
-	public List<ConnectionStatusDTO> getConnectionStatusesForUser(String userId) {
+	public List<ConnectionStatusDto> getConnectionStatusesForUser(String userId) {
 		try {
 			if ("admin".equals(userId)) {
 				return getAllConnectionStatuses();
@@ -327,7 +323,7 @@ public class ConnectionService {
 		}
 	}
 
-	public ConnectionStatusDTO getConnectionStatus(String connectionId) {
+	public ConnectionStatusDto getConnectionStatus(String connectionId) {
 		return connectionStatusMap.get(connectionId);
 	}
 

@@ -1,6 +1,10 @@
-package kr.Windmill.service;
+package kr.Windmill.dto.system;
 
-public class DexStatusDTO {
+/**
+ * DeX 시스템 상태 Dto 클래스
+ */
+public class DexStatusDto {
+    
     private String statusName;
     private String displayName;
     private String status;
@@ -12,7 +16,10 @@ public class DexStatusDTO {
     private double memoryUsage; // 메모리 사용률 (0-100)
     private String pid;         // 프로세스 ID
     
-    public DexStatusDTO(String statusName, String displayName, String status, String color, String message) {
+    // 생성자
+    public DexStatusDto() {}
+    
+    public DexStatusDto(String statusName, String displayName, String status, String color, String message) {
         this.statusName = statusName;
         this.displayName = displayName;
         this.status = status;
@@ -24,7 +31,7 @@ public class DexStatusDTO {
         this.pid = "";
     }
     
-    // Getters and Setters
+    // Getter/Setter
     public String getStatusName() {
         return statusName;
     }
@@ -104,4 +111,17 @@ public class DexStatusDTO {
     public void setPid(String pid) {
         this.pid = pid;
     }
-} 
+    
+    @Override
+    public String toString() {
+        return "DexStatusDto{" +
+                "statusName='" + statusName + '\'' +
+                ", displayName='" + displayName + '\'' +
+                ", status='" + status + '\'' +
+                ", color='" + color + '\'' +
+                ", message='" + message + '\'' +
+                ", cpuUsage=" + cpuUsage +
+                ", memoryUsage=" + memoryUsage +
+                '}';
+    }
+}

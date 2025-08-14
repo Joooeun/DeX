@@ -23,9 +23,9 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
-import kr.Windmill.service.ConnectionStatusDTO;
+import kr.Windmill.dto.connection.ConnectionStatusDto;
 import kr.Windmill.service.ConnectionService;
-import kr.Windmill.service.ConnectionDTO;
+import kr.Windmill.dto.connection.ConnectionDto;
 import kr.Windmill.util.Common;
 
 @Controller
@@ -245,7 +245,7 @@ public class ConnectionController {
 
 	@ResponseBody
 	@RequestMapping(path = "/Connection/status")
-	public List<ConnectionStatusDTO> getConnectionStatus(HttpServletRequest request, HttpSession session) {
+	public List<ConnectionStatusDto> getConnectionStatus(HttpServletRequest request, HttpSession session) {
 		String id = (String) session.getAttribute("memberId");
 		return connectionService.getConnectionStatusesForUser(id);
 	}

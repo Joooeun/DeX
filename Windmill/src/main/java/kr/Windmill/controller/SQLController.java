@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
-import kr.Windmill.service.LogInfoDTO;
+import kr.Windmill.dto.log.LogInfoDto;
 import kr.Windmill.service.SQLExecuteService;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
@@ -197,7 +197,7 @@ public class SQLController {
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/excute")
-	public Map<String, List> excute(HttpServletRequest request, Model model, HttpSession session, @ModelAttribute LogInfoDTO data) throws ClassNotFoundException, IOException, Exception {
+	public Map<String, List> excute(HttpServletRequest request, Model model, HttpSession session, @ModelAttribute LogInfoDto data) throws ClassNotFoundException, IOException, Exception {
 
 		data.setId(session.getAttribute("memberId").toString());
 		data.setIp(com.getIp(request));

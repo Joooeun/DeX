@@ -1,25 +1,30 @@
-package kr.Windmill.service;
+package kr.Windmill.dto.connection;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-public class ConnectionStatusDTO {
+/**
+ * 연결 상태 Dto 클래스
+ */
+public class ConnectionStatusDto {
+    
     private String connectionId;
     private String status; // "connected", "disconnected", "error"
     private String color; // "#28a745", "#dc3545"
     private String lastChecked;
     private String errorMessage;
 
-    public ConnectionStatusDTO() {}
+    // 생성자
+    public ConnectionStatusDto() {}
 
-    public ConnectionStatusDTO(String connectionId, String status, String color) {
+    public ConnectionStatusDto(String connectionId, String status, String color) {
         this.connectionId = connectionId;
         this.status = status;
         this.color = color;
         this.lastChecked = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 
-    // Getters and Setters
+    // Getter/Setter
     public String getConnectionId() {
         return connectionId;
     }
@@ -59,4 +64,15 @@ public class ConnectionStatusDTO {
     public void setErrorMessage(String errorMessage) {
         this.errorMessage = errorMessage;
     }
-} 
+
+    @Override
+    public String toString() {
+        return "ConnectionStatusDto{" +
+                "connectionId='" + connectionId + '\'' +
+                ", status='" + status + '\'' +
+                ", color='" + color + '\'' +
+                ", lastChecked='" + lastChecked + '\'' +
+                ", errorMessage='" + errorMessage + '\'' +
+                '}';
+    }
+}

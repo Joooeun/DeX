@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import kr.Windmill.dto.log.LogInfoDto;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.DynamicJdbcManager;
 import kr.Windmill.util.Log;
@@ -52,12 +53,12 @@ public class SQLExecuteService {
 	/**
 	 * SQL 실행 공통 메서드
 	 * 
-	 * @param data     LogInfoDTO - SQL 실행 정보
+	 * @param data     LogInfoDto - SQL 실행 정보
 	 * @param memberId 사용자 ID
 	 * @param ip       사용자 IP
 	 * @return SQL 실행 결과
 	 */
-	public Map<String, List> executeSQL(LogInfoDTO data) throws Exception {
+	public Map<String, List> executeSQL(LogInfoDto data) throws Exception {
 		data.setStart(Instant.now());
 
 		Properties prop = new Properties();
@@ -187,7 +188,7 @@ public class SQLExecuteService {
 	/**
 	 * 파라미터 매핑 처리
 	 */
-	private List<Map<String, String>> processParameterMapping(LogInfoDTO data, String sql) {
+	private List<Map<String, String>> processParameterMapping(LogInfoDto data, String sql) {
 		List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
 
 		String patternString = "(?<!:):(";
@@ -222,7 +223,7 @@ public class SQLExecuteService {
 		return mapping;
 	}
 
-	public Map<String, List> excutequery(String sql, LogInfoDTO data, int limit, List<Map<String, String>> mapping) throws SQLException, Exception {
+	public Map<String, List> excutequery(String sql, LogInfoDto data, int limit, List<Map<String, String>> mapping) throws SQLException, Exception {
 		Connection con = null;
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
@@ -367,7 +368,7 @@ public class SQLExecuteService {
 		}
 	}
 
-	public Map<String, List> callprocedure(String sql, LogInfoDTO data, List<Map<String, String>> mapping) throws SQLException, Exception {
+	public Map<String, List> callprocedure(String sql, LogInfoDto data, List<Map<String, String>> mapping) throws SQLException, Exception {
 
 		Connection con = null;
 
@@ -604,7 +605,7 @@ public class SQLExecuteService {
 	/**
 	 * UPDATE SQL 처리
 	 */
-	public Map<String, List> processUpdateSQL(LogInfoDTO data, List<Map<String, String>> mapping, String sql) throws Exception {
+	public Map<String, List> processUpdateSQL(LogInfoDto data, List<Map<String, String>> mapping, String sql) throws Exception {
 		Map<String, List> result = new HashMap<>();
 
 		List<Map<String, String>> rowhead = new ArrayList<>();
@@ -658,7 +659,7 @@ public class SQLExecuteService {
 	 * 
 	 * @throws Exception
 	 */
-	public List<List<String>> executeUpdateWithConnection(LogInfoDTO data, String sql, List<Map<String, String>> mapping) throws Exception {
+	public List<List<String>> executeUpdateWithConnection(LogInfoDto data, String sql, List<Map<String, String>> mapping) throws Exception {
 		List<List<String>> result = new ArrayList<>();
 
 		Connection con = null;
