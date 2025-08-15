@@ -149,6 +149,7 @@ public class ConnectionController {
 
 			// 연결 데이터 수집 (새로운 필드명 지원)
 			Map<String, Object> connectionData = new HashMap<>();
+			connectionData.put("editConnectionId", request.getParameter("editConnectionId"));
 			connectionData.put("CONNECTION_ID", request.getParameter("CONNECTION_ID"));
 			connectionData.put("TYPE", request.getParameter("TYPE"));
 			connectionData.put("HOST_IP", request.getParameter("HOST_IP") != null ? request.getParameter("HOST_IP") : request.getParameter("IP"));
@@ -164,6 +165,11 @@ public class ConnectionController {
 			connectionData.put("PRIVATE_KEY_PATH", request.getParameter("PRIVATE_KEY_PATH"));
 			connectionData.put("REMOTE_PATH", request.getParameter("REMOTE_PATH"));
 			connectionData.put("CONNECTION_TIMEOUT", request.getParameter("CONNECTION_TIMEOUT"));
+
+			// 상태 및 모니터링 필드
+			connectionData.put("STATUS", request.getParameter("STATUS"));
+			connectionData.put("MONITORING_ENABLED", request.getParameter("MONITORING_ENABLED"));
+			connectionData.put("MONITORING_INTERVAL", request.getParameter("MONITORING_INTERVAL"));
 
 			// DB 기반 저장
 			boolean saveResult = connectionService.saveConnection(connectionData, userId);

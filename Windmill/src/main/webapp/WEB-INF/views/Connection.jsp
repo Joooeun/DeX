@@ -205,6 +205,34 @@
 								</div>
 							</div>
 						</div>
+
+						<!-- 공통 필드들 -->
+						<div class="form-group row">
+							<div class="col-md-6">
+								<label for="connectionStatus">상태</label>
+								<select class="form-control" id="connectionStatus">
+									<option value="ACTIVE">활성</option>
+									<option value="INACTIVE">비활성</option>
+									<option value="MAINTENANCE">점검중</option>
+								</select>
+							</div>
+							<div class="col-md-6">
+								<label for="monitoringEnabled">모니터링 활성화</label>
+								<select class="form-control" id="monitoringEnabled">
+									<option value="true">활성화</option>
+									<option value="false">비활성화</option>
+								</select>
+							</div>
+						</div>
+						<div class="form-group row">
+							<div class="col-md-6">
+								<label for="monitoringInterval">모니터링 간격 (초)</label>
+								<input type="number" class="form-control" id="monitoringInterval" 
+									value="300" min="60" max="3600" 
+									placeholder="60초 ~ 3600초 (기본값: 300초)">
+								<small class="form-text text-muted">연결 상태를 확인하는 간격을 설정합니다.</small>
+							</div>
+						</div>
 					</form>
 				</div>
 				<div class="modal-footer">
@@ -442,6 +470,12 @@
 		$('#sftpFields').hide();
 		$('#testResultArea').hide(); // 테스트 결과 영역 숨기기
 		$('#testSql').val(''); // 테스트 SQL 초기화
+		
+		// 기본값 설정
+		$('#connectionStatus').val('ACTIVE');
+		$('#monitoringEnabled').val('true');
+		$('#monitoringInterval').val('300');
+		
 		$('#connectionModal').modal('show');
 	}
 
@@ -465,6 +499,11 @@
 					$('#connectionType').val(connectionType);
 					$('#connectionIP').val(connection.HOST_IP);
 					$('#connectionPort').val(connection.PORT);
+					
+					// 상태와 모니터링 필드 설정
+					$('#connectionStatus').val(connection.STATUS || 'ACTIVE');
+					$('#monitoringEnabled').val(connection.MONITORING_ENABLED !== false ? 'true' : 'false');
+					$('#monitoringInterval').val(connection.MONITORING_INTERVAL || 300);
 
 					if (connectionType === 'DB') {
 						$('#databaseName').val(connection.DATABASE_NAME);
@@ -501,10 +540,13 @@
 		var connectionType = $('#connectionType').val();
 
 		var connectionData = {
-			CONNECTION_ID : editConnectionId,
+			editConnectionId : editConnectionId,
 			TYPE : connectionType,
 			HOST_IP : $('#connectionIP').val(),
-			PORT : $('#connectionPort').val()
+			PORT : $('#connectionPort').val(),
+			STATUS : $('#connectionStatus').val(),
+			MONITORING_ENABLED : $('#monitoringEnabled').val() === 'true',
+			MONITORING_INTERVAL : parseInt($('#monitoringInterval').val()) || 300
 		};
 
 		if (connectionType === 'DB') {

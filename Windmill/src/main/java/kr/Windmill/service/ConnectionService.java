@@ -41,6 +41,8 @@ public class ConnectionService {
 	private final DynamicJdbcManager dynamicJdbcManager;
 
 	private final Map<String, ConnectionStatusDto> connectionStatusMap = new ConcurrentHashMap<>();
+	private final Map<String, Long> lastMonitoringCheckMap = new ConcurrentHashMap<>();
+	private final Map<String, String> monitoringStatusMap = new ConcurrentHashMap<>();
 	private Thread monitoringThread;
 	private volatile boolean isRunning = false;
 
@@ -226,7 +228,7 @@ public class ConnectionService {
 	private void monitorConnections() {
 		while (isRunning) {
 			try {
-				updateAllConnectionStatuses();
+				updateAllConnectionStatusesWithInterval();
 				Thread.sleep(10000); // 10초 대기
 			} catch (InterruptedException e) {
 				if (isRunning) {
@@ -241,6 +243,38 @@ public class ConnectionService {
 					break;
 				}
 			}
+		}
+	}
+
+	private void updateAllConnectionStatusesWithInterval() {
+		try {
+			cLog.monitoringLog("CONNECTION_STATUS", "=== 연결 상태 확인 시작 ===");
+
+			List<String> connectionList = com.ConnectionnList();
+			cLog.monitoringLog("CONNECTION_STATUS", "발견된 연결 목록: " + connectionList);
+
+			long currentTime = System.currentTimeMillis();
+			
+			for (String connectionId : connectionList) {
+				// 모니터링이 활성화되지 않은 연결은 스킵
+				if (!isMonitoringEnabled(connectionId)) {
+					continue;
+				}
+				
+				// 마지막 모니터링 체크 시간 확인
+				Long lastCheck = getLastMonitoringCheck(connectionId);
+				int interval = getMonitoringInterval(connectionId) * 1000; // 초를 밀리초로 변환
+				
+				// 모니터링 간격이 지났거나 처음 체크하는 경우에만 업데이트
+				if (lastCheck == null || (currentTime - lastCheck) >= interval) {
+					cLog.monitoringLog("CONNECTION_STATUS", "연결 상태 확인 중: " + connectionId + " (간격: " + (interval/1000) + "초)");
+					updateConnectionStatus(connectionId);
+				} else {
+					logger.debug("모니터링 간격 미도달 스킵: {} (남은 시간: {}초)", connectionId, (interval - (currentTime - lastCheck))/1000);
+				}
+			}
+		} catch (Exception e) {
+			cLog.monitoringLog("CONNECTION_STATUS_ERROR", "연결 상태 확인 중 오류 발생: " + e.getMessage());
 		}
 	}
 
@@ -262,8 +296,21 @@ public class ConnectionService {
 
 	private void updateConnectionStatus(String connectionId) {
 		try {
+			// 모니터링이 활성화되지 않은 연결은 스킵
+			if (!isMonitoringEnabled(connectionId)) {
+				logger.debug("모니터링이 비활성화된 연결 스킵: {}", connectionId);
+				return;
+			}
+
+			// 마지막 모니터링 체크 시간 업데이트
+			setLastMonitoringCheck(connectionId);
+
 			// 기존 커넥션 풀에서 연결 가져와서 TEST_SQL 실행
 			boolean isConnected = testConnectionWithPool(connectionId);
+
+			// 모니터링 상태 설정
+			String monitoringStatus = isConnected ? "ONLINE" : "OFFLINE";
+			setMonitoringStatus(connectionId, monitoringStatus);
 
 			// 기존 상태가 있으면 업데이트, 없으면 새로 생성
 			ConnectionStatusDto status = connectionStatusMap.get(connectionId);
@@ -285,6 +332,9 @@ public class ConnectionService {
 			}
 
 		} catch (Exception e) {
+			// 모니터링 상태를 ERROR로 설정
+			setMonitoringStatus(connectionId, "ERROR");
+
 			ConnectionStatusDto status = connectionStatusMap.get(connectionId);
 			if (status == null) {
 				status = new ConnectionStatusDto(connectionId, "error", "#dc3545");
@@ -314,7 +364,9 @@ public class ConnectionService {
 			// 사용자가 권한을 가진 연결 ID 목록 조회
 			List<String> authorizedConnectionIds = getUserDatabaseConnections(userId);
 
-			return connectionStatusMap.values().stream().filter(status -> authorizedConnectionIds.contains(status.getConnectionId()))
+			return connectionStatusMap.values().stream()
+					.filter(status -> authorizedConnectionIds.contains(status.getConnectionId()))
+					.filter(status -> isMonitoringEnabled(status.getConnectionId()))
 					.collect(Collectors.toList());
 
 		} catch (Exception e) {
@@ -325,6 +377,50 @@ public class ConnectionService {
 
 	public ConnectionStatusDto getConnectionStatus(String connectionId) {
 		return connectionStatusMap.get(connectionId);
+	}
+
+	// 연결의 모니터링 활성화 여부 확인
+	private boolean isMonitoringEnabled(String connectionId) {
+		try {
+			String sql = "SELECT MONITORING_ENABLED FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
+			Boolean monitoringEnabled = jdbcTemplate.queryForObject(sql, Boolean.class, connectionId);
+			return monitoringEnabled != null && monitoringEnabled;
+		} catch (Exception e) {
+			logger.warn("모니터링 설정 조회 실패: {}", connectionId, e);
+			return true; // 기본값으로 모니터링 활성화
+		}
+	}
+
+	// 연결의 모니터링 간격 조회
+	private int getMonitoringInterval(String connectionId) {
+		try {
+			String sql = "SELECT MONITORING_INTERVAL FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
+			Integer interval = jdbcTemplate.queryForObject(sql, Integer.class, connectionId);
+			return interval != null ? interval : 300; // 기본값 5분
+		} catch (Exception e) {
+			logger.warn("모니터링 간격 조회 실패: {}", connectionId, e);
+			return 300; // 기본값으로 5분
+		}
+	}
+
+	// 마지막 모니터링 체크 시간 설정
+	private void setLastMonitoringCheck(String connectionId) {
+		lastMonitoringCheckMap.put(connectionId, System.currentTimeMillis());
+	}
+
+	// 마지막 모니터링 체크 시간 조회
+	private Long getLastMonitoringCheck(String connectionId) {
+		return lastMonitoringCheckMap.get(connectionId);
+	}
+
+	// 모니터링 상태 설정
+	private void setMonitoringStatus(String connectionId, String status) {
+		monitoringStatusMap.put(connectionId, status);
+	}
+
+	// 모니터링 상태 조회
+	private String getMonitoringStatus(String connectionId) {
+		return monitoringStatusMap.getOrDefault(connectionId, "UNKNOWN");
 	}
 
 	// 수동으로 특정 연결 상태 업데이트
@@ -807,11 +903,48 @@ public class ConnectionService {
 	public boolean saveConnection(Map<String, Object> connectionData, String userId) {
 		try {
 			String connectionType = (String) connectionData.get("TYPE");
+			String editConnectionId = (String) connectionData.get("editConnectionId");
+			boolean isNew = editConnectionId == null || editConnectionId.trim().isEmpty();
 
-			if ("DB".equals(connectionType)) {
-				return saveDatabaseConnection(connectionData, userId);
+			if (isNew) {
+				// 새 연결 생성
+				if ("DB".equals(connectionType)) {
+					return saveDatabaseConnection(connectionData, userId);
+				} else {
+					return saveSftpConnection(connectionData, userId);
+				}
 			} else {
-				return saveSftpConnection(connectionData, userId);
+				// 기존 연결 수정 - 타입 변경 확인
+				// DB_TYPE이 있으면 원래 DB 연결, 없으면 SFTP 연결
+				boolean wasDatabaseConnection = connectionData.get("DB_TYPE") != null;
+				boolean isDatabaseConnection = "DB".equals(connectionType);
+				
+				if (wasDatabaseConnection != isDatabaseConnection) {
+					// 타입이 변경된 경우: 기존 연결 삭제 후 새 타입으로 추가
+					String originalType = wasDatabaseConnection ? "DB" : "HOST";
+					logger.info("연결 타입 변경: {} -> {} (ID: {})", originalType, connectionType, editConnectionId);
+					
+					// 기존 연결 삭제
+					if (wasDatabaseConnection) {
+						deleteDatabaseConnection(editConnectionId);
+					} else {
+						deleteSftpConnection(editConnectionId);
+					}
+					
+					// 새 타입으로 연결 추가
+					if (isDatabaseConnection) {
+						return saveDatabaseConnection(connectionData, userId);
+					} else {
+						return saveSftpConnection(connectionData, userId);
+					}
+				} else {
+					// 타입이 동일한 경우: 기존 방식으로 수정
+					if (isDatabaseConnection) {
+						return saveDatabaseConnection(connectionData, userId);
+					} else {
+						return saveSftpConnection(connectionData, userId);
+					}
+				}
 			}
 		} catch (Exception e) {
 			logger.error("연결 저장 실패", e);
@@ -832,27 +965,30 @@ public class ConnectionService {
 
 		if (isNew) {
 			// 새 연결 생성
-			connectionId = "DB_" + System.currentTimeMillis();
 			String sql = "INSERT INTO DATABASE_CONNECTION (CONNECTION_ID, DB_TYPE, HOST_IP, PORT, "
 					+ "DATABASE_NAME, USERNAME, PASSWORD, JDBC_DRIVER_FILE, CONNECTION_POOL_SETTINGS, "
-					+ "CONNECTION_TIMEOUT, QUERY_TIMEOUT, MAX_POOL_SIZE, MIN_POOL_SIZE, CREATED_BY) "
-					+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+					+ "CONNECTION_TIMEOUT, QUERY_TIMEOUT, MAX_POOL_SIZE, MIN_POOL_SIZE, STATUS, "
+					+ "MONITORING_ENABLED, MONITORING_INTERVAL, CREATED_BY) "
+					+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 			jdbcTemplate.update(sql, connectionData.get("CONNECTION_ID"), connectionData.get("DB_TYPE"), connectionData.get("HOST_IP"), connectionData.get("PORT"),
 					connectionData.get("DATABASE_NAME"), connectionData.get("USERNAME"), connectionData.get("PASSWORD"),
 					connectionData.get("JDBC_DRIVER_FILE"), connectionData.get("CONNECTION_POOL_SETTINGS"), connectionData.get("CONNECTION_TIMEOUT"),
-					connectionData.get("QUERY_TIMEOUT"), connectionData.get("MAX_POOL_SIZE"), connectionData.get("MIN_POOL_SIZE"), userId);
+					connectionData.get("QUERY_TIMEOUT"), connectionData.get("MAX_POOL_SIZE"), connectionData.get("MIN_POOL_SIZE"), 
+					connectionData.get("STATUS"), connectionData.get("MONITORING_ENABLED"), connectionData.get("MONITORING_INTERVAL"), userId);
 		} else {
 			// 기존 연결 수정
 			String sql = "UPDATE DATABASE_CONNECTION SET CONNECTION_ID = ?, DB_TYPE = ?, HOST_IP = ?, PORT = ?, "
 					+ "DATABASE_NAME = ?, USERNAME = ?, PASSWORD = ?, JDBC_DRIVER_FILE = ?, "
 					+ "CONNECTION_POOL_SETTINGS = ?, CONNECTION_TIMEOUT = ?, QUERY_TIMEOUT = ?, "
-					+ "MAX_POOL_SIZE = ?, MIN_POOL_SIZE = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " + "WHERE CONNECTION_ID = ?";
+					+ "MAX_POOL_SIZE = ?, MIN_POOL_SIZE = ?, STATUS = ?, MONITORING_ENABLED = ?, "
+					+ "MONITORING_INTERVAL = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " + "WHERE CONNECTION_ID = ?";
 
 			jdbcTemplate.update(sql, connectionData.get("CONNECTION_ID"), connectionData.get("DB_TYPE"), connectionData.get("HOST_IP"), connectionData.get("PORT"),
 					connectionData.get("DATABASE_NAME"), connectionData.get("USERNAME"), connectionData.get("PASSWORD"),
 					connectionData.get("JDBC_DRIVER_FILE"), connectionData.get("CONNECTION_POOL_SETTINGS"), connectionData.get("CONNECTION_TIMEOUT"),
-					connectionData.get("QUERY_TIMEOUT"), connectionData.get("MAX_POOL_SIZE"), connectionData.get("MIN_POOL_SIZE"), userId,
+					connectionData.get("QUERY_TIMEOUT"), connectionData.get("MAX_POOL_SIZE"), connectionData.get("MIN_POOL_SIZE"), 
+					connectionData.get("STATUS"), connectionData.get("MONITORING_ENABLED"), connectionData.get("MONITORING_INTERVAL"), userId,
 					connectionId);
 		}
 
@@ -892,6 +1028,42 @@ public class ConnectionService {
 		return true;
 	}
 
+
+
+	/**
+	 * 데이터베이스 연결을 삭제합니다
+	 * 
+	 * @param connectionId 연결 ID
+	 * @return 삭제 결과
+	 */
+	private boolean deleteDatabaseConnection(String connectionId) {
+		try {
+			String sql = "DELETE FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ?";
+			jdbcTemplate.update(sql, connectionId);
+			return true;
+		} catch (Exception e) {
+			logger.error("데이터베이스 연결 삭제 실패: {}", connectionId, e);
+			return false;
+		}
+	}
+
+	/**
+	 * SFTP 연결을 삭제합니다
+	 * 
+	 * @param connectionId 연결 ID
+	 * @return 삭제 결과
+	 */
+	private boolean deleteSftpConnection(String connectionId) {
+		try {
+			String sql = "DELETE FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ?";
+			jdbcTemplate.update(sql, connectionId);
+			return true;
+		} catch (Exception e) {
+			logger.error("SFTP 연결 삭제 실패: {}", connectionId, e);
+			return false;
+		}
+	}
+
 	/**
 	 * 연결을 삭제합니다
 	 * 
@@ -903,10 +1075,10 @@ public class ConnectionService {
 	public boolean deleteConnection(String connectionId, String connectionType) {
 		try {
 			if ("DB".equals(connectionType)) {
-				String sql = "UPDATE DATABASE_CONNECTION SET STATUS = 'DELETED' WHERE CONNECTION_ID = ?";
+				String sql = "DELETE FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ?";
 				jdbcTemplate.update(sql, connectionId);
 			} else {
-				String sql = "UPDATE SFTP_CONNECTION SET STATUS = 'DELETED' WHERE SFTP_CONNECTION_ID = ?";
+				String sql = "DELETE FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ?";
 				jdbcTemplate.update(sql, connectionId);
 			}
 			return true;
