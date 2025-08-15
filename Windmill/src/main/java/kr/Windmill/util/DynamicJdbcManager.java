@@ -435,7 +435,7 @@ public class DynamicJdbcManager implements Closeable {
 		// JAR 파일 경로 찾기
 		String jarPath = findDriverJarPath(jdbcDriverFile);
 		if (jarPath == null) {
-			throw new Exception("드라이버 JAR 파일을 찾을 수 없습니다: " + driverClassName);
+			throw new Exception("드라이버 JAR 파일을 찾을 수 없습니다: " + jdbcDriverFile);
 		}
 
 		// 풀 설정 (데이터베이스에서 가져오거나 기본값 사용)

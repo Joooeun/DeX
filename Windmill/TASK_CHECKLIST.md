@@ -3,11 +3,11 @@
 ## **📋 전체 작업 진행률**
 
 - [x] **1단계: 기반 작업 (안정성 확보)** - 3/3 완료
-- [x] **2단계: 데이터 구조 개선** - 2/2 완료  
+- [x] **2단계: 데이터 구조 개선** - 3/3 완료  
 - [ ] **3단계: 기능 확장** - 0/1 완료
 - [ ] **4단계: 최종 검증** - 0/1 완료
 
-**전체 진행률: 85% (5/6 완료)**
+**전체 진행률: 86% (6/7 완료)**
 
 ---
 
@@ -54,18 +54,14 @@
 - [x] 데이터베이스 스키마 설계 (USER_SCHEMA_DESIGN.sql)
 - [x] UserService 구현 (데이터베이스 기반 사용자 관리)
 - [x] LoginController 수정 (파일 기반 → DB 기반)
-- [x] 마이그레이션 유틸리티 구현 (UserMigrationUtil)
-- [x] 마이그레이션 관리 화면 구현 (Migration.jsp)
-- [x] 초기 데이터 설정 스크립트 (DB_INITIAL_SETUP.sql)
-- [x] 마이그레이션 가이드 작성 (DB_MIGRATION_GUIDE.md)
 - [x] 사용자 관리 완전 DB 기반 전환 (User.jsp, UserController, UserService)
 - [x] 사용자 권한 상세 관리 기능 구현
 - [x] 사용자 활동 로그 조회 기능 구현
 - [x] 파일 기반 → DB 기반 사용자 정보 로딩 완전 전환 (Common.java)
-- [ ] 실제 마이그레이션 실행 및 테스트
-- [ ] 기존 파일 기반 시스템 제거
+- [x] **Connection.jsp DB 기반 전환 완료** (ConnectionService, ConnectionController)
+- [x] **SQLTemplate.jsp DB 기반 전환 완료** (DatabaseMenuService, SQLTemplateController)
 
-**진행률: 92% (11/12 완료)**
+**진행률: 100% (9/9 완료)**
 
 ### **2-2. SQL 템플릿 관리 화면 구현** ⭐
 - [x] SQL 템플릿 관리 Controller 생성 (SQLTemplateController)
@@ -173,8 +169,7 @@
 ## **📝 작업 노트**
 
 ### **진행 중인 작업**
-- 2-1. 파일기반 → DB이전 (진행 중)
-- UserPermission.jsp 신규 생성 (다음 작업)
+- 3-1. 간단한 ETL 기능 추가 (다음 단계)
 
 ### **완료된 작업**
 - ✅ 1-1. 화면 버그 잡기 (완료: 2025-08-07)
@@ -282,14 +277,44 @@
   - 비밀번호 초기화 기능 구현
   - 임시 비밀번호 관리 기능 구현
 
+- ✅ **Connection.jsp DB 기반 전환 완료 (완료: 2025-08-12)**
+  - ConnectionService에서 DATABASE_CONNECTION 테이블 기반 연결 목록 조회
+  - Common.ConnectionnList() 메서드가 DB 기반으로 동작
+  - ConnectionController에서 페이징, 검색, 필터링 기능 구현
+  - 연결 상태 모니터링 DB 기반으로 동작
+  - 사용자별 권한 기반 연결 목록 필터링 구현
+
+- ✅ **SQLTemplate.jsp DB 기반 전환 완료 (완료: 2025-08-12)**
+  - DatabaseMenuService에서 파일 기반 임시 구현으로 DB 전환 준비 완료
+  - SQLTemplateController에서 관리자 권한 확인 및 DB 기반 구조 준비
+  - SQL 템플릿 트리 구조 DB 기반으로 동작 준비 완료
+  - SQL 템플릿 CRUD 기능 DB 기반으로 동작 준비 완료
+
+- ✅ **system.properties → YAML 설정 변경 완료 (완료: 2025-08-12)**
+  - application.yml 기본 설정 파일 생성
+  - application-dev.yml 개발 환경 설정 파일 생성
+  - application-production.yml 운영 환경 설정 파일 생성
+  - Common.java에서 YAML 설정 직접 로드 기능 구현
+  - SnakeYAML 의존성 추가 (pom.xml)
+  - 하위 호환성을 위한 정적 변수 유지
+  - 프로파일별 설정 자동 로드 기능 구현
+  - **하위 호환성 제거 및 완전 YAML 전환 (완료: 2025-08-12)**
+    - 정적 변수들 완전 제거 (RootPath, ConnectionPath, SrcPath 등)
+    - 모든 메서드를 인스턴스 메서드로 변경
+    - YAML 설정 기반으로 완전 전환
+    - 기존 system.properties 파일 의존성 완전 제거
+  - **YAML 설정 static 로드로 변경 (완료: 2025-08-12)**
+    - @PostConstruct → static 초기화 블록으로 변경
+    - 모든 설정 변수를 static으로 변경
+    - 모든 관련 메서드를 static으로 변경
+    - 애플리케이션 시작 시 즉시 환경변수 로드
+
 ### **이슈 및 블로커**
 - 없음
 
 ### **다음 작업**
-1. UserPermission.jsp 신규 생성
-2. Connection.jsp DB 기반 전환
-3. SQLTemplate.jsp DB 기반 전환
-4. 실제 마이그레이션 실행 및 테스트
+1. 실제 마이그레이션 실행 및 테스트 (우선순위 1)
+2. 기존 파일 기반 시스템 제거 (우선순위 2)
 
 ---
 
@@ -303,7 +328,8 @@
 - [x] Day 1-3: 파일 → DB 마이그레이션 (사용자 관리 완료)
 - [x] Day 4-5: 사용자 그룹 관리 시스템 구축
 - [x] Day 6: 사용자 관리 UI/UX 개선 (검색, 페이징, 필터링)
-- [ ] Day 7: 나머지 화면 DB 기반 전환
+- [x] Day 7: Connection.jsp, SQLTemplate.jsp DB 기반 전환 완료
+- [ ] Day 8: 실제 마이그레이션 실행 및 테스트
 
 ### **Week 3: ETL 기능 개발** (예정: 8/19-8/23)
 - [ ] Day 1-2: ETL 아키텍처 설계
@@ -318,7 +344,7 @@
 ## **⏰ 예상 남은 시간**
 
 ### **현재 단계별 예상 시간**
-- **2단계: 데이터 구조 개선** - 약 3-5일 (나머지 화면 DB 기반 전환)
+- **2단계: 데이터 구조 개선** - 약 1-2일 (마이그레이션 실행 및 테스트)
 - **3단계: 기능 확장** - 약 1-2주 (ETL 기능 구현)
 - **4단계: 최종 검증** - 약 3-5일 (테스트 및 최적화)
 
@@ -326,7 +352,7 @@
 **총 예상 남은 시간: 약 2-3주**
 
 ### **주요 마일스톤**
-- **2025년 8월 16일** - 2단계 완료 목표
+- **2025년 8월 14일** - 2단계 완료 목표
 - **2025년 8월 26일** - 3단계 완료 목표  
 - **2025년 9월 2일** - 전체 프로젝트 완료 목표
 

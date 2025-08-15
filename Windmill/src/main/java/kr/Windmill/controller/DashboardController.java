@@ -44,11 +44,13 @@ public class DashboardController {
      * 대시보드 차트 데이터 조회 공통 메서드 (해시 비교 방식)
      * @param chartName 차트명 (예: applCount, lockWaitCount, activeLog, filesystem)
      * @param lastHash 클라이언트가 보낸 이전 해시값
+     * @param connectionId 선택된 커넥션 ID
      */
     @RequestMapping(path = "/Dashboard/{chartName}", method = RequestMethod.POST)
     public @ResponseBody Map<String, Object> getChartData(
             @PathVariable String chartName,
             @RequestParam(required = false) String lastHash,
+            @RequestParam(required = false) String connectionId,
             HttpServletRequest request, 
             HttpSession session) {
         
@@ -59,10 +61,10 @@ public class DashboardController {
             String sqlName = chartName.toUpperCase();
             
             // 모니터링 로그 기록
-            cLog.monitoringLog("DASHBOARD", "차트 데이터 요청: " + chartName + " (해시: " + lastHash + ")");
+            cLog.monitoringLog("DASHBOARD", "차트 데이터 요청: " + chartName + " (해시: " + lastHash + ", 커넥션: " + connectionId + ")");
             
             // SQL 실행
-            Map<String, Object> sqlResult = executeDashboardSQL(sqlName);
+            Map<String, Object> sqlResult = executeDashboardSQL(sqlName, connectionId);
             
             if (sqlResult.containsKey("error")) {
                 cLog.monitoringLog("DASHBOARD_ERROR", "차트 " + chartName + " 실행 오류: " + sqlResult.get("error"));
@@ -101,7 +103,7 @@ public class DashboardController {
     /**
      * 대시보드 SQL 실행 공통 메서드
      */
-    private Map<String, Object> executeDashboardSQL(String sqlName) throws Exception {
+    private Map<String, Object> executeDashboardSQL(String sqlName, String connectionId) throws Exception {
         // SQL 파일 경로 설정 (Common 클래스의 SrcPath 사용)
         String dashboardPath = com.getSrcPath() + "001_DashBoard/";
         String sqlPath = dashboardPath + sqlName + ".sql";
@@ -138,13 +140,17 @@ public class DashboardController {
         
         // Properties 파일에서 연결 정보 읽기
         String propertiesContent = com.FileRead(propertiesFile);
-        String connectionId = "local"; // 기본값
+        String defaultConnectionId = "local"; // 기본값
         
-        for (String line : propertiesContent.split("\r\n")) {
-            if (line.startsWith("CONNECTION=")) {
-                connectionId = line.split("=")[1];
-                break;
+        // 파라미터로 전달된 connectionId가 있으면 사용, 없으면 properties에서 읽기
+        if (connectionId == null || connectionId.trim().isEmpty()) {
+            for (String line : propertiesContent.split("\r\n")) {
+                if (line.startsWith("CONNECTION=")) {
+                    defaultConnectionId = line.split("=")[1];
+                    break;
+                }
             }
+            connectionId = defaultConnectionId;
         }
 
         // LogInfoDto 설정

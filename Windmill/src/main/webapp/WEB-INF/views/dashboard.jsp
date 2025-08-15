@@ -8,6 +8,7 @@
         var activeLogChart;
         var filesystemChart;
         var dexStatusChart;
+        var selectedConnectionId = null; // 선택된 커넥션 ID
 
         // 페이지 로드 시 연결 모니터링 시작
         $(document).ready(function() {
@@ -79,6 +80,11 @@
                 connections.forEach(function(conn) {
                     createConnectionCard(conn);
                 });
+                
+                // 첫 번째 커넥션을 기본 선택
+                if (connections.length > 0) {
+                    selectConnection(connections[0].connectionId);
+                }
             } else {
                 // 업데이트: 기존 카드의 상태만 변경
                 connections.forEach(function(conn) {
@@ -114,7 +120,7 @@
             
             var connectionCard = 
                 '<div class="col-md-2 col-sm-3 col-xs-4" style="margin-bottom: 15px;" id="card-' + conn.connectionId + '">' +
-                    '<div class="connection-card ' + statusClass + '" onclick="refreshSingleConnection(\'' + conn.connectionId + '\')">' +
+                    '<div class="connection-card ' + statusClass + '" onclick="selectConnection(\'' + conn.connectionId + '\')">' +
                         '<div>' +
                             '<i class="fa fa-database"></i>' +
                         '</div>' +
@@ -179,6 +185,23 @@
             			//$('#status-' + conn.connectionId).css('color', conn.color);
         }
 
+        // 커넥션 선택 함수
+        function selectConnection(connectionId) {
+            // 이전 선택 해제
+            $('.connection-card').removeClass('selected');
+            
+            // 새로운 선택 적용
+            $('#card-' + connectionId + ' .connection-card').addClass('selected');
+            
+            // 선택된 커넥션 ID 저장
+            selectedConnectionId = connectionId;
+            
+            // 차트 업데이트
+            updateCharts();
+            
+            console.log('선택된 커넥션:', connectionId);
+        }
+        
         // 단일 연결 상태 수동 새로고침
         function refreshSingleConnection(connectionId) {
             $.ajax({
@@ -894,6 +917,15 @@
         // 차트 데이터 업데이트 함수 (해시 비교 방식)
         function updateCharts() {
             
+            // 선택된 커넥션이 없으면 첫 번째 커넥션 사용
+            if (!selectedConnectionId) {
+                var firstCard = $('.connection-card').first();
+                if (firstCard.length > 0) {
+                    var firstConnectionId = firstCard.closest('[id^="card-"]').attr('id').replace('card-', '');
+                    selectedConnectionId = firstConnectionId;
+                }
+            }
+            
             // 모든 차트 데이터를 병렬로 요청 (해시 포함)
             Promise.all([
                 // APPL_COUNT 데이터 조회
@@ -902,7 +934,8 @@
                         type: 'post',
                         url: '/Dashboard/APPL_COUNT',
                         data: {
-                            lastHash: chartHashes['APPL_COUNT']
+                            lastHash: chartHashes['APPL_COUNT'],
+                            connectionId: selectedConnectionId
                         },
                         timeout: 10000,
                         success: function(data) {
@@ -920,7 +953,8 @@
                         type: 'post',
                         url: '/Dashboard/LOCK_WAIT_COUNT',
                         data: {
-                            lastHash: chartHashes['LOCK_WAIT_COUNT']
+                            lastHash: chartHashes['LOCK_WAIT_COUNT'],
+                            connectionId: selectedConnectionId
                         },
                         timeout: 10000,
                         success: function(data) {
@@ -938,7 +972,8 @@
                         type: 'post',
                         url: '/Dashboard/ACTIVE_LOG',
                         data: {
-                            lastHash: chartHashes['ACTIVE_LOG']
+                            lastHash: chartHashes['ACTIVE_LOG'],
+                            connectionId: selectedConnectionId
                         },
                         timeout: 10000,
                         success: function(data) {
@@ -956,7 +991,8 @@
                         type: 'post',
                         url: '/Dashboard/FILE_SYSTEM',
                         data: {
-                            lastHash: chartHashes['FILE_SYSTEM']
+                            lastHash: chartHashes['FILE_SYSTEM'],
+                            connectionId: selectedConnectionId
                         },
                         timeout: 10000,
                         success: function(data) {
@@ -1172,7 +1208,7 @@
                                 <i class="fa fa-database"></i> 데이터베이스 연결 상태 모니터링
                             </h3>
                             <div class="box-tools pull-right">
-                                <button type="button" class="btn btn-box-tool" onclick="refreshConnectionStatus()">
+                                <button type="button" class="btn btn-box-tool" onclick="location.reload()">
                                     <i class="fa fa-refresh"></i> 새로고침
                                 </button>
                             </div>

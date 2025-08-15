@@ -352,7 +352,9 @@ public class ConnectionService {
 	// ==================== 연결 상태 조회 ====================
 
 	public List<ConnectionStatusDto> getAllConnectionStatuses() {
-		return new ArrayList<>(connectionStatusMap.values());
+		return connectionStatusMap.values().stream()
+				.filter(status -> isMonitoringEnabled(status.getConnectionId()))
+				.collect(Collectors.toList());
 	}
 
 	public List<ConnectionStatusDto> getConnectionStatusesForUser(String userId) {
@@ -977,6 +979,13 @@ public class ConnectionService {
 					connectionData.get("QUERY_TIMEOUT"), connectionData.get("MAX_POOL_SIZE"), connectionData.get("MIN_POOL_SIZE"), 
 					connectionData.get("STATUS"), connectionData.get("MONITORING_ENABLED"), connectionData.get("MONITORING_INTERVAL"), userId);
 		} else {
+			// 기존 연결 수정 - 모니터링 설정 변경 확인
+			boolean monitoringEnabledChanged = checkMonitoringSettingChanged(connectionId, connectionData);
+			
+			// 연결 ID 변경 여부 확인
+			String newConnectionId = (String) connectionData.get("CONNECTION_ID");
+			boolean connectionIdChanged = !connectionId.equals(newConnectionId);
+			
 			// 기존 연결 수정
 			String sql = "UPDATE DATABASE_CONNECTION SET CONNECTION_ID = ?, DB_TYPE = ?, HOST_IP = ?, PORT = ?, "
 					+ "DATABASE_NAME = ?, USERNAME = ?, PASSWORD = ?, JDBC_DRIVER_FILE = ?, "
@@ -990,9 +999,97 @@ public class ConnectionService {
 					connectionData.get("QUERY_TIMEOUT"), connectionData.get("MAX_POOL_SIZE"), connectionData.get("MIN_POOL_SIZE"), 
 					connectionData.get("STATUS"), connectionData.get("MONITORING_ENABLED"), connectionData.get("MONITORING_INTERVAL"), userId,
 					connectionId);
+			
+			// 연결 ID가 변경된 경우 연결 상태 캐시 정리
+			if (connectionIdChanged) {
+				// 이전 ID의 상태 제거
+				connectionStatusMap.remove(connectionId);
+				monitoringStatusMap.remove(connectionId);
+				lastMonitoringCheckMap.remove(connectionId);
+				
+				// 새 ID의 상태 초기화
+				ConnectionStatusDto newStatus = new ConnectionStatusDto();
+				newStatus.setConnectionId(newConnectionId);
+				newStatus.setStatus("checking");
+				newStatus.setLastChecked(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+				newStatus.setColor("#ffc107");
+				connectionStatusMap.put(newConnectionId, newStatus);
+				
+				logger.info("연결 ID 변경으로 인한 상태 캐시 정리: {} -> {}", connectionId, newConnectionId);
+			}
+			
+			// 모니터링 설정이 변경된 경우 관련 상태 초기화
+			if (monitoringEnabledChanged) {
+				updateMonitoringStatusAfterSettingChange(connectionId, connectionData);
+			}
 		}
 
 		return true;
+	}
+
+	/**
+	 * 모니터링 설정 변경 여부를 확인합니다
+	 * 
+	 * @param connectionId 연결 ID
+	 * @param connectionData 연결 데이터
+	 * @return 모니터링 설정 변경 여부
+	 */
+	private boolean checkMonitoringSettingChanged(String connectionId, Map<String, Object> connectionData) {
+		try {
+			String sql = "SELECT MONITORING_ENABLED, MONITORING_INTERVAL FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ?";
+			Map<String, Object> currentSettings = jdbcTemplate.queryForMap(sql, connectionId);
+			
+			Boolean currentEnabled = (Boolean) currentSettings.get("MONITORING_ENABLED");
+			Integer currentInterval = (Integer) currentSettings.get("MONITORING_INTERVAL");
+			
+			Boolean newEnabled = (Boolean) connectionData.get("MONITORING_ENABLED");
+			Integer newInterval = (Integer) connectionData.get("MONITORING_INTERVAL");
+			
+			// null 체크 및 비교
+			boolean enabledChanged = (currentEnabled == null && newEnabled != null) || 
+									(currentEnabled != null && !currentEnabled.equals(newEnabled));
+			boolean intervalChanged = (currentInterval == null && newInterval != null) || 
+									 (currentInterval != null && !currentInterval.equals(newInterval));
+			
+			return enabledChanged || intervalChanged;
+		} catch (Exception e) {
+			logger.warn("모니터링 설정 변경 확인 실패: {}", connectionId, e);
+			return false;
+		}
+	}
+
+	/**
+	 * 모니터링 설정 변경 후 상태를 업데이트합니다
+	 * 
+	 * @param connectionId 연결 ID
+	 * @param connectionData 연결 데이터
+	 */
+	private void updateMonitoringStatusAfterSettingChange(String connectionId, Map<String, Object> connectionData) {
+		try {
+			Boolean monitoringEnabled = (Boolean) connectionData.get("MONITORING_ENABLED");
+			
+			if (monitoringEnabled != null && !monitoringEnabled) {
+				// 모니터링이 비활성화된 경우
+				logger.info("모니터링 비활성화로 인한 상태 초기화: {}", connectionId);
+				
+				// 모니터링 상태 맵에서 제거
+				lastMonitoringCheckMap.remove(connectionId);
+				monitoringStatusMap.remove(connectionId);
+				connectionStatusMap.remove(connectionId);
+				
+				cLog.monitoringLog("CONNECTION_STATUS", "모니터링 비활성화: " + connectionId);
+			} else {
+				// 모니터링이 활성화된 경우 - 즉시 상태 확인
+				logger.info("모니터링 활성화로 인한 즉시 상태 확인: {}", connectionId);
+				
+				// 마지막 체크 시간 초기화하여 즉시 확인하도록 함
+				lastMonitoringCheckMap.remove(connectionId);
+				
+				cLog.monitoringLog("CONNECTION_STATUS", "모니터링 활성화 및 즉시 확인: " + connectionId);
+			}
+		} catch (Exception e) {
+			logger.error("모니터링 상태 업데이트 실패: {}", connectionId, e);
+		}
 	}
 
 	/**
