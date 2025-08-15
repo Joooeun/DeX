@@ -360,6 +360,15 @@
 	function formatDate(dateString) {
 		if (!dateString)
 			return '-';
+		
+		// 13자리 숫자(밀리초 타임스탬프)인지 확인
+		if (typeof dateString === 'number' || (typeof dateString === 'string' && /^\d{13}$/.test(dateString))) {
+			// 13자리 타임스탬프를 Date 객체로 변환
+			var date = new Date(parseInt(dateString));
+			return date.toLocaleDateString('ko-KR');
+		}
+		
+		// 일반 날짜 문자열 처리
 		var date = new Date(dateString);
 		return date.toLocaleDateString('ko-KR');
 	}

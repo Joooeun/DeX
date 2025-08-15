@@ -204,7 +204,16 @@
         // 날짜 시간 포맷팅 함수
         function formatDateTime(dateTimeStr) {
             if (!dateTimeStr) return '';
-            var date = new Date(dateTimeStr);
+            
+            // 13자리 숫자(밀리초 타임스탬프)인지 확인
+            if (typeof dateTimeStr === 'number' || (typeof dateTimeStr === 'string' && /^\d{13}$/.test(dateTimeStr))) {
+                // 13자리 타임스탬프를 Date 객체로 변환
+                var date = new Date(parseInt(dateTimeStr));
+            } else {
+                // 일반 날짜 문자열 처리
+                var date = new Date(dateTimeStr);
+            }
+            
             var hours = ('0' + date.getHours()).slice(-2);
             var minutes = ('0' + date.getMinutes()).slice(-2);
             var seconds = ('0' + date.getSeconds()).slice(-2);

@@ -350,10 +350,10 @@ public class UserController {
 		return result;
 	}
 
-	// SQL 템플릿 권한 조회
+	// SQL 템플릿 카테고리 권한 조회
 	@ResponseBody
-	@RequestMapping("/sqlTemplatePermissions")
-	public Map<String, Object> getSqlTemplatePermissions(@RequestParam String userId, HttpSession session) {
+	@RequestMapping("/sqlTemplateCategoryPermissions")
+	public Map<String, Object> getSqlTemplateCategoryPermissions(@RequestParam String userId, HttpSession session) {
 		Map<String, Object> result = new HashMap<>();
 
 		try {
@@ -372,12 +372,12 @@ public class UserController {
 			}
 
 			result.put("success", true);
-			result.put("data", userService.getSqlTemplatePermissions(userId));
+			result.put("data", userService.getSqlTemplateCategoryPermissions(userId));
 
 		} catch (Exception e) {
 			e.printStackTrace();
 			result.put("success", false);
-			result.put("message", "SQL 템플릿 권한 조회 중 오류가 발생했습니다.");
+			result.put("message", "SQL 템플릿 카테고리 권한 조회 중 오류가 발생했습니다.");
 		}
 
 		return result;

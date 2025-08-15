@@ -66,7 +66,7 @@
 
 <script>
 $(document).ready(function() {
-    // SQL 템플릿 트리 로드
+    // SQL 템플릿 트리 로드 (관리자 전용)
     loadSqlTemplateTree();
     
     // Ace Editor 초기화
@@ -87,6 +87,8 @@ function loadSqlTemplateTree() {
         }
     });
 }
+
+// 관리자 전용 화면이므로 권한 확인 로직 제거
 
 // SQL 트리 렌더링
 function renderSqlTree(data) {

@@ -145,15 +145,15 @@ public class UserGroupService {
         }
     }
     
-    // SQL 템플릿 권한 조회
-    public List<Map<String, Object>> getSqlTemplatePermissions(String groupId) {
+    // SQL 템플릿 카테고리 권한 조회
+    public List<Map<String, Object>> getSqlTemplateCategoryPermissions(String groupId) {
         try {
-            String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.CATEGORY_PATH, " +
-                        "CASE WHEN p.GROUP_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
-                        "FROM SQL_TEMPLATE t " +
-                        "LEFT JOIN SQL_TEMPLATE_PERMISSIONS p ON t.TEMPLATE_ID = p.TEMPLATE_ID AND p.GROUP_ID = ? " +
-                        "WHERE t.STATUS = 'ACTIVE' " +
-                        "ORDER BY t.CATEGORY_PATH, t.TEMPLATE_NAME";
+            String sql = "SELECT stc.CATEGORY_ID, stc.CATEGORY_NAME, stc.CATEGORY_DESCRIPTION, " +
+                        "CASE WHEN gcm.GROUP_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
+                        "FROM SQL_TEMPLATE_CATEGORY stc " +
+                        "LEFT JOIN GROUP_CATEGORY_MAPPING gcm ON stc.CATEGORY_ID = gcm.CATEGORY_ID AND gcm.GROUP_ID = ? " +
+                        "WHERE stc.STATUS = 'ACTIVE' " +
+                        "ORDER BY stc.CATEGORY_ORDER, stc.CATEGORY_NAME";
             return jdbcTemplate.queryForList(sql, groupId);
         } catch (Exception e) {
             e.printStackTrace();
@@ -165,9 +165,9 @@ public class UserGroupService {
     public List<Map<String, Object>> getConnectionPermissions(String groupId) {
         try {
             String sql = "SELECT c.CONNECTION_ID, c.DB_TYPE, " +
-                        "CASE WHEN p.GROUP_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
+                        "CASE WHEN gcm.GROUP_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
                         "FROM DATABASE_CONNECTION c " +
-                        "LEFT JOIN CONNECTION_PERMISSIONS p ON c.CONNECTION_ID = p.CONNECTION_ID AND p.GROUP_ID = ? " +
+                        "LEFT JOIN GROUP_CONNECTION_MAPPING gcm ON c.CONNECTION_ID = gcm.CONNECTION_ID AND gcm.GROUP_ID = ? " +
                         "WHERE c.STATUS = 'ACTIVE' " +
                         "ORDER BY c.CONNECTION_ID";
             return jdbcTemplate.queryForList(sql, groupId);
@@ -177,22 +177,22 @@ public class UserGroupService {
         }
     }
     
-    // 그룹 권한 저장
+    // 그룹 권한 저장 (단순화)
     @Transactional
     public boolean saveGroupPermissions(String groupId, Map<String, Object> permissions, String modifiedBy) {
         try {
-            // SQL 템플릿 권한 저장
-            List<Map<String, Object>> sqlPermissions = (List<Map<String, Object>>) permissions.get("sqlTemplatePermissions");
-            if (sqlPermissions != null) {
-                // 기존 SQL 템플릿 권한 삭제
-                String deleteSqlSql = "DELETE FROM SQL_TEMPLATE_PERMISSIONS WHERE GROUP_ID = ?";
-                jdbcTemplate.update(deleteSqlSql, groupId);
+            // SQL 템플릿 카테고리 권한 저장
+            List<Map<String, Object>> categoryPermissions = (List<Map<String, Object>>) permissions.get("categoryPermissions");
+            if (categoryPermissions != null) {
+                // 기존 카테고리 권한 삭제
+                String deleteCategorySql = "DELETE FROM GROUP_CATEGORY_MAPPING WHERE GROUP_ID = ?";
+                jdbcTemplate.update(deleteCategorySql, groupId);
                 
-                // 새로운 SQL 템플릿 권한 추가
-                for (Map<String, Object> permission : sqlPermissions) {
+                // 새로운 카테고리 권한 추가
+                for (Map<String, Object> permission : categoryPermissions) {
                     if ((Boolean) permission.get("hasPermission")) {
-                        String insertSqlSql = "INSERT INTO SQL_TEMPLATE_PERMISSIONS (GROUP_ID, TEMPLATE_ID, GRANTED_BY) VALUES (?, ?, ?)";
-                        jdbcTemplate.update(insertSqlSql, groupId, permission.get("templateId"), modifiedBy);
+                        String insertCategorySql = "INSERT INTO GROUP_CATEGORY_MAPPING (GROUP_ID, CATEGORY_ID, GRANTED_BY, GRANTED_TIMESTAMP) VALUES (?, ?, ?, CURRENT TIMESTAMP)";
+                        jdbcTemplate.update(insertCategorySql, groupId, permission.get("categoryId"), modifiedBy);
                     }
                 }
             }
@@ -201,13 +201,13 @@ public class UserGroupService {
             List<Map<String, Object>> connPermissions = (List<Map<String, Object>>) permissions.get("connectionPermissions");
             if (connPermissions != null) {
                 // 기존 연결 정보 권한 삭제
-                String deleteConnSql = "DELETE FROM CONNECTION_PERMISSIONS WHERE GROUP_ID = ?";
+                String deleteConnSql = "DELETE FROM GROUP_CONNECTION_MAPPING WHERE GROUP_ID = ?";
                 jdbcTemplate.update(deleteConnSql, groupId);
                 
                 // 새로운 연결 정보 권한 추가
                 for (Map<String, Object> permission : connPermissions) {
                     if ((Boolean) permission.get("hasPermission")) {
-                        String insertConnSql = "INSERT INTO CONNECTION_PERMISSIONS (GROUP_ID, CONNECTION_ID, GRANTED_BY) VALUES (?, ?, ?)";
+                        String insertConnSql = "INSERT INTO GROUP_CONNECTION_MAPPING (GROUP_ID, CONNECTION_ID, GRANTED_BY, GRANTED_TIMESTAMP) VALUES (?, ?, ?, CURRENT TIMESTAMP)";
                         jdbcTemplate.update(insertConnSql, groupId, permission.get("connectionId"), modifiedBy);
                     }
                 }

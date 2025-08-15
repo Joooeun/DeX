@@ -91,7 +91,6 @@
                             <table class="table table-bordered table-hover" id="groupTable">
                                 <thead>
                                     <tr>
-                                        <th>그룹 ID</th>
                                         <th>그룹명</th>
                                         <th>설명</th>
                                         <th>상태</th>
@@ -156,41 +155,6 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
                 <button type="button" class="btn btn-primary" onclick="saveUser()">저장</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-
-<!-- 사용자 권한 상세 관리 모달 -->
-<div class="modal fade" id="permissionModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
-                <h4 class="modal-title">사용자 권한 관리</h4>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="permissionUserId">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h5>SQL 템플릿 권한</h5>
-                        <div id="sqlTemplatePermissions" class="permission-section">
-                            <!-- SQL 템플릿 권한 목록이 여기에 로드됩니다 -->
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <h5>연결 정보 권한</h5>
-                        <div id="connectionPermissions" class="permission-section">
-                            <!-- 연결 정보 권한 목록이 여기에 로드됩니다 -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
-                <button type="button" class="btn btn-primary" onclick="savePermissions()">저장</button>
             </div>
         </div>
     </div>
@@ -282,9 +246,9 @@
                     <div class="tab-pane" id="groupPermissionsTab">
                         <div class="row">
                             <div class="col-md-6">
-                                <h5>SQL 템플릿 권한</h5>
+                                <h5>SQL 템플릿 카테고리 권한</h5>
                                 <div class="permission-section" id="groupSqlTemplatePermissions">
-                                    <!-- SQL 템플릿 권한이 여기에 로드됩니다 -->
+                                    <!-- SQL 템플릿 카테고리 권한이 여기에 로드됩니다 -->
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -328,6 +292,25 @@
 
 .permission-checkbox {
     margin-right: 10px;
+}
+
+.permission-category {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    border-left: 3px solid #337ab7;
+}
+
+.permission-category h6 {
+    margin: 0 0 10px 0;
+    color: #337ab7;
+    font-size: 14px;
+}
+
+.permission-category .permission-item {
+    margin-left: 10px;
+    padding: 3px 0;
 }
 </style>
 
@@ -467,7 +450,6 @@ function displayUserList(userList) {
             '<td>' + formatDate(user.CREATED_TIMESTAMP) + '</td>' +
             '<td>' +
                 '<button class="btn btn-xs btn-info" onclick="editUser(\'' + user.USER_ID + '\')">수정</button> ' +
-                '<button class="btn btn-xs btn-success" onclick="showPermissionModal(\'' + user.USER_ID + '\')">권한</button> ' +
                 '<button class="btn btn-xs btn-primary" onclick="showActivityLogModal(\'' + user.USER_ID + '\')">로그</button> ' +
                 '<button class="btn btn-xs btn-danger" onclick="deleteUser(\'' + user.USER_ID + '\')">삭제</button>' +
             '</td>' +
@@ -502,6 +484,14 @@ function getStatusBadge(status) {
 // 날짜 포맷
 function formatDate(dateStr) {
     if (!dateStr) return '-';
+    
+    // 13자리 숫자(밀리초 타임스탬프)인지 확인
+    if (typeof dateStr === 'number' || (typeof dateStr === 'string' && /^\d{13}$/.test(dateStr))) {
+        // 13자리 타임스탬프를 Date 객체로 변환
+        return new Date(parseInt(dateStr)).toLocaleString('ko-KR');
+    }
+    
+    // 일반 날짜 문자열 처리
     return new Date(dateStr).toLocaleString('ko-KR');
 }
 
@@ -668,13 +658,6 @@ function deleteUser(userId) {
 
 
 
-// 권한 관리 모달 표시
-function showPermissionModal(userId) {
-    $('#permissionUserId').val(userId);
-    loadUserPermissions(userId);
-    $('#permissionModal').modal('show');
-}
-
 // 사용자 권한 로드
 function loadUserPermissions(userId) {
     // SQL 템플릿 권한 로드
@@ -825,10 +808,10 @@ function displayActivityLogs(logs) {
     
     logs.forEach(function(log) {
         var row = '<tr>' +
-            '<td>' + formatDate(log.TIMESTAMP) + '</td>' +
-            '<td>' + log.ACTIVITY_TYPE + '</td>' +
+            '<td>' + formatDate(log.CREATED_TIMESTAMP) + '</td>' +
+            '<td>' + log.ACTION_TYPE+' '+log.STATUS + '</td>' +
             '<td>' + (log.IP_ADDRESS || '-') + '</td>' +
-            '<td>' + (log.DETAILS || '-') + '</td>' +
+            '<td>' + (log.ERROR_MESSAGE || '-') + '</td>' +
             '</tr>';
         tbody.append(row);
     });
@@ -859,7 +842,6 @@ function displayGroupTable(groupList) {
     
     groupList.forEach(function(group) {
         var row = '<tr>' +
-            '<td>' + group.GROUP_ID + '</td>' +
             '<td>' + group.GROUP_NAME + '</td>' +
             '<td>' + (group.GROUP_DESCRIPTION || '-') + '</td>' +
             '<td>' + getGroupStatusBadge(group.STATUS) + '</td>' +
@@ -867,8 +849,6 @@ function displayGroupTable(groupList) {
             '<td>' + formatDate(group.CREATED_TIMESTAMP) + '</td>' +
             '<td>' +
                 '<button class="btn btn-xs btn-info" onclick="editGroup(\'' + group.GROUP_ID + '\')">수정</button> ' +
-                '<button class="btn btn-xs btn-warning" onclick="editGroupPermissions(\'' + group.GROUP_ID + '\')">권한</button> ' +
-                '<button class="btn btn-xs btn-success" onclick="showGroupMembers(\'' + group.GROUP_ID + '\')">멤버</button> ' +
                 '<button class="btn btn-xs btn-danger" onclick="deleteGroup(\'' + group.GROUP_ID + '\')">삭제</button>' +
             '</td>' +
             '</tr>';
@@ -901,9 +881,8 @@ function showGroupModal() {
     $('#groupForm')[0].reset();
     $('#editGroupId').val('');
     
-    // 권한 탭 초기화
-    $('#groupSqlTemplatePermissions').empty();
-    $('#groupConnectionPermissions').empty();
+    // 권한 목록 로드 (카테고리별로 표시)
+    loadAllPermissions();
     
     // 첫 번째 탭으로 이동
     $('#groupModalTabs a[href="#groupInfoTab"]').tab('show');
@@ -959,11 +938,13 @@ function saveGroup() {
                 if (editGroupId) {
                     saveGroupPermissions(editGroupId);
                 } else {
-                    alert(response.message);
-                    $('#groupModal').modal('hide');
-                    loadGroupTable();
-                    updateGroupLists(); // 사용자 모달의 그룹 목록과 필터 업데이트
+                    // 새 그룹 생성 시 권한도 함께 저장
+                    saveGroupPermissions(response.data.groupId);
                 }
+                alert(response.message);
+                $('#groupModal').modal('hide');
+                loadGroupTable();
+                updateGroupLists(); // 사용자 모달의 그룹 목록과 필터 업데이트
             } else {
                 alert(response.message);
             }
@@ -974,51 +955,122 @@ function saveGroup() {
     });
 }
 
+// 모든 권한 목록 로드 (단순화)
+function loadAllPermissions() {
+    // SQL 템플릿 카테고리 권한 목록 로드
+    $.ajax({
+        url: '/UserGroup/categories',
+        type: 'GET',
+        success: function(response) {
+            if (response.success && response.data) {
+                var container = $('#groupSqlTemplatePermissions');
+                container.empty();
+                
+                response.data.forEach(function(category) {
+                    var item = '<div class="permission-item">' +
+                        '<label>' +
+                        '<input type="checkbox" id="group_category_' + category.CATEGORY_ID + '" class="permission-checkbox">' +
+                        category.CATEGORY_NAME + ' (' + category.CATEGORY_ID + ')' +
+                        '</label>' +
+                        '<small class="text-muted">' + (category.CATEGORY_DESCRIPTION || '') + '</small>' +
+                        '</div>';
+                    container.append(item);
+                });
+            }
+        },
+        error: function() {
+            console.error('카테고리 목록 로드 실패');
+        }
+    });
+    
+    // 연결 정보 권한 목록 로드
+    $.ajax({
+        url: '/Connection/list',
+        type: 'GET',
+        data: { page: 1, pageSize: 1000 },
+        success: function(response) {
+            if (response.success && response.data) {
+                var container = $('#groupConnectionPermissions');
+                container.empty();
+                
+                var connections = [];
+                if (Array.isArray(response.data)) {
+                    connections = response.data;
+                } else if (response.data.databaseConnections) {
+                    connections = response.data.databaseConnections;
+                }
+                
+                connections.forEach(function(conn) {
+                    var connId = typeof conn === 'string' ? conn : conn.CONNECTION_ID;
+                    var connName = typeof conn === 'string' ? conn : (conn.HOST_IP || conn.CONNECTION_ID);
+                    
+                    var item = '<div class="permission-item">' +
+                        '<label>' +
+                        '<input type="checkbox" id="group_conn_' + connId + '" class="permission-checkbox">' +
+                        connId + ' (' + connName + ')' +
+                        '</label>' +
+                        '</div>';
+                    container.append(item);
+                });
+            }
+        },
+        error: function() {
+            console.error('연결 정보 목록 로드 실패');
+        }
+    });
+}
+
 // 그룹 권한 저장
 function saveGroupPermissions(groupId) {
-    var permissions = {
-        sqlTemplatePermissions: [],
-        connectionPermissions: []
-    };
-    
-    // SQL 템플릿 권한 수집
-    $('#groupSqlTemplatePermissions input[type="checkbox"]').each(function() {
-        var templateId = $(this).attr('id').replace('group_sql_', '');
-        permissions.sqlTemplatePermissions.push({
-            templateId: templateId,
-            hasPermission: $(this).is(':checked')
-        });
+    // 카테고리 권한 저장
+    var selectedCategories = [];
+    $('#groupSqlTemplatePermissions input[type="checkbox"]:checked').each(function() {
+        var categoryId = $(this).attr('id').replace('group_category_', '');
+        selectedCategories.push(categoryId);
     });
     
-    // 연결 정보 권한 수집
-    $('#groupConnectionPermissions input[type="checkbox"]').each(function() {
+    // 연결정보 권한 저장
+    var selectedConnections = [];
+    $('#groupConnectionPermissions input[type="checkbox"]:checked').each(function() {
         var connectionId = $(this).attr('id').replace('group_conn_', '');
-        permissions.connectionPermissions.push({
-            connectionId: connectionId,
-            hasPermission: $(this).is(':checked')
-        });
+        selectedConnections.push(connectionId);
     });
     
+    // 카테고리 권한 저장
     $.ajax({
-        url: '/UserGroup/savePermissions',
+        url: '/UserGroup/grantCategoryPermissions',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify({
             groupId: groupId,
-            permissions: permissions
+            categoryIds: selectedCategories
         }),
         success: function(response) {
-            if (response.success) {
-                alert('그룹 정보와 권한이 저장되었습니다.');
-                $('#groupModal').modal('hide');
-                loadGroupTable();
-                updateGroupLists(); // 사용자 모달의 그룹 목록과 필터 업데이트
-            } else {
-                alert('권한 저장에 실패했습니다: ' + response.message);
+            if (!response.success) {
+                console.error('카테고리 권한 저장 실패:', response.message);
             }
         },
         error: function() {
-            alert('권한 저장 중 오류가 발생했습니다.');
+            console.error('카테고리 권한 저장 중 오류 발생');
+        }
+    });
+    
+    // 연결정보 권한 저장
+    $.ajax({
+        url: '/UserGroup/grantConnectionPermissions',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            groupId: groupId,
+            connectionIds: selectedConnections
+        }),
+        success: function(response) {
+            if (!response.success) {
+                console.error('연결정보 권한 저장 실패:', response.message);
+            }
+        },
+        error: function() {
+            console.error('연결정보 권한 저장 중 오류 발생');
         }
     });
 }
@@ -1048,19 +1100,19 @@ function deleteGroup(groupId) {
 
 // 그룹 권한 로드
 function loadGroupPermissions(groupId) {
-    // SQL 템플릿 권한 로드
+    // 모든 SQL 템플릿 카테고리 목록과 그룹 권한을 함께 로드
     $.ajax({
-        url: '/UserGroup/sqlTemplatePermissions',
+        url: '/UserGroup/categoryPermissions',
         type: 'GET',
         data: { groupId: groupId },
         success: function(response) {
             if (response.success) {
-                displayGroupSqlTemplatePermissions(response.data);
+                displayGroupCategoryPermissions(response.data);
             }
         }
     });
     
-    // 연결 정보 권한 로드
+    // 모든 연결 정보 목록과 그룹 권한을 함께 로드
     $.ajax({
         url: '/UserGroup/connectionPermissions',
         type: 'GET',
@@ -1073,21 +1125,42 @@ function loadGroupPermissions(groupId) {
     });
 }
 
-// 그룹 SQL 템플릿 권한 표시
-function displayGroupSqlTemplatePermissions(permissions) {
+// 그룹 SQL 템플릿 카테고리 권한 표시
+function displayGroupCategoryPermissions(permissions) {
     var container = $('#groupSqlTemplatePermissions');
     container.empty();
     
-    permissions.forEach(function(permission) {
-        var item = '<div class="permission-item">' +
-            '<div>' +
-                '<input type="checkbox" class="permission-checkbox" id="group_sql_' + permission.TEMPLATE_ID + '" ' +
-                (permission.HAS_PERMISSION ? 'checked' : '') + '>' +
-                '<label for="group_sql_' + permission.TEMPLATE_ID + '">' + permission.TEMPLATE_NAME + '</label>' +
-            '</div>' +
-            '<small class="text-muted">' + permission.CATEGORY_PATH + '</small>' +
-            '</div>';
-        container.append(item);
+    // 모든 카테고리 목록을 먼저 로드
+    $.ajax({
+        url: '/UserGroup/categories',
+        type: 'GET',
+        success: function(response) {
+            if (response.success && response.data) {
+                var allCategories = response.data;
+                var grantedPermissions = permissions || [];
+                
+                // 권한이 있는 카테고리 ID 목록 생성
+                var grantedCategoryIds = grantedPermissions.map(function(p) {
+                    return p.CATEGORY_ID;
+                });
+                
+                // 모든 카테고리를 표시하고 권한이 있는 것만 체크
+                allCategories.forEach(function(category) {
+                    var isGranted = grantedCategoryIds.includes(category.CATEGORY_ID);
+                    var item = '<div class="permission-item">' +
+                        '<label>' +
+                        '<input type="checkbox" id="group_category_' + category.CATEGORY_ID + '" class="permission-checkbox"' + (isGranted ? ' checked' : '') + '>' +
+                        category.CATEGORY_NAME + ' (' + category.CATEGORY_ID + ')' +
+                        '</label>' +
+                        '<small class="text-muted">' + (category.CATEGORY_DESCRIPTION || '') + '</small>' +
+                        '</div>';
+                    container.append(item);
+                });
+            }
+        },
+        error: function() {
+            console.error('카테고리 목록 로드 실패');
+        }
     });
 }
 
@@ -1096,16 +1169,47 @@ function displayGroupConnectionPermissions(permissions) {
     var container = $('#groupConnectionPermissions');
     container.empty();
     
-    permissions.forEach(function(permission) {
-        var item = '<div class="permission-item">' +
-            '<div>' +
-                '<input type="checkbox" class="permission-checkbox" id="group_conn_' + permission.CONNECTION_ID + '" ' +
-                (permission.HAS_PERMISSION ? 'checked' : '') + '>' +
-                '<label for="group_conn_' + permission.CONNECTION_ID + '">' + permission.CONNECTION_ID + '</label>' +
-            '</div>' +
-            '<small class="text-muted">' + permission.DB_TYPE + '</small>' +
-            '</div>';
-        container.append(item);
+    // 모든 연결 정보 목록을 먼저 로드
+    $.ajax({
+        url: '/Connection/list',
+        type: 'GET',
+        data: { page: 1, pageSize: 1000 },
+        success: function(response) {
+            if (response.success && response.data) {
+                var allConnections = [];
+                if (Array.isArray(response.data)) {
+                    allConnections = response.data;
+                } else if (response.data.databaseConnections) {
+                    allConnections = response.data.databaseConnections;
+                }
+                
+                var grantedPermissions = permissions || [];
+                
+                // 권한이 있는 연결 ID 목록 생성
+                var grantedConnectionIds = grantedPermissions.map(function(p) {
+                    return p.CONNECTION_ID;
+                });
+                
+                // 모든 연결 정보를 표시하고 권한이 있는 것만 체크
+                allConnections.forEach(function(conn) {
+                    var connId = typeof conn === 'string' ? conn : conn.CONNECTION_ID;
+                    var connName = typeof conn === 'string' ? conn : (conn.HOST_IP || conn.CONNECTION_ID);
+                    var dbType = typeof conn === 'string' ? '' : (conn.DB_TYPE || '');
+                    
+                    var isGranted = grantedConnectionIds.includes(connId);
+                    var item = '<div class="permission-item">' +
+                        '<label>' +
+                        '<input type="checkbox" id="group_conn_' + connId + '" class="permission-checkbox"' + (isGranted ? ' checked' : '') + '>' +
+                        connId + ' (' + connName + (dbType ? ' - ' + dbType : '') + ')' +
+                        '</label>' +
+                        '</div>';
+                    container.append(item);
+                });
+            }
+        },
+        error: function() {
+            console.error('연결 정보 목록 로드 실패');
+        }
     });
 }
 
@@ -1140,9 +1244,70 @@ function editGroupPermissions(groupId) {
     });
 }
 
+// 그룹 권한 저장
+function saveGroupPermissions(groupId) {
+    // 카테고리 권한 저장
+    var selectedCategories = [];
+    $('#groupSqlTemplatePermissions input[type="checkbox"]:checked').each(function() {
+        var categoryId = $(this).attr('id').replace('group_category_', '');
+        selectedCategories.push(categoryId);
+    });
+    
+    // 연결정보 권한 저장
+    var selectedConnections = [];
+    $('#groupConnectionPermissions input[type="checkbox"]:checked').each(function() {
+        var connectionId = $(this).attr('id').replace('group_conn_', '');
+        selectedConnections.push(connectionId);
+    });
+    
+    // 카테고리 권한 저장
+    $.ajax({
+        url: '/UserGroup/grantCategoryPermissions',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            groupId: groupId,
+            categoryIds: selectedCategories
+        }),
+        success: function(response) {
+            if (!response.success) {
+                console.error('카테고리 권한 저장 실패:', response.message);
+            }
+        },
+        error: function() {
+            console.error('카테고리 권한 저장 중 오류 발생');
+        }
+    });
+    
+    // 연결정보 권한 저장
+    $.ajax({
+        url: '/UserGroup/grantConnectionPermissions',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            groupId: groupId,
+            connectionIds: selectedConnections
+        }),
+        success: function(response) {
+            if (!response.success) {
+                console.error('연결정보 권한 저장 실패:', response.message);
+            }
+        },
+        error: function() {
+            console.error('연결정보 권한 저장 중 오류 발생');
+        }
+    });
+}
+
 // 그룹 멤버 관리 (간단한 알림)
 function showGroupMembers(groupId) {
     alert('그룹 멤버 관리 기능은 사용자 관리에서 그룹을 선택하여 관리할 수 있습니다.');
+}
+
+// UserGroup 관리 페이지 열기
+function openUserGroupManagement() {
+    // 새 탭에서 UserGroup 관리 페이지 열기
+    window.open('/UserGroup', '_blank');
 }
 </script>
 

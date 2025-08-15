@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
 import kr.Windmill.service.DatabaseMenuService;
+import kr.Windmill.service.PermissionService;
 import kr.Windmill.util.Common;
 
 @Controller
@@ -30,8 +31,21 @@ public class SQLTemplateController {
     @Autowired
     private Common com;
     
+    @Autowired
+    private PermissionService permissionService;
+    
     @RequestMapping(path = "/SQLTemplate", method = RequestMethod.GET)
     public ModelAndView sqlTemplateMain(HttpServletRequest request, ModelAndView mv, HttpSession session) {
+        String userId = (String) session.getAttribute("memberId");
+        
+        // 관리자 권한 확인
+        if (!permissionService.isAdmin(userId)) {
+            // 관리자가 아니면 접근 차단
+            mv.setViewName("redirect:/index");
+            return mv;
+        }
+        
+        mv.setViewName("SQLTemplate");
         return mv;
     }
     
@@ -40,18 +54,45 @@ public class SQLTemplateController {
     public List<Map<String, Object>> getSqlTemplateTree(HttpServletRequest request, HttpSession session) {
         String userId = (String) session.getAttribute("memberId");
         
+        // 관리자 권한 확인
+        if (!permissionService.isAdmin(userId)) {
+            return null;
+        }
+        
         try {
-            if ("admin".equals(userId)) {
-                // 관리자는 모든 메뉴 접근 가능
-                return databaseMenuService.getFullMenuTree();
-            } else {
-                // 일반 사용자는 권한이 있는 메뉴만
-                return databaseMenuService.getUserMenuTree(userId);
-            }
+            // 관리자는 모든 메뉴 접근 가능
+            return databaseMenuService.getFullMenuTree();
         } catch (Exception e) {
             logger.error("SQL 템플릿 트리 조회 실패", e);
             return null;
         }
+    }
+    
+    // 사용자가 접근 가능한 카테고리 목록 조회 (관리자 전용)
+    @ResponseBody
+    @RequestMapping(path = "/SQLTemplate/categories")
+    public Map<String, Object> getAuthorizedCategories(HttpServletRequest request, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        String userId = (String) session.getAttribute("memberId");
+        
+        // 관리자 권한 확인
+        if (!permissionService.isAdmin(userId)) {
+            result.put("success", false);
+            result.put("message", "관리자 권한이 필요합니다.");
+            return result;
+        }
+        
+        try {
+            // 관리자는 모든 카테고리 접근 가능
+            result.put("success", true);
+            result.put("data", permissionService.getAllCategories());
+        } catch (Exception e) {
+            logger.error("카테고리 목록 조회 실패", e);
+            result.put("success", false);
+            result.put("message", "카테고리 목록 조회 중 오류가 발생했습니다.");
+        }
+        
+        return result;
     }
     
     @ResponseBody

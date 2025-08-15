@@ -97,6 +97,181 @@ public class UserGroupController {
 
 		return result;
 	}
+	
+	// SQL 템플릿 카테고리 목록 조회
+	@ResponseBody
+	@RequestMapping("/categories")
+	public Map<String, Object> getCategories(HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(userId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", permissionService.getAllCategories());
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "카테고리 목록 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 그룹별 카테고리 권한 조회
+	@ResponseBody
+	@RequestMapping("/categoryPermissions")
+	public Map<String, Object> getGroupCategoryPermissions(@RequestParam String groupId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(userId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", permissionService.getGroupCategoryPermissions(groupId));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "그룹 카테고리 권한 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 그룹에 카테고리 권한 부여 (단순화)
+	@ResponseBody
+	@RequestMapping(value = "/grantCategoryPermissions", method = RequestMethod.POST)
+	public Map<String, Object> grantCategoryPermissions(@RequestBody Map<String, Object> requestData, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(userId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			String groupId = (String) requestData.get("groupId");
+			@SuppressWarnings("unchecked")
+			java.util.List<String> categoryIds = (java.util.List<String>) requestData.get("categoryIds");
+
+			if (groupId == null || categoryIds == null) {
+				result.put("success", false);
+				result.put("message", "필수 파라미터가 누락되었습니다.");
+				return result;
+			}
+
+			// 기존 권한 모두 해제
+			permissionService.revokeAllCategoryPermissions(groupId);
+			
+			// 새로운 권한 부여
+			boolean success = true;
+			for (String categoryId : categoryIds) {
+				if (!permissionService.grantSqlTemplateCategoryPermission(groupId, categoryId, userId)) {
+					success = false;
+					break;
+				}
+			}
+			
+			if (success) {
+				result.put("success", true);
+				result.put("message", "카테고리 권한이 성공적으로 저장되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "카테고리 권한 저장에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "카테고리 권한 저장 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 그룹의 카테고리 권한 해제
+	@ResponseBody
+	@RequestMapping(value = "/revokeCategoryPermission", method = RequestMethod.POST)
+	public Map<String, Object> revokeCategoryPermission(@RequestBody Map<String, Object> requestData, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(userId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			String groupId = (String) requestData.get("groupId");
+			String categoryId = (String) requestData.get("categoryId");
+
+			if (groupId == null || categoryId == null) {
+				result.put("success", false);
+				result.put("message", "필수 파라미터가 누락되었습니다.");
+				return result;
+			}
+
+			boolean success = permissionService.revokeSqlTemplateCategoryPermission(groupId, categoryId);
+			
+			if (success) {
+				result.put("success", true);
+				result.put("message", "카테고리 권한이 성공적으로 해제되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "카테고리 권한 해제에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "카테고리 권한 해제 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
 
 	// 그룹 상세 조회
 	@ResponseBody
@@ -161,10 +336,20 @@ public class UserGroupController {
 
 			groupData.put("createdBy", currentUserId);
 
+			// groupId가 없으면 자동 생성
+			String groupId = (String) groupData.get("groupId");
+			if (groupId == null || groupId.trim().isEmpty()) {
+				groupId = "GROUP_" + System.currentTimeMillis();
+				groupData.put("groupId", groupId);
+			}
+			
 			boolean success = userGroupService.createGroup(groupData);
 			if (success) {
 				result.put("success", true);
 				result.put("message", "그룹이 생성되었습니다.");
+				Map<String, Object> data = new HashMap<>();
+				data.put("groupId", groupId);
+				result.put("data", data);
 			} else {
 				result.put("success", false);
 				result.put("message", "그룹 생성에 실패했습니다.");
@@ -405,10 +590,10 @@ public class UserGroupController {
 		return result;
 	}
 
-	// SQL 템플릿 권한 조회
+	// SQL 템플릿 카테고리 권한 조회
 	@ResponseBody
-	@RequestMapping("/sqlTemplatePermissions")
-	public Map<String, Object> getSqlTemplatePermissions(@RequestParam String groupId, HttpSession session) {
+	@RequestMapping("/sqlTemplateCategoryPermissions")
+	public Map<String, Object> getSqlTemplateCategoryPermissions(@RequestParam String groupId, HttpSession session) {
 		Map<String, Object> result = new HashMap<>();
 
 		try {
@@ -427,12 +612,12 @@ public class UserGroupController {
 			}
 
 			result.put("success", true);
-			result.put("data", userGroupService.getSqlTemplatePermissions(groupId));
+			result.put("data", userGroupService.getSqlTemplateCategoryPermissions(groupId));
 
 		} catch (Exception e) {
 			e.printStackTrace();
 			result.put("success", false);
-			result.put("message", "SQL 템플릿 권한 조회 중 오류가 발생했습니다.");
+			result.put("message", "SQL 템플릿 카테고리 권한 조회 중 오류가 발생했습니다.");
 		}
 
 		return result;
@@ -466,6 +651,66 @@ public class UserGroupController {
 			e.printStackTrace();
 			result.put("success", false);
 			result.put("message", "연결 정보 권한 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 그룹에 연결정보 권한 부여 (단순화)
+	@ResponseBody
+	@RequestMapping(value = "/grantConnectionPermissions", method = RequestMethod.POST)
+	public Map<String, Object> grantConnectionPermissions(@RequestBody Map<String, Object> requestData, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(userId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			String groupId = (String) requestData.get("groupId");
+			@SuppressWarnings("unchecked")
+			java.util.List<String> connectionIds = (java.util.List<String>) requestData.get("connectionIds");
+
+			if (groupId == null || connectionIds == null) {
+				result.put("success", false);
+				result.put("message", "필수 파라미터가 누락되었습니다.");
+				return result;
+			}
+
+			// 기존 권한 모두 해제
+			permissionService.revokeAllConnectionPermissions(groupId);
+			
+			// 새로운 권한 부여
+			boolean success = true;
+			for (String connectionId : connectionIds) {
+				if (!permissionService.grantConnectionPermission(groupId, connectionId, userId)) {
+					success = false;
+					break;
+				}
+			}
+			
+			if (success) {
+				result.put("success", true);
+				result.put("message", "연결정보 권한이 성공적으로 저장되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "연결정보 권한 저장에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "연결정보 권한 저장 중 오류가 발생했습니다.");
 		}
 
 		return result;

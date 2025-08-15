@@ -735,8 +735,8 @@ public class ConnectionService {
 		try {
 			// 사용자 권한 조회
 			String sql = "SELECT DISTINCT dc.CONNECTION_ID " + "FROM DATABASE_CONNECTION dc "
-					+ "LEFT JOIN CONNECTION_PERMISSIONS cp ON dc.CONNECTION_ID = cp.CONNECTION_ID "
-					+ "LEFT JOIN USER_GROUP_MAPPING ugm ON cp.GROUP_ID = ugm.GROUP_ID " + "WHERE dc.STATUS = 'ACTIVE' " + "AND ugm.USER_ID = ? "
+					+ "LEFT JOIN GROUP_CONNECTION_MAPPING gcm ON dc.CONNECTION_ID = gcm.CONNECTION_ID "
+					+ "LEFT JOIN USER_GROUP_MAPPING ugm ON gcm.GROUP_ID = ugm.GROUP_ID " + "WHERE dc.STATUS = 'ACTIVE' " + "AND ugm.USER_ID = ? "
 					+ "ORDER BY dc.CONNECTION_ID";
 
 			List<Map<String, Object>> authorizedConnectionsFromDB = jdbcTemplate.queryForList(sql, userId);
@@ -974,7 +974,7 @@ public class ConnectionService {
 	 * @return 권한이 있는 연결 ID 목록
 	 */
 	private List<String> getGroupConnectionPermissions(String groupId, String connectionType) {
-		String sql = "SELECT CONNECTION_ID FROM CONNECTION_PERMISSIONS WHERE GROUP_ID = ?";
+		String sql = "SELECT CONNECTION_ID FROM GROUP_CONNECTION_MAPPING WHERE GROUP_ID = ?";
 		try {
 			return jdbcTemplate.queryForList(sql, String.class, groupId);
 		} catch (Exception e) {
