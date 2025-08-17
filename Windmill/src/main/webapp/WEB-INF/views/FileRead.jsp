@@ -1,4 +1,7 @@
 <%@include file="common/common.jsp"%>
+<!-- Ace Editor CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ace.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ext-language_tools.js"></script>
 <script>
 	$(document).ready(function() {
 		
@@ -21,7 +24,51 @@
 				alert("시스템 에러");
 			}
 		});
+		
+		// Ace Editor 초기화
+		initAceEditor();
 	});
+	
+	// Ace Editor 초기화 함수
+	function initAceEditor() {
+		try {
+			// Ace Editor가 로드되었는지 확인
+			if (typeof ace !== 'undefined') {
+				ace.require("ace/ext/language_tools");
+				window.resultEditor = ace.edit("resultEditor");
+				window.resultEditor.setTheme("ace/theme/chrome");
+				window.resultEditor.session.setMode("ace/mode/text");
+				window.resultEditor.setShowPrintMargin(false);
+				window.resultEditor.setFontSize(14);
+				window.resultEditor.setOption("enableBasicAutocompletion", true);
+				window.resultEditor.setOption("enableLiveAutocompletion", true);
+				window.resultEditor.setOption("enableSnippets", true);
+				window.resultEditor.setReadOnly(true); // 읽기 전용
+				window.resultEditor.resize();
+			} else {
+				console.log("Ace Editor not available, using textarea");
+				initTextareaEditor();
+			}
+		} catch (e) {
+			console.log("Ace Editor initialization failed, using textarea");
+			initTextareaEditor();
+		}
+	}
+	
+	// Textarea 기반 에디터 초기화 (fallback)
+	function initTextareaEditor() {
+		var editorDiv = document.getElementById("resultEditor");
+		editorDiv.innerHTML = '<textarea id="resultTextarea" style="width: 100%; height: 100%; font-family: monospace; font-size: 14px; border: none; resize: none; outline: none; background-color: #f5f5f5;" readonly></textarea>';
+	}
+	
+	// 에디터에 값 설정하기
+	function setEditorValue(value) {
+		if (window.resultEditor) {
+			window.resultEditor.setValue(value || '');
+		} else {
+			document.getElementById("resultTextarea").value = value || '';
+		}
+	}
 
 	function readfile() {
 		if ($("#connectionlist option:selected").val() == '') {
@@ -39,7 +86,7 @@
 			success : function(result) {
 
 				$("#resultbox").css("display", "block");
-				$("#result").text(result.result);
+				setEditorValue(result.result);
 
 			},
 			error : function() {
@@ -79,7 +126,7 @@
 		</div>
 		<div class="box box-default" id="resultbox" style="display: none;">
 			<div class="box-body">
-				<pre id="result" style="border: none; background: 0, 0, 0, 0; min-height: 450px; overflow: auto"></pre>
+				<div id="resultEditor" style="height: 450px; width: 100%; border: 1px solid #ddd; border-radius: 4px;"></div>
 			</div>
 		</div>
 	</section>
