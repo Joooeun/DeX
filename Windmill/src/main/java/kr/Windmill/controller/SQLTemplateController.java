@@ -16,9 +16,8 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
-import kr.Windmill.service.DatabaseMenuService;
+import kr.Windmill.service.SqlTemplateService;
 import kr.Windmill.service.PermissionService;
-import kr.Windmill.util.Common;
 
 @Controller
 public class SQLTemplateController {
@@ -26,10 +25,7 @@ public class SQLTemplateController {
     private static final Logger logger = LoggerFactory.getLogger(SQLTemplateController.class);
     
     @Autowired
-    private DatabaseMenuService databaseMenuService;
-    
-    @Autowired
-    private Common com;
+    private SqlTemplateService sqlTemplateService;
     
     @Autowired
     private PermissionService permissionService;
@@ -60,8 +56,8 @@ public class SQLTemplateController {
         }
         
         try {
-            // 관리자는 모든 메뉴 접근 가능
-            return databaseMenuService.getFullMenuTree();
+            // DB 기반 트리 반환
+            return sqlTemplateService.getFullMenuTree();
         } catch (Exception e) {
             logger.error("SQL 템플릿 트리 조회 실패", e);
             return null;
@@ -101,7 +97,7 @@ public class SQLTemplateController {
         String sqlId = request.getParameter("sqlId");
         
         try {
-            return databaseMenuService.getSqlTemplateDetail(sqlId);
+            return sqlTemplateService.getSqlTemplateDetail(sqlId);
         } catch (Exception e) {
             logger.error("SQL 템플릿 상세 조회 실패", e);
             Map<String, Object> result = new HashMap<>();
@@ -122,7 +118,7 @@ public class SQLTemplateController {
             String sqlContent = request.getParameter("sqlContent");
             String configContent = request.getParameter("configContent");
             
-            return databaseMenuService.saveSqlTemplate(sqlId, sqlName, sqlPath, sqlContent, configContent, userId);
+            return sqlTemplateService.saveSqlTemplate(sqlId, sqlName, sqlPath, sqlContent, configContent, userId);
             
         } catch (Exception e) {
             logger.error("SQL 템플릿 저장 실패", e);
@@ -148,7 +144,7 @@ public class SQLTemplateController {
                 return result;
             }
             
-            return databaseMenuService.deleteSqlTemplate(sqlId, userId);
+            return sqlTemplateService.deleteSqlTemplate(sqlId, userId);
             
         } catch (Exception e) {
             logger.error("SQL 템플릿 삭제 실패", e);
