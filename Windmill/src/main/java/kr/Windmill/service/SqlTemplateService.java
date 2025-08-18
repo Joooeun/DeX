@@ -85,22 +85,29 @@ public class SqlTemplateService {
     public Map<String, Object> getSqlTemplateDetail(String templateId) {
         Map<String, Object> result = new HashMap<>();
         if (templateId == null || templateId.trim().isEmpty()) {
+            result.put("success", false);
             result.put("error", "SQL ID가 지정되지 않았습니다.");
             return result;
         }
 
-        String sql = "SELECT TEMPLATE_ID, TEMPLATE_NAME, SQL_CONTENT FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
+        String sql = "SELECT TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, templateId);
         if (rows.isEmpty()) {
+            result.put("success", false);
             result.put("error", "해당 SQL 템플릿을 찾을 수 없습니다: " + templateId);
             return result;
         }
 
         Map<String, Object> row = rows.get(0);
-        result.put("menuId", row.get("TEMPLATE_ID"));
-        result.put("menuName", row.get("TEMPLATE_NAME"));
-        result.put("menuPath", "");
-        result.put("sqlContent", row.get("SQL_CONTENT"));
+        Map<String, Object> data = new HashMap<>();
+        data.put("sqlId", row.get("TEMPLATE_ID"));
+        data.put("sqlName", row.get("TEMPLATE_NAME"));
+        data.put("sqlDesc", row.get("TEMPLATE_DESC"));
+        data.put("sqlContent", row.get("SQL_CONTENT"));
+        data.put("sqlVersion", row.get("VERSION"));
+        data.put("sqlStatus", row.get("STATUS"));
+        data.put("executionLimit", row.get("EXECUTION_LIMIT"));
+        data.put("refreshTimeout", row.get("REFRESH_TIMEOUT"));
 
         // 파라미터를 config 형태로 변환
         String paramSql = "SELECT PARAMETER_NAME, DEFAULT_VALUE FROM SQL_TEMPLATE_PARAMETER WHERE TEMPLATE_ID = ? ORDER BY PARAMETER_ORDER";
@@ -113,16 +120,91 @@ public class SqlTemplateService {
                 config.put(name, defVal == null ? "" : defVal.toString());
             }
         }
-        result.put("config", config);
+        data.put("configContent", configToString(config));
+        
+        result.put("success", true);
+        result.put("data", data);
         return result;
     }
 
     /**
-     * 템플릿 저장 (신규/수정)
+     * 템플릿 파라미터 조회
+     */
+    public Map<String, Object> getTemplateParameters(String templateId) {
+        Map<String, Object> result = new HashMap<>();
+        if (templateId == null || templateId.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("error", "템플릿 ID가 지정되지 않았습니다.");
+            return result;
+        }
+
+        try {
+            String sql = "SELECT PARAMETER_NAME, PARAMETER_TYPE, DEFAULT_VALUE, IS_REQUIRED, PARAMETER_ORDER, IS_READONLY, IS_HIDDEN, IS_DISABLED, DESCRIPTION FROM SQL_TEMPLATE_PARAMETER WHERE TEMPLATE_ID = ? ORDER BY PARAMETER_ORDER";
+            List<Map<String, Object>> parameters = jdbcTemplate.queryForList(sql, templateId);
+            
+            result.put("success", true);
+            result.put("data", parameters);
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", "파라미터 조회 실패: " + e.getMessage());
+        }
+        
+        return result;
+    }
+
+    /**
+     * 템플릿 단축키 조회
+     */
+    public Map<String, Object> getTemplateShortcuts(String templateId) {
+        Map<String, Object> result = new HashMap<>();
+        if (templateId == null || templateId.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("error", "템플릿 ID가 지정되지 않았습니다.");
+            return result;
+        }
+
+        try {
+            String sql = "SELECT SHORTCUT_KEY, SHORTCUT_NAME, TARGET_TEMPLATE_ID, SHORTCUT_DESCRIPTION, SOURCE_COLUMN_INDEXES, AUTO_EXECUTE, IS_ACTIVE FROM SQL_TEMPLATE_SHORTCUT WHERE SOURCE_TEMPLATE_ID = ? ORDER BY SHORTCUT_KEY";
+            List<Map<String, Object>> shortcuts = jdbcTemplate.queryForList(sql, templateId);
+            
+            result.put("success", true);
+            result.put("data", shortcuts);
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", "단축키 조회 실패: " + e.getMessage());
+        }
+        
+        return result;
+    }
+
+    /**
+     * 템플릿 목록 조회 (단축키 대상용)
+     */
+    public Map<String, Object> getTemplateList() {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            String sql = "SELECT TEMPLATE_ID, TEMPLATE_NAME FROM SQL_TEMPLATE WHERE STATUS = 'ACTIVE' ORDER BY TEMPLATE_NAME";
+            List<Map<String, Object>> templates = jdbcTemplate.queryForList(sql);
+            
+            result.put("success", true);
+            result.put("data", templates);
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", "템플릿 목록 조회 실패: " + e.getMessage());
+        }
+        
+        return result;
+    }
+
+    /**
+     * 템플릿 저장 (신규/수정) - 파라미터 및 단축키 포함
      */
     @Transactional
-    public Map<String, Object> saveSqlTemplate(String templateId, String templateName, String pathOrCategoryId,
-                                               String sqlContent, String configContent, String userId) {
+    public Map<String, Object> saveSqlTemplate(String templateId, String templateName, String templateDesc, 
+                                               Integer version, String status, Integer executionLimit, 
+                                               Integer refreshTimeout, String categoryIds,
+                                               String sqlContent, String configContent, String parametersJson, 
+                                               String shortcutsJson, String userId) {
         Map<String, Object> result = new HashMap<>();
 
         if (templateName == null || templateName.trim().isEmpty()) {
@@ -136,34 +218,120 @@ public class SqlTemplateService {
             return result;
         }
 
+        // 기본값 설정
+        if (version == null) version = 1;
+        if (status == null) status = "ACTIVE";
+        if (executionLimit == null) executionLimit = 1000;
+        if (refreshTimeout == null) refreshTimeout = 10;
+
         boolean isNew = (templateId == null || templateId.trim().isEmpty());
         if (isNew) {
             templateId = generateTemplateId(templateName);
-            String insertSql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, SQL_CONTENT, CREATED_BY) VALUES (?, ?, ?, ?)";
-            jdbcTemplate.update(insertSql, templateId, templateName, sqlContent, userId);
+            String insertSql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, CREATED_BY) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            jdbcTemplate.update(insertSql, templateId, templateName, templateDesc, sqlContent, version, status, executionLimit, refreshTimeout, userId);
         } else {
-            String updateSql = "UPDATE SQL_TEMPLATE SET TEMPLATE_NAME = ?, SQL_CONTENT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE TEMPLATE_ID = ?";
-            jdbcTemplate.update(updateSql, templateName, sqlContent, userId, templateId);
+            String updateSql = "UPDATE SQL_TEMPLATE SET TEMPLATE_NAME = ?, TEMPLATE_DESC = ?, SQL_CONTENT = ?, VERSION = ?, STATUS = ?, EXECUTION_LIMIT = ?, REFRESH_TIMEOUT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE TEMPLATE_ID = ?";
+            jdbcTemplate.update(updateSql, templateName, templateDesc, sqlContent, version, status, executionLimit, refreshTimeout, userId, templateId);
         }
 
-        // 파라미터 재구성 (간단: key=value 라인 파싱)
+        // 기존 카테고리 매핑 삭제
+        jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE TEMPLATE_ID = ?", templateId);
+
+        // 새로운 카테고리 매핑 생성
+        if (categoryIds != null && !categoryIds.trim().isEmpty()) {
+            String[] categoryIdArray = categoryIds.split(",");
+            for (String categoryId : categoryIdArray) {
+                categoryId = categoryId.trim();
+                if (!categoryId.isEmpty()) {
+                    Integer maxOrder = jdbcTemplate.queryForObject(
+                        "SELECT COALESCE(MAX(MAPPING_ORDER), 0) FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE CATEGORY_ID = ?", 
+                        Integer.class, categoryId);
+                    int newOrder = (maxOrder != null ? maxOrder : 0) + 1;
+                    
+                    jdbcTemplate.update(
+                        "INSERT INTO SQL_TEMPLATE_CATEGORY_MAPPING (TEMPLATE_ID, CATEGORY_ID, MAPPING_ORDER, CREATED_BY) VALUES (?, ?, ?, ?)",
+                        templateId, categoryId, newOrder, userId);
+                }
+            }
+        }
+
+        // 파라미터 처리
         jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_PARAMETER WHERE TEMPLATE_ID = ?", templateId);
-        List<String[]> parsed = parseConfig(configContent);
-        int order = 0;
-        for (String[] kv : parsed) {
-            String name = kv[0];
-            String value = kv[1];
-            String pSql = "INSERT INTO SQL_TEMPLATE_PARAMETER (TEMPLATE_ID, PARAMETER_NAME, PARAMETER_TYPE, PARAMETER_ORDER, IS_REQUIRED, DEFAULT_VALUE) VALUES (?, ?, 'STRING', ?, FALSE, ?)";
-            jdbcTemplate.update(pSql, templateId, name, order++, value);
+        
+        if (parametersJson != null && !parametersJson.trim().isEmpty()) {
+            try {
+                List<Map<String, Object>> parameters = parseParametersJson(parametersJson);
+                for (Map<String, Object> param : parameters) {
+                    String name = (String) param.get("name");
+                    String type = (String) param.get("type");
+                    String defaultValue = (String) param.get("defaultValue");
+                    Boolean required = (Boolean) param.get("required");
+                    Integer order = (Integer) param.get("order");
+                    
+                    if (name != null && !name.trim().isEmpty()) {
+                        String description = (String) param.get("description");
+                        Boolean readonly = (Boolean) param.get("readonly");
+                        Boolean hidden = (Boolean) param.get("hidden");
+                        Boolean disabled = (Boolean) param.get("disabled");
+                        
+                        // 속성값들을 개별 필드로 저장
+                        Boolean isReadonly = readonly != null ? readonly : false;
+                        Boolean isHidden = hidden != null ? hidden : false;
+                        Boolean isDisabled = disabled != null ? disabled : false;
+                        
+                        jdbcTemplate.update(
+                            "INSERT INTO SQL_TEMPLATE_PARAMETER (TEMPLATE_ID, PARAMETER_NAME, PARAMETER_TYPE, DEFAULT_VALUE, IS_REQUIRED, PARAMETER_ORDER, IS_READONLY, IS_HIDDEN, IS_DISABLED, DESCRIPTION) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            templateId, name.trim(), type != null ? type : "STRING", defaultValue, required != null ? required : false, order != null ? order : 1, 
+                            isReadonly, isHidden, isDisabled, description);
+                    }
+                }
+            } catch (Exception e) {
+                // logger.warn("파라미터 JSON 파싱 실패: " + e.getMessage()); // Original code had this line commented out
+                // 기존 방식으로 fallback
+                if (configContent != null && !configContent.trim().isEmpty()) {
+                    String[] lines = configContent.split("\n");
+                    int order = 1;
+                    for (String line : lines) {
+                        line = line.trim();
+                        if (!line.isEmpty() && line.contains("=")) {
+                            String[] parts = line.split("=", 2);
+                            if (parts.length == 2) {
+                                String paramName = parts[0].trim();
+                                String paramDefaultValue = parts[1].trim();
+                                
+                                jdbcTemplate.update(
+                                    "INSERT INTO SQL_TEMPLATE_PARAMETER (TEMPLATE_ID, PARAMETER_NAME, DEFAULT_VALUE, PARAMETER_ORDER, IS_READONLY, IS_HIDDEN, IS_DISABLED, DESCRIPTION) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                                    templateId, paramName, paramDefaultValue, order++, false, false, false, null);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        // 카테고리 매핑: pathOrCategoryId 값이 카테고리 아이디라면 매핑(옵션)
-        if (pathOrCategoryId != null && !pathOrCategoryId.trim().isEmpty() && !"UNCATEGORIZED".equalsIgnoreCase(pathOrCategoryId)) {
-            Integer cnt = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM SQL_TEMPLATE_CATEGORY WHERE CATEGORY_ID = ?", Integer.class, pathOrCategoryId);
-            if (cnt != null && cnt > 0) {
-                // 기존 모든 매핑 제거 후 단일 카테고리에 매핑 (간단 정책)
-                jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE TEMPLATE_ID = ?", templateId);
-                jdbcTemplate.update("INSERT INTO SQL_TEMPLATE_CATEGORY_MAPPING (TEMPLATE_ID, CATEGORY_ID, CREATED_BY) VALUES (?, ?, ?)", templateId, pathOrCategoryId, userId);
+        // 단축키 처리
+        jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_SHORTCUT WHERE SOURCE_TEMPLATE_ID = ?", templateId);
+        
+        if (shortcutsJson != null && !shortcutsJson.trim().isEmpty()) {
+            try {
+                List<Map<String, Object>> shortcuts = parseShortcutsJson(shortcutsJson);
+                for (Map<String, Object> shortcut : shortcuts) {
+                    String key = (String) shortcut.get("key");
+                    String name = (String) shortcut.get("name");
+                    String targetTemplateId = (String) shortcut.get("targetTemplateId");
+                    Boolean autoExecute = (Boolean) shortcut.get("autoExecute");
+                    Boolean isActive = (Boolean) shortcut.get("isActive");
+                    
+                    if (key != null && !key.trim().isEmpty() && name != null && !name.trim().isEmpty() && targetTemplateId != null && !targetTemplateId.trim().isEmpty()) {
+                        String description = (String) shortcut.get("description");
+                        String sourceColumns = (String) shortcut.get("sourceColumns");
+                        jdbcTemplate.update(
+                            "INSERT INTO SQL_TEMPLATE_SHORTCUT (SOURCE_TEMPLATE_ID, TARGET_TEMPLATE_ID, SHORTCUT_KEY, SHORTCUT_NAME, SHORTCUT_DESCRIPTION, SOURCE_COLUMN_INDEXES, AUTO_EXECUTE, IS_ACTIVE) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                            templateId, targetTemplateId.trim(), key.trim(), name.trim(), description, sourceColumns, autoExecute != null ? autoExecute : true, isActive != null ? isActive : true);
+                    }
+                }
+            } catch (Exception e) {
+                // logger.warn("단축키 JSON 파싱 실패: " + e.getMessage()); // Original code had this line commented out
             }
         }
 
@@ -189,6 +357,202 @@ public class SqlTemplateService {
         result.put("success", true);
         result.put("message", "SQL 템플릿이 삭제되었습니다.");
         return result;
+    }
+
+    /**
+     * 카테고리 목록 조회
+     */
+    public List<Map<String, Object>> getCategories() {
+        String sql = "SELECT CATEGORY_ID, CATEGORY_NAME, CATEGORY_DESCRIPTION, CATEGORY_ORDER, STATUS FROM SQL_TEMPLATE_CATEGORY WHERE STATUS = 'ACTIVE' ORDER BY CATEGORY_ORDER, CATEGORY_NAME";
+        return jdbcTemplate.queryForList(sql);
+    }
+
+    /**
+     * 카테고리 생성
+     */
+    @Transactional
+    public Map<String, Object> createCategory(String categoryName, String description, String userId) {
+        Map<String, Object> result = new HashMap<>();
+        
+        if (categoryName == null || categoryName.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("error", "카테고리명을 입력해주세요.");
+            return result;
+        }
+
+        try {
+            String categoryId = "CATEGORY_" + System.currentTimeMillis();
+            Integer maxOrder = jdbcTemplate.queryForObject("SELECT COALESCE(MAX(CATEGORY_ORDER), 0) FROM SQL_TEMPLATE_CATEGORY", Integer.class);
+            int newOrder = (maxOrder != null ? maxOrder : 0) + 1;
+
+            String sql = "INSERT INTO SQL_TEMPLATE_CATEGORY (CATEGORY_ID, CATEGORY_NAME, CATEGORY_DESCRIPTION, CATEGORY_ORDER, CREATED_BY) VALUES (?, ?, ?, ?, ?)";
+            jdbcTemplate.update(sql, categoryId, categoryName, description, newOrder, userId);
+
+            result.put("success", true);
+            result.put("categoryId", categoryId);
+            result.put("message", "카테고리가 생성되었습니다.");
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", "카테고리 생성 실패: " + e.getMessage());
+        }
+        
+        return result;
+    }
+
+    /**
+     * 카테고리 수정
+     */
+    @Transactional
+    public Map<String, Object> updateCategory(String categoryId, String categoryName, String description, String userId) {
+        Map<String, Object> result = new HashMap<>();
+        
+        if (categoryId == null || categoryId.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("error", "카테고리 ID가 지정되지 않았습니다.");
+            return result;
+        }
+        
+        if (categoryName == null || categoryName.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("error", "카테고리명을 입력해주세요.");
+            return result;
+        }
+
+        try {
+            String sql = "UPDATE SQL_TEMPLATE_CATEGORY SET CATEGORY_NAME = ?, CATEGORY_DESCRIPTION = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE CATEGORY_ID = ?";
+            jdbcTemplate.update(sql, categoryName, description, userId, categoryId);
+
+            result.put("success", true);
+            result.put("message", "카테고리가 수정되었습니다.");
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", "카테고리 수정 실패: " + e.getMessage());
+        }
+        
+        return result;
+    }
+
+    /**
+     * 카테고리 삭제
+     */
+    @Transactional
+    public Map<String, Object> deleteCategory(String categoryId, String userId) {
+        Map<String, Object> result = new HashMap<>();
+        
+        if (categoryId == null || categoryId.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("error", "카테고리 ID가 지정되지 않았습니다.");
+            return result;
+        }
+
+        try {
+            // 카테고리에 속한 템플릿이 있는지 확인
+            Integer templateCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE CATEGORY_ID = ?", 
+                Integer.class, categoryId);
+            
+            if (templateCount != null && templateCount > 0) {
+                result.put("success", false);
+                result.put("error", "카테고리에 속한 템플릿이 있어 삭제할 수 없습니다. 먼저 템플릿을 다른 카테고리로 이동하거나 미분류로 이동해주세요.");
+                return result;
+            }
+
+            // 카테고리 삭제 (실제 삭제 대신 비활성화)
+            String sql = "UPDATE SQL_TEMPLATE_CATEGORY SET STATUS = 'INACTIVE', MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE CATEGORY_ID = ?";
+            jdbcTemplate.update(sql, userId, categoryId);
+
+            result.put("success", true);
+            result.put("message", "카테고리가 삭제되었습니다.");
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", "카테고리 삭제 실패: " + e.getMessage());
+        }
+        
+        return result;
+    }
+
+    /**
+     * 카테고리별 템플릿 목록 조회
+     */
+    public List<Map<String, Object>> getTemplatesByCategory(String categoryId) {
+        if (categoryId == null || categoryId.trim().isEmpty() || "UNCATEGORIZED".equals(categoryId)) {
+            // 미분류 템플릿 조회
+            String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.CREATED_TIMESTAMP " +
+                        "FROM SQL_TEMPLATE t " +
+                        "LEFT JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
+                        "WHERE t.STATUS = 'ACTIVE' AND m.TEMPLATE_ID IS NULL " +
+                        "ORDER BY t.CREATED_TIMESTAMP DESC";
+            return jdbcTemplate.queryForList(sql);
+        } else {
+            // 특정 카테고리의 템플릿 조회
+            String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.CREATED_TIMESTAMP " +
+                        "FROM SQL_TEMPLATE t " +
+                        "JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
+                        "WHERE t.STATUS = 'ACTIVE' AND m.CATEGORY_ID = ? " +
+                        "ORDER BY m.MAPPING_ORDER, t.TEMPLATE_NAME";
+            return jdbcTemplate.queryForList(sql, categoryId);
+        }
+    }
+
+    /**
+     * 템플릿을 카테고리에 할당
+     */
+    @Transactional
+    public Map<String, Object> assignTemplateToCategory(String templateId, String categoryId, String userId) {
+        Map<String, Object> result = new HashMap<>();
+        
+        if (templateId == null || templateId.trim().isEmpty()) {
+            result.put("success", false);
+            result.put("error", "템플릿 ID가 지정되지 않았습니다.");
+            return result;
+        }
+
+        try {
+            if (categoryId == null || categoryId.trim().isEmpty() || "UNCATEGORIZED".equals(categoryId)) {
+                // 미분류로 이동 (기존 매핑 삭제)
+                jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE TEMPLATE_ID = ?", templateId);
+                result.put("message", "템플릿이 미분류로 이동되었습니다.");
+            } else {
+                // 특정 카테고리로 이동
+                // 기존 매핑 삭제 후 새 매핑 추가
+                jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE TEMPLATE_ID = ?", templateId);
+                
+                Integer maxOrder = jdbcTemplate.queryForObject(
+                    "SELECT COALESCE(MAX(MAPPING_ORDER), 0) FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE CATEGORY_ID = ?", 
+                    Integer.class, categoryId);
+                int newOrder = (maxOrder != null ? maxOrder : 0) + 1;
+                
+                jdbcTemplate.update(
+                    "INSERT INTO SQL_TEMPLATE_CATEGORY_MAPPING (TEMPLATE_ID, CATEGORY_ID, MAPPING_ORDER, CREATED_BY) VALUES (?, ?, ?, ?)",
+                    templateId, categoryId, newOrder, userId);
+                result.put("message", "템플릿이 카테고리에 할당되었습니다.");
+            }
+            
+            result.put("success", true);
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", "템플릿 할당 실패: " + e.getMessage());
+        }
+        
+        return result;
+    }
+
+    /**
+     * 카테고리 상세 정보 조회
+     */
+    public Map<String, Object> getCategoryDetail(String categoryId) {
+        if (categoryId == null || categoryId.trim().isEmpty()) {
+            return null;
+        }
+        
+        String sql = "SELECT CATEGORY_ID, CATEGORY_NAME, CATEGORY_DESCRIPTION, CATEGORY_ORDER, STATUS FROM SQL_TEMPLATE_CATEGORY WHERE CATEGORY_ID = ?";
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, categoryId);
+        
+        if (rows.isEmpty()) {
+            return null;
+        }
+        
+        return rows.get(0);
     }
 
     private String generateTemplateId(String templateName) {
@@ -217,6 +581,98 @@ public class SqlTemplateService {
             }
         }
         return list;
+    }
+
+    /**
+     * config Map을 문자열로 변환
+     */
+    private String configToString(Map<String, Object> config) {
+        if (config == null || config.isEmpty()) {
+            return "";
+        }
+        
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, Object> entry : config.entrySet()) {
+            sb.append(entry.getKey()).append("=").append(entry.getValue()).append("\n");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 파라미터 JSON 파싱 (간단한 구현)
+     */
+    private List<Map<String, Object>> parseParametersJson(String json) {
+        List<Map<String, Object>> parameters = new ArrayList<>();
+        try {
+            // 간단한 JSON 파싱 (실제로는 Jackson이나 Gson 사용 권장)
+            if (json.startsWith("[") && json.endsWith("]")) {
+                String content = json.substring(1, json.length() - 1);
+                String[] items = content.split("\\},\\s*\\{");
+                
+                for (String item : items) {
+                    item = item.replaceAll("[{}]", "");
+                    Map<String, Object> param = new HashMap<>();
+                    
+                    String[] pairs = item.split(",");
+                    for (String pair : pairs) {
+                        String[] kv = pair.split(":");
+                        if (kv.length == 2) {
+                            String key = kv[0].trim().replaceAll("\"", "");
+                            String value = kv[1].trim().replaceAll("\"", "");
+                            
+                            if ("required".equals(key)) {
+                                param.put(key, "true".equals(value));
+                            } else if ("order".equals(key)) {
+                                param.put(key, Integer.parseInt(value));
+                            } else {
+                                param.put(key, value);
+                            }
+                        }
+                    }
+                    parameters.add(param);
+                }
+            }
+        } catch (Exception e) {
+            // logger.error("JSON 파싱 실패: " + e.getMessage()); // Original code had this line commented out
+        }
+        return parameters;
+    }
+
+    /**
+     * 단축키 JSON 파싱
+     */
+    private List<Map<String, Object>> parseShortcutsJson(String json) {
+        List<Map<String, Object>> shortcuts = new ArrayList<>();
+        try {
+            if (json.startsWith("[") && json.endsWith("]")) {
+                String content = json.substring(1, json.length() - 1);
+                String[] items = content.split("\\},\\s*\\{");
+                
+                for (String item : items) {
+                    item = item.replaceAll("[{}]", "");
+                    Map<String, Object> shortcut = new HashMap<>();
+                    
+                    String[] pairs = item.split(",");
+                    for (String pair : pairs) {
+                        String[] kv = pair.split(":");
+                        if (kv.length == 2) {
+                            String key = kv[0].trim().replaceAll("\"", "");
+                            String value = kv[1].trim().replaceAll("\"", "");
+                            
+                            if ("autoExecute".equals(key) || "isActive".equals(key)) {
+                                shortcut.put(key, "true".equals(value));
+                            } else {
+                                shortcut.put(key, value);
+                            }
+                        }
+                    }
+                    shortcuts.add(shortcut);
+                }
+            }
+        } catch (Exception e) {
+            // logger.error("단축키 JSON 파싱 실패: " + e.getMessage()); // Original code had this line commented out
+        }
+        return shortcuts;
     }
 }
 
