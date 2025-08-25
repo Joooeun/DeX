@@ -141,7 +141,7 @@ public class FileController {
 	@ResponseBody
 	@RequestMapping(path = "/log-error")
 	public String ViewError(@RequestBody Map<String, Object> errorData) throws JsonProcessingException {
-		
+		System.out.println(new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(errorData));
 		
 		cLog.errorLog( new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(errorData));
 		

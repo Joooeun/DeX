@@ -17,7 +17,10 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
 import kr.Windmill.service.SqlTemplateService;
+import kr.Windmill.service.SqlContentService;
 import kr.Windmill.service.PermissionService;
+import kr.Windmill.service.SQLExecuteService;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @Controller
 public class SQLTemplateController {
@@ -28,7 +31,16 @@ public class SQLTemplateController {
     private SqlTemplateService sqlTemplateService;
     
     @Autowired
+    private SqlContentService sqlContentService;
+    
+    @Autowired
     private PermissionService permissionService;
+    
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+    
+    @Autowired
+    private SQLExecuteService sqlExecuteService;
     
     @RequestMapping(path = "/SQLTemplate", method = RequestMethod.GET)
     public ModelAndView sqlTemplateMain(HttpServletRequest request, ModelAndView mv, HttpSession session) {
@@ -120,8 +132,9 @@ public class SQLTemplateController {
             String sqlStatus = request.getParameter("sqlStatus");
             String executionLimitStr = request.getParameter("executionLimit");
             String refreshTimeoutStr = request.getParameter("refreshTimeout");
-            String sqlPath = request.getParameter("sqlPath");
             String sqlContent = request.getParameter("sqlContent");
+            String accessibleConnectionIds = request.getParameter("accessibleConnectionIds");
+            String categoryIds = request.getParameter("categoryIds"); // 화면에서 categoryIds로 전달되는 카테고리 ID들
             String configContent = request.getParameter("configContent");
             String parameters = request.getParameter("parameters");
             String shortcuts = request.getParameter("shortcuts");
@@ -142,7 +155,7 @@ public class SQLTemplateController {
             }
             
             return sqlTemplateService.saveSqlTemplate(sqlId, sqlName, sqlDesc, sqlVersion, sqlStatus, 
-                                                     executionLimit, refreshTimeout, sqlPath, sqlContent, configContent, parameters, shortcuts, userId);
+                                                     executionLimit, refreshTimeout, categoryIds, accessibleConnectionIds, sqlContent, configContent, parameters, shortcuts, userId);
             
         } catch (Exception e) {
             logger.error("SQL 템플릿 저장 실패", e);
@@ -183,17 +196,37 @@ public class SQLTemplateController {
     @RequestMapping(path = "/SQLTemplate/test")
     public Map<String, Object> testSqlTemplate(HttpServletRequest request, HttpSession session) {
         try {
-            String sqlContent = request.getParameter("sqlContent");
+            String templateId = request.getParameter("templateId");
+            String connectionId = request.getParameter("connectionId");
+            String params = request.getParameter("params");
+            String limitStr = request.getParameter("limit");
             
-            // 간단한 SQL 문법 검증
-            boolean isValid = validateSqlSyntax(sqlContent);
+            if (templateId == null || templateId.trim().isEmpty()) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("success", false);
+                result.put("error", "템플릿 ID가 필요합니다.");
+                return result;
+            }
+            
+            // 파라미터 기본값 설정
+            String userId = (String) session.getAttribute("memberId");
+            String ip = request.getRemoteAddr();
+            Integer limit = limitStr != null ? Integer.parseInt(limitStr) : 1000;
+            params = params != null ? params : "{}";
+            
+            Map<String, List> executionResult;
+            
+            if (connectionId != null && !connectionId.trim().isEmpty()) {
+                // 특정 DB 연결로 실행
+                executionResult = sqlExecuteService.executeTemplateSQL(templateId, connectionId, params, limit, userId, ip);
+            } else {
+                // 기본 SQL 내용으로 실행
+                executionResult = sqlExecuteService.executeDefaultTemplateSQL(templateId, params, limit, userId, ip);
+            }
             
             Map<String, Object> result = new HashMap<>();
-            result.put("success", isValid);
-            
-            if (!isValid) {
-                result.put("error", "SQL 문법이 올바르지 않습니다.");
-            }
+            result.put("success", true);
+            result.put("data", executionResult);
             
             return result;
             
@@ -500,6 +533,112 @@ public class SQLTemplateController {
             Map<String, Object> result = new HashMap<>();
             result.put("success", false);
             result.put("error", "템플릿 목록 조회 실패: " + e.getMessage());
+            return result;
+        }
+    }
+
+    // =====================================================
+    // SQL 내용 관리 API
+    // =====================================================
+
+    @ResponseBody
+    @RequestMapping(path = "/SQLTemplate/sql-contents")
+    public Map<String, Object> getSqlContents(HttpServletRequest request, HttpSession session) {
+        String templateId = request.getParameter("templateId");
+        
+        try {
+            List<Map<String, Object>> contents = sqlContentService.getSqlContentsByTemplate(templateId);
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("data", contents);
+            return result;
+        } catch (Exception e) {
+            logger.error("SQL 내용 조회 실패", e);
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("error", "SQL 내용 조회 실패: " + e.getMessage());
+            return result;
+        }
+    }
+
+    @ResponseBody
+    @RequestMapping(path = "/SQLTemplate/sql-content/save")
+    public Map<String, Object> saveSqlContent(HttpServletRequest request, HttpSession session) {
+        String userId = (String) session.getAttribute("memberId");
+        
+        try {
+            String contentId = request.getParameter("contentId");
+            String templateId = request.getParameter("templateId");
+            String connectionId = request.getParameter("connectionId");
+            String sqlContent = request.getParameter("sqlContent");
+            
+            return sqlContentService.saveSqlContent(contentId, templateId, connectionId, sqlContent, userId);
+            
+        } catch (Exception e) {
+            logger.error("SQL 내용 저장 실패", e);
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("error", "SQL 내용 저장 실패: " + e.getMessage());
+            return result;
+        }
+    }
+
+    @ResponseBody
+    @RequestMapping(path = "/SQLTemplate/sql-content/delete")
+    public Map<String, Object> deleteSqlContent(HttpServletRequest request, HttpSession session) {
+        String userId = (String) session.getAttribute("memberId");
+        
+        try {
+            String contentId = request.getParameter("contentId");
+            
+            return sqlContentService.deleteSqlContent(contentId, userId);
+            
+        } catch (Exception e) {
+            logger.error("SQL 내용 삭제 실패", e);
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("error", "SQL 내용 삭제 실패: " + e.getMessage());
+            return result;
+        }
+    }
+
+    @ResponseBody
+    @RequestMapping(path = "/SQLTemplate/sql-content/copy")
+    public Map<String, Object> copySqlContent(HttpServletRequest request, HttpSession session) {
+        String userId = (String) session.getAttribute("memberId");
+        
+        try {
+            String sourceContentId = request.getParameter("sourceContentId");
+            String targetConnectionId = request.getParameter("targetConnectionId");
+            
+            return sqlContentService.copySqlContent(sourceContentId, targetConnectionId, userId);
+            
+        } catch (Exception e) {
+            logger.error("SQL 내용 복사 실패", e);
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("error", "SQL 내용 복사 실패: " + e.getMessage());
+            return result;
+        }
+    }
+
+    @ResponseBody
+    @RequestMapping(path = "/SQLTemplate/db-connections")
+    public Map<String, Object> getDbConnections(HttpServletRequest request, HttpSession session) {
+        try {
+            String sql = "SELECT CONNECTION_ID, DB_TYPE, HOST_IP, PORT, DATABASE_NAME, USERNAME, STATUS " +
+                        "FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY DB_TYPE, CONNECTION_ID";
+            List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("data", connections);
+            return result;
+        } catch (Exception e) {
+            logger.error("DB 연결 목록 조회 실패", e);
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("error", "DB 연결 목록 조회 실패: " + e.getMessage());
             return result;
         }
     }

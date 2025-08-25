@@ -355,7 +355,7 @@ var changePW
 				</div>
 				<c:if test="${isAdmin}">
 					<div class="tab-pane" id="dashboard">
-						<iframe name="iframe_dashboard" id="iframe_dashboard" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" src="/dashboard"></iframe>
+						<iframe name="iframe_dashboard" id="iframe_dashboard" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" src="/Dashboard"></iframe>
 					</div>
 				</c:if>
 				<div class="tab-pane" id="newpage">

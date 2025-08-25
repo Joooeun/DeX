@@ -40,6 +40,12 @@ public class SQLExecuteService {
 	private final DynamicJdbcManager dynamicJdbcManager;
 
 	@Autowired
+	private SqlContentService sqlContentService;
+	
+	@Autowired
+	private SqlTemplateService sqlTemplateService;
+
+	@Autowired
 	public SQLExecuteService(Common common, Log log, DynamicJdbcManager dynamicJdbcManager) {
 		this.com = common;
 		this.cLog = log;
@@ -65,6 +71,40 @@ public class SQLExecuteService {
 		prop.put("clientProgramName", "DeX");
 
 		String sql = data.getSql().length() > 0 ? data.getSql() : com.FileRead(new File(data.getPath()));
+		
+		// 템플릿 ID가 있는 경우, 해당 DB 연결의 SQL 내용 조회
+		if (data.getTemplateId() != null && !data.getTemplateId().trim().isEmpty()) {
+			String connectionId = data.getConnectionId();
+			
+			// connectionId가 null이면 기본 SQL 내용 조회
+			if (connectionId == null || connectionId.trim().isEmpty()) {
+				Map<String, Object> defaultSqlContent = sqlContentService.getDefaultSqlContent(data.getTemplateId());
+				if (defaultSqlContent != null) {
+					sql = (String) defaultSqlContent.get("SQL_CONTENT");
+					connectionId = (String) defaultSqlContent.get("CONNECTION_ID");
+					logger.info("템플릿 기본 SQL 내용 사용: templateId={}, connectionId={}", 
+						data.getTemplateId(), connectionId);
+				} else {
+					logger.warn("템플릿의 기본 SQL 내용을 찾을 수 없음: templateId={}", 
+						data.getTemplateId());
+				}
+			} else {
+				// 특정 DB 연결의 SQL 내용 조회 (콤마로 구분된 연결 ID 지원)
+				Map<String, Object> sqlContent = sqlContentService.getSqlContentByTemplateAndConnection(
+					data.getTemplateId(), connectionId);
+				
+				if (sqlContent != null) {
+					sql = (String) sqlContent.get("SQL_CONTENT");
+					String contentConnectionId = (String) sqlContent.get("CONNECTION_ID");
+					logger.info("템플릿 SQL 내용 사용: templateId={}, requestedConnectionId={}, contentConnectionId={}", 
+						data.getTemplateId(), connectionId, contentConnectionId);
+				} else {
+					logger.warn("템플릿 SQL 내용을 찾을 수 없음: templateId={}, connectionId={}", 
+						data.getTemplateId(), connectionId);
+				}
+			}
+		}
+		
 		data.setParamList(com.getJsonObjectFromString(data.getParams()));
 		data.setLogsqlA(sql);
 
@@ -745,5 +785,91 @@ public class SQLExecuteService {
 		// 블록 주석 제거
 		sql = sql.replaceAll("/\\*.*?\\*/", "");
 		return sql;
+	}
+
+	/**
+	 * 템플릿 기반 SQL 실행
+	 * 
+	 * @param templateId 템플릿 ID
+	 * @param connectionId DB 연결 ID
+	 * @param params 파라미터 JSON 문자열
+	 * @param limit 실행 제한
+	 * @param memberId 사용자 ID
+	 * @param ip 사용자 IP
+	 * @return SQL 실행 결과
+	 */
+	public Map<String, List> executeTemplateSQL(String templateId, String connectionId, String params, 
+											   Integer limit, String memberId, String ip) throws Exception {
+		// 템플릿의 접근 가능한 DB 연결 확인
+		List<String> accessibleConnections = sqlTemplateService.getTemplateAccessibleConnections(templateId);
+		
+		// connectionId가 null이거나 비어있으면 기본 SQL 내용 사용
+		if (connectionId == null || connectionId.trim().isEmpty()) {
+			// 기본 SQL 내용으로 실행
+			return executeDefaultTemplateSQL(templateId, params, limit, memberId, ip);
+		}
+		
+		// 요청된 연결이 접근 가능한지 확인
+		if (!accessibleConnections.contains(connectionId.trim())) {
+			throw new Exception("템플릿 '" + templateId + "'에서 DB 연결 '" + connectionId + "'에 접근할 수 없습니다. " +
+							   "접근 가능한 연결: " + String.join(", ", accessibleConnections));
+		}
+		
+		LogInfoDto data = new LogInfoDto();
+		data.setTemplateId(templateId);
+		data.setConnectionId(connectionId);
+		data.setParams(params);
+		data.setLimit(limit != null ? limit : 1000);
+		data.setMemberId(memberId);
+		data.setIp(ip);
+		data.setId(templateId + "_" + System.currentTimeMillis());
+		data.setLogNo(0);
+		
+		return executeSQL(data);
+	}
+
+	/**
+	 * 템플릿의 기본 SQL 내용으로 실행
+	 * 
+	 * @param templateId 템플릿 ID
+	 * @param params 파라미터 JSON 문자열
+	 * @param limit 실행 제한
+	 * @param memberId 사용자 ID
+	 * @param ip 사용자 IP
+	 * @return SQL 실행 결과
+	 */
+	public Map<String, List> executeDefaultTemplateSQL(String templateId, String params, 
+													  Integer limit, String memberId, String ip) throws Exception {
+		// 템플릿의 기본 SQL 내용 조회
+		Map<String, Object> defaultSqlContent = sqlContentService.getDefaultSqlContent(templateId);
+		
+		if (defaultSqlContent == null) {
+			throw new Exception("템플릿의 기본 SQL 내용을 찾을 수 없습니다: " + templateId);
+		}
+		
+		// 기본 SQL 내용은 모든 접근 가능한 DB 연결에서 실행 가능
+		// connectionId를 null로 설정하여 executeTemplateSQL에서 기본 SQL 내용을 사용하도록 함
+		return executeTemplateSQL(templateId, null, params, limit, memberId, ip);
+	}
+
+	/**
+	 * 템플릿의 SQL 내용 목록 조회
+	 * 
+	 * @param templateId 템플릿 ID
+	 * @return SQL 내용 목록
+	 */
+	public List<Map<String, Object>> getTemplateSqlContents(String templateId) {
+		return sqlContentService.getSqlContentsByTemplate(templateId);
+	}
+
+	/**
+	 * 템플릿의 특정 DB 연결 SQL 내용 조회
+	 * 
+	 * @param templateId 템플릿 ID
+	 * @param connectionId DB 연결 ID
+	 * @return SQL 내용
+	 */
+	public Map<String, Object> getTemplateSqlContent(String templateId, String connectionId) {
+		return sqlContentService.getSqlContentByTemplateAndConnection(templateId, connectionId);
 	}
 }

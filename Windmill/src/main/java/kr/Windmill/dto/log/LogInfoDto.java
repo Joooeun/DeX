@@ -21,6 +21,8 @@ import kr.Windmill.controller.SQLController.SqlType;
 public class LogInfoDto {
     
     private String connectionId;
+    private String templateId;  // 템플릿 ID 추가
+    private String memberId;    // 사용자 ID 추가
     private String id;
     private String logId;
     private int logNo = 0;
@@ -62,6 +64,22 @@ public class LogInfoDto {
 
     public void setConnectionId(String connectionId) {
         this.connectionId = connectionId;
+    }
+
+    public String getTemplateId() {
+        return templateId;
+    }
+
+    public void setTemplateId(String templateId) {
+        this.templateId = templateId;
+    }
+
+    public String getMemberId() {
+        return memberId;
+    }
+
+    public void setMemberId(String memberId) {
+        this.memberId = memberId;
     }
 
     public String getId() {
@@ -318,6 +336,8 @@ public class LogInfoDto {
     public String toString() {
         return "LogInfoDto{" +
                 "connectionId='" + connectionId + '\'' +
+                ", templateId='" + templateId + '\'' +
+                ", memberId='" + memberId + '\'' +
                 ", id='" + id + '\'' +
                 ", logId='" + logId + '\'' +
                 ", sqlType='" + sqlType + '\'' +
