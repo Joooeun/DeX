@@ -107,6 +107,74 @@ public class SqlTemplateService {
 	}
 
 	/**
+	 * 사용자별 권한 기반 메뉴 트리 조회 (한 번의 쿼리로 권한 있는 카테고리와 템플릿만 조회)
+	 */
+	public List<Map<String, Object>> getUserMenuTree(String userId) {
+		List<Map<String, Object>> tree = new ArrayList<>();
+
+		try {
+			// 관리자인 경우 전체 트리 반환
+			if ("admin".equals(userId)) {
+				return getFullMenuTree();
+			}
+
+			// 사용자별 권한 기반 메뉴 조회 (그룹을 통한 권한 체계)
+			String sql = "SELECT DISTINCT c.CATEGORY_ID, c.CATEGORY_NAME, c.CATEGORY_ORDER, " +
+					"t.TEMPLATE_ID, t.TEMPLATE_NAME, m.MAPPING_ORDER " +
+					"FROM SQL_TEMPLATE_CATEGORY c " +
+					"JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON c.CATEGORY_ID = m.CATEGORY_ID " +
+					"JOIN SQL_TEMPLATE t ON m.TEMPLATE_ID = t.TEMPLATE_ID " +
+					"JOIN GROUP_CATEGORY_MAPPING gcm ON c.CATEGORY_ID = gcm.CATEGORY_ID " +
+					"JOIN USER_GROUP_MAPPING ugm ON gcm.GROUP_ID = ugm.GROUP_ID " +
+					"WHERE c.STATUS = 'ACTIVE' AND t.STATUS = 'ACTIVE' " +
+					"AND ugm.USER_ID = ? " +
+					"ORDER BY c.CATEGORY_ORDER, c.CATEGORY_NAME, m.MAPPING_ORDER, t.TEMPLATE_NAME";
+
+			List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, userId);
+
+			// 카테고리별로 그룹화
+			Map<String, Map<String, Object>> categoryMap = new HashMap<>();
+			
+			for (Map<String, Object> row : rows) {
+				String categoryId = (String) row.get("CATEGORY_ID");
+				
+				// 카테고리 정보 추가
+				if (!categoryMap.containsKey(categoryId)) {
+					Map<String, Object> category = new HashMap<>();
+					category.put("type", "folder");
+					category.put("id", categoryId);
+					category.put("Name", row.get("CATEGORY_NAME"));
+					category.put("Path", categoryId + "Path");
+					category.put("list", new ArrayList<Map<String, Object>>());
+					categoryMap.put(categoryId, category);
+				}
+				
+				// 템플릿 정보 추가
+				@SuppressWarnings("unchecked")
+				List<Map<String, Object>> children = (List<Map<String, Object>>) categoryMap.get(categoryId).get("list");
+				
+				Map<String, Object> template = new HashMap<>();
+				template.put("type", "sql");
+				template.put("id", row.get("TEMPLATE_ID"));
+				template.put("Name", row.get("TEMPLATE_NAME") + ".sql");
+				template.put("templateId", row.get("TEMPLATE_ID"));
+				children.add(template);
+			}
+			
+			// 카테고리 순서대로 정렬하여 트리 구성
+			tree.addAll(categoryMap.values());
+			
+			// 미분류 템플릿은 현재 권한 체계에서 제외 (필요시 별도 권한 체계 구현 필요)
+			// TODO: 미분류 템플릿에 대한 권한 체계 정의 필요
+
+		} catch (Exception e) {
+			logger.error("사용자 메뉴 트리 조회 실패: " + userId, e);
+		}
+
+		return tree;
+	}
+
+	/**
 	 * 템플릿 상세 조회
 	 */
 	public Map<String, Object> getSqlTemplateDetail(String templateId) {

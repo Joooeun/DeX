@@ -203,19 +203,8 @@ public class SQLController {
 		String id = (String) session.getAttribute("memberId");
 
 		try {
-			// DB 기반 메뉴 트리 조회
-			List<Map<String, Object>> menuTree = sqlTemplateService.getFullMenuTree();
-			
-			// 관리자가 아닌 경우 사용자별 메뉴 필터링
-			if (!id.equals("admin")) {
-				Map<String, String> userConfig = com.UserConf(id);
-				List<String> allowedMenus = new ArrayList<>(Arrays.asList(userConfig.get("MENU").split(",")));
-				
-				// 사용자가 접근 가능한 메뉴만 필터링
-				return filterMenuByUserAccess(menuTree, allowedMenus);
-			}
-
-			return menuTree;
+			// 사용자별 권한 기반 메뉴 트리 조회 (한 번의 쿼리로 권한 있는 것만 조회)
+			return sqlTemplateService.getUserMenuTree(id);
 			
 		} catch (Exception e) {
 			logger.error("메뉴 리스트 조회 실패", e);
@@ -223,38 +212,7 @@ public class SQLController {
 		}
 	}
 	
-	/**
-	 * 사용자 접근 권한에 따라 메뉴 필터링
-	 */
-	private List<Map<String, Object>> filterMenuByUserAccess(List<Map<String, Object>> menuTree, List<String> allowedMenus) {
-		List<Map<String, Object>> filteredMenu = new ArrayList<>();
-		
-		for (Map<String, Object> menuItem : menuTree) {
-			String menuType = (String) menuItem.get("type");
-			
-			if ("folder".equals(menuType)) {
-				// 폴더인 경우 자식 메뉴들을 필터링
-				@SuppressWarnings("unchecked")
-				List<Map<String, Object>> children = (List<Map<String, Object>>) menuItem.get("children");
-				List<Map<String, Object>> filteredChildren = filterMenuByUserAccess(children, allowedMenus);
-				
-				// 필터링된 자식이 있으면 폴더 추가
-				if (!filteredChildren.isEmpty()) {
-					Map<String, Object> filteredFolder = new HashMap<>(menuItem);
-					filteredFolder.put("children", filteredChildren);
-					filteredMenu.add(filteredFolder);
-				}
-			} else if ("sql".equals(menuType)) {
-				// SQL 템플릿인 경우 접근 권한 확인
-				String templateId = (String) menuItem.get("id");
-				if (allowedMenus.contains(templateId)) {
-					filteredMenu.add(menuItem);
-				}
-			}
-		}
-		
-		return filteredMenu;
-	}
+
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/excute")
