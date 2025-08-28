@@ -21,7 +21,7 @@ public class SqlContentService {
      * 템플릿의 모든 추가 SQL 내용 조회 (기본 템플릿 제외)
      */
     public List<Map<String, Object>> getSqlContentsByTemplate(String templateId) {
-        String sql = "SELECT CONTENT_ID, TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, VERSION, " +
+        String sql = "SELECT CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, VERSION, " +
                     "CREATED_BY, CREATED_TIMESTAMP, MODIFIED_BY, MODIFIED_TIMESTAMP " +
                     "FROM SQL_CONTENT WHERE TEMPLATE_ID = ? ORDER BY VERSION DESC";
         
@@ -29,27 +29,19 @@ public class SqlContentService {
     }
 
     /**
-     * 특정 DB 연결의 SQL 내용 조회 (기본 템플릿 우선, 없으면 추가 SQL 내용)
+     * 특정 DB 타입의 SQL 내용 조회 (기본 템플릿 우선, 없으면 추가 SQL 내용)
      */
-    public Map<String, Object> getSqlContentByTemplateAndConnection(String templateId, String connectionId) {
-        // 1. 먼저 해당 연결 ID가 포함된 추가 SQL 내용 조회
-        String sql = "SELECT CONTENT_ID, TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, VERSION, " +
+    public Map<String, Object> getSqlContentByTemplateAndDbType(String templateId, String dbType) {
+        // 1. 먼저 해당 DB 타입의 추가 SQL 내용 조회
+        String sql = "SELECT CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, VERSION, " +
                     "CREATED_BY, CREATED_TIMESTAMP, MODIFIED_BY, MODIFIED_TIMESTAMP " +
-                    "FROM SQL_CONTENT WHERE TEMPLATE_ID = ? AND CONNECTION_ID LIKE ?";
+                    "FROM SQL_CONTENT WHERE TEMPLATE_ID = ? AND DB_TYPE = ?";
         
-        List<Map<String, Object>> results = jdbcTemplate.queryForList(sql, templateId, "%" + connectionId + "%");
+        List<Map<String, Object>> results = jdbcTemplate.queryForList(sql, templateId, dbType);
         
-        // 2. 정확히 일치하는 연결 ID 찾기
-        for (Map<String, Object> result : results) {
-            String contentConnectionIds = (String) result.get("CONNECTION_ID");
-            if (contentConnectionIds != null) {
-                String[] connectionIds = contentConnectionIds.split(",");
-                for (String id : connectionIds) {
-                    if (id.trim().equals(connectionId)) {
-                        return result;
-                    }
-                }
-            }
+        // 2. 일치하는 DB 타입이 있으면 반환
+        if (!results.isEmpty()) {
+            return results.get(0);
         }
         
         // 3. 일치하는 것이 없으면 기본 템플릿 조회
@@ -72,7 +64,7 @@ public class SqlContentService {
         Map<String, Object> defaultContent = new HashMap<>();
         defaultContent.put("CONTENT_ID", "DEFAULT_" + templateId);
         defaultContent.put("TEMPLATE_ID", templateId);
-        defaultContent.put("CONNECTION_ID", null);  // 기본 템플릿은 NULL
+        defaultContent.put("DB_TYPE", null);  // 기본 템플릿은 NULL
         defaultContent.put("SQL_CONTENT", result.get("SQL_CONTENT"));
         defaultContent.put("VERSION", 1);
         defaultContent.put("CREATED_BY", "SYSTEM");
@@ -87,7 +79,7 @@ public class SqlContentService {
      * SQL 내용 저장 (신규/수정) - 추가 SQL 내용만
      */
     @Transactional
-    public Map<String, Object> saveSqlContent(String contentId, String templateId, String connectionId, 
+    public Map<String, Object> saveSqlContent(String contentId, String templateId, String dbType, 
                                              String sqlContent, String userId) {
         Map<String, Object> result = new HashMap<>();
 
@@ -96,9 +88,9 @@ public class SqlContentService {
             result.put("error", "템플릿 ID가 필요합니다.");
             return result;
         }
-        if (connectionId == null || connectionId.trim().isEmpty()) {
+        if (dbType == null || dbType.trim().isEmpty()) {
             result.put("success", false);
-            result.put("error", "DB 연결 ID가 필요합니다.");
+            result.put("error", "DB 타입이 필요합니다.");
             return result;
         }
         if (sqlContent == null || sqlContent.trim().isEmpty()) {
@@ -110,23 +102,20 @@ public class SqlContentService {
         boolean isNew = (contentId == null || contentId.trim().isEmpty());
         
         if (isNew) {
-            contentId = "CONTENT_" + templateId + "_" + connectionId.replace(",", "_") + "_" + UUID.randomUUID().toString().substring(0, 8);
+            contentId = "CONTENT_" + templateId + "_" + dbType + "_" + UUID.randomUUID().toString().substring(0, 8);
             
-            // 기존에 같은 템플릿-연결 조합이 있는지 확인
-            String[] connectionIds = connectionId.split(",");
-            for (String connId : connectionIds) {
-                String checkSql = "SELECT COUNT(*) FROM SQL_CONTENT WHERE TEMPLATE_ID = ? AND CONNECTION_ID LIKE ?";
-                int count = jdbcTemplate.queryForObject(checkSql, Integer.class, templateId, "%" + connId.trim() + "%");
-                if (count > 0) {
-                    result.put("success", false);
-                    result.put("error", "이미 해당 DB 연결(" + connId.trim() + ")에 대한 SQL 내용이 존재합니다.");
-                    return result;
-                }
+            // 기존에 같은 템플릿-DB타입 조합이 있는지 확인
+            String checkSql = "SELECT COUNT(*) FROM SQL_CONTENT WHERE TEMPLATE_ID = ? AND DB_TYPE = ?";
+            int count = jdbcTemplate.queryForObject(checkSql, Integer.class, templateId, dbType);
+            if (count > 0) {
+                result.put("success", false);
+                result.put("error", "이미 해당 DB 타입(" + dbType + ")에 대한 SQL 내용이 존재합니다.");
+                return result;
             }
 
-            String insertSql = "INSERT INTO SQL_CONTENT (CONTENT_ID, TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, VERSION, CREATED_BY) " +
+            String insertSql = "INSERT INTO SQL_CONTENT (CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, VERSION, CREATED_BY) " +
                              "VALUES (?, ?, ?, ?, 1, ?)";
-            jdbcTemplate.update(insertSql, contentId, templateId, connectionId, sqlContent, userId);
+            jdbcTemplate.update(insertSql, contentId, templateId, dbType, sqlContent, userId);
         } else {
             String updateSql = "UPDATE SQL_CONTENT SET SQL_CONTENT = ?, VERSION = VERSION + 1, " +
                              "MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " +
@@ -184,10 +173,10 @@ public class SqlContentService {
     }
 
     /**
-     * DB 연결별 SQL 내용 복사 (추가 SQL 내용만)
+     * DB 타입별 SQL 내용 복사 (추가 SQL 내용만)
      */
     @Transactional
-    public Map<String, Object> copySqlContent(String sourceContentId, String targetConnectionId, String userId) {
+    public Map<String, Object> copySqlContent(String sourceContentId, String targetDbType, String userId) {
         Map<String, Object> result = new HashMap<>();
 
         // 소스 SQL 내용 조회
@@ -204,23 +193,20 @@ public class SqlContentService {
         String templateId = (String) sourceContent.get("TEMPLATE_ID");
         String sqlContent = (String) sourceContent.get("SQL_CONTENT");
 
-        // 대상 연결에 이미 SQL 내용이 있는지 확인 (콤마로 구분된 연결 ID 처리)
-        String[] connectionIds = targetConnectionId.split(",");
-        for (String connId : connectionIds) {
-            String checkSql = "SELECT COUNT(*) FROM SQL_CONTENT WHERE TEMPLATE_ID = ? AND CONNECTION_ID LIKE ?";
-            int count = jdbcTemplate.queryForObject(checkSql, Integer.class, templateId, "%" + connId.trim() + "%");
-            if (count > 0) {
-                result.put("success", false);
-                result.put("error", "이미 해당 DB 연결(" + connId.trim() + ")에 대한 SQL 내용이 존재합니다.");
-                return result;
-            }
+        // 대상 DB 타입에 이미 SQL 내용이 있는지 확인
+        String checkSql = "SELECT COUNT(*) FROM SQL_CONTENT WHERE TEMPLATE_ID = ? AND DB_TYPE = ?";
+        int count = jdbcTemplate.queryForObject(checkSql, Integer.class, templateId, targetDbType);
+        if (count > 0) {
+            result.put("success", false);
+            result.put("error", "이미 해당 DB 타입(" + targetDbType + ")에 대한 SQL 내용이 존재합니다.");
+            return result;
         }
 
         // SQL 내용 복사
-        String newContentId = "CONTENT_" + templateId + "_" + targetConnectionId.replace(",", "_") + "_" + UUID.randomUUID().toString().substring(0, 8);
-        String insertSql = "INSERT INTO SQL_CONTENT (CONTENT_ID, TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, VERSION, CREATED_BY) " +
+        String newContentId = "CONTENT_" + templateId + "_" + targetDbType + "_" + UUID.randomUUID().toString().substring(0, 8);
+        String insertSql = "INSERT INTO SQL_CONTENT (CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, VERSION, CREATED_BY) " +
                          "VALUES (?, ?, ?, ?, 1, ?)";
-        jdbcTemplate.update(insertSql, newContentId, templateId, targetConnectionId, sqlContent, userId);
+        jdbcTemplate.update(insertSql, newContentId, templateId, targetDbType, sqlContent, userId);
 
         result.put("success", true);
         result.put("message", "SQL 내용이 복사되었습니다.");

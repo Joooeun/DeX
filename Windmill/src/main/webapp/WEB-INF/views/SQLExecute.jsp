@@ -144,7 +144,7 @@ var tableHeight=0;
 				}
 
 				// 기본 선택: 세션에 값이 있거나 DB 연결이 하나만 가능할 때만
-				var selectedConnection = '${selectedConnection}';
+				var selectedConnection = '${Connection}';
 				var optionCount = $('#connectionlist option').length;
 				
 				if (selectedConnection && selectedConnection.trim() !== '') {
@@ -158,6 +158,12 @@ var tableHeight=0;
 				} else if (optionCount === 1) {
 					// DB 연결이 하나만 가능하면 기본 선택
 					$('#connectionlist option:first').prop('selected', true);
+				}
+				
+				var shortkey = ${Excute};
+
+				if (shortkey && $("#connectionlist option:selected").val() != '') {
+					excute();
 				}
 			},
 			error: function() {
@@ -925,38 +931,6 @@ var tableHeight=0;
 	}
 
 	// ========================================
-	// 단축키 SQL 실행 함수
-	// ========================================
-	function sendSql(value) {
-		if (value && value.trim() !== '') {
-			var parts = value.split('&');
-			if (parts.length >= 3) {
-				// 단축키 정보를 파라미터로 설정
-				$("#sql_text").val(parts[0]); // SQL 내용
-				
-				// 소스 컬럼 설정 (있는 경우)
-				if (parts[1] && parts[1].trim() !== '') {
-					// 파라미터 입력 필드에 소스 컬럼 값 설정
-					$(".paramvalue").each(function() {
-						var paramTitle = $(this).attr('paramtitle');
-						if (paramTitle && paramTitle.toLowerCase().includes('column')) {
-							$(this).val(parts[1]);
-						}
-					});
-				}
-				
-				// 자동 실행 여부 확인
-				if (parts[2] === 'true') {
-					// 자동 실행
-					setTimeout(function() {
-						startexcute();
-					}, 100);
-				}
-			}
-		}
-	}
-
-	// ========================================
 	// Limit 값 체크 함수
 	// ========================================
 	function checkLimit(limit) {
@@ -997,7 +971,7 @@ var tableHeight=0;
 				<div class="box box-default collapse in">
 					<div class="box-header with-border">
 						<h5 class="box-title">파라미터 입력</h5>
-						&nbsp;&nbsp;&nbsp; <select id="connectionlist" onchange="sessionCon(this.value)">
+						&nbsp;&nbsp;&nbsp;  <select id="connectionlist" onchange="sessionCon(this.value)">
 							<option value="">====Connection====</option>
 						</select>
 
@@ -1042,7 +1016,7 @@ var tableHeight=0;
 														</c:if>
 														<div style="margin: 2px 0">
 															<input type="${item.PARAMETER_NAME=='memberId' || item.IS_HIDDEN ? 'hidden' : 'text'}" class="form-control paramvalue" paramtitle="${item.PARAMETER_NAME}" paramtype="${item.PARAMETER_TYPE}"
-																value="${item.PARAMETER_NAME == 'memberId' ? memberId : item.DEFAULT_VALUE}" style="padding: 0 2px;"
+																value="${item.PARAMETER_NAME == 'memberId' ? memberId : (not empty sendvalue.split('&')[status.count-1]?sendvalue.split('&')[status.count-1]:item.DEFAULT_VALUE)}" style="padding: 0 2px;"
 																<c:if test="${item.IS_REQUIRED}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.IS_DISABLED}">disabled</c:if>
 																<c:if test="${item.PARAMETER_NAME=='memberId' || item.IS_READONLY}">readonly</c:if>>
 														</div>

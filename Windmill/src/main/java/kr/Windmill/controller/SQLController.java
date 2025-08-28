@@ -53,7 +53,9 @@ public class SQLController {
 		// templateId 파라미터가 있으면 SQLTemplateController로 리다이렉트
 		String templateId = request.getParameter("templateId");
 		if (templateId != null && !templateId.trim().isEmpty()) {
+			mv.addObject("sendvalue", request.getParameter("sendvalue"));
 			mv.setViewName("redirect:/SQLTemplate?templateId=" + templateId);
+			mv.addObject("Excute", request.getParameter("excute") == null ? false : request.getParameter("excute"));
 			return mv;
 		}
 

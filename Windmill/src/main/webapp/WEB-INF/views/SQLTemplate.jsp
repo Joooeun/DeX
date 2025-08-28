@@ -16,18 +16,18 @@
 }
 
 .category-item {
-	cursor: pointer;
-	padding: 5px;
+    cursor: pointer;
+    padding: 5px;
 	border: 1px solid #ddd;
 	margin-bottom: 3px;
-	border-radius: 3px;
+    border-radius: 3px;
 	background-color: #f9f9f9;
 	word-wrap: break-word;
 	white-space: normal;
 }
 
 .category-item:hover {
-	background-color: #e9ecef;
+    background-color: #e9ecef;
 }
 
 .category-item.selected {
@@ -62,22 +62,22 @@
 }
 
 .modal-header {
-	background-color: #007bff;
-	color: white;
+    background-color: #007bff;
+    color: white;
 }
 
 .sql-preview {
-	background-color: #f8f9fa;
-	border: 1px solid #dee2e6;
-	border-radius: 5px;
-	padding: 10px;
-	max-height: 300px;
-	overflow-y: auto;
-	font-family: 'Courier New', monospace;
-	font-size: 12px;
-	white-space: pre-wrap;
-	word-wrap: break-word;
-	line-height: 1.4;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.4;
 }
 
 .template-count {
@@ -164,11 +164,22 @@ table th, td {
 				placement: 'top',
 				trigger: 'hover'
 			});
+
+			// 차트 매핑 변경 이벤트
+			$('#sqlChartMapping').on('change', function() {
+				var selectedChart = $(this).val();
+				var currentTemplateId = $('#sqlTemplateId').val();
+				
+				if (selectedChart && selectedChart.trim() && currentTemplateId && currentTemplateId.trim()) {
+					// 차트 매핑 중복 체크
+					checkChartMappingDuplicate(selectedChart, currentTemplateId);
+				}
+			});
 		});
 
 		// 카테고리 목록 로드
 		function loadCategories() {
-			$.ajax({
+    $.ajax({
 				type: 'GET',
 				url: '/SQLTemplate/category/list',
 				success: function (result) {
@@ -227,6 +238,60 @@ table th, td {
 			// 각 카테고리의 템플릿 개수 로드
 			loadCategoryTemplateCounts();
 			selectCategory('UNCATEGORIZED');
+		}
+
+		// 차트 매핑 중복 체크 함수
+		function checkChartMappingDuplicate(chartId, excludeTemplateId) {
+			$.ajax({
+				type: 'POST',
+				url: '/SQLTemplate/chart-mapping/check',
+				data: {
+					chartId: chartId,
+					excludeTemplateId: excludeTemplateId
+				},
+        success: function(result) {
+					if (result.success && result.exists) {
+						var existingTemplate = result.existingTemplate;
+						var confirmMessage = '이미 "' + existingTemplate.TEMPLATE_NAME + '" 템플릿이 "' + chartId + '" 차트에 매핑되어 있습니다.\n\n기존 매핑을 해제하고 이 템플릿으로 변경하시겠습니까?';
+						
+						if (confirm(confirmMessage)) {
+							// 기존 매핑 해제 후 새 매핑 설정
+							updateChartMapping(chartId, excludeTemplateId);
+						} else {
+							// 사용자가 취소한 경우 원래 값으로 되돌리기
+							$('#sqlChartMapping').val('');
+						}
+					}
+        },
+        error: function() {
+					alert('차트 매핑 중복 체크 중 오류가 발생했습니다.');
+					$('#sqlChartMapping').val('');
+        }
+    });
+}
+
+		// 차트 매핑 업데이트 함수
+		function updateChartMapping(chartId, templateId) {
+			$.ajax({
+				type: 'POST',
+				url: '/SQLTemplate/chart-mapping/update',
+				data: {
+					chartId: chartId,
+					templateId: templateId
+				},
+				success: function(result) {
+					if (result.success) {
+						alert('차트 매핑이 업데이트되었습니다.');
+					} else {
+						alert('차트 매핑 업데이트 실패: ' + result.error);
+						$('#sqlChartMapping').val('');
+					}
+				},
+				error: function() {
+					alert('차트 매핑 업데이트 중 오류가 발생했습니다.');
+					$('#sqlChartMapping').val('');
+				}
+			});
 		}
 
 		// 카테고리별 템플릿 개수 로드
@@ -313,7 +378,7 @@ table th, td {
 						+ '</div>' + '</div>' + '</div>');
 					container.append(item);
 				});
-			} else {
+    } else {
 				container.html('<div class="text-muted text-center" style="padding: 20px;">템플릿이 없습니다.</div>');
 			}
 		}
@@ -417,7 +482,7 @@ table th, td {
 						$('#categoryName').val(category.CATEGORY_NAME);
 						$('#categoryDescription').val(category.CATEGORY_DESCRIPTION);
 						$('#categoryModalSaveBtn').text('수정');
-					} else {
+    } else {
 						alert('카테고리 정보 로드 실패: ' + result.message);
 					}
 				}
@@ -478,7 +543,7 @@ table th, td {
 					if (result.success) {
 						alert(result.message);
 						loadCategories();
-					} else {
+    } else {
 						alert('삭제 실패: ' + result.error);
 					}
 				}
@@ -553,21 +618,21 @@ table th, td {
 		function activateDefaultTab() {
 			$('#sqlContentTabs a:first').tab('show');
 			updateSqlPreview();
-		}
+}
 
-		// Textarea 기반 SQL 에디터 초기화
-		function initTextareaEditor() {
-			var sqlEditorDiv = document.getElementById("sqlEditor");
-			sqlEditorDiv.innerHTML = '<textarea id="sqlTextarea" style="width: 100%; height: 100%; font-family: monospace; font-size: 14px; border: none; resize: none; outline: none;"></textarea>';
-			window.sqlEditor = {
+// Textarea 기반 SQL 에디터 초기화
+function initTextareaEditor() {
+    var sqlEditorDiv = document.getElementById("sqlEditor");
+    sqlEditorDiv.innerHTML = '<textarea id="sqlTextarea" style="width: 100%; height: 100%; font-family: monospace; font-size: 14px; border: none; resize: none; outline: none;"></textarea>';
+    window.sqlEditor = {
 				getValue: function () {
-					return document.getElementById("sqlTextarea").value;
-				},
+            return document.getElementById("sqlTextarea").value;
+        },
 				setValue: function (value) {
-					document.getElementById("sqlTextarea").value = value || '';
-				}
-			};
-		}
+            document.getElementById("sqlTextarea").value = value || '';
+        }
+    };
+}
 
 		// SQL 미리보기 업데이트
 		function updateSqlPreview() {
@@ -866,7 +931,7 @@ table th, td {
 				} catch (e) {
 					defaultSqlContent = $('#sqlEditor_default .sql-textarea').val() || '';
 				}
-			} else {
+    } else {
 				defaultSqlContent = $('#sqlEditor_default .sql-textarea').val() || '';
 			}
 			
@@ -921,6 +986,17 @@ table th, td {
 				errors.push('새로고침 타임아웃은 0~3600초 사이의 숫자여야 합니다.');
 			}
 
+			// 차트 매핑 검증
+			var chartMapping = $('#sqlChartMapping').val();
+			if (chartMapping && chartMapping.trim()) {
+				// 차트 매핑이 선택된 경우 중복 체크
+				var currentTemplateId = $('#sqlTemplateId').val();
+				if (currentTemplateId && currentTemplateId.trim()) {
+					// 기존 템플릿 수정 시에만 중복 체크
+					// 실제 중복 체크는 서버에서 수행
+				}
+			}
+
 			// 파라미터 벨리데이션
 			var parameters = collectParameters();
 			var parameterNames = [];
@@ -940,7 +1016,7 @@ table th, td {
 				if (param.name && param.name.trim()) {
 					if (parameterNames.indexOf(param.name.toLowerCase()) !== -1) {
 						duplicateNames.push(param.name);
-					} else {
+            } else {
 						parameterNames.push(param.name.toLowerCase());
 					}
 				}
@@ -1025,7 +1101,7 @@ table th, td {
 				if (shortcut.key && shortcut.key.trim()) {
 					if (shortcutKeys.indexOf(shortcut.key) !== -1) {
 						duplicateShortcuts.push(shortcut.key);
-					} else {
+            } else {
 						shortcutKeys.push(shortcut.key);
 					}
 				}
@@ -1106,7 +1182,7 @@ table th, td {
 				success: function (result) {
 					if (result.success) {
 						renderShortcuts(result.data);
-					} else {
+    } else {
 						$('#shortcutTableBody').empty();
 					}
 				}
@@ -1207,7 +1283,7 @@ table th, td {
 							}).join(', ') + ')';
 						
 						sourceColumnsInput.attr('title', tooltipText);
-					} else {
+    } else {
 						sourceColumnsInput.attr('placeholder', '1,2,3');
 						sourceColumnsInput.attr('title', '소스 컬럼 인덱스를 입력합니다. 콤마로 구분된 숫자 형태로 입력 (예: 1,2,3)');
 					}
@@ -1260,7 +1336,7 @@ table th, td {
 							if (selectedValue) {
 								updateSourceColumnsPlaceholder(selectedValue, selectElement.closest('tr').find('.source-columns'));
 							}
-						} else {
+    } else {
 							// 기존 방식 (하위 호환성)
 							$('.target-template').html(options);
 						}
@@ -1302,6 +1378,7 @@ table th, td {
 			$('#sqlTemplateStatus').val('ACTIVE');
 			$('#sqlExecutionLimit').val('0');
 			$('#sqlRefreshTimeout').val('0');
+			$('#sqlChartMapping').val('');
 			$('#sqlNewline').prop('checked', true);
 			$('#sqlAudit').prop('checked', false);
 			$('#sqlTemplateCategories').val(null).trigger('change');
@@ -1317,23 +1394,24 @@ table th, td {
 			$('#parameterTableBody, #shortcutTableBody').empty();
 			$('.template-item').removeClass('selected');
 			$('.target-template-select2').select2('destroy');
-
-			updateSqlPreview();
-		}
+    
+    updateSqlPreview();
+}
 
 		// SQL 템플릿 저장 (카테고리 포함)
-		function saveSqlTemplate() {
+function saveSqlTemplate() {
 			// 벨리데이션 체크
 			if (!validateSqlTemplate()) {
 				return;
 			}
 
-			var sqlId = $('#sqlTemplateId').val();
-			var sqlName = $('#sqlTemplateName').val();
+    var sqlId = $('#sqlTemplateId').val();
+    var sqlName = $('#sqlTemplateName').val();
 			var sqlDesc = $('#sqlTemplateDesc').val();
 			var sqlStatus = $('#sqlTemplateStatus').val();
 			var executionLimit = $('#sqlExecutionLimit').val();
 			var refreshTimeout = $('#sqlRefreshTimeout').val();
+			var chartMapping = $('#sqlChartMapping').val();
 			var newline = $('#sqlNewline').is(':checked');
 			var audit = $('#sqlAudit').is(':checked');
 			var selectedCategoryIds = $('#sqlTemplateCategories').val();
@@ -1345,35 +1423,62 @@ table th, td {
 				defaultSqlContent = window.sqlEditors['default'].getValue();
 			}
 
+			// 모든 탭의 SQL 내용 수집
+			var additionalSqlContents = [];
+			$('#sqlContentTabs .nav-item').each(function() {
+				var tabLink = $(this).find('.nav-link');
+				var href = tabLink.attr('href');
+				if (href && href !== '#tab-default') {
+					var dbType = href.replace('#tab-', '');
+					var sqlContent = '';
+					
+					// Ace 에디터에서 내용 가져오기
+					if (window.sqlEditors && window.sqlEditors[dbType]) {
+						sqlContent = window.sqlEditors[dbType].getValue();
+    } else {
+						// Textarea에서 내용 가져오기
+						sqlContent = $('#sqlEditor_' + dbType + ' .sql-textarea').val() || '';
+					}
+					
+					if (sqlContent.trim()) {
+						additionalSqlContents.push({
+							dbType: dbType,
+							sqlContent: sqlContent
+						});
+					}
+				}
+			});
+
 			var parameters = collectParameters();
 			var configContent = parametersToConfigString(parameters);
 			var shortcuts = collectShortcuts();
-
-			var data = {
-				sqlId: sqlId,
-				sqlName: sqlName,
+    
+    var data = {
+        sqlId: sqlId,
+        sqlName: sqlName,
 				sqlDesc: sqlDesc,
 				sqlStatus: sqlStatus,
 				executionLimit: executionLimit,
 				refreshTimeout: refreshTimeout,
+				chartMapping: chartMapping,
 				newline: newline,
 				audit: audit,
 				categoryIds: selectedCategoryIds.join(','),
 				sqlContent: defaultSqlContent, // 기본 템플릿의 SQL 내용
+				additionalSqlContents: JSON.stringify(additionalSqlContents), // 추가 SQL 내용들
 				accessibleConnectionIds: accessibleConnectionIds ? accessibleConnectionIds.join(',') : '',
 				configContent: configContent,
 				parameters: JSON.stringify(parameters),
 				shortcuts: JSON.stringify(shortcuts)
-			};
-			
-
-			$.ajax({
-				type: 'post',
-				url: '/SQLTemplate/save',
-				data: data,
+    };
+    
+    $.ajax({
+        type: 'post',
+        url: '/SQLTemplate/save',
+        data: data,
 				success: function (result) {
-					if (result.success) {
-						alert('SQL 템플릿이 저장되었습니다.');
+            if (result.success) {
+                alert('SQL 템플릿이 저장되었습니다.');
 						// 폼 초기화
 						createNewSqlTemplate();
 						// 템플릿 목록 새로고침
@@ -1384,9 +1489,9 @@ table th, td {
 						}
 						// 카테고리별 템플릿 개수 업데이트
 						loadCategoryTemplateCounts();
-					} else {
-						alert('저장 실패: ' + result.error);
-					}
+            } else {
+                alert('저장 실패: ' + result.error);
+            }
 				}
 			});
 		}
@@ -1412,6 +1517,7 @@ table th, td {
 							template.executionLimit || 0);
 						$('#sqlRefreshTimeout').val(
 							template.refreshTimeout || 0);
+						$('#sqlChartMapping').val(template.chartMapping || '');
 						$('#sqlNewline').prop('checked', template.newline !== false);
 						$('#sqlAudit').prop('checked', template.audit === true);
 
@@ -1431,9 +1537,9 @@ table th, td {
 					} else {
 						alert('템플릿 정보 로드 실패: ' + result.error);
 					}
-				}
-			});
-		}
+        }
+    });
+}
 
 		// SQL 내용 목록 로드
 		function loadSqlContents(templateId) {
@@ -1461,34 +1567,34 @@ table th, td {
 			// 추가 SQL 내용 탭들 추가
 			if (contents && contents.length > 0) {
 				contents.forEach(function (content) {
-					var tabId = 'tab-' + content.CONNECTION_ID;
+					var tabId = 'tab-' + content.DB_TYPE;
 					
 					// 탭 생성
 					$('#sqlContentTabs').append(
 						'<li class="nav-item">' +
 						'<a class="nav-link" data-toggle="tab" href="#' + tabId + '">' +
-						content.CONNECTION_ID +
+						content.DB_TYPE +
 						'</a></li>'
 					);
 
 					// 탭 컨텐츠 생성
 					$('#sqlContentTabContent').append(
 						'<div class="tab-pane fade" id="' + tabId + '">' +
-						'<div class="sql-editor-container" data-connection-id="' + content.CONNECTION_ID + '" data-content-id="' + content.CONTENT_ID + '">' +
-						'<div id="sqlEditor_' + content.CONNECTION_ID + '" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>' +
+						'<div class="sql-editor-container" data-db-type="' + content.DB_TYPE + '" data-content-id="' + content.CONTENT_ID + '">' +
+						'<div id="sqlEditor_' + content.DB_TYPE + '" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>' +
 						'<button type="button" class="btn btn-danger btn-sm mt-2" onclick="deleteSqlContent(\'' + content.CONTENT_ID + '\')">삭제</button>' +
 						'</div></div>'
 					);
 
 					// SQL 에디터 초기화
-					initSqlEditorForConnection(content.CONNECTION_ID, content.SQL_CONTENT);
+					initSqlEditorForDbType(content.DB_TYPE, content.SQL_CONTENT);
 				});
 			}
 			
 			activateDefaultTab();
 		}
 
-		// 특정 DB 연결용 SQL 에디터 초기화
+		// 특정 연결용 SQL 에디터 초기화
 		function initSqlEditorForConnection(connectionId, sqlContent) {
 			if (typeof ace !== 'undefined') {
 				try {
@@ -1525,7 +1631,44 @@ table th, td {
 			}
 		}
 
-		// Textarea 기반 SQL 에디터 초기화
+		// 특정 DB 타입용 SQL 에디터 초기화
+		function initSqlEditorForDbType(dbType, sqlContent) {
+			if (typeof ace !== 'undefined') {
+				try {
+					ace.require("ace/ext/language_tools");
+					var editor = ace.edit("sqlEditor_" + dbType);
+					editor.setTheme("ace/theme/chrome");
+					editor.session.setMode("ace/mode/sql");
+					editor.setOptions({
+						enableBasicAutocompletion: true,
+						enableSnippets: true,
+						enableLiveAutocompletion: true
+					});
+
+					// 커스텀 자동완성 설정 추가
+					updateAllEditorsCompleters()
+					
+
+					editor.setValue(sqlContent || '');
+					
+					// 에디터를 전역 변수에 저장
+					window.sqlEditors = window.sqlEditors || {};
+					window.sqlEditors[dbType] = editor;
+					
+					// 에디터 변경 이벤트
+					editor.on('change', function() {
+						updateSqlPreview();
+					});
+				} catch (e) {
+					console.log("SQL 에디터 초기화 실패:", e);
+					initTextareaEditorForDbType(dbType, sqlContent);
+				}
+						} else {
+				initTextareaEditorForDbType(dbType, sqlContent);
+			}
+		}
+
+		// Textarea 기반 SQL 에디터 초기화 (연결용)
 		function initTextareaEditorForConnection(connectionId, sqlContent) {
 			var editorDiv = document.getElementById("sqlEditor_" + connectionId);
 			editorDiv.innerHTML = '<textarea class="sql-textarea" style="width: 100%; height: 100%; font-family: monospace; font-size: 14px; border: none; resize: none; outline: none;">' + (sqlContent || '') + '</textarea>';
@@ -1536,42 +1679,61 @@ table th, td {
 			});
 		}
 
+		// Textarea 기반 SQL 에디터 초기화
+		function initTextareaEditorForDbType(dbType, sqlContent) {
+			var editorDiv = document.getElementById("sqlEditor_" + dbType);
+			editorDiv.innerHTML = '<textarea class="sql-textarea" style="width: 100%; height: 100%; font-family: monospace; font-size: 14px; border: none; resize: none; outline: none;">' + (sqlContent || '') + '</textarea>';
+			
+			// textarea 변경 이벤트
+			$(editorDiv).find('.sql-textarea').on('input', function() {
+						updateSqlPreview();
+			});
+		}
+
 		// SQL 내용 추가 (기본 템플릿은 이미 존재하므로 추가 SQL만 생성)
 		function addSqlContent() {
-			var selectedConnections = $('#accessibleConnections').val();
-			if (!selectedConnections || selectedConnections.length === 0) {
-				alert('먼저 접근 가능한 DB 연결을 선택해주세요.');
-				return;
-			}
+			// 하드코딩된 DB 타입 목록 사용
+			var dbTypes = [
+				{DB_TYPE: 'ORACLE', CONNECTION_COUNT: 0},
+				{DB_TYPE: 'MYSQL', CONNECTION_COUNT: 0},
+				{DB_TYPE: 'POSTGRESQL', CONNECTION_COUNT: 0},
+				{DB_TYPE: 'MSSQL', CONNECTION_COUNT: 0},
+				{DB_TYPE: 'DB2', CONNECTION_COUNT: 0},
+				{DB_TYPE: 'H2', CONNECTION_COUNT: 0}
+			];
+			showDbTypeSelectionModal(dbTypes);
+		}
 
-			// 모달로 DB 연결 선택 (여러 개 선택 가능)
+		// DB 타입 선택 모달 표시
+		function showDbTypeSelectionModal(dbTypes) {
 			var modalHtml = '<div class="modal fade" id="addSqlContentModal" tabindex="-1">' +
 				'<div class="modal-dialog modal-lg">' +
 				'<div class="modal-content">' +
 				'<div class="modal-header">' +
 				'<h5 class="modal-title">추가 SQL 내용 생성</h5>' +
-				'<button type="button" class="close" data-dismiss="modal">&times;</button>' +
+				'<button type="button" class="close" onclick="cancelAddSqlContent()">&times;</button>' +
 				'</div>' +
 				'<div class="modal-body">' +
 				'<div class="alert alert-info">' +
-				'<strong>참고:</strong> 기본 템플릿은 이미 존재합니다. 특정 DB 연결에 맞는 추가 SQL 내용을 생성합니다.' +
+				'<strong>참고:</strong> 기본 템플릿은 이미 존재합니다. 특정 DB 타입에 맞는 추가 SQL 내용을 생성합니다.' +
 				'</div>' +
 				'<div class="form-group">' +
-				'<label><strong>DB 연결 선택 (여러 개 선택 가능)</strong></label><br>' +
-				'<small class="text-muted">콤마로 구분된 여러 DB 연결을 하나의 SQL 내용으로 관리할 수 있습니다.</small>' +
-				'<div id="connectionSelection" class="mt-3">' +
-				'<label>선택할 DB 연결:</label><br>';
+				'<label><strong>DB 타입 선택</strong></label><br>' +
+				'<small class="text-muted">선택한 DB 타입의 모든 활성 연결에 대해 SQL 내용이 생성됩니다.</small>' +
+				'<div id="dbTypeSelection" class="mt-3">' +
+				'<label>선택할 DB 타입:</label><br>';
 			
-			selectedConnections.forEach(function(connectionId) {
+			dbTypes.forEach(function(dbType) {
 				modalHtml += '<div class="form-check form-check-inline">' +
-					'<input class="form-check-input" type="checkbox" id="conn_' + connectionId + '" value="' + connectionId + '">' +
-					'<label class="form-check-label" for="conn_' + connectionId + '">' + connectionId + '</label>' +
+					'<input class="form-check-input" type="checkbox" id="dbtype_' + dbType.DB_TYPE + '" value="' + dbType.DB_TYPE + '">' +
+					'<label class="form-check-label" for="dbtype_' + dbType.DB_TYPE + '">' + 
+					dbType.DB_TYPE + ' (' + dbType.CONNECTION_COUNT + '개 연결)</label>' +
 					'</div>';
 			});
 			
 			modalHtml += '</div></div></div>' +
 				'<div class="modal-footer">' +
-				'<button type="button" class="btn btn-secondary" data-dismiss="modal">취소</button>' +
+				'<button type="button" class="btn btn-secondary" onclick="cancelAddSqlContent()">취소</button>' +
 				'<button type="button" class="btn btn-primary" onclick="confirmAddSqlContent()">추가</button>' +
 				'</div></div></div></div>';
 
@@ -1588,30 +1750,42 @@ table th, td {
 				return;
 			}
 
-			// 특정 DB 연결들 선택 (기본 템플릿은 이미 존재하므로 추가 SQL만 생성)
-			var selectedConnections = [];
-			$('#connectionSelection input[type="checkbox"]:checked').each(function() {
-				selectedConnections.push($(this).val());
+			// 선택된 DB 타입들에 대해 SQL 내용 생성
+			var selectedDbTypes = [];
+			$('#dbTypeSelection input[type="checkbox"]:checked').each(function() {
+				selectedDbTypes.push($(this).val());
 			});
 			
-			if (selectedConnections.length === 0) {
-				alert('하나 이상의 DB 연결을 선택해주세요.');
+			if (selectedDbTypes.length === 0) {
+				alert('하나 이상의 DB 타입을 선택해주세요.');
 				return;
 			}
 			
-			var connectionId = selectedConnections.join(',');
+			// 각 DB 타입에 대해 SQL 내용 탭 생성
+			selectedDbTypes.forEach(function(dbType) {
+				var content = {
+					CONTENT_ID: '',
+					TEMPLATE_ID: templateId,
+					DB_TYPE: dbType,
+					SQL_CONTENT: '',
+					IS_DEFAULT: false
+				};
 
-			// 빈 SQL 내용으로 새 탭 추가
-			var content = {
-				CONTENT_ID: '',
-				TEMPLATE_ID: templateId,
-				CONNECTION_ID: connectionId,
-				SQL_CONTENT: '',
-				IS_DEFAULT: false
-			};
-
-			addSqlContentTab(content);
+				addSqlContentTab(content);
+			});
+			
+			// 모달 완전히 제거
 			$('#addSqlContentModal').modal('hide');
+			$('body').removeClass('modal-open');
+			$('.modal-backdrop').remove();
+			$('#addSqlContentModal').remove();
+		}
+
+		// SQL 내용 추가 취소
+		function cancelAddSqlContent() {
+			$('#addSqlContentModal').modal('hide');
+			$('body').removeClass('modal-open');
+			$('.modal-backdrop').remove();
 			$('#addSqlContentModal').remove();
 		}
 
@@ -1619,12 +1793,12 @@ table th, td {
 		function addSqlContentTab(content) {
 			var tabsContainer = $('#sqlContentTabs');
 			var contentContainer = $('#sqlContentTabContent');
-			var tabId = 'tab-' + (content.CONNECTION_ID || 'default');
-			var displayName = content.CONNECTION_ID ? content.CONNECTION_ID : '기본 템플릿';
+			var tabId = 'tab-' + (content.DB_TYPE || 'default');
+			var displayName = content.DB_TYPE ? content.DB_TYPE : '기본 템플릿';
 			
 			// 기존 탭이 있는지 확인
 			if ($('#' + tabId).length > 0) {
-				alert('이미 해당 DB 연결의 SQL 내용이 존재합니다.');
+				alert('이미 해당 DB 타입의 SQL 내용이 존재합니다.');
 				return;
 			}
 
@@ -1637,13 +1811,13 @@ table th, td {
 
 			// 탭 컨텐츠 생성
 			var tabContent = $('<div class="tab-pane fade" id="' + tabId + '">' +
-				'<div class="sql-editor-container" data-connection-id="' + (content.CONNECTION_ID || 'default') + '" data-content-id="' + content.CONTENT_ID + '">' +
-				'<div id="sqlEditor_' + (content.CONNECTION_ID || 'default') + '" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>' +
+				'<div class="sql-editor-container" data-db-type="' + (content.DB_TYPE || 'default') + '" data-content-id="' + content.CONTENT_ID + '">' +
+				'<div id="sqlEditor_' + (content.DB_TYPE || 'default') + '" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>' +
 				'<div class="form-check mt-2">' +
-				'<input class="form-check-input" type="radio" name="defaultSql" value="' + (content.CONNECTION_ID || 'default') + '">' +
+				'<input class="form-check-input" type="radio" name="defaultSql" value="' + (content.DB_TYPE || 'default') + '">' +
 				'<label class="form-check-label">기본 SQL로 설정</label>' +
 				'</div>' +
-				'<button type="button" class="btn btn-danger btn-sm mt-2" onclick="deleteSqlContentTab(\'' + (content.CONNECTION_ID || 'default') + '\')">삭제</button>' +
+				'<button type="button" class="btn btn-danger btn-sm mt-2" onclick="deleteSqlContentTab(\'' + (content.DB_TYPE || 'default') + '\')">삭제</button>' +
 				'</div></div>');
 			contentContainer.append(tabContent);
 
@@ -1651,14 +1825,18 @@ table th, td {
 			$('a[href="#' + tabId + '"]').tab('show');
 
 			// SQL 에디터 초기화
-			initSqlEditorForConnection(content.CONNECTION_ID || 'default',"");
+			if (content.DB_TYPE) {
+				initSqlEditorForDbType(content.DB_TYPE, content.SQL_CONTENT || '');
+			} else {
+				initSqlEditorForConnection(content.CONNECTION_ID || 'default', content.SQL_CONTENT || '');
+			}
 		}
 
 		// SQL 내용 탭 삭제 (새로 추가된 것)
-		function deleteSqlContentTab(connectionId) {
+		function deleteSqlContentTab(dbType) {
 			if (confirm('이 SQL 내용을 삭제하시겠습니까?')) {
-				$('#tab-' + connectionId).remove();
-				$('a[href="#tab-' + connectionId + '"]').parent().remove();
+				$('#tab-' + dbType).remove();
+				$('a[href="#tab-' + dbType + '"]').parent().remove();
 				
 				// 첫 번째 탭 활성화
 				$('#sqlContentTabs .nav-link:first').tab('show');
@@ -1701,15 +1879,28 @@ table th, td {
 				return;
 			}
 
-			var connectionId = activeTab.attr('href').replace('#tab-', '');
-			var contentId = $('.sql-editor-container[data-connection-id="' + connectionId + '"]').data('content-id');
+			var dbType = activeTab.attr('href').replace('#tab-', '');
+			var contentId = $('.sql-editor-container[data-db-type="' + dbType + '"]').data('content-id');
 			
 			if (!contentId) {
 				alert('새로 추가된 SQL 내용은 복사할 수 없습니다.');
 				return;
 			}
 
-			// 모달로 대상 DB 연결 선택 (여러 개 선택 가능)
+			// 하드코딩된 DB 타입 목록 사용
+			var dbTypes = [
+				{DB_TYPE: 'ORACLE', CONNECTION_COUNT: 0},
+				{DB_TYPE: 'MYSQL', CONNECTION_COUNT: 0},
+				{DB_TYPE: 'POSTGRESQL', CONNECTION_COUNT: 0},
+				{DB_TYPE: 'MSSQL', CONNECTION_COUNT: 0},
+				{DB_TYPE: 'DB2', CONNECTION_COUNT: 0},
+				{DB_TYPE: 'H2', CONNECTION_COUNT: 0}
+			];
+			showCopyDbTypeSelectionModal(dbTypes, contentId, dbType);
+		}
+
+		// 복사 대상 DB 타입 선택 모달 표시
+		function showCopyDbTypeSelectionModal(dbTypes, sourceContentId, sourceDbType) {
 			var modalHtml = '<div class="modal fade" id="copySqlContentModal" tabindex="-1">' +
 				'<div class="modal-dialog modal-lg">' +
 				'<div class="modal-content">' +
@@ -1719,31 +1910,17 @@ table th, td {
 				'</div>' +
 				'<div class="modal-body">' +
 				'<div class="form-group">' +
-				'<label><strong>대상 DB 연결 선택 (여러 개 선택 가능)</strong></label><br>' +
-				'<small class="text-muted">콤마로 구분된 여러 DB 연결을 하나의 SQL 내용으로 관리할 수 있습니다.</small>' +
-				'<div class="mt-2">' +
-				'<div class="form-check">' +
-				'<input class="form-check-input" type="radio" name="copyConnectionType" id="copyDefaultTemplate" value="default">' +
-				'<label class="form-check-label" for="copyDefaultTemplate">' +
-				'<strong>기본 템플릿</strong> (모든 DB에서 사용하는 공통 SQL)' +
-				'</label>' +
-				'</div>' +
-				'<div class="form-check">' +
-				'<input class="form-check-input" type="radio" name="copyConnectionType" id="copySpecificConnections" value="specific" checked>' +
-				'<label class="form-check-label" for="copySpecificConnections">' +
-				'<strong>특정 DB 연결</strong> (선택한 DB 연결들에서 사용)' +
-				'</label>' +
-				'</div>' +
-				'</div>' +
-				'<div id="copyConnectionSelection" class="mt-3">' +
-				'<label>선택할 DB 연결:</label><br>';
+				'<label><strong>대상 DB 타입 선택</strong></label><br>' +
+				'<small class="text-muted">선택한 DB 타입에 SQL 내용을 복사합니다.</small>' +
+				'<div id="copyDbTypeSelection" class="mt-3">' +
+				'<label>선택할 DB 타입:</label><br>';
 			
-			var selectedConnections = $('#accessibleConnections').val();
-			selectedConnections.forEach(function(targetConnectionId) {
-				if (targetConnectionId !== connectionId) {
+			dbTypes.forEach(function(dbType) {
+				if (dbType.DB_TYPE !== sourceDbType) {
 					modalHtml += '<div class="form-check form-check-inline">' +
-						'<input class="form-check-input" type="checkbox" id="copy_conn_' + targetConnectionId + '" value="' + targetConnectionId + '">' +
-						'<label class="form-check-label" for="copy_conn_' + targetConnectionId + '">' + targetConnectionId + '</label>' +
+						'<input class="form-check-input" type="checkbox" id="copy_dbtype_' + dbType.DB_TYPE + '" value="' + dbType.DB_TYPE + '">' +
+						'<label class="form-check-label" for="copy_dbtype_' + dbType.DB_TYPE + '">' + 
+						dbType.DB_TYPE + ' (' + dbType.CONNECTION_COUNT + '개 연결)</label>' +
 						'</div>';
 				}
 			});
@@ -1751,96 +1928,94 @@ table th, td {
 			modalHtml += '</div></div></div>' +
 				'<div class="modal-footer">' +
 				'<button type="button" class="btn btn-secondary" data-dismiss="modal">취소</button>' +
-				'<button type="button" class="btn btn-primary" onclick="confirmCopySqlContent(\'' + contentId + '\')">복사</button>' +
+				'<button type="button" class="btn btn-primary" onclick="confirmCopySqlContent(\'' + sourceContentId + '\')">복사</button>' +
 				'</div></div></div></div>';
 
 			$('body').append(modalHtml);
 			$('#copySqlContentModal').modal('show');
-			
-			// 라디오 버튼 변경 이벤트
-			$('input[name="copyConnectionType"]').change(function() {
-				if ($(this).val() === 'default') {
-					$('#copyConnectionSelection').hide();
-				} else {
-					$('#copyConnectionSelection').show();
-				}
-			});
 		}
 
 		// SQL 내용 복사 확인
 		function confirmCopySqlContent(sourceContentId) {
-			var copyConnectionType = $('input[name="copyConnectionType"]:checked').val();
-			var targetConnectionId = null;
+			// 선택된 DB 타입들
+			var selectedDbTypes = [];
+			$('#copyDbTypeSelection input[type="checkbox"]:checked').each(function() {
+				selectedDbTypes.push($(this).val());
+			});
 			
-			if (copyConnectionType === 'default') {
-				// 기본 템플릿 (CONNECTION_ID = null)
-				targetConnectionId = null;
-			} else {
-				// 특정 DB 연결들 선택
-				var selectedConnections = [];
-				$('#copyConnectionSelection input[type="checkbox"]:checked').each(function() {
-					selectedConnections.push($(this).val());
-				});
-				
-				if (selectedConnections.length === 0) {
-					alert('하나 이상의 DB 연결을 선택해주세요.');
-					return;
-				}
-				
-				targetConnectionId = selectedConnections.join(',');
+			if (selectedDbTypes.length === 0) {
+				alert('하나 이상의 DB 타입을 선택해주세요.');
+				return;
 			}
 			
-			$.ajax({
-				type: 'POST',
-				url: '/SQLTemplate/sql-content/copy',
-				data: {
-					sourceContentId: sourceContentId,
-					targetConnectionId: targetConnectionId
-				},
-				success: function (result) {
-					if (result.success) {
-						showToast('SQL 내용이 복사되었습니다.', 'success');
-						// 현재 템플릿의 SQL 내용 다시 로드
-						var templateId = $('#sqlTemplateId').val();
-						if (templateId) {
-							loadSqlContents(templateId);
-						}
-					} else {
-						showToast('복사 실패: ' + result.error, 'error');
+			// 각 DB 타입에 대해 복사 요청
+			var copyPromises = selectedDbTypes.map(function(dbType) {
+				return $.ajax({
+					type: 'POST',
+					url: '/SQLTemplate/sql-content/copy',
+					data: {
+						sourceContentId: sourceContentId,
+						targetDbType: dbType
 					}
-					$('#copySqlContentModal').modal('hide');
-					$('#copySqlContentModal').remove();
-				},
-				error: function(xhr, status, error) {
-					showToast('복사 중 오류가 발생했습니다.', 'error');
-					$('#copySqlContentModal').modal('hide');
-					$('#copySqlContentModal').remove();
+				});
+			});
+			
+			Promise.all(copyPromises).then(function(results) {
+				var successCount = 0;
+				var errorMessages = [];
+				
+				results.forEach(function(result, index) {
+					if (result.success) {
+						successCount++;
+					} else {
+						errorMessages.push(selectedDbTypes[index] + ': ' + result.error);
+					}
+				});
+				
+				if (successCount > 0) {
+					showToast(successCount + '개 DB 타입에 SQL 내용이 복사되었습니다.', 'success');
+					// 현재 템플릿의 SQL 내용 다시 로드
+					var templateId = $('#sqlTemplateId').val();
+					if (templateId) {
+						loadSqlContents(templateId);
+					}
 				}
+				
+				if (errorMessages.length > 0) {
+					showToast('일부 복사 실패: ' + errorMessages.join(', '), 'error');
+				}
+				
+				$('#copySqlContentModal').modal('hide');
+				$('#copySqlContentModal').remove();
+			}).catch(function() {
+				showToast('복사 중 오류가 발생했습니다.', 'error');
+				$('#copySqlContentModal').modal('hide');
+				$('#copySqlContentModal').remove();
 			});
 		}
 
-		// SQL 템플릿 삭제
-		function deleteSqlTemplate() {
-			var sqlId = $('#sqlTemplateId').val();
-			if (!sqlId) {
+// SQL 템플릿 삭제
+function deleteSqlTemplate() {
+    var sqlId = $('#sqlTemplateId').val();
+    if (!sqlId) {
 				alert('삭제할 템플릿을 선택해주세요.');
-				return;
-			}
-
-			if (!confirm('정말로 이 SQL 템플릿을 삭제하시겠습니까?')) {
-				return;
-			}
-
-			$.ajax({
+        return;
+    }
+    
+    if (!confirm('정말로 이 SQL 템플릿을 삭제하시겠습니까?')) {
+        return;
+    }
+    
+    $.ajax({
 				type: 'POST',
-				url: '/SQLTemplate/delete',
+        url: '/SQLTemplate/delete',
 				data: {
 					sqlId: sqlId
 				},
 				success: function (result) {
-					if (result.success) {
-						alert('SQL 템플릿이 삭제되었습니다.');
-						createNewSqlTemplate();
+            if (result.success) {
+                alert('SQL 템플릿이 삭제되었습니다.');
+                createNewSqlTemplate();
 						var selectedCategory = $('.category-item.selected').data(
 							'id');
 						if (selectedCategory) {
@@ -1848,15 +2023,15 @@ table th, td {
 						}
 						// 카테고리별 템플릿 개수 업데이트
 						loadCategoryTemplateCounts();
-					} else {
-						alert('삭제 실패: ' + result.error);
-					}
-				}
-			});
-		}
+            } else {
+                alert('삭제 실패: ' + result.error);
+            }
+        }
+    });
+}
 
-		// SQL 테스트 실행
-		function testSqlTemplate() {
+// SQL 테스트 실행
+function testSqlTemplate() {
 			var templateId = $('#sqlTemplateId').val();
 			if (!templateId) {
 				showToast('테스트할 템플릿을 선택해주세요.', 'error');
@@ -2024,21 +2199,37 @@ table th, td {
 
 		// SQL 내용 자동 저장
 		function saveCurrentSqlContent() {
+			// 현재 활성 탭 찾기
 			var activeTab = $('#sqlContentTabs .nav-link.active');
-			var connectionId = activeTab.closest('.sql-editor-container').data('connection-id');
+			if (!activeTab.length) {
+				// 활성 탭이 없으면 첫 번째 탭 사용
+				activeTab = $('#sqlContentTabs .nav-link:first');
+				if (!activeTab.length) {
+					console.warn('탭을 찾을 수 없습니다.');
+					return;
+				}
+			}
+			
+			var href = activeTab.attr('href');
+			if (!href) {
+				console.warn('탭의 href 속성을 찾을 수 없습니다.');
+				return;
+			}
+			
+			var dbType = href.replace('#tab-', '');
 			var contentId = activeTab.closest('.sql-editor-container').data('content-id');
 			
 			// SQL 내용 가져오기
-			var sqlContent = '';
+    var sqlContent = '';
 			if (typeof ace !== 'undefined') {
 				try {
-					var editor = ace.edit("sqlEditor_" + connectionId);
+					var editor = ace.edit("sqlEditor_" + dbType);
 					sqlContent = editor.getValue();
 				} catch (e) {
-					sqlContent = $('#sqlEditor_' + connectionId + ' .sql-textarea').val();
+					sqlContent = $('#sqlEditor_' + dbType + ' .sql-textarea').val();
 				}
-			} else {
-				sqlContent = $('#sqlEditor_' + connectionId + ' .sql-textarea').val();
+    } else {
+				sqlContent = $('#sqlEditor_' + dbType + ' .sql-textarea').val();
 			}
 			
 			if (!sqlContent || sqlContent.trim() === '') {
@@ -2046,44 +2237,43 @@ table th, td {
 			}
 			
 			// 기본 템플릿인 경우 SQL_TEMPLATE에 저장
-			if (connectionId === 'default') {
+			if (dbType === 'default') {
 				// 기본 템플릿은 SQL_TEMPLATE.SQL_CONTENT에 저장되므로 별도 처리 불필요
 				// 템플릿 저장 시 함께 저장됨
-				return;
-			}
-			
+        return;
+    }
+    
 			// 추가 SQL 내용인 경우 SQL_CONTENT 테이블에 저장
 			var templateId = $('#sqlTemplateId').val();
-			
-			$.ajax({
+			var containerDbType = $('.sql-editor-container[data-content-id="' + contentId + '"]').data('db-type');
+    
+    $.ajax({
 				type: 'POST',
 				url: '/SQLTemplate/sql-content/save',
 				data: {
 					contentId: contentId,
 					templateId: templateId,
-					connectionId: connectionId,
+					dbType: containerDbType || dbType,
 					sqlContent: sqlContent
 				},
-				success: function(result) {
-					if (result.success) {
+        success: function(result) {
+            if (result.success) {
 						showToast('success', 'SQL 내용이 저장되었습니다.');
-					} else {
+            } else {
 						showToast('error', 'SQL 내용 저장 실패: ' + result.error);
-					}
-				},
-				error: function() {
+            }
+        },
+        error: function() {
 					showToast('error', 'SQL 내용 저장 중 오류가 발생했습니다.');
-				}
-			});
-		}
+        }
+    });
+}
 
 		// 탭 변경 시 SQL 내용 저장
 		$(document).on('shown.bs.tab', '#sqlContentTabs .nav-link', function() {
-			// 이전 탭의 SQL 내용 저장
-			saveCurrentSqlContent();
 			// 새 탭의 SQL 미리보기 업데이트
-			updateSqlPreview();
-		});
+    updateSqlPreview();
+});
 
 		// 기본 SQL 설정 변경 시 저장
 		$(document).on('change', 'input[name="defaultSql"]', function() {
@@ -2112,8 +2302,8 @@ table th, td {
 		// 모든 SQL 에디터의 자동완성 업데이트
 		function updateAllEditorsCompleters() {
 			if (window.sqlEditors) {
-				Object.keys(window.sqlEditors).forEach(function(connectionId) {
-					var editor = window.sqlEditors[connectionId];
+				Object.keys(window.sqlEditors).forEach(function(dbType) {
+					var editor = window.sqlEditors[dbType];
 					if (editor && typeof ace !== 'undefined') {
 						// 자동완성 업데이트
 						var langTools = ace.require("ace/ext/language_tools");
@@ -2166,26 +2356,26 @@ table th, td {
 			});
 			return parameters;
 		}
-	</script>
+</script>
 
 <!-- Content Wrapper -->
 <div class="content-wrapper" style="margin-left: 0">
-	<!-- Content Header -->
-	<section class="content-header">
-		<h1>SQL 템플릿 관리</h1>
-		<ol class="breadcrumb">
-			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
-			<li class="active">SQL 템플릿 관리</li>
-		</ol>
-	</section>
-
-	<!-- Main content -->
-	<section class="content">
-		<div class="row">
+    <!-- Content Header -->
+    <section class="content-header">
+        <h1>SQL 템플릿 관리</h1>
+        <ol class="breadcrumb">
+            <li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
+            <li class="active">SQL 템플릿 관리</li>
+        </ol>
+    </section>
+    
+    <!-- Main content -->
+    <section class="content">
+        <div class="row">
 			<!-- 카테고리 목록 패널 -->
-			<div class="col-md-3">
-				<div class="box box-primary">
-					<div class="box-header with-border">
+            <div class="col-md-3">
+                <div class="box box-primary">
+                    <div class="box-header with-border">
 						<h3 class="box-title">카테고리 목록</h3>
 						<div class="box-tools pull-right">
 							<button type="button" class="btn btn-box-tool" onclick="createCategory()">
@@ -2203,74 +2393,86 @@ table th, td {
 				<div class="box box-success">
 					<div class="box-header with-border">
 						<h3 class="box-title">템플릿 목록</h3>
-						<div class="box-tools pull-right">
-							<button type="button" class="btn btn-box-tool" onclick="createNewSqlTemplate()">
+                        <div class="box-tools pull-right">
+                            <button type="button" class="btn btn-box-tool" onclick="createNewSqlTemplate()">
 								<i class="fa fa-plus"></i> 새 템플릿
-							</button>
-						</div>
-					</div>
-					<div class="box-body">
+                            </button>
+                        </div>
+                    </div>
+                    <div class="box-body">
 						<div id="templateList" class="template-list">
 							<!-- 템플릿이 여기에 로드됩니다 -->
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- SQL 편집 패널 -->
-			<div class="col-md-9">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SQL 편집 패널 -->
+            <div class="col-md-9">
 				<div class="box box-info">
-					<div class="box-header with-border">
-						<h3 class="box-title">SQL 템플릿 편집</h3>
-						<div class="box-tools pull-right">
-							<button type="button" class="btn btn-info btn-sm" onclick="testSqlTemplate()">
-								<i class="fa fa-play"></i> 테스트
-							</button>
-							<button type="button" class="btn btn-success btn-sm" onclick="saveSqlTemplate()">
-								<i class="fa fa-save"></i> 저장
-							</button>
-							<button type="button" class="btn btn-danger btn-sm" onclick="deleteSqlTemplate()">
-								<i class="fa fa-trash"></i> 삭제
-							</button>
-						</div>
-					</div>
-					<div class="box-body">
+                    <div class="box-header with-border">
+                        <h3 class="box-title">SQL 템플릿 편집</h3>
+                        <div class="box-tools pull-right">
+                            <button type="button" class="btn btn-info btn-sm" onclick="testSqlTemplate()">
+                                <i class="fa fa-play"></i> 테스트
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm" onclick="saveSqlTemplate()">
+                                <i class="fa fa-save"></i> 저장
+                            </button>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="deleteSqlTemplate()">
+                                <i class="fa fa-trash"></i> 삭제
+                            </button>
+                        </div>
+                    </div>
+                    <div class="box-body">
 						<!-- 숨겨진 ID 필드 -->
 						<input type="hidden" id="sqlTemplateId">
 
-						<!-- 기본 정보 -->
+                        <!-- 기본 정보 -->
 						<div class="row">
 
 							<div class="col-md-6">
 								<!-- 설정 정보 -->
-								<div class="row">
-									<div class="col-md-4">
-										<div class="form-group">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
 											<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿의 이름을 입력합니다. 템플릿 목록에서 표시되는 이름이며, 100자 이하로 입력해야 합니다.">SQL 이름</label> <input type="text" class="form-control" id="sqlTemplateName" placeholder="SQL 이름">
-										</div>
-									</div>
+                                </div>
+                            </div>
 									<div class="col-md-8">
 									<div class="row">
-									<div class="col-md-4">
-										<div class="form-group">
+                            <div class="col-md-4">
+                                <div class="form-group">
 											<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿의 상태를 설정합니다. 활성:사용 가능, 비활성:사용 불가, 초안:작성 중">상태</label>
 											<select class="form-control" id="sqlTemplateStatus">
 												<option value="ACTIVE">활성</option>
 												<option value="INACTIVE">비활성</option>
 												<option value="DRAFT">초안</option>
 											</select>
-										</div>
-									</div>
+                                </div>
+                            </div>
 
 
-									<div class="col-md-4">
-										<div class="form-group">
+                            <div class="col-md-4">
+                                <div class="form-group">
 											<label data-toggle="tooltip" data-placement="top" title="SQL 실행 시 최대 반환할 행 수를 설정합니다. 0~20,000 사이의 숫자를 입력하세요. 0은 제한 없음을 의미합니다.">실행 제한 (행)</label> <input type="number" class="form-control" id="sqlExecutionLimit" value="0" min="0" max="20000" placeholder="최대 반환 행 수">
 										</div>
 									</div>
 									<div class="col-md-4">
 										<div class="form-group">
 											<label data-toggle="tooltip" data-placement="top" title="자동 새로고침 기능 사용 시 대기 시간을 설정합니다. 0~3600초 사이의 숫자를 입력하세요. 0은 자동 새로고침을 사용하지 않음을 의미합니다.">새로고침 간격 (초)</label> <input type="number" class="form-control" id="sqlRefreshTimeout" value="0" min="0" max="3600" placeholder="새로고침 대기 시간">
+										</div>
+									</div>
+									<div class="col-md-4">
+										<div class="form-group">
+											<label data-toggle="tooltip" data-placement="top" title="이 템플릿을 대시보드 차트에 매핑합니다. 선택된 차트에서 이 템플릿의 SQL이 실행되어 데이터를 제공합니다.">차트 매핑</label>
+											<select class="form-control" id="sqlChartMapping">
+												<option value="">차트 매핑 없음</option>
+												<option value="APPL_COUNT">애플리케이션 수</option>
+												<option value="LOCK_WAIT_COUNT">락 대기 수</option>
+												<option value="ACTIVE_LOG">활성 로그</option>
+												<option value="FILESYSTEM">파일시스템</option>
+											</select>
 										</div>
 									</div>
 									<div class="col-md-4">
@@ -2302,24 +2504,24 @@ table th, td {
 										<div class="form-group">
 											<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿의 용도나 사용법에 대한 설명을 입력합니다. 템플릿 목록에서 표시되는 설명입니다.">설명</label>
 											<textarea class="form-control" id="sqlTemplateDesc" rows="2" placeholder="SQL 템플릿에 대한 설명을 입력하세요"></textarea>
-										</div>
-									</div>
-								</div>
-
+                                </div>
+                            </div>
+                        </div>
+                        
 								
 
 							</div>
 
 							<div class="col-md-6">
-								<div class="form-group">
+                        <div class="form-group">
 									<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿을 분류할 카테고리를 선택합니다. 여러 카테고리를 선택할 수 있으며, 선택된 카테고리에서 템플릿을 찾을 수 있습니다.">카테고리</label>
 									<select class="form-control" id="sqlTemplateCategories" multiple>
 										<!-- 카테고리 옵션들이 여기에 로드됩니다 -->
 									</select>
-									</div>
-								
+                        </div>
+                        
 								<!-- DB 연결 선택 -->
-										<div class="form-group">
+                        <div class="form-group">
 											<label data-toggle="tooltip" data-placement="top" title="이 템플릿이 접근할 수 있는 DB 연결을 선택합니다. 선택된 DB 연결에 대해서만 SQL 내용을 작성할 수 있습니다. 아무것도 선택하지 않으면 모든 DB 연결에 접근 가능합니다.">접근 가능한 DB 연결 (미선택 시 모든 DB 접근 가능)</label>
 											<select class="form-control" id="accessibleConnections" multiple>
 												<!-- DB 연결 옵션들이 여기에 로드됩니다 -->
@@ -2380,7 +2582,7 @@ table th, td {
 							<div class="tab-content" id="sqlContentTabContent">
 								<!-- 기본 템플릿 컨텐츠 (항상 첫 번째) -->
 								<div class="tab-pane active" id="tab-default">
-									<div class="sql-editor-container" data-connection-id="default" data-content-id="DEFAULT">
+									<div class="sql-editor-container" data-db-type="default" data-content-id="DEFAULT">
 										<div id="sqlEditor_default" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>
 									</div>
 								</div>
@@ -2431,21 +2633,21 @@ table th, td {
 									</button>
 								</div>
 							</div>
-						</div>
-
-						<!-- 미리보기 -->
-						<div class="form-group">
-							<label>SQL 미리보기</label>
-							<div id="sqlPreview" class="sql-preview"></div>
-						</div>
-
-						<!-- 테스트 결과 -->
-						<div id="testResult"></div>
-					</div>
-				</div>
-			</div>
-		</div>
-	</section>
+                        </div>
+                        
+                        <!-- 미리보기 -->
+                        <div class="form-group">
+                            <label>SQL 미리보기</label>
+                            <div id="sqlPreview" class="sql-preview"></div>
+                        </div>
+                        
+                        <!-- 테스트 결과 -->
+                        <div id="testResult"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 </div>
 
 <!-- 카테고리 모달 -->

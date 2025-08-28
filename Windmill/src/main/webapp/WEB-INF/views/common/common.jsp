@@ -64,11 +64,16 @@
 
 		var column = value.split('&')[1].split(',');
 		var str = '';
-		for (var i = 0; i < column.length; i++) {
-			if (i > 0) {
-				str += '&';
+		if($(".Resultrow.success").children('div').length>0){			
+			for (var i = 0; i < column.length; i++) {
+				if (i > 0) {
+					str += '&';
+				}
+				str += $(".Resultrow.success").children('div').eq(column[i]).text().trim();
 			}
-			str += $(".Resultrow.success").children('div').eq(column[i]).text().trim();
+		}else{
+			
+			str = value.split('&')[1].split(',').join('&')
 		}
 
 		$("#sendvalue").val(str);
@@ -130,8 +135,9 @@
 				document.ParamForm.action = "/HTML?Path=" + value.split('&')[0];
 			} else {
 
-				document.ParamForm.action = "/SQL?excute=" + value.split('&')[2] + "&Path=" + encodeURI($("#Path").val() + "/" + value.split('&')[0] + ".sql");
+				document.ParamForm.action = "/SQL?excute=" + value.split('&')[2] + "&templateId=" + value.split('&')[0];
 			}
+			
 			document.ParamForm.method = "POST";
 			document.ParamForm.target = target;
 			document.ParamForm.submit();

@@ -126,11 +126,13 @@ CREATE TABLE SQL_TEMPLATE (
     TEMPLATE_DESC VARCHAR(500),
     SQL_CONTENT CLOB NOT NULL,
     ACCESSIBLE_CONNECTION_IDS VARCHAR(500),
+    CHART_MAPPING VARCHAR(50),  -- 차트 매핑 ID (APPL_COUNT, LOCK_WAIT_COUNT, ACTIVE_LOG, FILESYSTEM)
     VERSION INTEGER DEFAULT 1,
     STATUS VARCHAR(20) DEFAULT 'ACTIVE',
     EXECUTION_LIMIT INTEGER DEFAULT 0,
     REFRESH_TIMEOUT INTEGER DEFAULT 0,
     NEWLINE BOOLEAN DEFAULT TRUE,
+    AUDIT BOOLEAN DEFAULT FALSE,
     CREATED_BY VARCHAR(50) NOT NULL,
     CREATED_TIMESTAMP TIMESTAMP DEFAULT CURRENT TIMESTAMP,
     MODIFIED_BY VARCHAR(50),
@@ -188,7 +190,7 @@ CREATE TABLE SQL_TEMPLATE_CATEGORY_MAPPING (
 CREATE TABLE SQL_CONTENT (
     CONTENT_ID VARCHAR(50) NOT NULL PRIMARY KEY,
     TEMPLATE_ID VARCHAR(100) NOT NULL,
-    CONNECTION_ID VARCHAR(500) NOT NULL,  -- 콤마로 구분된 여러 연결 ID (기본 템플릿은 SQL_TEMPLATE에 저장)
+    DB_TYPE VARCHAR(20) NOT NULL,  -- DB 타입 (ORACLE, DB2, MYSQL 등)
     SQL_CONTENT CLOB NOT NULL,
     VERSION INTEGER DEFAULT 1,
     CREATED_BY VARCHAR(50) NOT NULL,
@@ -327,10 +329,11 @@ CREATE INDEX IDX_SQL_TEMPLATE_CATEGORY_STATUS ON SQL_TEMPLATE_CATEGORY(STATUS);
 -- SQL 템플릿 인덱스
 CREATE INDEX IDX_SQL_TEMPLATE_STATUS ON SQL_TEMPLATE(STATUS);
 CREATE INDEX IDX_SQL_TEMPLATE_CREATED ON SQL_TEMPLATE(CREATED_TIMESTAMP);
+CREATE INDEX IDX_SQL_TEMPLATE_CHART_MAPPING ON SQL_TEMPLATE(CHART_MAPPING);
 
 -- SQL 내용 인덱스
 CREATE INDEX IDX_SQL_CONTENT_TEMPLATE ON SQL_CONTENT(TEMPLATE_ID);
-CREATE INDEX IDX_SQL_CONTENT_CONNECTION ON SQL_CONTENT(CONNECTION_ID);
+CREATE INDEX IDX_SQL_CONTENT_DB_TYPE ON SQL_CONTENT(DB_TYPE);
 CREATE INDEX IDX_SQL_CONTENT_VERSION ON SQL_CONTENT(VERSION);
 
 -- SQL 템플릿-카테고리 매핑 인덱스
@@ -381,7 +384,223 @@ INSERT INTO SQL_TEMPLATE_CATEGORY (CATEGORY_ID, CATEGORY_NAME, CATEGORY_DESCRIPT
 ('UTILITY', '유틸리티', '유틸리티 관련 SQL 템플릿', 5, 'ACTIVE', 'SYSTEM', CURRENT TIMESTAMP);
 
 -- =====================================================
--- 9. 기본 그룹 생성
+-- 8. 차트 매핑용 기본 템플릿 생성
+-- =====================================================
+
+-- APPL_COUNT 차트용 템플릿
+INSERT INTO SQL_TEMPLATE (
+    TEMPLATE_ID, 
+    TEMPLATE_NAME, 
+    TEMPLATE_DESC, 
+    SQL_CONTENT, 
+    ACCESSIBLE_CONNECTION_IDS,
+    CHART_MAPPING,
+    VERSION,
+    STATUS,
+    EXECUTION_LIMIT,
+    REFRESH_TIMEOUT,
+    NEWLINE,
+    CREATED_BY,
+    CREATED_TIMESTAMP
+) VALUES (
+    'APPL_COUNT_CHART',
+    'APPL_COUNT 차트',
+    '애플리케이션 수 모니터링 차트용 SQL',
+    'SELECT 
+        CASE 
+            WHEN APPL_COUNT < 50 THEN ''정상''
+            WHEN APPL_COUNT < 100 THEN ''주의''
+            ELSE ''위험''
+        END AS STATUS,
+        COUNT(*) AS COUNT
+     FROM (
+         SELECT APPL_COUNT 
+         FROM SYSIBMADM.SNAPAPPL 
+         WHERE APPL_COUNT > 0
+     ) T
+     GROUP BY 
+        CASE 
+            WHEN APPL_COUNT < 50 THEN ''정상''
+            WHEN APPL_COUNT < 100 THEN ''주의''
+            ELSE ''위험''
+        END',
+    'test_db',
+    'APPL_COUNT',
+    1,
+    'ACTIVE',
+    1000,
+    10,
+    TRUE,
+    'SYSTEM',
+    CURRENT TIMESTAMP
+);
+
+-- LOCK_WAIT_COUNT 차트용 템플릿
+INSERT INTO SQL_TEMPLATE (
+    TEMPLATE_ID, 
+    TEMPLATE_NAME, 
+    TEMPLATE_DESC, 
+    SQL_CONTENT, 
+    ACCESSIBLE_CONNECTION_IDS,
+    CHART_MAPPING,
+    VERSION,
+    STATUS,
+    EXECUTION_LIMIT,
+    REFRESH_TIMEOUT,
+    NEWLINE,
+    CREATED_BY,
+    CREATED_TIMESTAMP
+) VALUES (
+    'LOCK_WAIT_COUNT_CHART',
+    'LOCK_WAIT_COUNT 차트',
+    '락 대기 수 모니터링 차트용 SQL',
+    'SELECT 
+        CASE 
+            WHEN LOCK_WAIT_COUNT = 0 THEN ''정상''
+            WHEN LOCK_WAIT_COUNT < 10 THEN ''주의''
+            ELSE ''위험''
+        END AS STATUS,
+        COUNT(*) AS COUNT
+     FROM (
+         SELECT LOCK_WAIT_COUNT 
+         FROM SYSIBMADM.SNAPLOCK 
+         WHERE LOCK_WAIT_COUNT >= 0
+     ) T
+     GROUP BY 
+        CASE 
+            WHEN LOCK_WAIT_COUNT = 0 THEN ''정상''
+            WHEN LOCK_WAIT_COUNT < 10 THEN ''주의''
+            ELSE ''위험''
+        END',
+    'test_db',
+    'LOCK_WAIT_COUNT',
+    1,
+    'ACTIVE',
+    1000,
+    10,
+    TRUE,
+    'SYSTEM',
+    CURRENT TIMESTAMP
+);
+
+-- ACTIVE_LOG 차트용 템플릿
+INSERT INTO SQL_TEMPLATE (
+    TEMPLATE_ID, 
+    TEMPLATE_NAME, 
+    TEMPLATE_DESC, 
+    SQL_CONTENT, 
+    ACCESSIBLE_CONNECTION_IDS,
+    CHART_MAPPING,
+    VERSION,
+    STATUS,
+    EXECUTION_LIMIT,
+    REFRESH_TIMEOUT,
+    NEWLINE,
+    CREATED_BY,
+    CREATED_TIMESTAMP
+) VALUES (
+    'ACTIVE_LOG_CHART',
+    'ACTIVE_LOG 차트',
+    '활성 로그 모니터링 차트용 SQL',
+    'SELECT 
+        CASE 
+            WHEN ACTIVE_LOG_COUNT < 100 THEN ''정상''
+            WHEN ACTIVE_LOG_COUNT < 500 THEN ''주의''
+            ELSE ''위험''
+        END AS STATUS,
+        COUNT(*) AS COUNT
+     FROM (
+         SELECT COUNT(*) AS ACTIVE_LOG_COUNT
+         FROM SYSIBMADM.SNAPLOG 
+         WHERE LOG_STATUS = ''ACTIVE''
+     ) T
+     GROUP BY 
+        CASE 
+            WHEN ACTIVE_LOG_COUNT < 100 THEN ''정상''
+            WHEN ACTIVE_LOG_COUNT < 500 THEN ''주의''
+            ELSE ''위험''
+        END',
+    'test_db',
+    'ACTIVE_LOG',
+    1,
+    'ACTIVE',
+    1000,
+    10,
+    TRUE,
+    'SYSTEM',
+    CURRENT TIMESTAMP
+);
+
+-- FILESYSTEM 차트용 템플릿
+INSERT INTO SQL_TEMPLATE (
+    TEMPLATE_ID, 
+    TEMPLATE_NAME, 
+    TEMPLATE_DESC, 
+    SQL_CONTENT, 
+    ACCESSIBLE_CONNECTION_IDS,
+    CHART_MAPPING,
+    VERSION,
+    STATUS,
+    EXECUTION_LIMIT,
+    REFRESH_TIMEOUT,
+    NEWLINE,
+    CREATED_BY,
+    CREATED_TIMESTAMP
+) VALUES (
+    'FILESYSTEM_CHART',
+    'FILESYSTEM 차트',
+    '파일시스템 사용량 모니터링 차트용 SQL',
+    'SELECT 
+        CASE 
+            WHEN USAGE_PERCENT < 70 THEN ''정상''
+            WHEN USAGE_PERCENT < 90 THEN ''주의''
+            ELSE ''위험''
+        END AS STATUS,
+        COUNT(*) AS COUNT
+     FROM (
+         SELECT 
+             (USED_SPACE * 100.0 / TOTAL_SPACE) AS USAGE_PERCENT
+         FROM SYSIBMADM.SNAPFILESYSTEM
+     ) T
+     GROUP BY 
+        CASE 
+            WHEN USAGE_PERCENT < 70 THEN ''정상''
+            WHEN USAGE_PERCENT < 90 THEN ''주의''
+            ELSE ''위험''
+        END',
+    'test_db',
+    'FILESYSTEM',
+    1,
+    'ACTIVE',
+    1000,
+    10,
+    TRUE,
+    'SYSTEM',
+    CURRENT TIMESTAMP
+);
+
+-- =====================================================
+-- 9. 차트 매핑용 템플릿을 DASHBOARD 카테고리에 매핑
+-- =====================================================
+
+-- APPL_COUNT 차트 템플릿을 DASHBOARD 카테고리에 매핑
+INSERT INTO SQL_TEMPLATE_CATEGORY_MAPPING (TEMPLATE_ID, CATEGORY_ID, MAPPING_ORDER, CREATED_BY) VALUES
+('APPL_COUNT_CHART', 'DASHBOARD', 1, 'SYSTEM');
+
+-- LOCK_WAIT_COUNT 차트 템플릿을 DASHBOARD 카테고리에 매핑
+INSERT INTO SQL_TEMPLATE_CATEGORY_MAPPING (TEMPLATE_ID, CATEGORY_ID, MAPPING_ORDER, CREATED_BY) VALUES
+('LOCK_WAIT_COUNT_CHART', 'DASHBOARD', 2, 'SYSTEM');
+
+-- ACTIVE_LOG 차트 템플릿을 DASHBOARD 카테고리에 매핑
+INSERT INTO SQL_TEMPLATE_CATEGORY_MAPPING (TEMPLATE_ID, CATEGORY_ID, MAPPING_ORDER, CREATED_BY) VALUES
+('ACTIVE_LOG_CHART', 'DASHBOARD', 3, 'SYSTEM');
+
+-- FILESYSTEM 차트 템플릿을 DASHBOARD 카테고리에 매핑
+INSERT INTO SQL_TEMPLATE_CATEGORY_MAPPING (TEMPLATE_ID, CATEGORY_ID, MAPPING_ORDER, CREATED_BY) VALUES
+('FILESYSTEM_CHART', 'DASHBOARD', 4, 'SYSTEM');
+
+-- =====================================================
+-- 10. 기본 그룹 생성
 -- =====================================================
 
 INSERT INTO USER_GROUPS (GROUP_ID, GROUP_NAME, GROUP_DESCRIPTION, STATUS, CREATED_BY, CREATED_TIMESTAMP)
@@ -391,7 +610,7 @@ VALUES
 ('VIEWER_GROUP', '조회 전용 그룹', '조회만 가능한 사용자 그룹', 'ACTIVE', 'SYSTEM', CURRENT TIMESTAMP);
 
 -- =====================================================
--- 9. 관리자 계정 생성
+-- 11. 관리자 계정 생성
 -- =====================================================
 
 -- 관리자 사용자 생성 (암호화된 비밀번호: 1234)
@@ -404,7 +623,7 @@ INSERT INTO USER_GROUP_MAPPING (USER_ID, GROUP_ID, ASSIGNED_BY, ASSIGNED_TIMESTA
 VALUES ('admin', 'ADMIN_GROUP', 'SYSTEM', CURRENT TIMESTAMP);
 
 -- =====================================================
--- 10. 관리자 권한 설정 (와일드카드 권한)
+-- 12. 관리자 권한 설정 (와일드카드 권한)
 -- =====================================================
 
 -- 관리자 그룹에 모든 카테고리 권한 부여
@@ -418,7 +637,7 @@ SELECT 'ADMIN_GROUP', CONNECTION_ID, 'SYSTEM', CURRENT TIMESTAMP
 FROM DATABASE_CONNECTION;
 
 -- =====================================================
--- 11. 테스트 사용자 생성 (선택사항)
+-- 13. 테스트 사용자 생성 (선택사항)
 -- =====================================================
 
 -- 테스트 사용자 생성 (비밀번호: test123)
@@ -431,7 +650,7 @@ INSERT INTO USER_GROUP_MAPPING (USER_ID, GROUP_ID, ASSIGNED_BY, ASSIGNED_TIMESTA
 VALUES ('testuser', 'USER_GROUP', 'SYSTEM', CURRENT TIMESTAMP);
 
 -- =====================================================
--- 12. 초기 시스템 설정 데이터 삽입
+-- 14. 초기 시스템 설정 데이터 삽입
 -- =====================================================
 
 INSERT INTO SYSTEM_SETTING (SETTING_KEY, SETTING_VALUE, SETTING_TYPE, DESCRIPTION, CATEGORY, IS_SYSTEM, IS_REQUIRED) VALUES
@@ -445,7 +664,7 @@ INSERT INTO SYSTEM_SETTING (SETTING_KEY, SETTING_VALUE, SETTING_TYPE, DESCRIPTIO
 ('CHART_REFRESH_INTERVAL', '10', 'NUMBER', '차트 새로고침 간격 (초)', 'UI', TRUE, TRUE);
 
 -- =====================================================
--- 13. 테스트 데이터 삽입 (선택사항)
+-- 15. 테스트 데이터 삽입 (선택사항)
 -- =====================================================
 
 -- 테스트용 데이터베이스 연결 (먼저 삽입)
@@ -458,13 +677,13 @@ INSERT INTO DATABASE_CONNECTION (CONNECTION_ID,DB_TYPE,HOST_IP,PORT,DATABASE_NAM
 INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, CREATED_BY) VALUES
 ('test_sql', '테스트 SQL', 'SELECT 1 FROM SYSIBM.SYSDUMMY1', 'test_db', 'SYSTEM');
 
--- 테스트용 SQL 내용 (특정 DB 연결용 - 선택)
-INSERT INTO SQL_CONTENT (CONTENT_ID, TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, VERSION, CREATED_BY) VALUES
-('CONTENT_test_sql_test_db', 'test_sql', 'test_db', 'SELECT 1 FROM SYSIBM.SYSDUMMY1', 1, 'SYSTEM');
+-- 테스트용 SQL 내용 (특정 DB 타입용 - 선택)
+INSERT INTO SQL_CONTENT (CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, VERSION, CREATED_BY) VALUES
+('CONTENT_test_sql_db2', 'test_sql', 'DB2', 'SELECT 1 FROM SYSIBM.SYSDUMMY1', 1, 'SYSTEM');
 
--- 테스트용 SQL 내용 (여러 DB 연결용 - 선택)
-INSERT INTO SQL_CONTENT (CONTENT_ID, TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, VERSION, CREATED_BY) VALUES
-('CONTENT_test_sql_multi', 'test_sql', 'test_db,oracle_db,mysql_db', 'SELECT 1 FROM DUAL', 1, 'SYSTEM');
+-- 테스트용 SQL 내용 (다른 DB 타입용 - 선택)
+INSERT INTO SQL_CONTENT (CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, VERSION, CREATED_BY) VALUES
+('CONTENT_test_sql_oracle', 'test_sql', 'ORACLE', 'SELECT 1 FROM DUAL', 1, 'SYSTEM');
 
 -- 테스트용 SQL 템플릿-카테고리 매핑
 INSERT INTO SQL_TEMPLATE_CATEGORY_MAPPING (TEMPLATE_ID, CATEGORY_ID, MAPPING_ORDER, CREATED_BY) VALUES
@@ -482,7 +701,145 @@ INSERT INTO SQL_TEMPLATE_SHORTCUT (SOURCE_TEMPLATE_ID, TARGET_TEMPLATE_ID, SHORT
 
 
 -- =====================================================
--- 14. 실제 데이터에 대한 권한 설정 (와일드카드 권한과 별도)
+-- 16. PostgreSQL용 차트 SQL 데이터
+-- =====================================================
+
+-- PostgreSQL용 APPL_COUNT 차트 SQL
+INSERT INTO SQL_CONTENT (
+    CONTENT_ID,
+    TEMPLATE_ID,
+    DB_TYPE,
+    SQL_CONTENT,
+    CREATED_BY,
+    CREATED_TIMESTAMP
+) VALUES (
+    'APPL_COUNT_POSTGRESQL',
+    'APPL_COUNT_CHART',
+    'POSTGRESQL',
+    'SELECT 
+        CASE 
+            WHEN active_connections < 50 THEN ''정상''
+            WHEN active_connections < 100 THEN ''주의''
+            ELSE ''위험''
+        END AS STATUS,
+        COUNT(*) AS COUNT
+     FROM (
+         SELECT count(*) as active_connections
+         FROM pg_stat_activity 
+         WHERE state = ''active''
+     ) T
+     GROUP BY 
+        CASE 
+            WHEN active_connections < 50 THEN ''정상''
+            WHEN active_connections < 100 THEN ''주의''
+            ELSE ''위험''
+        END',
+    'SYSTEM',
+    CURRENT TIMESTAMP
+);
+
+-- PostgreSQL용 LOCK_WAIT_COUNT 차트 SQL
+INSERT INTO SQL_CONTENT (
+    CONTENT_ID,
+    TEMPLATE_ID,
+    DB_TYPE,
+    SQL_CONTENT,
+    CREATED_BY,
+    CREATED_TIMESTAMP
+) VALUES (
+    'LOCK_WAIT_COUNT_POSTGRESQL',
+    'LOCK_WAIT_COUNT_CHART',
+    'POSTGRESQL',
+    'SELECT 
+        CASE 
+            WHEN lock_count = 0 THEN ''정상''
+            WHEN lock_count < 10 THEN ''주의''
+            ELSE ''위험''
+        END AS STATUS,
+        COUNT(*) AS COUNT
+     FROM (
+         SELECT count(*) as lock_count
+         FROM pg_locks 
+         WHERE NOT granted
+     ) T
+     GROUP BY 
+        CASE 
+            WHEN lock_count = 0 THEN ''정상''
+            WHEN lock_count < 10 THEN ''주의''
+            ELSE ''위험''
+        END',
+    'SYSTEM',
+    CURRENT TIMESTAMP
+);
+
+-- PostgreSQL용 ACTIVE_LOG 차트 SQL
+INSERT INTO SQL_CONTENT (
+    CONTENT_ID,
+    TEMPLATE_ID,
+    DB_TYPE,
+    SQL_CONTENT,
+    CREATED_BY,
+    CREATED_TIMESTAMP
+) VALUES (
+    'ACTIVE_LOG_POSTGRESQL',
+    'ACTIVE_LOG_CHART',
+    'POSTGRESQL',
+    'SELECT 
+        CASE 
+            WHEN log_count < 100 THEN ''정상''
+            WHEN log_count < 500 THEN ''주의''
+            ELSE ''위험''
+        END AS STATUS,
+        COUNT(*) AS COUNT
+     FROM (
+         SELECT count(*) as log_count
+         FROM pg_stat_activity 
+         WHERE state = ''active''
+     ) T
+     GROUP BY 
+        CASE 
+            WHEN log_count < 100 THEN ''정상''
+            WHEN log_count < 500 THEN ''주의''
+            ELSE ''위험''
+        END',
+    'SYSTEM',
+    CURRENT TIMESTAMP
+);
+
+-- PostgreSQL용 FILESYSTEM 차트 SQL
+INSERT INTO SQL_CONTENT (
+    CONTENT_ID,
+    TEMPLATE_ID,
+    DB_TYPE,
+    SQL_CONTENT,
+    CREATED_BY,
+    CREATED_TIMESTAMP
+) VALUES (
+    'FILESYSTEM_POSTGRESQL',
+    'FILESYSTEM_CHART',
+    'POSTGRESQL',
+    'SELECT 
+        CASE 
+            WHEN usage_percent < 70 THEN ''정상''
+            WHEN usage_percent < 90 THEN ''주의''
+            ELSE ''위험''
+        END AS STATUS,
+        COUNT(*) AS COUNT
+     FROM (
+         SELECT 50 as usage_percent  -- 임시 값, 실제로는 디스크 사용률을 조회해야 함
+     ) T
+     GROUP BY 
+        CASE 
+            WHEN usage_percent < 70 THEN ''정상''
+            WHEN usage_percent < 90 THEN ''주의''
+            ELSE ''위험''
+        END',
+    'SYSTEM',
+    CURRENT TIMESTAMP
+);
+
+-- =====================================================
+-- 17. 실제 데이터에 대한 권한 설정 (와일드카드 권한과 별도)
 -- =====================================================
 
 -- 관리자 그룹에 모든 카테고리 권한 부여 (중복 방지)

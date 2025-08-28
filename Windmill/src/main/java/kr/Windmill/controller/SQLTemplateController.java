@@ -99,6 +99,8 @@ public class SQLTemplateController {
             mv.addObject("limit", templateInfo.get("executionLimit"));
             mv.addObject("refreshtimeout", templateInfo.get("refreshTimeout"));
             mv.addObject("newline", templateInfo.get("newline"));
+            mv.addObject("Connection", session.getAttribute("connectionId"));
+            mv.addObject("Excute", request.getParameter("excute") == null ? false : request.getParameter("excute"));
             
             // DownloadEnable 설정 (IP 기반)
             String clientIp = request.getRemoteAddr();
@@ -109,6 +111,7 @@ public class SQLTemplateController {
             Map<String, Object> paramResult = sqlTemplateService.getTemplateParameters(templateId);
             if (paramResult.get("success").equals(true)) {
                 mv.addObject("parameters", paramResult.get("data"));
+                mv.addObject("sendvalue", request.getParameter("sendvalue"));
             }
             
             // 단축키 정보 조회
@@ -249,8 +252,14 @@ public class SQLTemplateController {
                 audit = Boolean.parseBoolean(auditStr);
             }
             
+            // chartMapping 파라미터 처리
+            String chartMapping = request.getParameter("chartMapping");
+            
+            // additionalSqlContents 파라미터 처리
+            String additionalSqlContents = request.getParameter("additionalSqlContents");
+            
             return sqlTemplateService.saveSqlTemplate(sqlId, sqlName, sqlDesc, sqlVersion, sqlStatus, 
-                                                     executionLimit, refreshTimeout, newline, audit, categoryIds, accessibleConnectionIds, sqlContent, configContent, parameters, shortcuts, userId);
+                                                     executionLimit, refreshTimeout, newline, audit, categoryIds, accessibleConnectionIds, chartMapping, sqlContent, configContent, parameters, shortcuts, additionalSqlContents, userId);
             
         } catch (Exception e) {
             logger.error("SQL 템플릿 저장 실패", e);
@@ -671,10 +680,10 @@ public class SQLTemplateController {
         try {
             String contentId = request.getParameter("contentId");
             String templateId = request.getParameter("templateId");
-            String connectionId = request.getParameter("connectionId");
+            String dbType = request.getParameter("dbType");
             String sqlContent = request.getParameter("sqlContent");
             
-            return sqlContentService.saveSqlContent(contentId, templateId, connectionId, sqlContent, userId);
+            return sqlContentService.saveSqlContent(contentId, templateId, dbType, sqlContent, userId);
             
         } catch (Exception e) {
             logger.error("SQL 내용 저장 실패", e);
@@ -711,9 +720,9 @@ public class SQLTemplateController {
         
         try {
             String sourceContentId = request.getParameter("sourceContentId");
-            String targetConnectionId = request.getParameter("targetConnectionId");
+            String targetDbType = request.getParameter("targetDbType");
             
-            return sqlContentService.copySqlContent(sourceContentId, targetConnectionId, userId);
+            return sqlContentService.copySqlContent(sourceContentId, targetDbType, userId);
             
         } catch (Exception e) {
             logger.error("SQL 내용 복사 실패", e);
@@ -793,6 +802,99 @@ public class SQLTemplateController {
             logger.error("SQL 템플릿 실행 중 오류 발생: {}", e.getMessage(), e);
             result.put("success", false);
             result.put("error", "SQL 실행 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return result;
+    }
+
+    /**
+     * 차트 매핑 중복 체크
+     */
+    @ResponseBody
+    @RequestMapping(path = "/SQLTemplate/chart-mapping/check", method = RequestMethod.POST)
+    public Map<String, Object> checkChartMappingDuplicate(HttpServletRequest request, HttpSession session) {
+        String userId = (String) session.getAttribute("memberId");
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            String chartId = request.getParameter("chartId");
+            String excludeTemplateId = request.getParameter("excludeTemplateId");
+            
+            if (chartId == null || chartId.trim().isEmpty()) {
+                result.put("success", false);
+                result.put("error", "차트 ID가 필요합니다.");
+                return result;
+            }
+            
+            // 해당 차트에 매핑된 다른 템플릿이 있는지 확인
+            String sql = "SELECT TEMPLATE_ID, TEMPLATE_NAME FROM SQL_TEMPLATE WHERE CHART_MAPPING = ?";
+            List<Map<String, Object>> existingMappings = jdbcTemplate.queryForList(sql, chartId);
+            
+            // excludeTemplateId를 제외한 다른 템플릿이 있는지 확인
+            Map<String, Object> conflictingTemplate = null;
+            for (Map<String, Object> mapping : existingMappings) {
+                String templateId = (String) mapping.get("TEMPLATE_ID");
+                if (!templateId.equals(excludeTemplateId)) {
+                    conflictingTemplate = mapping;
+                    break;
+                }
+            }
+            
+            result.put("success", true);
+            result.put("exists", conflictingTemplate != null);
+            if (conflictingTemplate != null) {
+                result.put("existingTemplate", conflictingTemplate);
+            }
+            
+        } catch (Exception e) {
+            logger.error("차트 매핑 중복 체크 실패", e);
+            result.put("success", false);
+            result.put("error", "차트 매핑 중복 체크 실패: " + e.getMessage());
+        }
+        
+        return result;
+    }
+
+    /**
+     * 차트 매핑 업데이트
+     */
+    @ResponseBody
+    @RequestMapping(path = "/SQLTemplate/chart-mapping/update", method = RequestMethod.POST)
+    public Map<String, Object> updateChartMapping(HttpServletRequest request, HttpSession session) {
+        String userId = (String) session.getAttribute("memberId");
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            String chartId = request.getParameter("chartId");
+            String templateId = request.getParameter("templateId");
+            
+            if (chartId == null || chartId.trim().isEmpty()) {
+                result.put("success", false);
+                result.put("error", "차트 ID가 필요합니다.");
+                return result;
+            }
+            
+            if (templateId == null || templateId.trim().isEmpty()) {
+                result.put("success", false);
+                result.put("error", "템플릿 ID가 필요합니다.");
+                return result;
+            }
+            
+            // 기존 매핑 해제
+            String clearSql = "UPDATE SQL_TEMPLATE SET CHART_MAPPING = NULL WHERE CHART_MAPPING = ?";
+            jdbcTemplate.update(clearSql, chartId);
+            
+            // 새 매핑 설정
+            String updateSql = "UPDATE SQL_TEMPLATE SET CHART_MAPPING = ? WHERE TEMPLATE_ID = ?";
+            jdbcTemplate.update(updateSql, chartId, templateId);
+            
+            result.put("success", true);
+            result.put("message", "차트 매핑이 업데이트되었습니다.");
+            
+        } catch (Exception e) {
+            logger.error("차트 매핑 업데이트 실패", e);
+            result.put("success", false);
+            result.put("error", "차트 매핑 업데이트 실패: " + e.getMessage());
         }
         
         return result;

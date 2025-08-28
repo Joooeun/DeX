@@ -15,7 +15,10 @@
             startConnectionMonitoring();
             startDexStatusMonitoring();
             initializeCharts();
-            startChartMonitoring();
+            // 차트 초기화 완료 후 차트 모니터링 시작
+            setTimeout(function() {
+                startChartMonitoring();
+            }, 100);
         });
 
         // 페이지 언로드 시 연결 모니터링 중지
@@ -60,8 +63,18 @@
                     // 연결 상태 확인 완료 후 다음 타이머 설정
                     scheduleNextRefresh();
                 },
-                error: function() {
-                    console.error('연결 상태 조회 실패');
+                error: function(xhr, status, error) {
+                    console.error('연결 상태 조회 실패:', error);
+                    
+                    // 연결 상태 컨테이너에 오류 메시지 표시
+                    var container = $('#connectionStatusContainer');
+                    container.html('<div class="col-md-12"><div class="alert alert-danger" role="alert">' +
+                        '<i class="fa fa-exclamation-circle"></i> ' +
+                        '연결 상태 조회 중 오류가 발생했습니다: ' + error + '<br>' +
+                        '<button type="button" class="btn btn-sm btn-danger" onclick="refreshConnectionStatus()" style="margin-top: 10px;">' +
+                        '<i class="fa fa-refresh"></i> 다시 시도</button>' +
+                        '</div></div>');
+                    
                     // 에러 발생 시에도 다음 타이머 설정
                     scheduleNextRefresh();
                 }
@@ -71,6 +84,18 @@
         // 연결 상태 표시 업데이트 함수
         function updateConnectionStatusDisplay(connections) {
             var container = $('#connectionStatusContainer');
+            
+            // 연결이 없는 경우 처리
+            if (!connections || connections.length === 0) {
+                container.html('<div class="col-md-12"><div class="alert alert-warning" role="alert">' +
+                    '<i class="fa fa-exclamation-triangle"></i> ' +
+                    '연결된 데이터베이스가 없습니다. <a href="/Connection" class="alert-link">연결 관리</a>에서 데이터베이스 연결을 추가하세요.' +
+                    '</div></div>');
+                
+                // 연결이 없으면 차트 업데이트 중지
+                stopChartMonitoring();
+                return;
+            }
             
             // 초기 로드인지 확인 (컨테이너가 비어있으면 초기 로드)
             var isInitialLoad = container.children().length === 0;
@@ -196,10 +221,10 @@
             // 선택된 커넥션 ID 저장
             selectedConnectionId = connectionId;
             
-            // 차트 업데이트
-            updateCharts();
-            
             console.log('선택된 커넥션:', connectionId);
+            
+            // 차트 업데이트 실행
+            updateCharts();
         }
         
         // 단일 연결 상태 수동 새로고침
@@ -549,8 +574,11 @@
             }
             
             if (chart) {
+                // value가 숫자가 아닐 경우 숫자로 변환
+                const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+                
                 // 차트 데이터 업데이트 (새로운 구조에 맞게)
-                chart.data.datasets[0].data = [value, 100 - value];
+                chart.data.datasets[0].data = [numericValue, 100 - numericValue];
                 
                 // 부드러운 애니메이션으로 업데이트
                 chart.update('active');
@@ -566,11 +594,13 @@
             if (status.statusName === 'dex_process') {
                 if (status.cpuUsage !== undefined) {
                     updateDoughnutChart('cpu-doughnut', status.cpuUsage);
-                    $('#cpu-value').text(status.cpuUsage.toFixed(1) + '%');
+                    const cpuValue = typeof status.cpuUsage === 'number' ? status.cpuUsage : parseFloat(status.cpuUsage) || 0;
+                    $('#cpu-value').text(cpuValue.toFixed(1) + '%');
                 }
                 if (status.memoryUsage !== undefined) {
                     updateDoughnutChart('memory-doughnut', status.memoryUsage);
-                    $('#memory-value').text(status.memoryUsage.toFixed(1) + '%');
+                    const memoryValue = typeof status.memoryUsage === 'number' ? status.memoryUsage : parseFloat(status.memoryUsage) || 0;
+                    $('#memory-value').text(memoryValue.toFixed(1) + '%');
                 }
             }
         }
@@ -588,7 +618,8 @@
             const MAX = 100;
             
             function index(perc) {
-            	  return perc < 70 ? 0 : perc < 90 ? 1 : 2;
+            	  const numericPerc = typeof perc === 'number' ? perc : parseFloat(perc) || 0;
+            	  return numericPerc < 70 ? 0 : numericPerc < 90 ? 1 : 2;
             	}
             // APPL_COUNT 차트 (도넛 그래프)
             var applCountCtx = document.getElementById('applCountChart').getContext('2d');
@@ -642,6 +673,11 @@
                     layout: {
                         padding: 30
                     },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            handleChartElementClick('APPL_COUNT', elements[0]);
+                        }
+                    }
                 }
             });
 
@@ -679,6 +715,11 @@
                     layout: {
                         padding: 15
                     },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            handleChartElementClick('LOCK_WAIT_COUNT', elements[0]);
+                        }
+                    }
                 }
             });
 
@@ -733,6 +774,11 @@
                                     }
                                 }
                             }
+                        }
+                    },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            handleChartElementClick('ACTIVE_LOG', elements[0]);
                         }
                     }
                 }
@@ -789,6 +835,11 @@
                         legend: {
                             display: false
                         }
+                    },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            handleChartElementClick('FILESYSTEM', elements[0]);
+                        }
                     }
                 }
             });
@@ -807,7 +858,8 @@
                             if (ctx.index === 1) {
                                 return 'rgb(234, 234, 234)';
                             }
-                            return COLORS[index(ctx.raw)];
+                            const numericValue = typeof ctx.raw === 'number' ? ctx.raw : parseFloat(ctx.raw) || 0;
+                            return COLORS[index(numericValue)];
                         }
                     }]
                 },
@@ -828,8 +880,9 @@
                                     type: 'doughnutLabel',
                                     content: ({chart}) => {
                                         const value = chart.data.datasets[0].data[0] || 0;
+                                        const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
                                         return [
-                                            value.toFixed(1) + '%',
+                                            numericValue.toFixed(1) + '%',
                                             'CPU 사용률'
                                         ];
                                     },
@@ -840,7 +893,8 @@
                                     font: [{size: 24, weight: 'bold'}, {size: 12}],
                                     color: ({chart}) => {
                                         const value = chart.data.datasets[0].data[0] || 0;
-                                        return [COLORS[index(value)], 'grey'];
+                                        const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+                                        return [COLORS[index(numericValue)], 'grey'];
                                     }
                                 }
                             }
@@ -863,7 +917,8 @@
                             if (ctx.index === 1) {
                                 return 'rgb(234, 234, 234)';
                             }
-                            return COLORS[index(ctx.raw)];
+                            const numericValue = typeof ctx.raw === 'number' ? ctx.raw : parseFloat(ctx.raw) || 0;
+                            return COLORS[index(numericValue)];
                         }
                     }]
                 },
@@ -884,8 +939,9 @@
                                     type: 'doughnutLabel',
                                     content: ({chart}) => {
                                         const value = chart.data.datasets[0].data[0] || 0;
+                                        const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
                                         return [
-                                            value.toFixed(1) + '%',
+                                            numericValue.toFixed(1) + '%',
                                             '메모리 사용률'
                                         ];
                                     },
@@ -896,7 +952,8 @@
                                     font: [{size: 24, weight: 'bold'}, {size: 12}],
                                     color: ({chart}) => {
                                         const value = chart.data.datasets[0].data[0] || 0;
-                                        return [COLORS[index(value)], 'grey'];
+                                        const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+                                        return [COLORS[index(numericValue)], 'grey'];
                                     }
                                 }
                             }
@@ -906,12 +963,201 @@
             });
         }
 
+        // 차트 요소 클릭 처리 함수
+        function handleChartElementClick(chartType, element) {
+            console.log('차트 요소 클릭:', chartType, element);
+            
+            // 저장된 템플릿 ID 사용
+            var templateId = chartTemplateIds[chartType];
+            if (!templateId) {
+                console.error('템플릿 ID를 찾을 수 없습니다:', chartType);
+                alert('차트 정보를 찾을 수 없습니다. 페이지를 새로고침해주세요.');
+                return;
+            }
+            
+            // 차트 데이터를 파라미터로 변환 (저장된 원본 데이터 사용)
+            var parameters = convertChartDataToParameters(chartType, element);
+            
+            // 단축키 정보 조회
+            $.ajax({
+                type: 'POST',
+                url: '/SQLTemplate/shortcuts',
+                data: {
+                    templateId: templateId
+                },
+                success: function(result) {
+                    console.log('단축키 결과:', result);
+                    if (result.success && result.data && result.data.length > 0) {
+                        // 활성화된 첫 번째 단축키 찾기
+                        var firstActiveShortcut = null;
+                        for (var i = 0; i < result.data.length; i++) {
+                            var shortcut = result.data[i];
+                            if (shortcut.IS_ACTIVE === true) {
+                                firstActiveShortcut = shortcut;
+                                break;
+                            }
+                        }
+                        
+                        if (firstActiveShortcut) {
+                            console.log('첫 번째 단축키 정보:', firstActiveShortcut, parameters);
+                            
+                            // 단축키 실행 - 소스 컬럼 인덱스에 따라 파라미터 생성
+                            var sourceColumns = firstActiveShortcut.SOURCE_COLUMN_INDEXES;
+                            var parameterString = '';
+                            
+                            if (sourceColumns && sourceColumns.trim() !== '') {
+                                var columnIndexes = sourceColumns.split(',').map(function(index) {
+                                    return parseInt(index.trim()) - 1; // 0-based index로 변환
+                                });
+                                
+                                var paramValues = [];
+                                columnIndexes.forEach(function(index) {
+                                    if (parameters && Object.keys(parameters).length > 0) {
+                                        var paramKeys = Object.keys(parameters);
+                                        if (paramKeys[index] !== undefined) {
+                                            paramValues.push(parameters[paramKeys[index]]);
+                                        }
+                                    }
+                                });
+                                
+                                parameterString = paramValues.join(',');
+                            }
+                            
+                            sendSql(firstActiveShortcut.TARGET_TEMPLATE_ID+"&"+parameterString+"&true");
+                            
+                        } else {
+                            console.log('활성화된 단축키가 없습니다.');
+                            alert('이 차트에 설정된 단축키가 없습니다.');
+                        }
+                    } else {
+                        console.log('단축키가 없습니다.');
+                        alert('이 차트에 설정된 단축키가 없습니다.');
+                    }
+                },
+                error: function() {
+                    console.error('단축키 정보 조회 실패');
+                    alert('단축키 정보 조회에 실패했습니다.');
+                }
+            });
+        }
+        
+        // 차트 데이터를 파라미터로 변환하는 함수
+        function convertChartDataToParameters(chartType, element) {
+            var parameters = {};
+            
+            // element가 유효한지 확인
+            if (!element) {
+                console.warn('차트 요소가 유효하지 않습니다:', element);
+                parameters.status = '정상';
+                parameters.count = 0;
+                return parameters;
+            }
+            
+            // 차트에서 저장된 원본 데이터 가져오기
+            var chartConfig = getChartConfig(chartType);
+            if (!chartConfig || !chartConfig.chart || !chartConfig.chart.data || !chartConfig.chart.data.datasets || !chartConfig.chart.data.datasets[0]) {
+                console.warn('차트 설정을 찾을 수 없습니다:', chartType);
+                parameters.status = '정상';
+                parameters.count = 0;
+                return parameters;
+            }
+            
+            var dataset = chartConfig.chart.data.datasets[0];
+            var dataIndex = element.index;
+            
+            // 저장된 원본 데이터 확인
+            if (dataset._dataRows && dataset._dataRows[dataIndex]) {
+                var originalData = dataset._dataRows[dataIndex];
+                console.log('원본 데이터:', originalData);
+                
+                // 원본 데이터를 파라미터로 변환
+                if (Array.isArray(originalData) && originalData.length >= 2) {
+                    parameters.status = originalData[0] || '정상';  // 첫 번째 컬럼 (상태)
+                    parameters.count = originalData[1] || 0;        // 두 번째 컬럼 (개수)
+                } else {
+                    parameters.status = '정상';
+                    parameters.count = 0;
+                }
+            } else {
+                console.warn('저장된 원본 데이터를 찾을 수 없습니다:', dataIndex);
+                parameters.status = '정상';
+                parameters.count = 0;
+            }
+            
+            return parameters;
+        }
+        
+        function executeShortcut(shortcut, parameters) {
+            // 부모 창의 탭 시스템 사용
+            var parentWindow = window.parent || window;
+            
+            var target = $(parentWindow.document).find('#pageTabContent>div:last>iframe').attr('id');
+            
+            for (var i = 0; i < $(parentWindow.document).find('#pageTab a').length; i++) {
+                if (shortcut.TARGET_TEMPLATE_ID == $(parentWindow.document).find('#pageTab a:eq(' + i + ')').text().replace(/x$/, '')) {
+                    target = $(parentWindow.document).find('#pageTabContent>div:eq(' + i + ')>iframe').attr('id');
+                    break;
+                }
+            }
+            
+            // 동적 링크 생성 방식으로 변경 (templateId 사용)
+            var autoExecute = shortcut.AUTO_EXECUTE ? 'true' : 'false';
+            
+            // 파라미터를 URL 파라미터로 변환
+            var urlParams = new URLSearchParams();
+            urlParams.append('templateId', shortcut.TARGET_TEMPLATE_ID);
+            urlParams.append('excute', autoExecute);
+            
+            // 파라미터 추가
+            if (parameters) {
+                Object.keys(parameters).forEach(function(key) {
+                    urlParams.append(key, parameters[key]);
+                });
+            }
+            
+            var url = '/SQL?' + urlParams.toString();
+            
+            alert(url)
+            
+            // 동적 링크 생성 및 클릭
+            var link = document.createElement('a');
+            link.href = url;
+            link.target = target;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         // 차트 데이터 해시 저장 변수
         var chartHashes = {
             'APPL_COUNT': null,
             'LOCK_WAIT_COUNT': null,
             'ACTIVE_LOG': null,
-            'FILE_SYSTEM': null
+            'FILESYSTEM': null
+        };
+        
+        // 차트 템플릿 ID 저장 변수
+        var chartTemplateIds = {
+            'APPL_COUNT': null,
+            'LOCK_WAIT_COUNT': null,
+            'ACTIVE_LOG': null,
+            'FILESYSTEM': null
+        };
+
+        // 차트 오류 상태 관리 변수
+        var chartErrorStates = {
+            'APPL_COUNT': false,
+            'LOCK_WAIT_COUNT': false,
+            'ACTIVE_LOG': false,
+            'FILESYSTEM': false
+        };
+
+        // 차트 업데이트 비활성화 상태 관리 변수
+        var chartUpdateDisabled = {
+            'APPL_COUNT': false,
+            'LOCK_WAIT_COUNT': false,
+            'ACTIVE_LOG': false,
+            'FILESYSTEM': false
         };
 
         // 차트 데이터 업데이트 함수 (해시 비교 방식)
@@ -923,13 +1169,20 @@
                 if (firstCard.length > 0) {
                     var firstConnectionId = firstCard.closest('[id^="card-"]').attr('id').replace('card-', '');
                     selectedConnectionId = firstConnectionId;
+                } else {
+                    // 연결된 커넥션이 없는 경우 오류 처리
+                    console.warn('선택된 연결이 없습니다. 차트 업데이트를 중단합니다.');
+                    // 연결이 없으면 차트 업데이트 중지하고 다음 업데이트 스케줄링하지 않음
+                    stopChartMonitoring();
+                    return;
                 }
             }
             
-            // 모든 차트 데이터를 병렬로 요청 (해시 포함)
-            Promise.all([
-                // APPL_COUNT 데이터 조회
-                new Promise(function(resolve, reject) {
+            // 활성화된 차트만 필터링
+            var activeCharts = [];
+            
+            if (!chartUpdateDisabled['APPL_COUNT']) {
+                activeCharts.push(new Promise(function(resolve, reject) {
                     $.ajax({
                         type: 'post',
                         url: '/Dashboard/APPL_COUNT',
@@ -943,12 +1196,14 @@
                         },
                         error: function(xhr, status, error) {
                             console.error('APPL_COUNT 데이터 조회 실패:', error);
-                            resolve({type: 'APPL_COUNT', error: 'APPL_COUNT 조회 실패', result: [] });
+                            resolve({type: 'APPL_COUNT', data: {error: 'APPL_COUNT 조회 실패: ' + error}});
                         }
                     });
-                }),
-                // LOCK_WAIT_COUNT 데이터 조회
-                new Promise(function(resolve, reject) {
+                }));
+            }
+            
+            if (!chartUpdateDisabled['LOCK_WAIT_COUNT']) {
+                activeCharts.push(new Promise(function(resolve, reject) {
                     $.ajax({
                         type: 'post',
                         url: '/Dashboard/LOCK_WAIT_COUNT',
@@ -962,12 +1217,14 @@
                         },
                         error: function(xhr, status, error) {
                             console.error('LOCK_WAIT_COUNT 데이터 조회 실패:', error);
-                            resolve({type: 'LOCK_WAIT_COUNT', error: 'LOCK_WAIT_COUNT 조회 실패', result: [] });
+                            resolve({type: 'LOCK_WAIT_COUNT', data: {error: 'LOCK_WAIT_COUNT 조회 실패: ' + error}});
                         }
                     });
-                }),
-                // ACTIVE_LOG 데이터 조회
-                new Promise(function(resolve, reject) {
+                }));
+            }
+            
+            if (!chartUpdateDisabled['ACTIVE_LOG']) {
+                activeCharts.push(new Promise(function(resolve, reject) {
                     $.ajax({
                         type: 'post',
                         url: '/Dashboard/ACTIVE_LOG',
@@ -981,33 +1238,45 @@
                         },
                         error: function(xhr, status, error) {
                             console.error('ACTIVE_LOG 데이터 조회 실패:', error);
-                            resolve({type: 'ACTIVE_LOG', error: 'ACTIVE_LOG 조회 실패', result: [] });
+                            resolve({type: 'ACTIVE_LOG', data: {error: 'ACTIVE_LOG 조회 실패: ' + error}});
                         }
                     });
-                }),
-                // FILESYSTEM 데이터 조회
-                new Promise(function(resolve, reject) {
+                }));
+            }
+            
+            if (!chartUpdateDisabled['FILESYSTEM']) {
+                activeCharts.push(new Promise(function(resolve, reject) {
                     $.ajax({
                         type: 'post',
-                        url: '/Dashboard/FILE_SYSTEM',
+                        url: '/Dashboard/FILESYSTEM',
                         data: {
-                            lastHash: chartHashes['FILE_SYSTEM'],
+                            lastHash: chartHashes['FILESYSTEM'],
                             connectionId: selectedConnectionId
                         },
                         timeout: 10000,
                         success: function(data) {
-                            resolve({type: 'FILE_SYSTEM', data: data});
+                            resolve({type: 'FILESYSTEM', data: data});
                         },
                         error: function(xhr, status, error) {
                             console.error('FILESYSTEM 데이터 조회 실패:', error);
-                            resolve({type: 'FILE_SYSTEM', error: 'FILESYSTEM 조회 실패', result: [] });
+                            resolve({type: 'FILESYSTEM', data: {error: 'FILESYSTEM 조회 실패: ' + error}});
                         }
                     });
-                }),
-
-            ]).then(function(results) {
+                }));
+            }
+            
+            // 활성화된 차트가 없으면 업데이트 중단
+            if (activeCharts.length === 0) {
+                console.warn('모든 차트가 비활성화되어 업데이트를 중단합니다.');
+                stopChartMonitoring();
+                return;
+            }
+            
+            // 활성화된 차트만 병렬로 요청
+            Promise.all(activeCharts).then(function(results) {
                 // 각 결과를 차트 타입별로 처리
                 results.forEach(function(result) {
+                	
                     var chartType = result.type;
                     var data = result.data;
                     
@@ -1017,26 +1286,55 @@
                         if (data.hash) {
                             chartHashes[chartType] = data.hash;
                         }
+                        // 템플릿 ID 저장
+                        if (data.templateId) {
+                            chartTemplateIds[chartType] = data.templateId;
+                        }
                         return; // 이 차트는 업데이트하지 않음
                     }
                     
                     // 데이터가 변경되었거나 에러인 경우
                     var chartConfig = getChartConfig(chartType);
-                    if (!chartConfig) return;
+                    if (!chartConfig) {
+                        console.error('차트 설정을 찾을 수 없어 업데이트를 건너뜁니다:', chartType);
+                        return;
+                    }
                     
                     try {
                         // 에러가 있는 경우 처리
                         if (data && data.error) {
-                            console.warn('차트 데이터 에러:', data.error);
-                            // 에러 상태를 차트에 표시 (빈 데이터로 설정)
-                            chartConfig.chart.data.labels = ['데이터 없음'];
-                            chartConfig.chart.data.datasets[0].data = [1];
-                            chartConfig.chart.update();
-                            return;
+                            
+                            // 에러 상태 설정
+                            chartErrorStates[chartType] = true;
+                            chartUpdateDisabled[chartType] = true;
+                            
+                            // 에러 타입에 따른 처리
+                            if (data.errorType === 'MONITORING_DISABLED') {
+                                // 모니터링 비활성화 상태 표시
+                                chartConfig.chart.data.labels = ['모니터링 비활성화'];
+                                chartConfig.chart.data.datasets[0].data = [1];
+                                chartConfig.chart.data.datasets[0].backgroundColor = ['#ffc107']; // 노란색
+                                chartConfig.chart.update();
+                                
+                                // 모니터링 비활성화 메시지는 한 번만 표시
+                                if (!window.monitoringDisabledShown) {
+                                    showMonitoringDisabledMessage();
+                                    window.monitoringDisabledShown = true;
+                                }
+                                return;
+                            } else {
+                                // 오류 메시지 표시 및 새로고침 버튼 추가
+                                showChartErrorWithRefresh(chartType, data.error);
+                                return;
+                            }
                         }
                         
                         // 정상 데이터 처리
                         if (data && data.result && Array.isArray(data.result)) {
+                            // 에러 상태 초기화
+                            chartErrorStates[chartType] = false;
+                            chartUpdateDisabled[chartType] = false;
+                            
                             var processedData = chartConfig.processData(data.result);
                             
                             // 데이터 유효성 검사
@@ -1058,6 +1356,23 @@
                                 // 해시 업데이트
                                 if (data.hash) {
                                     chartHashes[chartType] = data.hash;
+                                }
+                                
+                                // 템플릿 ID 저장
+                                if (data.templateId) {
+                                    chartTemplateIds[chartType] = data.templateId;
+                                }
+                                
+                                // 원본 SQL 결과 데이터를 차트 요소에 저장
+                                if (data.result && Array.isArray(data.result)) {
+                                    // 각 차트 요소에 해당하는 SQL 결과 행을 저장
+                                    for (var i = 0; i < chartConfig.chart.data.datasets[0].data.length; i++) {
+                                        if (data.result[i]) {
+                                            // 차트 요소에 원본 데이터 저장
+                                            chartConfig.chart.data.datasets[0]._dataRows = chartConfig.chart.data.datasets[0]._dataRows || [];
+                                            chartConfig.chart.data.datasets[0]._dataRows[i] = data.result[i];
+                                        }
+                                    }
                                 }
                             } else {
                                 console.warn('차트 데이터 형식 오류:', chartType, processedData);
@@ -1094,6 +1409,17 @@
                 // 전체 실패 시에도 다음 업데이트 스케줄링
                 scheduleNextChartUpdate();
             });
+        }
+
+        // 차트 ID를 반환하는 함수
+        function getChartId(chartType) {
+            var chartIds = {
+                'APPL_COUNT': 'applCountChart',
+                'LOCK_WAIT_COUNT': 'lockWaitCountChart',
+                'ACTIVE_LOG': 'activeLogChart',
+                'FILESYSTEM': 'filesystemChart'
+            };
+            return chartIds[chartType] || chartType.toLowerCase().replace(/_/g, '') + 'Chart';
         }
 
         // 차트 설정을 반환하는 함수
@@ -1144,7 +1470,7 @@
                         return { labels: labels, data: data };
                     }
                 },
-                'FILE_SYSTEM': {
+                'FILESYSTEM': {
                     chart: filesystemChart,
                     processData: function(result) {
                         var labels = [];
@@ -1160,7 +1486,19 @@
                 }
             };
             
-            return chartConfigs[chartType];
+            var config = chartConfigs[chartType];
+            if (!config) {
+                console.error('차트 설정을 찾을 수 없습니다:', chartType, '사용 가능한 차트:', Object.keys(chartConfigs));
+                return null;
+            }
+            
+            // 차트 객체가 초기화되었는지 확인
+            if (!config.chart) {
+                console.error('차트 객체가 초기화되지 않았습니다:', chartType);
+                return null;
+            }
+            
+            return config;
         }
 
         // 다음 차트 업데이트 스케줄링
@@ -1168,6 +1506,17 @@
             // 기존 타이머가 있으면 제거
             if (window.chartUpdateTimer) {
                 clearTimeout(window.chartUpdateTimer);
+            }
+            
+            // 에러가 발생한 차트가 있는지 확인
+            var hasErrorCharts = Object.values(chartErrorStates).some(function(hasError) {
+                return hasError;
+            });
+            
+            // 모든 차트가 에러 상태이면 자동 업데이트 중단
+            if (hasErrorCharts) {
+                console.log('차트 에러 발생으로 자동 업데이트 중단됨');
+                return;
             }
             
             // 10초 후에 다시 실행
@@ -1188,6 +1537,102 @@
         function startChartMonitoring() {
             // 초기 데이터 로드
             updateCharts();
+        }
+
+        // 차트 오류 표시 및 새로고침 버튼 추가 함수
+        function showChartErrorWithRefresh(chartType, errorMessage) {
+            
+            // 차트 컨테이너에 오류 메시지와 새로고침 버튼 추가
+            var chartId = getChartId(chartType);
+            var chartContainer = $('#' + chartId).closest('.box-body');
+            
+            if (chartContainer.length > 0) {
+                // 기존 오류 메시지 제거
+                chartContainer.find('.chart-error-message').remove();
+                
+                // 새로운 오류 메시지 추가
+                var errorHtml = '<div class="chart-error-message" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 10;">' +
+                    '<div class="alert alert-danger" style="margin: 0; padding: 10px;">' +
+                    '<button type="button" class="btn btn-sm btn-danger" onclick="refreshSingleChart(\'' + chartType + '\')" style="margin-top: 5px;">' +
+                    '<i class="fa fa-refresh"></i> 다시 시도</button>' +
+                    '</div></div>';
+                
+                chartContainer.css('position', 'relative').append(errorHtml);
+            }
+        }
+
+        // 단일 차트 새로고침 함수
+        function refreshSingleChart(chartType) {
+            // 해당 차트의 오류 상태 초기화
+            chartErrorStates[chartType] = false;
+            chartUpdateDisabled[chartType] = false;
+            
+            // 해시 초기화하여 강제 새로고침
+            chartHashes[chartType] = null;
+            
+            // 오류 메시지 제거
+            var chartId = getChartId(chartType);
+            var chartContainer = $('#' + chartId).closest('.box-body');
+            chartContainer.find('.chart-error-message').remove();
+            
+            // 해당 차트만 업데이트
+            updateSingleChart(chartType);
+        }
+
+        // 단일 차트 업데이트 함수
+        function updateSingleChart(chartType) {
+            if (!selectedConnectionId) {
+                console.warn('선택된 연결이 없습니다.');
+                return;
+            }
+            
+            $.ajax({
+                type: 'post',
+                url: '/Dashboard/' + chartType,
+                data: {
+                    lastHash: chartHashes[chartType],
+                    connectionId: selectedConnectionId
+                },
+                timeout: 10000,
+                success: function(data) {
+                    var chartConfig = getChartConfig(chartType);
+                    if (!chartConfig) return;
+                    
+                    if (data && data.error) {
+                        showChartErrorWithRefresh(chartType, data.error);
+                        return;
+                    }
+                    
+                    if (data && data.result && Array.isArray(data.result)) {
+                        chartErrorStates[chartType] = false;
+                        chartUpdateDisabled[chartType] = false;
+                        
+                        // 에러 메시지 제거
+                        var chartId = getChartId(chartType);
+                        var chartContainer = $('#' + chartId).closest('.box-body');
+                        chartContainer.find('.chart-error-message').remove();
+                        
+                        var processedData = chartConfig.processData(data.result);
+                        if (processedData && processedData.labels && processedData.data) {
+                            chartConfig.chart.data.labels = processedData.labels;
+                            chartConfig.chart.data.datasets[0].data = processedData.data;
+                            
+                            if (processedData.yAxisMax) {
+                                chartConfig.chart.options.scales.y.max = processedData.yAxisMax;
+                            }
+                            
+                            chartConfig.chart.update();
+                            
+                            if (data.hash) {
+                                chartHashes[chartType] = data.hash;
+                            }
+                        }
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showChartErrorWithRefresh(chartType, '데이터 조회 실패: ' + error);
+                }
+            });
         }
     </script>
 <head>
@@ -1327,5 +1772,103 @@
         </div>
     </div>
 
+    <!-- 모니터링 비활성화 알림 모달 -->
+    <div class="modal fade" id="monitoringDisabledModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">
+                        <i class="fa fa-exclamation-triangle text-warning"></i> 모니터링 비활성화
+                    </h4>
+                </div>
+                <div class="modal-body">
+                    <p>현재 모니터링이 활성화된 데이터베이스 연결이 없습니다.</p>
+                    <p>대시보드 차트를 정상적으로 표시하려면 다음 작업을 수행하세요:</p>
+                    <ul>
+                        <li>연결 관리에서 데이터베이스 연결의 모니터링을 활성화하세요.</li>
+                        <li>연결 상태가 '활성'인지 확인하세요.</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+                    <button type="button" class="btn btn-primary" onclick="location.href='/Connection'">연결 관리로 이동</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 차트 오류 알림 모달 -->
+    <div class="modal fade" id="chartErrorModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">
+                        <i class="fa fa-exclamation-circle text-danger"></i> 차트 오류
+                    </h4>
+                </div>
+                <div class="modal-body">
+                    <p id="chartErrorMessage">차트 데이터를 불러오는 중 오류가 발생했습니다.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+                    <button type="button" class="btn btn-primary" onclick="refreshCharts()">다시 시도</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모니터링 비활성화 메시지 표시 함수 -->
+    <script>
+        function showMonitoringDisabledMessage() {
+            // 이미 표시된 경우 중복 표시하지 않음
+            if ($('#monitoringDisabledModal').data('shown')) {
+                return;
+            }
+            
+            $('#monitoringDisabledModal').modal('show');
+            $('#monitoringDisabledModal').data('shown', true);
+            
+            // 30초 후 자동으로 숨김
+            setTimeout(function() {
+                $('#monitoringDisabledModal').modal('hide');
+                $('#monitoringDisabledModal').data('shown', false);
+                window.monitoringDisabledShown = false; // 플래그 초기화
+            }, 30000);
+        }
+        
+        // 차트 오류 메시지 표시 함수
+        function showChartErrorMessage(errorMessage) {
+            $('#chartErrorMessage').text(errorMessage || '차트 데이터를 불러오는 중 오류가 발생했습니다.');
+            $('#chartErrorModal').modal('show');
+        }
+        
+        // 차트 새로고침 함수
+        function refreshCharts() {
+            // 해시 초기화하여 강제 새로고침
+            chartHashes = {
+                'APPL_COUNT': null,
+                'LOCK_WAIT_COUNT': null,
+                'ACTIVE_LOG': null,
+                'FILESYSTEM': null
+            };
+            
+            // 모니터링 비활성화 플래그 초기화
+            window.monitoringDisabledShown = false;
+            
+            // 차트 업데이트 실행
+            updateCharts();
+            
+            // 모달 닫기
+            $('#chartErrorModal').modal('hide');
+        }
+    </script>
+    
+    <!-- ParamForm 추가 (sendSql 방식 지원) -->
+    <form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:void(0);" style="display: none;">
+        <input type="hidden" id="sendvalue" name="sendvalue">
+        <input id="Path" name="Path" value="" type="hidden">
+    </form>
     
 </body>

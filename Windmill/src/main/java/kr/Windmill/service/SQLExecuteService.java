@@ -24,6 +24,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import kr.Windmill.dto.SqlTemplateExecuteDto;
@@ -45,6 +46,9 @@ public class SQLExecuteService {
 	
 	@Autowired
 	private SqlTemplateService sqlTemplateService;
+	
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
 
 	@Autowired
 	public SQLExecuteService(Common common, Log log, DynamicJdbcManager dynamicJdbcManager) {
@@ -82,26 +86,40 @@ public class SQLExecuteService {
 				Map<String, Object> defaultSqlContent = sqlContentService.getDefaultSqlContent(data.getTemplateId());
 				if (defaultSqlContent != null) {
 					sql = (String) defaultSqlContent.get("SQL_CONTENT");
-					connectionId = (String) defaultSqlContent.get("CONNECTION_ID");
-					logger.info("템플릿 기본 SQL 내용 사용: templateId={}, connectionId={}", 
-						data.getTemplateId(), connectionId);
+					// 기본 템플릿은 connectionId가 null이므로 null로 설정
+					connectionId = null;
+					logger.info("템플릿 기본 SQL 내용 사용: templateId={}", 
+						data.getTemplateId());
 				} else {
 					logger.warn("템플릿의 기본 SQL 내용을 찾을 수 없음: templateId={}", 
 						data.getTemplateId());
 				}
 			} else {
-				// 특정 DB 연결의 SQL 내용 조회 (콤마로 구분된 연결 ID 지원)
-				Map<String, Object> sqlContent = sqlContentService.getSqlContentByTemplateAndConnection(
-					data.getTemplateId(), connectionId);
-				
-				if (sqlContent != null) {
-					sql = (String) sqlContent.get("SQL_CONTENT");
-					String contentConnectionId = (String) sqlContent.get("CONNECTION_ID");
-					logger.info("템플릿 SQL 내용 사용: templateId={}, requestedConnectionId={}, contentConnectionId={}", 
-						data.getTemplateId(), connectionId, contentConnectionId);
+				// DB 타입 조회
+				String dbType = getDbTypeByConnectionId(connectionId);
+				if (dbType == null) {
+					logger.warn("DB 타입을 찾을 수 없음: connectionId={}", connectionId);
+					// 기본 템플릿 사용
+					Map<String, Object> defaultSqlContent = sqlContentService.getDefaultSqlContent(data.getTemplateId());
+					if (defaultSqlContent != null) {
+						sql = (String) defaultSqlContent.get("SQL_CONTENT");
+						logger.info("템플릿 기본 SQL 내용 사용: templateId={}, connectionId={}", 
+							data.getTemplateId(), connectionId);
+					}
 				} else {
-					logger.warn("템플릿 SQL 내용을 찾을 수 없음: templateId={}, connectionId={}", 
-						data.getTemplateId(), connectionId);
+					// 특정 DB 타입의 SQL 내용 조회
+					Map<String, Object> sqlContent = sqlContentService.getSqlContentByTemplateAndDbType(
+						data.getTemplateId(), dbType);
+					
+					if (sqlContent != null) {
+						sql = (String) sqlContent.get("SQL_CONTENT");
+						String contentDbType = (String) sqlContent.get("DB_TYPE");
+						logger.info("템플릿 SQL 내용 사용: templateId={}, requestedConnectionId={}, dbType={}", 
+							data.getTemplateId(), connectionId, contentDbType);
+					} else {
+						logger.warn("템플릿 SQL 내용을 찾을 수 없음: templateId={}, dbType={}", 
+							data.getTemplateId(), dbType);
+					}
 				}
 			}
 		}
@@ -204,6 +222,9 @@ public class SQLExecuteService {
 
 			singleList.add(element);
 			errorResult.put("rowbody", singleList);
+			List<Boolean> successList = new ArrayList<>();
+			successList.add(false);
+			errorResult.put("success", successList);
 
 			data.setResult(e1.getMessage());
 			data.setDuration(0);
@@ -376,6 +397,10 @@ public class SQLExecuteService {
 			}
 			result.put("rowbody", rowbody);
 			result.put("rowlength", rowlength);
+			
+			List<Boolean> successList = new ArrayList<>();
+			successList.add(true);
+			result.put("success", successList);
 
 			return result;
 
@@ -872,6 +897,10 @@ public class SQLExecuteService {
 
 			singleList.add(element);
 			errorResult.put("rowbody", singleList);
+			
+			List<Boolean> successList = new ArrayList<>();
+			successList.add(false);
+			errorResult.put("success", successList);
 
 			// 실패 결과 설정
 			executeDto.setEndTime(Instant.now());
@@ -1129,16 +1158,6 @@ public class SQLExecuteService {
 			
 			return result;
 			
-		} catch (SQLException e) {
-			// SQL 실행 오류 처리
-			logger.error("SQL Query execution error: {}", e.getMessage());
-			return createErrorResult("SQL 실행 오류: " + e.getMessage(), sql);
-			
-		} catch (Exception e) {
-			// 기타 예외 처리
-			logger.error("Unexpected error during query execution: {}", e.getMessage(), e);
-			return createErrorResult("예상치 못한 오류: " + e.getMessage(), sql);
-			
 		} finally {
 			if (rs != null) try { rs.close(); } catch (Exception e) {}
 			if (pstmt != null) try { pstmt.close(); } catch (Exception e) {}
@@ -1364,14 +1383,20 @@ public class SQLExecuteService {
 				throw new Exception("템플릿의 기본 SQL 내용을 찾을 수 없습니다: " + templateId);
 			}
 		} else {
-			// 특정 DB 연결의 SQL 내용 조회
-			Map<String, Object> sqlContent = sqlContentService.getSqlContentByTemplateAndConnection(templateId, connectionId);
+			// DB 타입 조회
+			String dbType = getDbTypeByConnectionId(connectionId);
+			if (dbType == null) {
+				throw new Exception("DB 타입을 찾을 수 없습니다: connectionId=" + connectionId);
+			}
+			
+			// 특정 DB 타입의 SQL 내용 조회
+			Map<String, Object> sqlContent = sqlContentService.getSqlContentByTemplateAndDbType(templateId, dbType);
 			if (sqlContent != null) {
 				String sql = (String) sqlContent.get("SQL_CONTENT");
-				logger.info("템플릿 SQL 내용 사용: templateId={}, connectionId={}", templateId, connectionId);
+				logger.info("템플릿 SQL 내용 사용: templateId={}, connectionId={}, dbType={}", templateId, connectionId, dbType);
 				return sql;
 			} else {
-				throw new Exception("템플릿 SQL 내용을 찾을 수 없습니다: templateId=" + templateId + ", connectionId=" + connectionId);
+				throw new Exception("템플릿 SQL 내용을 찾을 수 없습니다: templateId=" + templateId + ", dbType=" + dbType);
 			}
 		}
 	}
@@ -1461,8 +1486,8 @@ public class SQLExecuteService {
 			throw new Exception("템플릿의 기본 SQL 내용을 찾을 수 없습니다: " + templateId);
 		}
 		
-		// 기본 SQL 내용의 connectionId 가져오기
-		String connectionId = (String) defaultSqlContent.get("CONNECTION_ID");
+		// 기본 SQL 내용은 connectionId가 null
+		String connectionId = null;
 		
 		// 무한 재귀 호출 방지를 위해 직접 LogInfoDto를 생성하여 executeSQL 호출
 		LogInfoDto data = new LogInfoDto();
@@ -1489,13 +1514,33 @@ public class SQLExecuteService {
 	}
 
 	/**
-	 * 템플릿의 특정 DB 연결 SQL 내용 조회
+	 * 연결 ID로 DB 타입 조회
+	 */
+	private String getDbTypeByConnectionId(String connectionId) {
+		try {
+			String sql = "SELECT DB_TYPE FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
+			List<Map<String, Object>> results = jdbcTemplate.queryForList(sql, connectionId);
+			if (!results.isEmpty()) {
+				return (String) results.get(0).get("DB_TYPE");
+			}
+		} catch (Exception e) {
+			logger.error("DB 타입 조회 실패: connectionId={}", connectionId, e);
+		}
+		return null;
+	}
+
+	/**
+	 * 템플릿의 특정 DB 타입 SQL 내용 조회
 	 * 
 	 * @param templateId 템플릿 ID
 	 * @param connectionId DB 연결 ID
 	 * @return SQL 내용
 	 */
 	public Map<String, Object> getTemplateSqlContent(String templateId, String connectionId) {
-		return sqlContentService.getSqlContentByTemplateAndConnection(templateId, connectionId);
+		String dbType = getDbTypeByConnectionId(connectionId);
+		if (dbType == null) {
+			return sqlContentService.getDefaultSqlContent(templateId);
+		}
+		return sqlContentService.getSqlContentByTemplateAndDbType(templateId, dbType);
 	}
 }
