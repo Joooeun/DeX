@@ -791,7 +791,7 @@ public class DynamicJdbcManager implements Closeable {
 			properties.put("loginTimeout", "5"); // 로그인 타임아웃 5초
 			properties.put("blockingReadConnectionTimeout", "5"); // 읽기 타임아웃 5초
 			properties.put("blockingReadConnectionTimeoutUnit", "SECONDS");
-			properties.put("currentSchema", "DEX"); // 스키마 설정
+			// currentSchema 설정 제거 - 각 연결별로 다른 스키마를 사용할 수 있도록
 			properties.put("retrieveMessagesFromServerOnGetMessage", "false"); // 메시지 검색 비활성화
 		}
 

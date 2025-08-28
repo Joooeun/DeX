@@ -20,6 +20,9 @@ import kr.Windmill.service.SqlTemplateService;
 import kr.Windmill.service.SqlContentService;
 import kr.Windmill.service.PermissionService;
 import kr.Windmill.service.SQLExecuteService;
+import kr.Windmill.util.Common;
+import kr.Windmill.dto.SqlTemplateExecuteDto;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @Controller
@@ -42,9 +45,21 @@ public class SQLTemplateController {
     @Autowired
     private SQLExecuteService sqlExecuteService;
     
+    @Autowired
+    private Common com;
+    
     @RequestMapping(path = "/SQLTemplate", method = RequestMethod.GET)
     public ModelAndView sqlTemplateMain(HttpServletRequest request, ModelAndView mv, HttpSession session) {
         String userId = (String) session.getAttribute("memberId");
+        String templateId = request.getParameter("templateId");
+        
+        logger.info("SQLTemplate 접근 - userId: {}, templateId: {}", userId, templateId);
+        
+        // templateId가 있으면 특정 템플릿 실행 페이지로 이동
+        if (templateId != null && !templateId.trim().isEmpty()) {
+            logger.info("템플릿 실행 페이지로 이동: {}", templateId);
+            return executeSqlTemplate(request, mv, session, templateId);
+        }
         
         // 관리자 권한 확인
         if (!permissionService.isAdmin(userId)) {
@@ -55,6 +70,72 @@ public class SQLTemplateController {
         
         mv.setViewName("SQLTemplate");
         return mv;
+    }
+    
+    /**
+     * 특정 SQL 템플릿 실행 페이지
+     */
+    private ModelAndView executeSqlTemplate(HttpServletRequest request, ModelAndView mv, HttpSession session, String templateId) {
+        String userId = (String) session.getAttribute("memberId");
+        
+        try {
+            // 템플릿 정보 조회
+            Map<String, Object> templateResult = sqlTemplateService.getSqlTemplateDetail(templateId);
+            
+            if (templateResult == null || !(Boolean) templateResult.get("success")) {
+                mv.addObject("error", "템플릿을 찾을 수 없습니다.");
+                mv.setViewName("error");
+                return mv;
+            }
+            
+            @SuppressWarnings("unchecked")
+            Map<String, Object> templateInfo = (Map<String, Object>) templateResult.get("data");
+            
+            // 템플릿 정보를 모델에 추가
+            mv.addObject("templateId", templateId);
+            mv.addObject("templateName", templateInfo.get("sqlName"));
+            mv.addObject("templateDescription", templateInfo.get("sqlDesc"));
+            mv.addObject("sqlContent", templateInfo.get("sqlContent"));
+            mv.addObject("limit", templateInfo.get("executionLimit"));
+            mv.addObject("refreshtimeout", templateInfo.get("refreshTimeout"));
+            mv.addObject("newline", templateInfo.get("newline"));
+            
+            // DownloadEnable 설정 (IP 기반)
+            String clientIp = request.getRemoteAddr();
+            boolean downloadEnable = com.getIp(request).matches(com.DownloadIP);
+            mv.addObject("DownloadEnable", downloadEnable);
+            
+            // 파라미터 정보 조회
+            Map<String, Object> paramResult = sqlTemplateService.getTemplateParameters(templateId);
+            if (paramResult.get("success").equals(true)) {
+                mv.addObject("parameters", paramResult.get("data"));
+            }
+            
+            // 단축키 정보 조회
+            Map<String, Object> shortcutResult = sqlTemplateService.getTemplateShortcuts(templateId);
+            if (shortcutResult.get("success").equals(true)) {
+                mv.addObject("ShortKey", shortcutResult.get("data"));
+            }
+            
+            // 사용자 ID 추가
+            mv.addObject("memberId", userId);
+            
+            // Path 변수 추가 (템플릿 ID 사용)
+            mv.addObject("Path", templateId);
+            
+            // 접근 가능한 DB 연결 정보 조회
+            List<Map<String, Object>> connections = sqlTemplateService.getAccessibleConnections(templateId, userId);
+            mv.addObject("connections", connections);
+            
+            mv.setViewName("SQLExecute");
+            return mv;
+            
+        } catch (Exception e) {
+            logger.error("SQL 템플릿 실행 페이지 로드 실패", e);
+            mv.addObject("error", "템플릿 로드 중 오류가 발생했습니다.");
+            mv.setViewName("error");
+            return mv;
+        }
     }
 
     @ResponseBody
@@ -138,6 +219,7 @@ public class SQLTemplateController {
             String configContent = request.getParameter("configContent");
             String parameters = request.getParameter("parameters");
             String shortcuts = request.getParameter("shortcuts");
+            String auditStr = request.getParameter("audit");
             
             // 숫자 파라미터 변환
             Integer sqlVersion = null;
@@ -154,8 +236,21 @@ public class SQLTemplateController {
                 refreshTimeout = Integer.parseInt(refreshTimeoutStr);
             }
             
+            // newline 파라미터 처리
+            Boolean newline = false;
+            String newlineStr = request.getParameter("newline");
+            if (newlineStr != null && !newlineStr.trim().isEmpty()) {
+                newline = Boolean.parseBoolean(newlineStr);
+            }
+            
+            // audit 파라미터 처리
+            Boolean audit = false;
+            if (auditStr != null && !auditStr.trim().isEmpty()) {
+                audit = Boolean.parseBoolean(auditStr);
+            }
+            
             return sqlTemplateService.saveSqlTemplate(sqlId, sqlName, sqlDesc, sqlVersion, sqlStatus, 
-                                                     executionLimit, refreshTimeout, categoryIds, accessibleConnectionIds, sqlContent, configContent, parameters, shortcuts, userId);
+                                                     executionLimit, refreshTimeout, newline, audit, categoryIds, accessibleConnectionIds, sqlContent, configContent, parameters, shortcuts, userId);
             
         } catch (Exception e) {
             logger.error("SQL 템플릿 저장 실패", e);
@@ -194,45 +289,52 @@ public class SQLTemplateController {
     
     @ResponseBody
     @RequestMapping(path = "/SQLTemplate/test")
-    public Map<String, Object> testSqlTemplate(HttpServletRequest request, HttpSession session) {
+    public Map<String, Object> testSqlTemplate(@ModelAttribute SqlTemplateExecuteDto executeDto, 
+                                              HttpServletRequest request, 
+                                              HttpSession session) {
+        String userId = (String) session.getAttribute("memberId");
+        Map<String, Object> result = new HashMap<>();
+        
         try {
-            String templateId = request.getParameter("templateId");
-            String connectionId = request.getParameter("connectionId");
-            String params = request.getParameter("params");
-            String limitStr = request.getParameter("limit");
+            // 세션 정보 설정
+            executeDto.setMemberId(userId);
+            executeDto.setIp(request.getRemoteAddr());
             
-            if (templateId == null || templateId.trim().isEmpty()) {
-                Map<String, Object> result = new HashMap<>();
+            // 필수 파라미터 검증
+            if (executeDto.getTemplateId() == null || executeDto.getTemplateId().trim().isEmpty()) {
                 result.put("success", false);
                 result.put("error", "템플릿 ID가 필요합니다.");
                 return result;
             }
             
-            // 파라미터 기본값 설정
-            String userId = (String) session.getAttribute("memberId");
-            String ip = request.getRemoteAddr();
-            Integer limit = limitStr != null ? Integer.parseInt(limitStr) : 1000;
-            params = params != null ? params : "{}";
-            
-            Map<String, List> executionResult;
-            
-            if (connectionId != null && !connectionId.trim().isEmpty()) {
-                // 특정 DB 연결로 실행
-                executionResult = sqlExecuteService.executeTemplateSQL(templateId, connectionId, params, limit, userId, ip);
-            } else {
-                // 기본 SQL 내용으로 실행
-                executionResult = sqlExecuteService.executeDefaultTemplateSQL(templateId, params, limit, userId, ip);
+            // limit 기본값 설정 (테스트용으로 100으로 설정)
+            if (executeDto.getLimit() == null) {
+                executeDto.setLimit(100);
             }
             
-            Map<String, Object> result = new HashMap<>();
+            // 파라미터 파싱
+            if (executeDto.getParameters() != null && !executeDto.getParameters().trim().isEmpty()) {
+                try {
+                    List<Map<String, Object>> paramList = com.getListFromString(executeDto.getParameters());
+                    executeDto.setParameterList(paramList);
+                } catch (Exception e) {
+                    logger.warn("파라미터 JSON 파싱 실패: {}", e.getMessage());
+                    result.put("success", false);
+                    result.put("error", "파라미터 형식이 올바르지 않습니다.");
+                    return result;
+                }
+            }
+            
+            // SQL 실행
+            Map<String, List> executionResult = sqlExecuteService.executeTemplateSQL(executeDto);
+            
             result.put("success", true);
             result.put("data", executionResult);
             
             return result;
             
         } catch (Exception e) {
-            logger.error("SQL 템플릿 테스트 실패", e);
-            Map<String, Object> result = new HashMap<>();
+            logger.error("SQL 템플릿 테스트 실패: {}", e.getMessage(), e);
             result.put("success", false);
             result.put("error", "SQL 테스트 실패: " + e.getMessage());
             return result;
@@ -641,5 +743,58 @@ public class SQLTemplateController {
             result.put("error", "DB 연결 목록 조회 실패: " + e.getMessage());
             return result;
         }
+    }
+    
+    @ResponseBody
+    @RequestMapping(path = "/SQLTemplate/execute", method = RequestMethod.POST)
+    public Map<String, Object> executeTemplate(@ModelAttribute SqlTemplateExecuteDto executeDto, 
+                                              HttpServletRequest request, 
+                                              HttpSession session) {
+        String userId = (String) session.getAttribute("memberId");
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // 세션 정보 설정
+            executeDto.setMemberId(userId);
+            executeDto.setIp(request.getRemoteAddr());
+            
+            // 필수 파라미터 검증
+            if (executeDto.getTemplateId() == null || executeDto.getTemplateId().trim().isEmpty()) {
+                result.put("success", false);
+                result.put("error", "템플릿 ID가 필요합니다.");
+                return result;
+            }
+            
+            // limit 기본값 설정
+            if (executeDto.getLimit() == null) {
+                executeDto.setLimit(1000);
+            }
+            
+            // 파라미터 파싱
+            if (executeDto.getParameters() != null && !executeDto.getParameters().trim().isEmpty()) {
+                try {
+                    List<Map<String, Object>> paramList = com.getListFromString(executeDto.getParameters());
+                    executeDto.setParameterList(paramList);
+                } catch (Exception e) {
+                    logger.warn("파라미터 JSON 파싱 실패: {}", e.getMessage());
+                    result.put("success", false);
+                    result.put("error", "파라미터 형식이 올바르지 않습니다.");
+                    return result;
+                }
+            }
+            
+            // SQL 실행
+            Map<String, List> executionResult = sqlExecuteService.executeTemplateSQL(executeDto);
+            
+            result.put("success", true);
+            result.put("data", executionResult);
+            
+        } catch (Exception e) {
+            logger.error("SQL 템플릿 실행 중 오류 발생: {}", e.getMessage(), e);
+            result.put("success", false);
+            result.put("error", "SQL 실행 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return result;
     }
 }

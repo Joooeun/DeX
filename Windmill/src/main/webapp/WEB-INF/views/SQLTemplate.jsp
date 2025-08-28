@@ -184,7 +184,6 @@ table th, td {
 		function renderCategoryList(categories) {
 			var container = $('#categoryList');
 			container.empty();
-
 			// 미분류 카테고리 추가
 			var uncategorizedItem = $('<div class="category-item" data-id="UNCATEGORIZED" onclick="selectCategory(\'UNCATEGORIZED\')">'
 				+ '<div class="row">'
@@ -366,24 +365,24 @@ table th, td {
 						// 템플릿이 속한 카테고리들 선택
 						if (templateId) {
 							var selectedCategories = [];
-							result.data.forEach(function (category) {
-								$.ajax({
-									type: 'GET',
-									url: '/SQLTemplate/category/templates',
+						result.data.forEach(function (category) {
+							$.ajax({
+								type: 'GET',
+								url: '/SQLTemplate/category/templates',
 									data: { categoryId: category.CATEGORY_ID },
-									async: false,
-									success: function (templateResult) {
-										if (templateResult.success) {
-											var hasTemplate = templateResult.data.some(function (template) {
-												return template.TEMPLATE_ID === templateId;
-											});
-											if (hasTemplate) {
+								async: false,
+								success: function (templateResult) {
+									if (templateResult.success) {
+										var hasTemplate = templateResult.data.some(function (template) {
+											return template.TEMPLATE_ID === templateId;
+										});
+										if (hasTemplate) {
 												selectedCategories.push(category.CATEGORY_ID);
-											}
 										}
 									}
-								});
+								}
 							});
+						});
 							
 							$('#sqlTemplateCategories').val(selectedCategories).trigger('change');
 						}
@@ -591,11 +590,11 @@ table th, td {
 				}
 			} else {
 				// 활성 탭이 없으면 기존 방식 사용 (하위 호환성)
-				if (window.sqlEditor && window.sqlEditor.getValue) {
-					sqlContent = window.sqlEditor.getValue();
-				} else {
+			if (window.sqlEditor && window.sqlEditor.getValue) {
+				sqlContent = window.sqlEditor.getValue();
+			} else {
 					sqlContent = $('#sqlEditor').val();
-				}
+			}
 			}
 			
 			$('#sqlPreview').text(sqlContent);
@@ -615,10 +614,9 @@ table th, td {
 				'<td><select class="form-control parameter-type">' +
 				'<option value="STRING">문자열</option>' +
 				'<option value="NUMBER">숫자</option>' +
-				'<option value="DATE">날짜</option>' +
-				'<option value="BOOLEAN">불린</option>' +
 				'<option value="TEXT">텍스트</option>' +
 				'<option value="SQL">SQL</option>' +
+				'<option value="LOG">로그</option>' +
 				'</select></td>' +
 				'<td><input type="text" class="form-control parameter-default" placeholder="기본값"></td>' +
 				'<td><div><input type="checkbox" class="parameter-required"></div></td>' +
@@ -752,14 +750,6 @@ table th, td {
 						+ (param.PARAMETER_TYPE === 'NUMBER' ? ' selected'
 							: '')
 						+ '>숫자</option>'
-						+ '<option value="DATE"'
-						+ (param.PARAMETER_TYPE === 'DATE' ? ' selected'
-							: '')
-						+ '>날짜</option>'
-						+ '<option value="BOOLEAN"'
-						+ (param.PARAMETER_TYPE === 'BOOLEAN' ? ' selected'
-							: '')
-						+ '>불린</option>'
 						+ '<option value="TEXT"'
 						+ (param.PARAMETER_TYPE === 'TEXT' ? ' selected'
 							: '')
@@ -768,6 +758,10 @@ table th, td {
 						+ (param.PARAMETER_TYPE === 'SQL' ? ' selected'
 							: '')
 						+ '>SQL</option>'
+						+ '<option value="LOG"'
+						+ (param.PARAMETER_TYPE === 'LOG' ? ' selected'
+							: '')
+						+ '>로그</option>'
 						+ '</select></td>'
 						+ '<td><input type="text" class="form-control parameter-default" value="'
 						+ (param.DEFAULT_VALUE || '')
@@ -887,7 +881,7 @@ table th, td {
 				var tabLink = $(this).find('.nav-link');
 				var connectionId = tabLink.attr('href').replace('#tab-', '');
 				var editorId = 'sqlEditor_' + connectionId;
-				var sqlContent = '';
+			var sqlContent = '';
 				
 				if (typeof ace !== 'undefined') {
 					try {
@@ -896,7 +890,7 @@ table th, td {
 					} catch (e) {
 						sqlContent = $('#' + editorId + ' .sql-textarea').val() || '';
 					}
-				} else {
+			} else {
 					sqlContent = $('#' + editorId + ' .sql-textarea').val() || '';
 				}
 				
@@ -918,13 +912,13 @@ table th, td {
 			}
 
 			var executionLimit = parseInt($('#sqlExecutionLimit').val());
-			if (isNaN(executionLimit) || executionLimit < 1 || executionLimit > 100000) {
-				errors.push('실행 제한은 1~100,000 사이의 숫자여야 합니다.');
+			if (isNaN(executionLimit) || executionLimit < 0 || executionLimit > 20000) {
+				errors.push('실행 제한은 0~20,000 사이의 숫자여야 합니다.');
 			}
 
 			var refreshTimeout = parseInt($('#sqlRefreshTimeout').val());
-			if (isNaN(refreshTimeout) || refreshTimeout < 1 || refreshTimeout > 3600) {
-				errors.push('새로고침 타임아웃은 1~3600초 사이의 숫자여야 합니다.');
+			if (isNaN(refreshTimeout) || refreshTimeout < 0 || refreshTimeout > 3600) {
+				errors.push('새로고침 타임아웃은 0~3600초 사이의 숫자여야 합니다.');
 			}
 
 			// 파라미터 벨리데이션
@@ -932,8 +926,6 @@ table th, td {
 			var parameterNames = [];
 			var duplicateNames = [];
 			
-			console.log(parameters)
-
 			parameters.forEach(function (param, index) {
 				// 파라미터명 체크
 				if (!param.name || !param.name.trim()) {
@@ -984,7 +976,7 @@ table th, td {
 			var shortcuts = collectShortcuts();
 			var shortcutKeys = [];
 			var duplicateShortcuts = [];
-			
+
 			shortcuts.forEach(function (shortcut, index) {
 				if (!shortcut.key || !shortcut.key.trim()) {
 					errors.push('단축키를 입력해주세요. (순서: ' + (index + 1) + ')');
@@ -1308,8 +1300,10 @@ table th, td {
 			// 폼 초기화
 			$('#sqlTemplateId, #sqlTemplateName, #sqlTemplateDesc').val('');
 			$('#sqlTemplateStatus').val('ACTIVE');
-			$('#sqlExecutionLimit').val('1000');
-			$('#sqlRefreshTimeout').val('10');
+			$('#sqlExecutionLimit').val('0');
+			$('#sqlRefreshTimeout').val('0');
+			$('#sqlNewline').prop('checked', true);
+			$('#sqlAudit').prop('checked', false);
 			$('#sqlTemplateCategories').val(null).trigger('change');
 			$('#accessibleConnections').val(null).trigger('change');
 			$('#sqlContent').val('');
@@ -1340,6 +1334,8 @@ table th, td {
 			var sqlStatus = $('#sqlTemplateStatus').val();
 			var executionLimit = $('#sqlExecutionLimit').val();
 			var refreshTimeout = $('#sqlRefreshTimeout').val();
+			var newline = $('#sqlNewline').is(':checked');
+			var audit = $('#sqlAudit').is(':checked');
 			var selectedCategoryIds = $('#sqlTemplateCategories').val();
 			var accessibleConnectionIds = $('#accessibleConnections').val();
 
@@ -1360,6 +1356,8 @@ table th, td {
 				sqlStatus: sqlStatus,
 				executionLimit: executionLimit,
 				refreshTimeout: refreshTimeout,
+				newline: newline,
+				audit: audit,
 				categoryIds: selectedCategoryIds.join(','),
 				sqlContent: defaultSqlContent, // 기본 템플릿의 SQL 내용
 				accessibleConnectionIds: accessibleConnectionIds ? accessibleConnectionIds.join(',') : '',
@@ -1411,9 +1409,11 @@ table th, td {
 						$('#sqlTemplateStatus').val(
 							template.sqlStatus || 'ACTIVE');
 						$('#sqlExecutionLimit').val(
-							template.executionLimit || 1000);
+							template.executionLimit || 0);
 						$('#sqlRefreshTimeout').val(
-							template.refreshTimeout || 10);
+							template.refreshTimeout || 0);
+						$('#sqlNewline').prop('checked', template.newline !== false);
+						$('#sqlAudit').prop('checked', template.audit === true);
 
 						// 접근 가능한 DB 연결 설정
 						if (template.accessibleConnectionIds) {
@@ -1423,7 +1423,7 @@ table th, td {
 
 						// 기본 템플릿의 SQL 내용을 숨겨진 필드에 설정
 						initSqlEditorForConnection('default',template.sqlContent || '');
-						
+
 						loadTemplateCategories(templateId);
 						loadParameters(templateId);
 						loadShortcuts(templateId);
@@ -1520,7 +1520,7 @@ table th, td {
 					console.log("SQL 에디터 초기화 실패:", e);
 					initTextareaEditorForConnection(connectionId, sqlContent);
 				}
-			} else {
+						} else {
 				initTextareaEditorForConnection(connectionId, sqlContent);
 			}
 		}
@@ -1532,7 +1532,7 @@ table th, td {
 			
 			// textarea 변경 이벤트
 			$(editorDiv).find('.sql-textarea').on('input', function() {
-				updateSqlPreview();
+						updateSqlPreview();
 			});
 		}
 
@@ -1682,7 +1682,7 @@ table th, td {
 							if (templateId) {
 								loadSqlContents(templateId);
 							}
-						} else {
+					} else {
 							showToast('삭제 실패: ' + result.error, 'error');
 						}
 					},
@@ -1870,13 +1870,18 @@ table th, td {
 				connectionId = activeTab.attr('href').replace('#tab-', '');
 			}
 
-			// 파라미터 JSON 생성
-			var params = {};
+			// 파라미터 JSON 생성 (기존 형식 유지)
+			var parameters = [];
 			$('#parameterTableBody tr').each(function() {
 				var paramName = $(this).find('.param-name').val();
 				var paramValue = $(this).find('.param-value').val();
-				if (paramName && paramValue) {
-					params[paramName] = paramValue;
+				var paramType = $(this).find('.param-type').val();
+				if (paramName && paramValue !== undefined) {
+					parameters.push({
+						title: paramName,
+						value: paramValue,
+						type: paramType || 'string'
+					});
 				}
 			});
 
@@ -1888,8 +1893,9 @@ table th, td {
 				data: {
 					templateId: templateId,
 					connectionId: connectionId,
-					params: JSON.stringify(params),
-					limit: 100
+					parameters: JSON.stringify(parameters),
+					limit: 100,
+					audit: $('#sqlAudit').is(':checked')
 				},
 				success: function (result) {
 					if (result.success) {
@@ -2259,15 +2265,35 @@ table th, td {
 
 									<div class="col-md-4">
 										<div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="SQL 실행 시 최대 반환할 행 수를 설정합니다. 1~100,000 사이의 숫자를 입력하세요. 0은 제한 없음을 의미합니다.">실행 제한 (행)</label> <input type="number" class="form-control" id="sqlExecutionLimit" value="1000" min="1" placeholder="최대 반환 행 수">
+											<label data-toggle="tooltip" data-placement="top" title="SQL 실행 시 최대 반환할 행 수를 설정합니다. 0~20,000 사이의 숫자를 입력하세요. 0은 제한 없음을 의미합니다.">실행 제한 (행)</label> <input type="number" class="form-control" id="sqlExecutionLimit" value="0" min="0" max="20000" placeholder="최대 반환 행 수">
 										</div>
 									</div>
 									<div class="col-md-4">
 										<div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="자동 새로고침 기능 사용 시 대기 시간을 설정합니다. 1~3600초 사이의 숫자를 입력하세요.">새로고침 간격 (초)</label> <input type="number" class="form-control" id="sqlRefreshTimeout" value="10" min="1" placeholder="새로고침 대기 시간">
+											<label data-toggle="tooltip" data-placement="top" title="자동 새로고침 기능 사용 시 대기 시간을 설정합니다. 0~3600초 사이의 숫자를 입력하세요. 0은 자동 새로고침을 사용하지 않음을 의미합니다.">새로고침 간격 (초)</label> <input type="number" class="form-control" id="sqlRefreshTimeout" value="0" min="0" max="3600" placeholder="새로고침 대기 시간">
 										</div>
 									</div>
+									<div class="col-md-4">
+										<div class="form-group">
+											<label data-toggle="tooltip" data-placement="top" title="결과 테이블에서 개행 문자를 표시할지 설정합니다. 체크 시 긴 텍스트의 개행이 테이블에 표시됩니다.">개행 보기</label>
+											<div class="checkbox">
+												<label>
+													<input type="checkbox" id="sqlNewline" checked> 개행 문자 표시
+												</label>
+											</div>
+										</div>
 									</div>
+									<div class="col-md-4">
+										<div class="form-group">
+											<label data-toggle="tooltip" data-placement="top" title="SQL 실행 시 감사 로그를 데이터베이스에 저장할지 설정합니다. 체크 시 DEXLOG 테이블에 실행 정보가 기록됩니다.">감사 로그</label>
+											<div class="checkbox">
+												<label>
+													<input type="checkbox" id="sqlAudit"> 감사 로그 저장
+												</label>
+											</div>
+										</div>
+									</div>
+										</div>
 									</div>
 								</div>
 								<!-- 추가 정보 -->
@@ -2290,7 +2316,7 @@ table th, td {
 									<select class="form-control" id="sqlTemplateCategories" multiple>
 										<!-- 카테고리 옵션들이 여기에 로드됩니다 -->
 									</select>
-								</div>
+									</div>
 								
 								<!-- DB 연결 선택 -->
 										<div class="form-group">

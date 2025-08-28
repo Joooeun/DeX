@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
 import kr.Windmill.dto.log.LogInfoDto;
+import kr.Windmill.service.SqlTemplateService;
 import kr.Windmill.service.SQLExecuteService;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
@@ -36,26 +37,43 @@ public class SQLController {
 	private final Common com;
 	private final Log cLog;
 	private final SQLExecuteService sqlExecuteService;
+	private final SqlTemplateService sqlTemplateService;
 	
 	@Autowired
-	public SQLController(Common common, Log log, SQLExecuteService sqlExecuteService) {
+	public SQLController(Common common, Log log, SQLExecuteService sqlExecuteService, SqlTemplateService sqlTemplateService) {
 		this.com = common;
 		this.cLog = log;
 		this.sqlExecuteService = sqlExecuteService;
+		this.sqlTemplateService = sqlTemplateService;
 	}
 
 	@RequestMapping(path = "/SQL")
 	public ModelAndView SQLmain(HttpServletRequest request, ModelAndView mv, HttpSession session) {
 
+		// templateId 파라미터가 있으면 SQLTemplateController로 리다이렉트
+		String templateId = request.getParameter("templateId");
+		if (templateId != null && !templateId.trim().isEmpty()) {
+			mv.setViewName("redirect:/SQLTemplate?templateId=" + templateId);
+			return mv;
+		}
+
+		// Path 파라미터가 없으면 에러 처리
+		String pathParam = request.getParameter("Path");
+		if (pathParam == null || pathParam.trim().isEmpty()) {
+			mv.addObject("params", com.showMessageAndRedirect("잘못된 요청입니다.", null, "GET"));
+			mv.setViewName("common/messageRedirect");
+			return mv;
+		}
+
 		try {
-			File file = new File(request.getParameter("Path"));
+			File file = new File(pathParam);
 
 			mv.addObject("Path", file.getParent());
 			mv.addObject("title", file.getName().replaceAll("\\..*", ""));
 
 			boolean sql = com.FileRead(file).length() > 0;
 
-			file = new File(request.getParameter("Path").replace(".sql", ".properties"));
+			file = new File(pathParam.replace(".sql", ".properties"));
 			List<Map<String, String>> ShortKey = new ArrayList<>();
 			List<Map<String, String>> Param = new ArrayList<>();
 			if (file.exists()) {
@@ -178,21 +196,62 @@ public class SQLController {
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/list")
-	public List<Map<String, ?>> list(HttpServletRequest request, Model model, HttpSession session) throws IOException {
+	public List<Map<String, Object>> list(HttpServletRequest request, Model model, HttpSession session) throws IOException {
 
 		String id = (String) session.getAttribute("memberId");
 
-		Map<String, String> map = com.UserConf(id);
-		List<Map<String, ?>> list = com.getfiles(Common.SrcPath, 0);
+		try {
+			// DB 기반 메뉴 트리 조회
+			List<Map<String, Object>> menuTree = sqlTemplateService.getFullMenuTree();
+			
+			// 관리자가 아닌 경우 사용자별 메뉴 필터링
+			if (!id.equals("admin")) {
+				Map<String, String> userConfig = com.UserConf(id);
+				List<String> allowedMenus = new ArrayList<>(Arrays.asList(userConfig.get("MENU").split(",")));
+				
+				// 사용자가 접근 가능한 메뉴만 필터링
+				return filterMenuByUserAccess(menuTree, allowedMenus);
+			}
 
-		if (!id.equals("admin")) {
-			List<String> strList = new ArrayList<>(Arrays.asList(map.get("MENU").split(",")));
-
-			return list.stream().filter(menu -> strList.contains(menu.get("Name"))).collect(Collectors.toList());
-
+			return menuTree;
+			
+		} catch (Exception e) {
+			logger.error("메뉴 리스트 조회 실패", e);
+			return new ArrayList<>();
 		}
-
-		return list;
+	}
+	
+	/**
+	 * 사용자 접근 권한에 따라 메뉴 필터링
+	 */
+	private List<Map<String, Object>> filterMenuByUserAccess(List<Map<String, Object>> menuTree, List<String> allowedMenus) {
+		List<Map<String, Object>> filteredMenu = new ArrayList<>();
+		
+		for (Map<String, Object> menuItem : menuTree) {
+			String menuType = (String) menuItem.get("type");
+			
+			if ("folder".equals(menuType)) {
+				// 폴더인 경우 자식 메뉴들을 필터링
+				@SuppressWarnings("unchecked")
+				List<Map<String, Object>> children = (List<Map<String, Object>>) menuItem.get("children");
+				List<Map<String, Object>> filteredChildren = filterMenuByUserAccess(children, allowedMenus);
+				
+				// 필터링된 자식이 있으면 폴더 추가
+				if (!filteredChildren.isEmpty()) {
+					Map<String, Object> filteredFolder = new HashMap<>(menuItem);
+					filteredFolder.put("children", filteredChildren);
+					filteredMenu.add(filteredFolder);
+				}
+			} else if ("sql".equals(menuType)) {
+				// SQL 템플릿인 경우 접근 권한 확인
+				String templateId = (String) menuItem.get("id");
+				if (allowedMenus.contains(templateId)) {
+					filteredMenu.add(menuItem);
+				}
+			}
+		}
+		
+		return filteredMenu;
 	}
 
 	@ResponseBody

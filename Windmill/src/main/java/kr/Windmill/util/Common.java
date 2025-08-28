@@ -437,7 +437,7 @@ public class Common {
 
 	}
 
-	public List<Map<String, Object>> getJsonObjectFromString(String jsonStr) {
+	public List<Map<String, Object>> getListFromString(String jsonStr) {
 		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
 
 		// null 또는 빈 문자열 체크

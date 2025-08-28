@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,8 @@ import kr.Windmill.util.Log;
 
 @Service
 public class SqlTemplateService {
+
+	private static final Logger logger = LoggerFactory.getLogger(SqlTemplateService.class);
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
@@ -36,58 +40,67 @@ public class SqlTemplateService {
 	public List<Map<String, Object>> getFullMenuTree() {
 		List<Map<String, Object>> tree = new ArrayList<>();
 
-		// 1) 카테고리 폴더
-		String categorySql = "SELECT CATEGORY_ID, CATEGORY_NAME FROM SQL_TEMPLATE_CATEGORY WHERE STATUS = 'ACTIVE' ORDER BY CATEGORY_ORDER, CATEGORY_NAME";
-		List<Map<String, Object>> categories = jdbcTemplate.queryForList(categorySql);
+		try {
+			// 1) 카테고리 폴더
+			String categorySql = "SELECT CATEGORY_ID, CATEGORY_NAME FROM SQL_TEMPLATE_CATEGORY WHERE STATUS = 'ACTIVE' ORDER BY CATEGORY_ORDER, CATEGORY_NAME";
+			List<Map<String, Object>> categories = jdbcTemplate.queryForList(categorySql);
 
-		// 2) 카테고리별 템플릿
-        String mappedSql = "SELECT m.CATEGORY_ID, t.TEMPLATE_ID, t.TEMPLATE_NAME " +
-                "FROM SQL_TEMPLATE_CATEGORY_MAPPING m " +
-                "JOIN SQL_TEMPLATE t ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
-                "WHERE t.STATUS = 'ACTIVE' ORDER BY m.MAPPING_ORDER, t.TEMPLATE_NAME";
-		List<Map<String, Object>> mapped = jdbcTemplate.queryForList(mappedSql);
+			// 2) 카테고리별 템플릿
+			String mappedSql = "SELECT m.CATEGORY_ID, t.TEMPLATE_ID, t.TEMPLATE_NAME " +
+					"FROM SQL_TEMPLATE_CATEGORY_MAPPING m " +
+					"JOIN SQL_TEMPLATE t ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
+					"WHERE t.STATUS = 'ACTIVE' ORDER BY m.MAPPING_ORDER, t.TEMPLATE_NAME";
+			List<Map<String, Object>> mapped = jdbcTemplate.queryForList(mappedSql);
 
-		Map<String, List<Map<String, Object>>> categoryIdToTemplates = new HashMap<>();
-		for (Map<String, Object> row : mapped) {
-			String categoryId = (String) row.get("CATEGORY_ID");
-			categoryIdToTemplates.computeIfAbsent(categoryId, k -> new ArrayList<>());
-			Map<String, Object> node = new HashMap<>();
-			node.put("type", "sql");
-			node.put("id", row.get("TEMPLATE_ID"));
-			node.put("name", row.get("TEMPLATE_NAME") + ".sql");
-			categoryIdToTemplates.get(categoryId).add(node);
-		}
-
-		for (Map<String, Object> c : categories) {
-			Map<String, Object> folder = new HashMap<>();
-			folder.put("type", "folder");
-			folder.put("id", c.get("CATEGORY_ID"));
-			folder.put("name", c.get("CATEGORY_NAME"));
-			List<Map<String, Object>> children = categoryIdToTemplates.getOrDefault(c.get("CATEGORY_ID"), new ArrayList<>());
-			folder.put("children", children);
-			tree.add(folder);
-		}
-
-		// 3) 미분류 템플릿 (어떤 카테고리에도 매핑되지 않은 템플릿)
-        String uncategorizedSql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME FROM SQL_TEMPLATE t " +
-                "LEFT JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
-                "WHERE t.STATUS = 'ACTIVE' AND m.TEMPLATE_ID IS NULL ORDER BY t.TEMPLATE_NAME";
-		List<Map<String, Object>> uncategorized = jdbcTemplate.queryForList(uncategorizedSql);
-		if (!uncategorized.isEmpty()) {
-			Map<String, Object> folder = new HashMap<>();
-			folder.put("type", "folder");
-			folder.put("id", "UNCATEGORIZED");
-			folder.put("name", "미분류");
-			List<Map<String, Object>> children = new ArrayList<>();
-			for (Map<String, Object> row : uncategorized) {
+			Map<String, List<Map<String, Object>>> categoryIdToTemplates = new HashMap<>();
+			for (Map<String, Object> row : mapped) {
+				String categoryId = (String) row.get("CATEGORY_ID");
+				categoryIdToTemplates.computeIfAbsent(categoryId, k -> new ArrayList<>());
 				Map<String, Object> node = new HashMap<>();
 				node.put("type", "sql");
 				node.put("id", row.get("TEMPLATE_ID"));
-				node.put("name", row.get("TEMPLATE_NAME") + ".sql");
-				children.add(node);
+				node.put("Name", row.get("TEMPLATE_NAME") + ".sql");
+				node.put("templateId", row.get("TEMPLATE_ID"));
+				categoryIdToTemplates.get(categoryId).add(node);
 			}
-			folder.put("children", children);
-			tree.add(folder);
+
+			for (Map<String, Object> c : categories) {
+				Map<String, Object> folder = new HashMap<>();
+				folder.put("type", "folder");
+				folder.put("id", c.get("CATEGORY_ID"));
+				folder.put("Name", c.get("CATEGORY_NAME"));
+				folder.put("Path", c.get("CATEGORY_ID") + "Path"); // 기존 구조와 호환
+				List<Map<String, Object>> children = categoryIdToTemplates.getOrDefault(c.get("CATEGORY_ID"), new ArrayList<>());
+				folder.put("list", children);
+				tree.add(folder);
+			}
+
+			// 3) 미분류 템플릿 (어떤 카테고리에도 매핑되지 않은 템플릿)
+			String uncategorizedSql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME FROM SQL_TEMPLATE t " +
+					"LEFT JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
+					"WHERE t.STATUS = 'ACTIVE' AND m.TEMPLATE_ID IS NULL ORDER BY t.TEMPLATE_NAME";
+			List<Map<String, Object>> uncategorized = jdbcTemplate.queryForList(uncategorizedSql);
+			if (!uncategorized.isEmpty()) {
+				Map<String, Object> folder = new HashMap<>();
+				folder.put("type", "folder");
+				folder.put("id", "UNCATEGORIZED");
+				folder.put("Name", "미분류");
+				folder.put("Path", "UNCATEGORIZEDPath"); // 기존 구조와 호환
+				List<Map<String, Object>> children = new ArrayList<>();
+				for (Map<String, Object> row : uncategorized) {
+					Map<String, Object> node = new HashMap<>();
+					node.put("type", "sql");
+					node.put("id", row.get("TEMPLATE_ID"));
+					node.put("Name", row.get("TEMPLATE_NAME") + ".sql");
+					node.put("templateId", row.get("TEMPLATE_ID"));
+					children.add(node);
+				}
+				folder.put("list", children);
+				tree.add(folder);
+			}
+
+		} catch (Exception e) {
+			logger.error("메뉴 트리 조회 실패", e);
 		}
 
 		return tree;
@@ -104,7 +117,7 @@ public class SqlTemplateService {
 			return result;
 		}
 
-		String sql = "SELECT TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
+					String sql = "SELECT TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, NEWLINE, AUDIT FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
 		List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, templateId);
 		if (rows.isEmpty()) {
 			result.put("success", false);
@@ -123,6 +136,8 @@ public class SqlTemplateService {
 		data.put("sqlStatus", row.get("STATUS"));
 		data.put("executionLimit", row.get("EXECUTION_LIMIT"));
 		data.put("refreshTimeout", row.get("REFRESH_TIMEOUT"));
+		data.put("newline", row.get("NEWLINE"));
+		data.put("audit", row.get("AUDIT"));
 
 		// 파라미터를 config 형태로 변환
 		String paramSql = "SELECT PARAMETER_NAME, DEFAULT_VALUE FROM SQL_TEMPLATE_PARAMETER WHERE TEMPLATE_ID = ? ORDER BY PARAMETER_ORDER";
@@ -193,6 +208,49 @@ public class SqlTemplateService {
 	}
 
 	/**
+	 * 템플릿에 접근 가능한 DB 연결 목록 조회
+	 */
+	public List<Map<String, Object>> getAccessibleConnections(String templateId, String userId) {
+		try {
+			// 템플릿의 접근 가능한 연결 ID 조회
+			String templateSql = "SELECT ACCESSIBLE_CONNECTION_IDS FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
+			List<Map<String, Object>> templateResults = jdbcTemplate.queryForList(templateSql, templateId);
+			
+			if (templateResults.isEmpty()) {
+				return new ArrayList<>();
+			}
+			
+			String accessibleConnectionIds = (String) templateResults.get(0).get("ACCESSIBLE_CONNECTION_IDS");
+			
+			// 모든 활성 DB 연결 조회
+			String connectionSql = "SELECT CONNECTION_ID, DB_TYPE, HOST_IP, PORT, DATABASE_NAME, USERNAME, STATUS " +
+								 "FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY DB_TYPE, CONNECTION_ID";
+			List<Map<String, Object>> allConnections = jdbcTemplate.queryForList(connectionSql);
+			
+			// 접근 가능한 연결 ID가 설정되지 않았으면 모든 연결 반환
+			if (accessibleConnectionIds == null || accessibleConnectionIds.trim().isEmpty()) {
+				return allConnections;
+			}
+			
+			// 설정된 연결 ID만 필터링
+			List<String> allowedConnectionIds = Arrays.asList(accessibleConnectionIds.split(","));
+			List<Map<String, Object>> accessibleConnections = new ArrayList<>();
+			
+			for (Map<String, Object> connection : allConnections) {
+				String connectionId = (String) connection.get("CONNECTION_ID");
+				if (allowedConnectionIds.contains(connectionId)) {
+					accessibleConnections.add(connection);
+				}
+			}
+			
+			return accessibleConnections;
+		} catch (Exception e) {
+			logger.error("접근 가능한 DB 연결 조회 실패: " + templateId, e);
+			return new ArrayList<>();
+		}
+	}
+
+	/**
 	 * 템플릿 목록 조회 (단축키 대상용)
 	 */
 	public Map<String, Object> getTemplateList() {
@@ -215,9 +273,9 @@ public class SqlTemplateService {
 	 * 템플릿 저장 (신규/수정) - 파라미터 및 단축키 포함
 	 */
 	@Transactional
-    public Map<String, Object> saveSqlTemplate(String templateId, String templateName, String templateDesc, 
+    	public Map<String, Object> saveSqlTemplate(String templateId, String templateName, String templateDesc, 
                                                Integer version, String status, Integer executionLimit, 
-                                               Integer refreshTimeout, String categoryIds,
+                                               Integer refreshTimeout, Boolean newline, Boolean audit, String categoryIds,
                                                String accessibleConnectionIds, String sqlContent, String configContent, String parametersJson, 
                                                String shortcutsJson, String userId) {
 		Map<String, Object> result = new HashMap<>();
@@ -231,17 +289,19 @@ public class SqlTemplateService {
 		// 기본값 설정
         if (version == null) version = 1;
         if (status == null) status = "ACTIVE";
-        if (executionLimit == null) executionLimit = 1000;
-        if (refreshTimeout == null) refreshTimeout = 10;
+        if (executionLimit == null) executionLimit = 0;
+        if (refreshTimeout == null) refreshTimeout = 0;
+        if (newline == null) newline = true;
+        if (audit == null) audit = false;
 
 		boolean isNew = (templateId == null || templateId.trim().isEmpty());
 		if (isNew) {
 			templateId = generateTemplateId(templateName);
-			String insertSql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, CREATED_BY) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-			jdbcTemplate.update(insertSql, templateId, templateName, templateDesc, sqlContent, accessibleConnectionIds, version, status, executionLimit, refreshTimeout, userId);
+			String insertSql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, NEWLINE, AUDIT, CREATED_BY) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+			jdbcTemplate.update(insertSql, templateId, templateName, templateDesc, sqlContent, accessibleConnectionIds, version, status, executionLimit, refreshTimeout, newline, audit, userId);
 		} else {
-			String updateSql = "UPDATE SQL_TEMPLATE SET TEMPLATE_NAME = ?, TEMPLATE_DESC = ?, SQL_CONTENT = ?, ACCESSIBLE_CONNECTION_IDS = ?, VERSION = ?, STATUS = ?, EXECUTION_LIMIT = ?, REFRESH_TIMEOUT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE TEMPLATE_ID = ?";
-			jdbcTemplate.update(updateSql, templateName, templateDesc, sqlContent, accessibleConnectionIds, version, status, executionLimit, refreshTimeout, userId, templateId);
+			String updateSql = "UPDATE SQL_TEMPLATE SET TEMPLATE_NAME = ?, TEMPLATE_DESC = ?, SQL_CONTENT = ?, ACCESSIBLE_CONNECTION_IDS = ?, VERSION = ?, STATUS = ?, EXECUTION_LIMIT = ?, REFRESH_TIMEOUT = ?, NEWLINE = ?, AUDIT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE TEMPLATE_ID = ?";
+			jdbcTemplate.update(updateSql, templateName, templateDesc, sqlContent, accessibleConnectionIds, version, status, executionLimit, refreshTimeout, newline, audit, userId, templateId);
 		}
 
 		// 기존 카테고리 매핑 삭제
@@ -271,7 +331,7 @@ public class SqlTemplateService {
 		if (parametersJson != null && !parametersJson.trim().isEmpty()) {
 			try {
 
-				List<Map<String, Object>> parameters = com.getJsonObjectFromString(parametersJson);
+				List<Map<String, Object>> parameters = com.getListFromString(parametersJson);
 
 				for (Map<String, Object> param : parameters) {
 

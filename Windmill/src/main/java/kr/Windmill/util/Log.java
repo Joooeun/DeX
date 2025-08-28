@@ -14,6 +14,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import kr.Windmill.dto.log.LogInfoDto;
+import kr.Windmill.dto.SqlTemplateExecuteDto;
 
 @Component
 public class Log {
@@ -335,6 +336,156 @@ public class Log {
 			default:
 				return "OTHER";
 		}
+	}
+
+	// ==================== SqlTemplateExecuteDto 로깅 메서드들 ====================
+	
+	/**
+	 * SqlTemplateExecuteDto를 사용한 로그 시작
+	 */
+	public void log_start(SqlTemplateExecuteDto executeDto, String msg) {
+		// 파일은 모두 저장으로 변경 20240619
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
+		String strNowDate = simpleDateFormat.format(java.util.Date.from(executeDto.getStartTime()));
+
+		try {
+			String path = com.RootPath + "log";
+			File folder = new File(path);
+
+			if (!folder.exists()) {
+				try {
+					logger.info("폴더생성여부 : " + folder.mkdirs());
+				} catch (Exception e) {
+					e.getStackTrace();
+				}
+			}
+
+			path += File.separator + executeDto.getMemberId() + "_" + strNowDate + ".log";
+
+			File file = new File(path);
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+
+			FileWriter fw = new FileWriter(file, true);
+			BufferedWriter writer = new BufferedWriter(fw);
+			SimpleDateFormat simpleDateFormat2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			String strNowDate2 = simpleDateFormat2.format(java.util.Date.from(executeDto.getStartTime()));
+
+			writer.write(strNowDate2 + " id : " + executeDto.getMemberId() + " / ip :  " + executeDto.getIp() + 
+				"\nDB : " + executeDto.getConnectionId() + " / TEMPLATE : " + executeDto.getTemplateId() + msg);
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * SqlTemplateExecuteDto를 사용한 로그 종료
+	 */
+	public void log_end(SqlTemplateExecuteDto executeDto, String msg) {
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
+		String strNowDate = simpleDateFormat.format(java.util.Date.from(executeDto.getStartTime()));
+
+		try {
+			String path = com.RootPath + "log";
+			File folder = new File(path);
+
+			if (!folder.exists()) {
+				try {
+					logger.info("폴더생성여부 : " + folder.mkdirs());
+				} catch (Exception e) {
+					e.getStackTrace();
+				}
+			}
+
+			path += File.separator + executeDto.getMemberId() + "_" + strNowDate + ".log";
+
+			File file = new File(path);
+			if (!file.exists()) {
+				file.createNewFile();
+			}
+
+			FileWriter fw = new FileWriter(file, true);
+			BufferedWriter writer = new BufferedWriter(fw);
+
+			// SQL 내용을 가져오기 위해 파라미터 정보 포함
+			String sqlContent = executeDto.getSqlContent() != null ? executeDto.getSqlContent() : "SQL Template: " + executeDto.getTemplateId();
+			String logId = executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli();
+
+			writer.write("start:" + logId + ":==============================================\n" + sqlContent + 
+				"\nend:" + logId + ":==============================================" + 
+				"\nDB : " + executeDto.getConnectionId() + " / TEMPLATE : " + executeDto.getTemplateId() + msg);
+			writer.newLine();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * SqlTemplateExecuteDto를 사용한 DB 로그 저장
+	 */
+	public void log_DB(SqlTemplateExecuteDto executeDto) {
+		if (executeDto.getConnectionId().equals(com.LogDB) || !executeDto.getAudit()) {
+			return;
+		}
+
+		// JdbcTemplate을 사용하여 DEXLOG 테이블에 직접 저장 (톰캣 DB 설정 사용)
+		insertDexLog(executeDto);
+	}
+	
+	/**
+	 * SqlTemplateExecuteDto를 DEXLOG 테이블에 저장합니다 (톰캣 DB 설정 사용).
+	 */
+	private void insertDexLog(SqlTemplateExecuteDto executeDto) {
+		// 실행 시간 계산
+		long duration = 0;
+		if (executeDto.getStartTime() != null && executeDto.getEndTime() != null) {
+			duration = java.time.Duration.between(executeDto.getStartTime(), executeDto.getEndTime()).toMillis();
+		}
+		
+		// 파라미터 정보를 JSON 형태로 변환
+		String paramJson = "{}";
+		if (executeDto.getParameterList() != null && !executeDto.getParameterList().isEmpty()) {
+			try {
+				// 간단한 JSON 형태로 변환 (실제로는 Jackson 등을 사용하는 것이 좋음)
+				StringBuilder json = new StringBuilder("{");
+				for (int i = 0; i < executeDto.getParameterList().size(); i++) {
+					java.util.Map<String, Object> param = executeDto.getParameterList().get(i);
+					if (i > 0) json.append(",");
+					json.append("\"").append(param.get("title")).append("\":\"").append(param.get("value")).append("\"");
+				}
+				json.append("}");
+				paramJson = json.toString();
+			} catch (Exception e) {
+				logger.warn("파라미터 JSON 변환 실패: {}", e.getMessage());
+				paramJson = "{}";
+			}
+		}
+		
+		// DEXLOG 테이블에 삽입
+		String sql = "INSERT INTO DEXLOG (" +
+			"USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, " +
+			"SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID_REF" +
+			") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		
+		jdbcTemplate.update(sql,
+			executeDto.getMemberId(),                        // USER_ID
+			executeDto.getIp(),                              // IP
+			executeDto.getConnectionId(),                     // CONN_DB
+			"SQL_TEMPLATE",                                  // MENU (템플릿 실행임을 표시)
+			getExecutionType(executeDto.getSqlContent()),    // SQL_TYPE
+			executeDto.getRows(),                           // RESULT_ROWS
+			executeDto.getSqlContent(),                     // SQL_TEXT
+			executeDto.getResult(),                         // RESULT_MSG
+			duration,                                       // DURATION
+			executeDto.getStartTime(),                      // EXECUTE_DATE
+			paramJson,                                      // XML_LOG (파라미터 정보)
+			executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli()  // LOG_ID_REF
+		);
+		
+		logger.debug("DEXLOG 저장 완료 (Template): {} - {}", executeDto.getMemberId(), executeDto.getConnectionId());
 	}
 
 }

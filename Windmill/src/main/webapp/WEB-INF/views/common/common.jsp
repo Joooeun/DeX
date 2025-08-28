@@ -171,7 +171,13 @@
 		for (var i = 0; i < result.length; i++) {
 			var list = result[i];
 
-			if (list.Path.includes('Path')) {
+			// 안전한 속성 접근을 위한 검증
+			if (!list || !list.Name) {
+				console.warn('Invalid menu item:', list);
+				continue;
+			}
+
+			if (list.type === 'folder') {
 				var folder = $('<li class="treeview">\n' +
 					'          <a class="addtree" href="#">\n' +
 					'<span>' +
@@ -182,15 +188,22 @@
 				folder.append(setMenu(list.list, child));
 
 				parent.append(folder);
-			} else if (list.Name.includes('.htm')) {
-
+			} else if (list.type === 'sql') {
+				// SQL 템플릿인 경우
+				var childItem = $('<li><a href="/SQL?templateId=' +
+					list.templateId + '" target="iframe" id="' +
+					list.Name.split('.')[0] + '">' +
+					list.Name.split('.')[0] + '</a></li>');
+				parent.append(childItem);
+			} else if (list.Name && list.Name.includes('.htm')) {
+				// HTML 파일인 경우
 				var childItem = $('<li><a href="/HTML?Path=' +
 					encodeURI(list.Path) + '" target="iframe" id="' +
 					list.Name.split('_')[0] + '">' +
 					list.Name.split('.')[0] + '</a></li>');
 				parent.append(childItem);
-
-			} else {
+			} else if (list.Path) {
+				// 기존 파일 기반 SQL인 경우
 				var childItem = $('<li><a href="/SQL?Path=' +
 					encodeURI(list.Path) + '" target="iframe" id="' +
 					list.Name.split('_')[0] + '">' +
@@ -246,3 +259,4 @@
 	}
 
 </script>
+

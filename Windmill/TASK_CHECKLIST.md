@@ -3,11 +3,11 @@
 ## **📋 전체 작업 진행률**
 
 - [x] **1단계: 기반 작업 (안정성 확보)** - 3/3 완료
-- [x] **2단계: 데이터 구조 개선** - 3/3 완료  
+- [x] **2단계: 데이터 구조 개선** - 4/4 완료  
 - [ ] **3단계: 기능 확장** - 0/1 완료
 - [ ] **4단계: 최종 검증** - 0/1 완료
 
-**전체 진행률: 86% (6/7 완료)**
+**전체 진행률: 89% (7/8 완료)**
 
 ---
 
@@ -84,6 +84,20 @@
 - [x] 그룹 권한 상속 시스템 설계
 
 **진행률: 100% (6/6 완료)**
+
+### **2-4. SQL 템플릿 감사 로그 기능 구현** ⭐ (신규 추가)
+- [x] SQL_TEMPLATE 테이블에 AUDIT 컬럼 추가
+- [x] SQLTemplate.jsp에 감사 로그 설정 UI 추가
+- [x] SQLTemplateController에 audit 파라미터 처리
+- [x] SqlTemplateService에 audit 설정 저장/조회
+- [x] SqlTemplateExecuteDto에 로깅 관련 필드 추가
+- [x] SQLExecuteService에 템플릿 기반 SQL 실행 로직
+- [x] Log 유틸리티에 SqlTemplateExecuteDto 전용 로깅 메서드
+- [x] 파라미터 바인딩 시스템 구현
+- [x] SQL 타입별 실행 처리 (CALL, SELECT, UPDATE)
+- [x] DEXLOG 테이블에 감사 로그 저장 기능
+
+**진행률: 100% (10/10 완료)**
 
 ---
 
@@ -173,6 +187,20 @@
 
 ### **완료된 작업**
 - ✅ 1-1. 화면 버그 잡기 (완료: 2025-08-07)
+- ✅ **SQL 템플릿 감사 로그 기능 구현 (완료: 2025-08-13)**
+  - SQL_TEMPLATE 테이블에 AUDIT 컬럼 추가 (BOOLEAN DEFAULT FALSE)
+  - SQLTemplate.jsp에 "감사 로그 저장" 체크박스 UI 추가
+  - JavaScript 함수 수정 (saveSqlTemplate, loadSqlTemplateDetail, createNewSqlTemplate, testSqlTemplate)
+  - SQLTemplateController에 audit 파라미터 처리 로직 추가
+  - SqlTemplateService에 audit 설정 저장/조회 기능 구현
+  - SqlTemplateExecuteDto에 로깅 관련 필드들 추가 (startTime, endTime, result, rows, logNo, errorMessage, executionTime, sqlContent)
+  - SQLExecuteService에 executeTemplateSQL, executeTemplateSQLCore 메서드 구현
+  - Log 유틸리티에 SqlTemplateExecuteDto 전용 로깅 메서드 추가 (log_start, log_end, log_DB)
+  - 파라미터 바인딩 시스템 구현 (${paramName} 형태 지원)
+  - 5가지 파라미터 타입 지원 (STRING, NUMBER, TEXT, SQL, LOG)
+  - SQL 타입별 실행 처리 (executeCallProcedure, executeQuery, executeUpdate)
+  - DEXLOG 테이블에 감사 로그 저장 기능 (audit=true일 때만)
+  - 파라미터 정보를 JSON 형태로 변환하여 저장
   - DEX 상태 카드 레이아웃 수정 (col-md-2 → col-md-4, col-md-6 → col-md-8)
   - LOCK_WAIT_COUNT 차트 CSS 오류 수정 (max-height: 200px% → 200px)
   - 해시 비교 로직 검증 및 수정
@@ -358,5 +386,5 @@
 
 ---
 
-**마지막 업데이트: 2025년 8월 12일**
-**다음 리뷰: 2025년 8월 13일**
+**마지막 업데이트: 2025년 8월 13일**
+**다음 리뷰: 2025년 8월 14일**
