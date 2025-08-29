@@ -371,9 +371,9 @@ public class DynamicJdbcManager implements Closeable {
 	public void initializeConnectionPools() {
 		logger.info("=== 커넥션 풀 초기화 시작 ===");
 
-		// RootPath가 설정되었는지 확인
-		if (common.RootPath == null || common.RootPath.isEmpty() || common.RootPath.contains("${system.root.path}")) {
-			logger.warn("RootPath가 아직 설정되지 않았습니다. 5초 후 다시 시도합니다.");
+		// RootPath 유효성 검증
+		if (!Common.isRootPathValid()) {
+			logger.warn("RootPath가 유효하지 않습니다. 5초 후 다시 시도합니다.");
 			// 5초 후 다시 시도
 			cleanupExecutor.schedule(this::initializeConnectionPools, 5, TimeUnit.SECONDS);
 			return;
@@ -461,6 +461,11 @@ public class DynamicJdbcManager implements Closeable {
 	 * 연결 ID로 커넥션을 가져옵니다 (SQL 실행용).
 	 */
 	public Connection getConnection(String connectionId) throws Exception {
+		// RootPath 유효성 검증
+		if (!Common.isRootPathValid()) {
+			throw new Exception("RootPath가 유효하지 않아 연결을 가져올 수 없습니다: " + connectionId);
+		}
+		
 		IsolatedPool pool = pools.get(connectionId);
 		if (pool == null) {
 			throw new Exception("연결 ID에 해당하는 풀이 없습니다: " + connectionId);
@@ -481,6 +486,11 @@ public class DynamicJdbcManager implements Closeable {
 	 * 일회성 커넥션을 생성합니다 (연결 테스트용).
 	 */
 	public Connection createOneTimeConnection(String driverClassName, String jdbcUrl, Properties props, String jdbcDriverFile) throws Exception {
+		// RootPath 유효성 검증
+		if (!Common.isRootPathValid()) {
+			throw new Exception("RootPath가 유효하지 않아 일회성 연결을 생성할 수 없습니다");
+		}
+		
 		// JAR 파일 경로 찾기
 		String jarPath = findDriverJarPath(jdbcDriverFile);
 		if (jarPath == null) {
@@ -497,6 +507,12 @@ public class DynamicJdbcManager implements Closeable {
 	 * 드라이버 클래스명과 JAR 파일명으로 JAR 파일 경로를 찾습니다.
 	 */
 	private String findDriverJarPath(String jdbcDriverFile) {
+		// RootPath 유효성 검증
+		if (!Common.isRootPathValid()) {
+			logger.warn("RootPath가 유효하지 않아 JDBC 드라이버 경로를 찾을 수 없습니다");
+			return null;
+		}
+		
 		try {
 			File jdbcDir = new File(common.JdbcPath);
 			if (!jdbcDir.exists()) {
@@ -548,60 +564,45 @@ public class DynamicJdbcManager implements Closeable {
 	@PreDestroy
 	@Override
 	public void close() {
-		System.out.println("=== DynamicJdbcManager " + pools.size() + "개 정리 시작 ===");
+		logger.info("DynamicJdbcManager 정리 시작 ({}개 풀)", pools.size());
 		
 		long startTime = System.currentTimeMillis();
 
-		// 스케줄러 종료 (더 강력한 정리)
-		System.out.println("스케줄러 종료 시작...");
+		// 스케줄러 종료
 		cleanupExecutor.shutdown();
 		try {
-			// 즉시 종료 시도
 			if (!cleanupExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
-				System.out.println("스케줄러가 1초 내에 종료되지 않아 강제 종료합니다.");
 				cleanupExecutor.shutdownNow();
-				// 추가 대기
 				if (!cleanupExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
-					System.out.println("스케줄러 강제 종료 실패");
-				} else {
-					System.out.println("스케줄러 강제 종료 완료");
+					logger.warn("스케줄러 강제 종료 실패");
 				}
-			} else {
-				System.out.println("스케줄러 정상 종료 완료");
 			}
 		} catch (InterruptedException e) {
-			System.out.println("스케줄러 종료 중 인터럽트 발생");
 			cleanupExecutor.shutdownNow();
 			Thread.currentThread().interrupt();
 		}
 
 		// 모든 풀 정리
-		System.out.println("커넥션 풀 정리 시작...");
 		int poolCount = 0;
 		for (IsolatedPool pool : pools.values()) {
 			try {
 				poolCount++;
-				System.out.println("풀 정리 중: " + poolCount + "/" + pools.size());
 				pool.close();
 			} catch (Exception e) {
-				System.out.println("풀 정리 중 오류: " + e.getMessage());
+				logger.warn("풀 정리 중 오류: {}", e.getMessage());
 			}
 		}
 		pools.clear();
-		System.out.println("커넥션 풀 정리 완료 (총 " + poolCount + "개)");
 
 		// DB2 드라이버 관련 타이머 스레드 정리 시도
 		try {
-			// DB2 드라이버의 글로벌 타이머 정리
 			Class.forName("com.ibm.db2.jcc.am.GlobalProperties");
-			// DB2 드라이버 등록 해제
 			DriverManager.deregisterDriver(DriverManager.getDriver("jdbc:db2://"));
-			System.out.println("DB2 드라이버 정리 완료");
 		} catch (Exception e) {
-			System.out.println("DB2 드라이버 정리 중 오류 (무시): " + e.getMessage());
+			logger.debug("DB2 드라이버 정리 중 오류 (무시): {}", e.getMessage());
 		}
 
-		// 추가: 모든 등록된 드라이버 정리
+		// 모든 등록된 드라이버 정리
 		int driverCount = 0;
 		try {
 			Enumeration<Driver> drivers = DriverManager.getDrivers();
@@ -610,18 +611,14 @@ public class DynamicJdbcManager implements Closeable {
 				try {
 					DriverManager.deregisterDriver(driver);
 					driverCount++;
-					System.out.println("드라이버 등록 해제: " + driver.getClass().getName());
 				} catch (Exception e) {
-					System.out.println("드라이버 등록 해제 실패: " + driver.getClass().getName() + " - " + e.getMessage());
+					logger.debug("드라이버 등록 해제 실패: {} - {}", driver.getClass().getName(), e.getMessage());
 				}
 			}
-			System.out.println("드라이버 정리 완료 (총 " + driverCount + "개)");
 		} catch (Exception e) {
-			System.out.println("드라이버 정리 중 오류: " + e.getMessage());
 		}
 
 		// 추가: 시스템 타이머 스레드 정리 시도
-		System.out.println("시스템 타이머 스레드 정리 시작...");
 		int timerThreadCount = 0;
 		try {
 			// 모든 타이머 스레드 찾기 및 정리
@@ -636,25 +633,20 @@ public class DynamicJdbcManager implements Closeable {
 			for (Thread thread : threads) {
 				if (thread != null && thread.getName().startsWith("Timer-")) {
 					timerThreadCount++;
-					System.out.println("타이머 스레드 발견: " + thread.getName() + " - 종료 시도");
 					try {
 						thread.interrupt();
 					} catch (Exception e) {
-						System.out.println("타이머 스레드 인터럽트 실패: " + thread.getName() + " - " + e.getMessage());
 					}
 				}
 			}
-			System.out.println("타이머 스레드 정리 완료 (총 " + timerThreadCount + "개)");
 		} catch (Exception e) {
-			System.out.println("타이머 스레드 정리 중 오류: " + e.getMessage());
+			logger.warn("드라이버 정리 중 오류: {}", e.getMessage());
 		}
 
 		long endTime = System.currentTimeMillis();
 		long duration = endTime - startTime;
 		
-		System.out.println("=== DynamicJdbcManager 정리 완료 ===");
-		System.out.println("총 정리 시간: " + duration + "ms");
-		System.out.println("정리된 리소스: " + poolCount + "개 풀, " + driverCount + "개 드라이버, " + timerThreadCount + "개 타이머 스레드");
+		logger.info("DynamicJdbcManager 정리 완료 ({}ms, {}개 풀, {}개 드라이버)", duration, poolCount, driverCount);
 	}
 
 	/**

@@ -45,6 +45,12 @@ public class Log {
 			String path = com.RootPath + "log";
 			File folder = new File(path);
 
+			// RootPath 유효성 확인 후 폴더 생성
+			if (!Common.isRootPathValid()) {
+				logger.error("RootPath가 유효하지 않아 로그 폴더를 생성할 수 없습니다: {}", com.RootPath);
+				return;
+			}
+
 			if (!folder.exists()) {
 				try {
 					logger.info("폴더생성여부 : " + folder.mkdirs());
@@ -82,6 +88,12 @@ public class Log {
 			String path = com.RootPath + "log";
 			File folder = new File(path);
 
+			// RootPath 유효성 확인 후 폴더 생성
+			if (!Common.isRootPathValid()) {
+				logger.error("RootPath가 유효하지 않아 로그 폴더를 생성할 수 없습니다: {}", com.RootPath);
+				return;
+			}
+
 			if (!folder.exists()) {
 				try {
 					logger.info("폴더생성여부 : " + folder.mkdirs());
@@ -117,6 +129,12 @@ public class Log {
 
 			String path = com.RootPath + "log";
 			File folder = new File(path);
+
+			// RootPath 유효성 확인 후 폴더 생성
+			if (!Common.isRootPathValid()) {
+				logger.error("RootPath가 유효하지 않아 로그 폴더를 생성할 수 없습니다: {}", com.RootPath);
+				return;
+			}
 
 			if (!folder.exists()) {
 				try {
@@ -155,6 +173,12 @@ public class Log {
 
 			String path = com.RootPath + "log";
 			File folder = new File(path);
+
+			// RootPath 유효성 확인 후 폴더 생성
+			if (!Common.isRootPathValid()) {
+				logger.error("RootPath가 유효하지 않아 로그 폴더를 생성할 수 없습니다: {}", com.RootPath);
+				return;
+			}
 
 			if (!folder.exists()) {
 				try {
@@ -197,6 +221,12 @@ public class Log {
 			String path = com.RootPath + "log";
 			File folder = new File(path);
 
+			// RootPath 유효성 확인 후 폴더 생성
+			if (!Common.isRootPathValid()) {
+				logger.error("RootPath가 유효하지 않아 로그 폴더를 생성할 수 없습니다: {}", com.RootPath);
+				return;
+			}
+
 			if (!folder.exists()) {
 				try {
 					logger.info("폴더생성여부 : " + folder.mkdirs());
@@ -236,6 +266,12 @@ public class Log {
 
 			String path = com.RootPath + "log" + File.separator + "monitoring";
 			File folder = new File(path);
+
+			// RootPath 유효성 확인 후 폴더 생성
+			if (!Common.isRootPathValid()) {
+				logger.error("RootPath가 유효하지 않아 모니터링 로그 폴더를 생성할 수 없습니다: {}", com.RootPath);
+				return;
+			}
 
 			if (!folder.exists()) {
 				try {
@@ -344,6 +380,12 @@ public class Log {
 	 * SqlTemplateExecuteDto를 사용한 로그 시작
 	 */
 	public void log_start(SqlTemplateExecuteDto executeDto, String msg) {
+		// RootPath 유효성 확인
+		if (!Common.isRootPathValid()) {
+			logger.error("RootPath가 유효하지 않아 템플릿 로그를 기록할 수 없습니다: {}", com.RootPath);
+			return;
+		}
+
 		// 파일은 모두 저장으로 변경 20240619
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
 		String strNowDate = simpleDateFormat.format(java.util.Date.from(executeDto.getStartTime()));
@@ -384,6 +426,12 @@ public class Log {
 	 * SqlTemplateExecuteDto를 사용한 로그 종료
 	 */
 	public void log_end(SqlTemplateExecuteDto executeDto, String msg) {
+		// RootPath 유효성 확인
+		if (!Common.isRootPathValid()) {
+			logger.error("RootPath가 유효하지 않아 템플릿 로그를 기록할 수 없습니다: {}", com.RootPath);
+			return;
+		}
+
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
 		String strNowDate = simpleDateFormat.format(java.util.Date.from(executeDto.getStartTime()));
 

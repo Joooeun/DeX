@@ -2436,14 +2436,14 @@ function testSqlTemplate() {
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿의 이름을 입력합니다. 템플릿 목록에서 표시되는 이름이며, 100자 이하로 입력해야 합니다.">SQL 이름</label> <input type="text" class="form-control" id="sqlTemplateName" placeholder="SQL 이름">
+											<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿의 고유 이름입니다. 대시보드와 메뉴에서 표시되며, 100자 이하로 입력해주세요.">SQL 이름</label> <input type="text" class="form-control" id="sqlTemplateName" placeholder="SQL 이름">
                                 </div>
                             </div>
 									<div class="col-md-8">
 									<div class="row">
                             <div class="col-md-4">
                                 <div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿의 상태를 설정합니다. 활성:사용 가능, 비활성:사용 불가, 초안:작성 중">상태</label>
+											<label data-toggle="tooltip" data-placement="top" title="템플릿의 사용 상태를 설정합니다. 활성: 사용 가능, 비활성: 사용 불가, 초안: 작성 중">상태</label>
 											<select class="form-control" id="sqlTemplateStatus">
 												<option value="ACTIVE">활성</option>
 												<option value="INACTIVE">비활성</option>
@@ -2455,17 +2455,17 @@ function testSqlTemplate() {
 
                             <div class="col-md-4">
                                 <div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="SQL 실행 시 최대 반환할 행 수를 설정합니다. 0~20,000 사이의 숫자를 입력하세요. 0은 제한 없음을 의미합니다.">실행 제한 (행)</label> <input type="number" class="form-control" id="sqlExecutionLimit" value="0" min="0" max="20000" placeholder="최대 반환 행 수">
+											<label data-toggle="tooltip" data-placement="top" title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습습니다.">실행 제한 (행)</label> <input type="number" class="form-control" id="sqlExecutionLimit" value="0" min="0" max="20000" placeholder="최대 반환 행 수">
 										</div>
 									</div>
 									<div class="col-md-4">
 										<div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="자동 새로고침 기능 사용 시 대기 시간을 설정합니다. 0~3600초 사이의 숫자를 입력하세요. 0은 자동 새로고침을 사용하지 않음을 의미합니다.">새로고침 간격 (초)</label> <input type="number" class="form-control" id="sqlRefreshTimeout" value="0" min="0" max="3600" placeholder="새로고침 대기 시간">
+											<label data-toggle="tooltip" data-placement="top" title="대시보드에서 자동으로 데이터를 새로고침하는 간격을 설정합니다. 0으로 설정하면 자동 새로고침을 사용하지 않습니다.">새로고침 간격 (초)</label> <input type="number" class="form-control" id="sqlRefreshTimeout" value="0" min="0" max="3600" placeholder="새로고침 대기 시간">
 										</div>
 									</div>
 									<div class="col-md-4">
 										<div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="이 템플릿을 대시보드 차트에 매핑합니다. 선택된 차트에서 이 템플릿의 SQL이 실행되어 데이터를 제공합니다.">차트 매핑</label>
+											<label data-toggle="tooltip" data-placement="top" title="대시보드에서 차트로 표시할 컬럼을 선택합니다">차트 매핑</label>
 											<select class="form-control" id="sqlChartMapping">
 												<option value="">차트 매핑 없음</option>
 												<option value="APPL_COUNT">애플리케이션 수</option>
@@ -2477,7 +2477,7 @@ function testSqlTemplate() {
 									</div>
 									<div class="col-md-4">
 										<div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="결과 테이블에서 개행 문자를 표시할지 설정합니다. 체크 시 긴 텍스트의 개행이 테이블에 표시됩니다.">개행 보기</label>
+											<label data-toggle="tooltip" data-placement="top" title="SQL 결과에서 개행 문자를 그대로 표시할지 설정합니다. 체크하면 텍스트 내의 줄바꿈이 화면에 반영됩니다.">개행 보기</label>
 											<div class="checkbox">
 												<label>
 													<input type="checkbox" id="sqlNewline" checked> 개행 문자 표시
@@ -2487,7 +2487,7 @@ function testSqlTemplate() {
 									</div>
 									<div class="col-md-4">
 										<div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="SQL 실행 시 감사 로그를 데이터베이스에 저장할지 설정합니다. 체크 시 DEXLOG 테이블에 실행 정보가 기록됩니다.">감사 로그</label>
+											<label data-toggle="tooltip" data-placement="top" title="SQL 실행 시 사용자, 실행 시간, 파라미터 등의 정보를 감사 로그에 저장할지 설정합니다. 보안 및 모니터링에 활용됩니다.">감사 로그</label>
 											<div class="checkbox">
 												<label>
 													<input type="checkbox" id="sqlAudit"> 감사 로그 저장
@@ -2502,7 +2502,7 @@ function testSqlTemplate() {
 								<div class="row">
 									<div class="col-md-12">
 										<div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿의 용도나 사용법에 대한 설명을 입력합니다. 템플릿 목록에서 표시되는 설명입니다.">설명</label>
+											<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿에 대한 상세한 설명을 입력합니다.">설명</label>
 											<textarea class="form-control" id="sqlTemplateDesc" rows="2" placeholder="SQL 템플릿에 대한 설명을 입력하세요"></textarea>
                                 </div>
                             </div>
@@ -2514,7 +2514,7 @@ function testSqlTemplate() {
 
 							<div class="col-md-6">
                         <div class="form-group">
-									<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿을 분류할 카테고리를 선택합니다. 여러 카테고리를 선택할 수 있으며, 선택된 카테고리에서 템플릿을 찾을 수 있습니다.">카테고리</label>
+									<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿을 분류하여 관리합니다. 카테고리별로 템플릿을 그룹화하여 찾기 쉽게 만들 수 있습니다.">카테고리</label>
 									<select class="form-control" id="sqlTemplateCategories" multiple>
 										<!-- 카테고리 옵션들이 여기에 로드됩니다 -->
 									</select>
@@ -2522,7 +2522,7 @@ function testSqlTemplate() {
                         
 								<!-- DB 연결 선택 -->
                         <div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="이 템플릿이 접근할 수 있는 DB 연결을 선택합니다. 선택된 DB 연결에 대해서만 SQL 내용을 작성할 수 있습니다. 아무것도 선택하지 않으면 모든 DB 연결에 접근 가능합니다.">접근 가능한 DB 연결 (미선택 시 모든 DB 접근 가능)</label>
+											<label data-toggle="tooltip" data-placement="top" title="이 SQL 템플릿을 사용할 수 있는 데이터베이스 연결을 선택합니다. 아무것도 선택하지 않으면 모든 DB 연결에서 사용 가능합니다.">접근 가능한 DB 연결</label>
 											<select class="form-control" id="accessibleConnections" multiple>
 												<!-- DB 연결 옵션들이 여기에 로드됩니다 -->
 											</select>
@@ -2539,15 +2539,15 @@ function testSqlTemplate() {
 										<table class="table table-bordered table-striped align-middle" id="parameterTable">
 											<thead>
 												<tr>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터의 실행 순서를 변경합니다. SQL 실행 시 파라미터가 바인딩되는 순서를 결정합니다.">순서</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터의 고유한 이름을 입력합니다. SQL에서 :파라미터명 형태로 사용되며, 영문자/숫자/언더스코어만 허용됩니다.">파라미터명</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터의 용도나 설명을 입력합니다. SQL 실행 화면에서 사용자에게 표시되는 설명입니다.">설명</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터의 데이터 타입을 선택합니다. STRING:문자열, NUMBER:숫자, DATE:날짜, BOOLEAN:불린, TEXT:긴텍스트, SQL:SQL문">타입</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터의 기본값을 설정합니다. 사용자가 값을 입력하지 않았을 때 사용되는 값입니다.">기본값</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="이 파라미터가 반드시 입력되어야 하는지 설정합니다. 체크 시 SQL 실행 전 필수 입력 검증이 수행됩니다.">필수</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="사용자가 값을 수정할 수 없도록 설정합니다. 체크 시 입력 필드가 읽기 전용으로 표시됩니다.">읽기전용</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터를 화면에 숨깁니다. 체크 시 입력 필드가 숨겨지고 자동으로 필수로 설정됩니다.">숨김</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터를 비활성화하여 사용할 수 없게 합니다. 체크 시 입력 필드가 비활성화되어 값을 입력할 수 없습니다.">비활성화</div></th>
+													<th><div data-toggle="tooltip" data-placement="top" title="파라미터의 입력 순서를 설정합니다. 숫자가 작을수록 먼저 입력받으며, 사용자 입력 화면에서도 이 순서대로 표시됩니다.">순서</div></th>
+													<th><div data-toggle="tooltip" data-placement="top" title="SQL 내에서 사용할 파라미터 이름입니다. SQL 문에서 ${파라미터명} 형태로 사용되며, 실행 시 실제 값으로 치환됩니다.">파라미터명</div></th>
+													<th><div data-toggle="tooltip" data-placement="top" title="파라미터에 대한 설명을 입력합니다. 사용자가 입력할 때 도움말로 표시되며, 올바른 값을 입력할 수 있도록 안내합니다.">설명</div></th>
+													<th><div data-toggle="tooltip" data-placement="top" title="파라미터의 데이터 타입을 설정합니다. 문자열: 문자열 바인딩, 숫자: 숫자 바인딩, 텍스트: 긴 문자열용, SQL: SQL 코드 조각, 로그: 로깅용(바인딩 안됨)">타입</div></th>
+													<th><div data-toggle="tooltip" data-placement="top" title="파라미터의 기본값을 설정합니다.">기본값</div></th>
+													<th><div data-toggle="tooltip" data-placement="top" title="파라미터가 반드시 입력되어야 하는지 설정합니다. 체크하면 사용자가 값을 입력하지 않으면 SQL 실행이 차단됩니다.">필수</div></th>
+													<th><div data-toggle="tooltip" data-placement="top" title="파라미터를 읽기 전용으로 설정합니다. 체크하면 사용자가 값을 수정할 수 없으며, 기본값이나 시스템에서 설정된 값만 사용됩니다.">읽기전용</div></th>
+													<th><div data-toggle="tooltip" data-placement="top" title="파라미터 입력 필드를 화면에서 숨깁니다. 체크하면 사용자에게 표시되지 않지만, 기본값이나 시스템 값이 SQL에 전달됩니다.">숨김</div></th>
+													<th><div data-toggle="tooltip" data-placement="top" title="파라미터를 비활성화합니다. 체크하면 입력 필드가 비활성화되어 사용자가 값을 입력할 수 없으며, SQL 실행에서도 제외됩니다.">비활성화</div></th
 													<th></th>
 												</tr>
 											</thead>
@@ -2613,14 +2613,14 @@ function testSqlTemplate() {
 										<table class="table table-bordered table-striped" id="shortcutTable">
 											<thead>
 												<tr>
-													<th width="12%"><div data-toggle="tooltip" data-placement="top" title="단축키를 입력합니다. F1~F12 중 하나를 선택하여 키보드 단축키로 설정합니다.">단축키</div></th>
-													<th width="18%"><div data-toggle="tooltip" data-placement="top" title="단축키의 이름을 입력합니다. 사용자가 단축키를 식별할 수 있는 설명적인 이름을 입력하세요.">단축키명</div></th>
-													<th width="20%"><div data-toggle="tooltip" data-placement="top" title="단축키로 실행할 대상 SQL 템플릿을 선택합니다. 검색 기능을 통해 쉽게 찾을 수 있습니다.">대상 템플릿</div></th>
-													<th width="15%"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 설명을 입력합니다. 단축키의 용도나 사용법을 설명하세요.">설명</div></th>
-													<th width="10%"><div data-toggle="tooltip" data-placement="top" title="소스 컬럼 인덱스를 입력합니다. 콤마로 구분된 숫자 형태로 입력 (예: 1,2,3)">소스 컬럼</div></th>
-													<th width="10%"><div data-toggle="tooltip" data-placement="top" title="단축키 실행 시 자동으로 SQL을 실행할지 설정합니다. 예:자동실행, 아니오:수동실행">자동실행</div></th>
-													<th width="10%"><div data-toggle="tooltip" data-placement="top" title="단축키의 활성화 상태를 설정합니다. 활성화된 단축키만 사용할 수 있습니다.">상태</div></th>
-													<th width="5%"><div data-toggle="tooltip" data-placement="top" title="단축키를 삭제합니다. 삭제된 단축키는 복구할 수 없습니다.">작업</div></th>
+													<th width="12%"><div data-toggle="tooltip" data-placement="top" title="키보드 단축키를 설정합니다. F1~F12 키 중에서 선택하여 빠른 SQL 실행이 가능합니다.">단축키</div></th>
+													<th width="18%"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 설명적인 이름을 입력합니다.">단축키명</div></th>
+													<th width="20%"><div data-toggle="tooltip" data-placement="top" title="단축키를 눌렀을 때 실행할 SQL 템플릿을 선택합니다.">대상 템플릿</div></th>
+													<th width="15%"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 상세한 설명을 입력합니다.">설명</div></th>
+													<th width="10%"><div data-toggle="tooltip" data-placement="top" title="단축키 실행 시 파라미터로 전달할 컬럼의 인덱스를 설정합니다. 1,2,3 형태로 여러 컬럼을 지정할 수 있습니다.">소스 컬럼</div></th>
+													<th width="10%"><div data-toggle="tooltip" data-placement="top" title="단축키를 자동으로 실행할지 설정합니다. 체크하면 조건이 만족될 때 자동으로 SQL이 실행됩니다다.">자동실행</div></th>
+													<th width="10%"><div data-toggle="tooltip" data-placement="top" title="단축키의 활성화 상태를 설정합니다. 활성으로 설정하면 단축키가 사용 가능하며, 비활성으로 설정하면 사용할 수 없습니다.">상태</div></th>
+													<th width="5%"><div data-toggle="tooltip" data-placement="top" title="삭제"></div></th>
 												</tr>
 											</thead>
 											<tbody id="shortcutTableBody">
@@ -2664,10 +2664,10 @@ function testSqlTemplate() {
 				<form id="categoryForm">
 					<input type="hidden" id="categoryId">
 					<div class="form-group">
-						<label for="categoryName" data-toggle="tooltip" data-placement="top" title="카테고리의 이름을 입력합니다. SQL 템플릿을 분류하는 데 사용되는 이름이며, 중복되지 않는 고유한 이름을 입력하세요.">카테고리 이름</label> <input type="text" class="form-control" id="categoryName" required>
+						<label for="categoryName" data-toggle="tooltip" data-placement="top" title="SQL 템플릿을 분류할 카테고리의 이름을 입력합니다. 고유한 이름이어야 하며, 기존 카테고리와 중복되지 않아야 합니다.">카테고리 이름</label> <input type="text" class="form-control" id="categoryName" required>
 					</div>
 					<div class="form-group">
-						<label for="categoryDescription" data-toggle="tooltip" data-placement="top" title="카테고리에 대한 설명을 입력합니다. 카테고리의 용도나 특징을 설명하여 사용자가 쉽게 이해할 수 있도록 도와줍니다.">설명 (선택 사항)</label>
+						<label for="categoryDescription" data-toggle="tooltip" data-placement="top" title="카테고리에 대한 설명을 입력합니다. 해당 카테고리에 어떤 종류의 SQL 템플릿들이 포함되는지 명확하게 작성해주세요.">설명 (선택 사항)</label>
 						<textarea class="form-control" id="categoryDescription" rows="3"></textarea>
 					</div>
 				</form>

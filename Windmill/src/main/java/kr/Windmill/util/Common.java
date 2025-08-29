@@ -85,7 +85,16 @@ public class Common {
 			logger.error("system_properties : " + system_properties);
 		}
 
+		// RootPath 먼저 설정
 		RootPath = props.getProperty("Root") + File.separator;
+		
+		// RootPath 유효성 확인
+		if (!isRootPathValid()) {
+			logger.error("RootPath가 유효하지 않아 애플리케이션 초기화를 중단합니다: {}", RootPath);
+			return; // 여기서 메서드 종료
+		}
+		
+		// RootPath가 유효한 경우에만 다른 경로들 설정
 		ConnectionPath = props.getProperty("Root") + File.separator + "Connection" + File.separator;
 		SrcPath = props.getProperty("Root") + File.separator + "src" + File.separator;
 		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
@@ -97,8 +106,12 @@ public class Common {
 		LogCOL = props.getProperty("LogCOL");
 		logger.info("RootPath : " + RootPath + " / Timeout : " + Timeout + " / LogDB : " + LogDB);
 
-		// JDBC 폴더 생성
-		createJdbcDirectory();
+		// RootPath 유효성 확인 후 JDBC 폴더 생성
+		if (isRootPathValid()) {
+			createJdbcDirectory();
+		} else {
+			logger.error("RootPath가 유효하지 않아 JDBC 폴더 생성을 건너뜁니다: {}", RootPath);
+		}
 
 	}
 
@@ -772,7 +785,66 @@ public class Common {
 		}
 	}
 
+	// RootPath 유효성 검증 로그 중복 방지를 위한 플래그
+	private static String lastInvalidRootPath = null;
+	
+	/**
+	 * RootPath가 유효한지 확인합니다.
+	 */
+	public static boolean isRootPathValid() {
+		if (RootPath == null || RootPath.isEmpty() || RootPath.contains("${system.root.path}")) {
+			// 이전에 로그한 경로와 다른 경우에만 로그
+			if (!RootPath.equals(lastInvalidRootPath)) {
+				logger.error("RootPath가 유효하지 않습니다: {}", RootPath);
+				lastInvalidRootPath = RootPath;
+			}
+			return false;
+		}
+		
+		File rootDir = new File(RootPath);
+		if (!rootDir.exists()) {
+			// 이전에 로그한 경로와 다른 경우에만 로그
+			if (!RootPath.equals(lastInvalidRootPath)) {
+				logger.error("Root 디렉토리가 존재하지 않습니다: {}", RootPath);
+				lastInvalidRootPath = RootPath;
+			}
+			return false;
+		}
+		
+		if (!rootDir.isDirectory()) {
+			// 이전에 로그한 경로와 다른 경우에만 로그
+			if (!RootPath.equals(lastInvalidRootPath)) {
+				logger.error("Root 경로가 디렉토리가 아닙니다: {}", RootPath);
+				lastInvalidRootPath = RootPath;
+			}
+			return false;
+		}
+		
+		if (!rootDir.canRead()) {
+			// 이전에 로그한 경로와 다른 경우에만 로그
+			if (!RootPath.equals(lastInvalidRootPath)) {
+				logger.error("Root 디렉토리에 읽기 권한이 없습니다: {}", RootPath);
+				lastInvalidRootPath = RootPath;
+			}
+			return false;
+		}
+		
+		// 유효한 경로인 경우 플래그 초기화
+		if (lastInvalidRootPath != null) {
+			logger.info("RootPath가 유효해졌습니다: {}", RootPath);
+			lastInvalidRootPath = null;
+		}
+		
+		return true;
+	}
+
 	private static void createJdbcDirectory() {
+		// RootPath 유효성 검증
+		if (!isRootPathValid()) {
+			logger.error("RootPath가 유효하지 않아 JDBC 폴더를 생성할 수 없습니다: {}", RootPath);
+			return;
+		}
+		
 		File jdbcDir = new File(JdbcPath);
 		if (!jdbcDir.exists()) {
 			try {

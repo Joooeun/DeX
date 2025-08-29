@@ -112,6 +112,12 @@ public class ConnectionService {
 	 * 기존 커넥션 풀을 사용하여 TEST_SQL로 연결을 테스트합니다.
 	 */
 	private boolean testConnectionWithPool(String connectionId) {
+		// RootPath 유효성 검증
+		if (!Common.isRootPathValid()) {
+			logger.warn("RootPath가 유효하지 않아 연결 테스트를 건너뜁니다: {}", connectionId);
+			return false;
+		}
+		
 		Connection conn = null;
 		try {
 			// DynamicJdbcManager에서 커넥션 가져오기
@@ -139,11 +145,13 @@ public class ConnectionService {
 				try {
 					conn.close();
 				} catch (SQLException e) {
-					logger.error("커넥션 닫기 실패", e);
+					logger.debug("커넥션 닫기 실패: {}", e.getMessage());
 				}
 			}
 		}
 	}
+
+
 
 	/**
 	 * 연결 ID로 TEST_SQL을 조회합니다.
@@ -228,6 +236,13 @@ public class ConnectionService {
 	private void monitorConnections() {
 		while (isRunning) {
 			try {
+				// RootPath 유효성 검증
+				if (!Common.isRootPathValid()) {
+					logger.warn("RootPath가 유효하지 않아 모니터링을 일시 중단합니다. 30초 후 다시 시도합니다.");
+					Thread.sleep(30000); // 30초 대기
+					continue;
+				}
+				
 				updateAllConnectionStatusesWithInterval();
 				Thread.sleep(10000); // 10초 대기
 			} catch (InterruptedException e) {
@@ -296,6 +311,12 @@ public class ConnectionService {
 
 	private void updateConnectionStatus(String connectionId) {
 		try {
+			// RootPath 유효성 검증
+			if (!Common.isRootPathValid()) {
+				logger.warn("RootPath가 유효하지 않아 연결 상태 확인을 건너뜁니다: {}", connectionId);
+				return;
+			}
+			
 			// 모니터링이 활성화되지 않은 연결은 스킵
 			if (!isMonitoringEnabled(connectionId)) {
 				logger.debug("모니터링이 비활성화된 연결 스킵: {}", connectionId);
