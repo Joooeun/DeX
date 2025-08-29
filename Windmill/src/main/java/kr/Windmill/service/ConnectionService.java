@@ -138,7 +138,23 @@ public class ConnectionService {
 
 			return true;
 		} catch (Exception e) {
-			logger.error("커넥션 풀 테스트 실패: {} - {}", connectionId, e.getStackTrace());
+			logger.error("커넥션 풀 테스트 실패: {} - {}", connectionId, e.getMessage());
+			
+			// 절전 모드 복귀 후 연결 실패 시 풀 재생성 시도
+			if (isLikelySleepModeRecovery(e)) {
+				logger.info("절전 모드 복귀로 인한 연결 실패로 판단, 풀 재생성을 시도합니다: {}", connectionId);
+				try {
+					// 풀 재생성 시도
+					dynamicJdbcManager.reinitializePool(connectionId);
+					logger.info("풀 재생성 완료: {}", connectionId);
+				} catch (Exception reinitEx) {
+					logger.error("풀 재생성 실패: {} - {}", connectionId, reinitEx.getMessage());
+				}
+			} else {
+				// 일반적인 연결 실패의 경우 상세 로그
+				logger.debug("일반적인 연결 실패: {} - {}", connectionId, e.getClass().getSimpleName());
+			}
+			
 			return false;
 		} finally {
 			if (conn != null) {
@@ -152,6 +168,23 @@ public class ConnectionService {
 	}
 
 
+
+	/**
+	 * 절전 모드 복귀로 인한 연결 실패인지 판단합니다.
+	 */
+	private boolean isLikelySleepModeRecovery(Exception e) {
+		String errorMessage = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+		String errorClass = e.getClass().getSimpleName();
+		
+		// 절전 모드 복귀 후 발생하는 일반적인 오류들
+		return errorMessage.contains("connection") && 
+			   (errorMessage.contains("closed") || 
+				errorMessage.contains("timeout") || 
+				errorMessage.contains("broken") ||
+				errorMessage.contains("reset") ||
+				errorClass.contains("SQLException") ||
+				errorClass.contains("CommunicationsException"));
+	}
 
 	/**
 	 * 연결 ID로 TEST_SQL을 조회합니다.

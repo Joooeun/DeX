@@ -549,6 +549,32 @@ public class DynamicJdbcManager implements Closeable {
 	}
 
 	/**
+	 * 특정 연결의 풀을 재초기화합니다.
+	 */
+	public void reinitializePool(String connectionId) throws Exception {
+		logger.info("풀 재초기화 시작: {}", connectionId);
+		
+		// 기존 풀 제거
+		IsolatedPool oldPool = pools.remove(connectionId);
+		if (oldPool != null) {
+			try {
+				oldPool.close();
+				logger.debug("기존 풀 정리 완료: {}", connectionId);
+			} catch (Exception e) {
+				logger.warn("기존 풀 정리 중 오류: {} - {}", connectionId, e.getMessage());
+			}
+		}
+		
+		// 연결 정보 조회
+		String sql = "SELECT * FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
+		Map<String, Object> connInfo = jdbcTemplate.queryForMap(sql, connectionId);
+		
+		// 새 풀 초기화
+		initializePoolForConnection(connInfo);
+		logger.info("풀 재초기화 완료: {}", connectionId);
+	}
+
+	/**
 	 * 사용하지 않는 풀들을 정리합니다.
 	 */
 	private void cleanupUnusedPools() {
