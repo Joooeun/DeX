@@ -60,9 +60,6 @@ public class Common {
 	private UserService userService;
 
 	public static String system_properties = "";
-	public static String ConnectionPath = "";
-	public static String SrcPath = "";
-	public static String UserPath = "";
 	public static String tempPath = "";
 	public static String JdbcPath = ""; // JDBC 드라이버 폴더 경로
 	public static String RootPath = "";
@@ -99,10 +96,7 @@ public class Common {
 		}
 		
 		// RootPath가 유효한 경우에만 다른 경로들 설정
-		ConnectionPath = props.getProperty("Root") + File.separator + "Connection" + File.separator;
-		SrcPath = props.getProperty("Root") + File.separator + "src" + File.separator;
 		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
-		UserPath = props.getProperty("Root") + File.separator + "user" + File.separator;
 		JdbcPath = props.getProperty("Root") + File.separator + "jdbc" + File.separator;
 		Timeout = Integer.parseInt(props.getProperty("Timeout") == null ? "15" : props.getProperty("Timeout"));
 		LogDB = props.getProperty("LogDB");
@@ -121,51 +115,7 @@ public class Common {
 
 
 
-	public Map<String, String> SqlConf(String sqlPath) {
-		Map<String, String> map = new HashMap<>();
 
-		map.put("sql", sqlPath);
-
-		try {
-			String propFile = SrcPath + sqlPath + ".properties";
-			Properties props = new Properties();
-
-			String propStr = FileRead(new File(propFile));
-
-			props.load(new ByteArrayInputStream(propStr.getBytes()));
-
-			map.put("SHORTKEY", props.getProperty("SHORTKEY"));
-			map.put("LIMIT", props.getProperty("LIMIT"));
-			map.put("REFRESHTIMEOUT", props.getProperty("REFRESHTIMEOUT"));
-
-		} catch (IOException e) {
-			logger.error("SQL 설정 파일 읽기 실패: {}", sqlPath, e);
-		}
-		return map;
-	}
-
-	public void sqlConfSave(String sqlPath, Map<String, String> conf) {
-
-		String propFile = SrcPath + sqlPath + ".properties";
-		File file = new File(propFile);
-
-		try {
-			String str = "#" + sqlPath + "\n";
-			FileWriter fw = new FileWriter(file);
-
-			for (Map.Entry<String, String> entry : conf.entrySet()) {
-				String key = entry.getKey();
-				String val = entry.getValue();
-				str += key + "=" + val + "\n";
-			}
-
-			fw.write(str);
-			fw.close();
-		} catch (IOException e) {
-			logger.error("SQL 설정 파일 저장 실패: {}", sqlPath, e);
-		}
-
-	}
 
 	public List<String> ConnectionnList() {
 		List<String> dblist = new ArrayList<>();
@@ -223,7 +173,7 @@ public class Common {
 			}
 
 		} catch (Exception e) {
-			logger.error("파일 목록 조회 실패: {}", root, e);
+			e.printStackTrace();
 		}
 
 		return list;
@@ -263,6 +213,7 @@ public class Common {
 		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
 
 			logger.error("파일 복호화 실패: {}", file.getPath(), e);
+			e.printStackTrace();
 		}
 		return str;
 	}
@@ -277,7 +228,8 @@ public class Common {
 			crtStr = a256.AES_Encode(str);
 
 		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
-			logger.error("문자열 암호화 실패", e);
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		return crtStr;
 	}
@@ -293,21 +245,27 @@ public class Common {
 
 	public String getIp(HttpServletRequest request) {
 		String ip = request.getHeader("X-Forwarded-For");
+		logger.debug(">>>> X-FORWARDED-FOR : " + ip);
 		if (ip == null) {
 			ip = request.getHeader("Proxy-Client-IP");
+			logger.debug(">>>> Proxy-Client-IP : " + ip);
 		}
 		if (ip == null) {
 			ip = request.getHeader("WL-Proxy-Client-IP"); // 웹로직
+			logger.debug(">>>> WL-Proxy-Client-IP : " + ip);
 		}
 		if (ip == null) {
 			ip = request.getHeader("HTTP_CLIENT_IP");
+			logger.debug(">>>> HTTP_CLIENT_IP : " + ip);
 		}
 		if (ip == null) {
 			ip = request.getHeader("HTTP_X_FORWARDED_FOR");
+			logger.debug(">>>> HTTP_X_FORWARDED_FOR : " + ip);
 		}
 		if (ip == null) {
 			ip = request.getRemoteAddr();
 		}
+		logger.debug(">>>> Result : IP Address : " + ip);
 		return ip;
 	}
 
@@ -402,7 +360,7 @@ public class Common {
 					con.close();
 
 				} catch (SQLException ex) {
-					logger.error("커넥션 정리 중 오류", ex);
+					logger.error(ex.toString());
 				}
 			} else {
 
@@ -416,6 +374,7 @@ public class Common {
 
 		// null 또는 빈 문자열 체크
 		if (jsonStr == null || jsonStr.trim().isEmpty()) {
+			logger.debug("JSON 문자열이 null이거나 비어있습니다.");
 			return list;
 		}
 
@@ -452,6 +411,7 @@ public class Common {
 	public static Map<String, Object> getMapFromJsonObject(JSONObject jsonObject) {
 		// null 체크
 		if (jsonObject == null) {
+			logger.debug("JSONObject가 null입니다.");
 			return null;
 		}
 
@@ -490,29 +450,7 @@ public class Common {
 		this.system_properties = system_properties;
 	}
 
-	public String getConnectionPath() {
-		return ConnectionPath;
-	}
 
-	public void setConnectionPath(String connectionPath) {
-		ConnectionPath = connectionPath;
-	}
-
-	public void setUserPath(String userPath) {
-		UserPath = userPath;
-	}
-
-	public String getUserPath() {
-		return UserPath;
-	}
-
-	public String getSrcPath() {
-		return SrcPath;
-	}
-
-	public static void setSrcPath(String srcPath) {
-		SrcPath = srcPath;
-	}
 
 	public static String getRootPath() {
 		return RootPath;
@@ -591,9 +529,6 @@ public class Common {
 			// 정적 변수 정리
 			logger.info("정적 변수 정리 시작...");
 			system_properties = "";
-			ConnectionPath = "";
-			SrcPath = "";
-			UserPath = "";
 			tempPath = "";
 			JdbcPath = "";
 			RootPath = "";
@@ -804,7 +739,8 @@ public class Common {
 		File jdbcDir = new File(JdbcPath);
 		if (!jdbcDir.exists()) {
 			try {
-				jdbcDir.mkdirs();
+				boolean created = jdbcDir.mkdirs();
+				logger.info("JDBC 폴더 생성 여부: " + created + " - " + JdbcPath);
 			} catch (Exception e) {
 				logger.error("JDBC 폴더 생성 실패: " + JdbcPath, e);
 			}

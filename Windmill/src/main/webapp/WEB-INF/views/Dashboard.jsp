@@ -221,7 +221,7 @@
             // 선택된 커넥션 ID 저장
             selectedConnectionId = connectionId;
             
-            console.log('선택된 커넥션:', connectionId);
+                            logDebug('선택된 커넥션:', connectionId);
             
             // 차트 업데이트 실행
             updateCharts();
@@ -965,13 +965,13 @@
 
         // 차트 요소 클릭 처리 함수
         function handleChartElementClick(chartType, element) {
-            console.log('차트 요소 클릭:', chartType, element);
+            logDebug('차트 요소 클릭:', chartType, element);
             
             // 저장된 템플릿 ID 사용
             var templateId = chartTemplateIds[chartType];
             if (!templateId) {
                 console.error('템플릿 ID를 찾을 수 없습니다:', chartType);
-                alert('차트 정보를 찾을 수 없습니다. 페이지를 새로고침해주세요.');
+                showToast('차트 정보를 찾을 수 없습니다. 페이지를 새로고침해주세요.', 'warning');
                 return;
             }
             
@@ -986,7 +986,7 @@
                     templateId: templateId
                 },
                 success: function(result) {
-                    console.log('단축키 결과:', result);
+                    logDebug('단축키 결과:', result);
                     if (result.success && result.data && result.data.length > 0) {
                         // 활성화된 첫 번째 단축키 찾기
                         var firstActiveShortcut = null;
@@ -999,7 +999,7 @@
                         }
                         
                         if (firstActiveShortcut) {
-                            console.log('첫 번째 단축키 정보:', firstActiveShortcut, parameters);
+                            logDebug('첫 번째 단축키 정보:', firstActiveShortcut, parameters);
                             
                             // 단축키 실행 - 소스 컬럼 인덱스에 따라 파라미터 생성
                             var sourceColumns = firstActiveShortcut.SOURCE_COLUMN_INDEXES;
@@ -1026,17 +1026,17 @@
                             sendSql(firstActiveShortcut.TARGET_TEMPLATE_ID+"&"+parameterString+"&true");
                             
                         } else {
-                            console.log('활성화된 단축키가 없습니다.');
-                            alert('이 차트에 설정된 단축키가 없습니다.');
+                            logDebug('활성화된 단축키가 없습니다.');
+                            showToast('이 차트에 설정된 단축키가 없습니다.', 'info');
                         }
                     } else {
-                        console.log('단축키가 없습니다.');
-                        alert('이 차트에 설정된 단축키가 없습니다.');
+                        logDebug('단축키가 없습니다.');
+                        showToast('이 차트에 설정된 단축키가 없습니다.', 'info');
                     }
                 },
                 error: function() {
-                    console.error('단축키 정보 조회 실패');
-                    alert('단축키 정보 조회에 실패했습니다.');
+                    logError('단축키 정보 조회 실패');
+                    showToast('단축키 정보 조회에 실패했습니다.', 'error');
                 }
             });
         }
@@ -1068,7 +1068,7 @@
             // 저장된 원본 데이터 확인
             if (dataset._dataRows && dataset._dataRows[dataIndex]) {
                 var originalData = dataset._dataRows[dataIndex];
-                console.log('원본 데이터:', originalData);
+                logDebug('원본 데이터:', originalData);
                 
                 // 원본 데이터를 파라미터로 변환
                 if (Array.isArray(originalData) && originalData.length >= 2) {
@@ -1117,7 +1117,7 @@
             
             var url = '/SQL?' + urlParams.toString();
             
-            alert(url)
+            logDebug('단축키 실행 URL:', url);
             
             // 동적 링크 생성 및 클릭
             var link = document.createElement('a');
@@ -1515,7 +1515,7 @@
             
             // 모든 차트가 에러 상태이면 자동 업데이트 중단
             if (hasErrorCharts) {
-                console.log('차트 에러 발생으로 자동 업데이트 중단됨');
+                logError('차트 에러 발생으로 자동 업데이트 중단됨');
                 return;
             }
             
@@ -1863,7 +1863,71 @@
             // 모달 닫기
             $('#chartErrorModal').modal('hide');
         }
+        
+        // ========================================
+        // Toast 알림 시스템
+        // ========================================
+        function showToast(message, type = 'info', duration = 3000) {
+            var toastId = 'toast_' + Date.now();
+            var iconClass = {
+                'success': 'fa-check-circle',
+                'error': 'fa-exclamation-circle',
+                'warning': 'fa-exclamation-triangle',
+                'info': 'fa-info-circle'
+            }[type] || 'fa-info-circle';
+            
+            var bgClass = {
+                'success': 'alert-success',
+                'error': 'alert-danger',
+                'warning': 'alert-warning',
+                'info': 'alert-info'
+            }[type] || 'alert-info';
+            
+            var toast = $('<div id="' + toastId + '" class="alert ' + bgClass + ' alert-dismissible" style="margin-bottom: 10px; animation: slideInRight 0.3s ease-out;">' +
+                '<button type="button" class="close" data-dismiss="alert">&times;</button>' +
+                '<i class="fa ' + iconClass + '"></i> ' + message +
+                '</div>');
+            
+            $('#toastContainer').append(toast);
+            
+            // 자동 제거
+            setTimeout(function() {
+                $('#' + toastId).fadeOut(300, function() {
+                    $(this).remove();
+                });
+            }, duration);
+        }
+        
+        // 에러 로그 함수 (console.log 대체)
+        function logError(message, data) {
+            if (console && console.error) {
+                console.error(message, data);
+            }
+        }
+        
+        // 디버그 로그 함수 (console.log 대체)
+        function logDebug(message, data) {
+            if (console && console.log) {
+                console.log(message, data);
+            }
+        }
     </script>
+    
+    <!-- Toast 알림 컨테이너 -->
+    <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999; width: 350px;"></div>
+    
+    <style>
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    </style>
     
     <!-- ParamForm 추가 (sendSql 방식 지원) -->
     <form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:void(0);" style="display: none;">

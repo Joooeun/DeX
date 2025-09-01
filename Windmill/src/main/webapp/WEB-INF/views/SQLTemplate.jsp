@@ -264,7 +264,7 @@ table th, td {
 					}
         },
         error: function() {
-					alert('차트 매핑 중복 체크 중 오류가 발생했습니다.');
+					                showToast('차트 매핑 중복 체크 중 오류가 발생했습니다.', 'error');
 					$('#sqlChartMapping').val('');
         }
     });
@@ -281,14 +281,14 @@ table th, td {
 				},
 				success: function(result) {
 					if (result.success) {
-						alert('차트 매핑이 업데이트되었습니다.');
+						                showToast('차트 매핑이 업데이트되었습니다.', 'success');
 					} else {
-						alert('차트 매핑 업데이트 실패: ' + result.error);
+						                showToast('차트 매핑 업데이트 실패: ' + result.error, 'error');
 						$('#sqlChartMapping').val('');
 					}
 				},
 				error: function() {
-					alert('차트 매핑 업데이트 중 오류가 발생했습니다.');
+					                showToast('차트 매핑 업데이트 중 오류가 발생했습니다.', 'error');
 					$('#sqlChartMapping').val('');
 				}
 			});
@@ -2281,22 +2281,35 @@ function testSqlTemplate() {
 		});
 
 		// 토스트 메시지 표시 함수
-		function showToast(message, type) {
-			var toastClass = type === 'success' ? 'alert-success' : 'alert-danger';
-			var toastHtml = '<div class="alert ' + toastClass + ' alert-dismissible fade in" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">' +
-				'<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-				'<span aria-hidden="true">&times;</span></button>' +
-				message +
-				'</div>';
+		function showToast(message, type = 'info', duration = 3000) {
+			var toastId = 'toast_' + Date.now();
+			var iconClass = {
+				'success': 'fa-check-circle',
+				'error': 'fa-exclamation-circle',
+				'warning': 'fa-exclamation-triangle',
+				'info': 'fa-info-circle'
+			}[type] || 'fa-info-circle';
 			
-			$('body').append(toastHtml);
+			var bgClass = {
+				'success': 'alert-success',
+				'error': 'alert-danger',
+				'warning': 'alert-warning',
+				'info': 'alert-info'
+			}[type] || 'alert-info';
 			
-			// 3초 후 자동 제거
+			var toast = $('<div id="' + toastId + '" class="alert ' + bgClass + ' alert-dismissible" style="margin-bottom: 10px; animation: slideInRight 0.3s ease-out;">' +
+				'<button type="button" class="close" data-dismiss="alert">&times;</button>' +
+				'<i class="fa ' + iconClass + '"></i> ' + message +
+				'</div>');
+			
+			$('#toastContainer').append(toast);
+			
+			// 자동 제거
 			setTimeout(function() {
-				$('.alert').fadeOut(function() {
+				$('#' + toastId).fadeOut(300, function() {
 					$(this).remove();
 				});
-			}, 3000);
+			}, duration);
 		}
 
 		// 모든 SQL 에디터의 자동완성 업데이트
@@ -2357,6 +2370,22 @@ function testSqlTemplate() {
 			return parameters;
 		}
 </script>
+
+<!-- Toast 알림 컨테이너 -->
+<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999; width: 350px;"></div>
+
+<style>
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+</style>
 
 <!-- Content Wrapper -->
 <div class="content-wrapper" style="margin-left: 0">

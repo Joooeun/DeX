@@ -310,11 +310,11 @@
 					displayConnectionTable(response.data);
 					displayPagination(response.pagination);
 				} else {
-					alert(response.message);
+					showToast(response.message, 'error');
 				}
 			},
 			error : function() {
-				alert('연결 목록 조회 중 오류가 발생했습니다.');
+				showToast('연결 목록 조회 중 오류가 발생했습니다.', 'error');
 			}
 		});
 	}
@@ -731,5 +731,55 @@
 		// 모달 스크롤을 결과 영역으로 이동
 		$('#connectionModal').scrollTop($('#connectionModal')[0].scrollHeight);
 	}
+	
+	// ========================================
+	// Toast 알림 시스템
+	// ========================================
+	function showToast(message, type = 'info', duration = 3000) {
+		var toastId = 'toast_' + Date.now();
+		var iconClass = {
+			'success': 'fa-check-circle',
+			'error': 'fa-exclamation-circle',
+			'warning': 'fa-exclamation-triangle',
+			'info': 'fa-info-circle'
+		}[type] || 'fa-info-circle';
+		
+		var bgClass = {
+			'success': 'alert-success',
+			'error': 'alert-danger',
+			'warning': 'alert-warning',
+			'info': 'alert-info'
+		}[type] || 'alert-info';
+		
+		var toast = $('<div id="' + toastId + '" class="alert ' + bgClass + ' alert-dismissible" style="margin-bottom: 10px; animation: slideInRight 0.3s ease-out;">' +
+			'<button type="button" class="close" data-dismiss="alert">&times;</button>' +
+			'<i class="fa ' + iconClass + '"></i> ' + message +
+			'</div>');
+		
+		$('#toastContainer').append(toast);
+		
+		// 자동 제거
+		setTimeout(function() {
+			$('#' + toastId).fadeOut(300, function() {
+				$(this).remove();
+			});
+		}, duration);
+	}
 </script>
+
+<!-- Toast 알림 컨테이너 -->
+<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999; width: 350px;"></div>
+
+<style>
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+</style>
 

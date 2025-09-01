@@ -59,13 +59,13 @@
 - [x] 사용자 활동 로그 조회 기능 구현
 - [x] 파일 기반 → DB 기반 사용자 정보 로딩 완전 전환 (Common.java)
 - [x] **Connection.jsp DB 기반 전환 완료** (ConnectionService, ConnectionController)
-- [x] **SQLTemplate.jsp DB 기반 전환 완료** (DatabaseMenuService, SQLTemplateController)
+- [x] **SQLTemplate.jsp DB 기반 전환 완료** (SQLTemplateController)
 
 **진행률: 100% (9/9 완료)**
 
 ### **2-2. SQL 템플릿 관리 화면 구현** ⭐
 - [x] SQL 템플릿 관리 Controller 생성 (SQLTemplateController)
-- [x] DatabaseMenuService 구현 (파일 기반 임시 구현)
+
 - [x] SQL 템플릿 관리 JSP 페이지 생성 (SQLTemplate.jsp)
 - [x] 메뉴에 SQL 템플릿 관리 링크 추가
 - [x] 트리 구조 SQL 템플릿 조회 기능
@@ -271,7 +271,7 @@
 
 - ✅ 2-2. SQL 템플릿 관리 화면 구현 (완료: 2025-08-10)
   - SQL 템플릿 관리 Controller 생성 (SQLTemplateController)
-  - DatabaseMenuService 구현 (파일 기반 임시 구현)
+  
   - SQL 템플릿 관리 JSP 페이지 생성 (SQLTemplate.jsp)
   - 메뉴에 SQL 템플릿 관리 링크 추가
   - 트리 구조 SQL 템플릿 조회 기능
@@ -338,7 +338,7 @@
   - 사용자별 권한 기반 연결 목록 필터링 구현
 
 - ✅ **SQLTemplate.jsp DB 기반 전환 완료 (완료: 2025-08-12)**
-  - DatabaseMenuService에서 파일 기반 임시 구현으로 DB 전환 준비 완료
+  
   - SQLTemplateController에서 관리자 권한 확인 및 DB 기반 구조 준비
   - SQL 템플릿 트리 구조 DB 기반으로 동작 준비 완료
   - SQL 템플릿 CRUD 기능 DB 기반으로 동작 준비 완료

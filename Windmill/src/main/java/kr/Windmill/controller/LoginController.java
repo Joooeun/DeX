@@ -3,9 +3,7 @@ package kr.Windmill.controller;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -118,58 +116,13 @@ public class LoginController {
 	@RequestMapping(path = "/index", method = RequestMethod.GET)
 	public ModelAndView sample(HttpServletRequest request, ModelAndView mv, HttpSession session) {
 
-		if (!new File(Common.RootPath).exists()) {
-			logger.info(Common.RootPath + " 경로가 존재하지 않습니다.");
+		// RootPath 유효성 확인
+		if (!Common.isRootPathValid()) {
+			logger.warn("RootPath가 유효하지 않아 설정 화면으로 이동합니다: {}", Common.getRootPath());
 			mv.setViewName("Setting");
 			return mv;
 		}
 
-		String path = Common.ConnectionPath;
-		File folder = new File(path);
-
-		if (!folder.exists()) {
-			try {
-				folder.mkdirs();
-			} catch (Exception e) {
-				logger.error("Connection 폴더 생성 실패", e);
-			}
-		}
-
-		path = Common.SrcPath;
-		folder = new File(path);
-
-		if (!folder.exists()) {
-			try {
-				folder.mkdirs();
-			} catch (Exception e) {
-				logger.error("src 폴더 생성 실패", e);
-			}
-		}
-
-		path = Common.UserPath;
-		folder = new File(path);
-
-		if (!folder.exists()) {
-			try {
-				folder.mkdirs();
-			} catch (Exception e) {
-				logger.error("user 폴더 생성 실패", e);
-			}
-		}
-
-		path = Common.UserPath;
-		folder = new File(path);
-
-		if (!folder.exists()) {
-			try {
-				folder.mkdirs();
-			} catch (Exception e) {
-				logger.error("user 폴더 생성 실패", e);
-			}
-		}
-
-		mv.addObject("sqllist", com.getfiles(Common.SrcPath, 0));
-		
 		// 버전 정보 추가
 		mv.addObject("appVersion", VersionUtil.getVersion());
 		
@@ -194,7 +147,7 @@ public class LoginController {
 			fw.write(propStr.replaceAll("Root.*", "Root=" + request.getParameter("path").replace("\\", "/")));
 			fw.close();
 		} catch (IOException e) {
-			logger.error("설정 파일 수정 중 오류 발생", e);
+			e.printStackTrace();
 		}
 
 		Common.Setproperties();
@@ -208,11 +161,7 @@ public class LoginController {
 		return mv;
 	}
 
-	@RequestMapping(path = "/index3")
-	public ModelAndView index3(HttpServletRequest request, ModelAndView mv) {
 
-		return mv;
-	}
 
 	@RequestMapping(path = "/Dashboard")
 	public ModelAndView dashboard(HttpServletRequest request, ModelAndView mv, HttpSession session) {
