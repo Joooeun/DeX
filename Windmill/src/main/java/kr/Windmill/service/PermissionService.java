@@ -1,5 +1,7 @@
 package kr.Windmill.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -9,6 +11,8 @@ import java.util.Map;
 
 @Service
 public class PermissionService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(PermissionService.class);
     
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -23,7 +27,7 @@ public class PermissionService {
             int count = jdbcTemplate.queryForObject(sql, Integer.class, userId, categoryId);
             return count > 0;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("SQL 템플릿 카테고리 권한 확인 실패: userId={}, categoryId={}", userId, categoryId, e);
             return false;
         }
     }
@@ -40,7 +44,7 @@ public class PermissionService {
             int count = jdbcTemplate.queryForObject(sql, Integer.class, userId, connectionId);
             return count > 0;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("연결 정보 권한 확인 실패: userId={}, connectionId={}", userId, connectionId, e);
             return false;
         }
     }
@@ -56,7 +60,7 @@ public class PermissionService {
             
             return jdbcTemplate.queryForList(sql, String.class, userId);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 권한 카테고리 목록 조회 실패: userId={}", userId, e);
             return null;
         }
     }
@@ -74,7 +78,7 @@ public class PermissionService {
             
             return jdbcTemplate.queryForList(sql, userId);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 SQL 템플릿 카테고리 권한 상세 목록 조회 실패: userId={}", userId, e);
             return null;
         }
     }
@@ -93,7 +97,7 @@ public class PermissionService {
             
             return jdbcTemplate.queryForList(sql, userId);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 연결 정보 권한 목록 조회 실패: userId={}", userId, e);
             return null;
         }
     }

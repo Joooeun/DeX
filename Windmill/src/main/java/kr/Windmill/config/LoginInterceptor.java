@@ -79,7 +79,7 @@ public class LoginInterceptor implements HandlerInterceptor {
 					out.close();
 
 				} catch (IOException e) {
-					e.printStackTrace();
+					logger.error("응답 출력 중 오류 발생", e);
 				}
 			}
 

@@ -117,7 +117,7 @@ public class FileController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("SFTP 파일 읽기 실패", e);
 		}
 
 		map.put("result", filestr);
@@ -141,7 +141,7 @@ public class FileController {
 	@ResponseBody
 	@RequestMapping(path = "/log-error")
 	public String ViewError(@RequestBody Map<String, Object> errorData) throws JsonProcessingException {
-		System.out.println(new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(errorData));
+		logger.debug("에러 로그 데이터: {}", new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(errorData));
 		
 		cLog.errorLog( new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(errorData));
 		
@@ -209,15 +209,14 @@ public class FileController {
 
 			result = "success";
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("SFTP 파일 업로드 실패", e);
 			result = e.toString();
 		} finally {
 			try {
 				in.close();
 				origin.delete();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				logger.error("파일 정리 중 오류 발생", e);
 			}
 			if (session.isConnected()) {
 				sftpChannel.exit();

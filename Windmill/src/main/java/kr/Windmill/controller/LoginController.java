@@ -129,9 +129,9 @@ public class LoginController {
 
 		if (!folder.exists()) {
 			try {
-				logger.info("Connection 폴더생성여부 : " + folder.mkdirs());
+				folder.mkdirs();
 			} catch (Exception e) {
-				e.getStackTrace();
+				logger.error("Connection 폴더 생성 실패", e);
 			}
 		}
 
@@ -140,9 +140,9 @@ public class LoginController {
 
 		if (!folder.exists()) {
 			try {
-				logger.info("src 폴더생성여부 : " + folder.mkdirs());
+				folder.mkdirs();
 			} catch (Exception e) {
-				e.getStackTrace();
+				logger.error("src 폴더 생성 실패", e);
 			}
 		}
 
@@ -151,9 +151,9 @@ public class LoginController {
 
 		if (!folder.exists()) {
 			try {
-				logger.info("user 폴더생성여부 : " + folder.mkdirs());
+				folder.mkdirs();
 			} catch (Exception e) {
-				e.getStackTrace();
+				logger.error("user 폴더 생성 실패", e);
 			}
 		}
 
@@ -162,9 +162,9 @@ public class LoginController {
 
 		if (!folder.exists()) {
 			try {
-				logger.info("user 폴더생성여부 : " + folder.mkdirs());
+				folder.mkdirs();
 			} catch (Exception e) {
-				e.getStackTrace();
+				logger.error("user 폴더 생성 실패", e);
 			}
 		}
 
@@ -194,7 +194,7 @@ public class LoginController {
 			fw.write(propStr.replaceAll("Root.*", "Root=" + request.getParameter("path").replace("\\", "/")));
 			fw.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("설정 파일 수정 중 오류 발생", e);
 		}
 
 		Common.Setproperties();

@@ -90,7 +90,7 @@ public class UserGroupController {
 			result.put("data", userGroupService.getGroupList());
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("그룹 목록 조회 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "그룹 목록 조회 중 오류가 발생했습니다.");
 		}
@@ -123,7 +123,7 @@ public class UserGroupController {
 			result.put("data", permissionService.getAllCategories());
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("카테고리 목록 조회 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "카테고리 목록 조회 중 오류가 발생했습니다.");
 		}
@@ -156,7 +156,7 @@ public class UserGroupController {
 			result.put("data", permissionService.getGroupCategoryPermissions(groupId));
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("그룹 카테고리 권한 조회 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "그룹 카테고리 권한 조회 중 오류가 발생했습니다.");
 		}
@@ -216,7 +216,7 @@ public class UserGroupController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("카테고리 권한 저장 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "카테고리 권한 저장 중 오류가 발생했습니다.");
 		}
@@ -265,7 +265,7 @@ public class UserGroupController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("카테고리 권한 해제 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "카테고리 권한 해제 중 오류가 발생했습니다.");
 		}
@@ -305,7 +305,7 @@ public class UserGroupController {
 			result.put("data", groupDetail);
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("그룹 상세 조회 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "그룹 상세 조회 중 오류가 발생했습니다.");
 		}
@@ -356,7 +356,7 @@ public class UserGroupController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("그룹 생성 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "그룹 생성 중 오류가 발생했습니다.");
 		}
@@ -397,7 +397,7 @@ public class UserGroupController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("그룹 정보 수정 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "그룹 정보 수정 중 오류가 발생했습니다.");
 		}
@@ -436,7 +436,7 @@ public class UserGroupController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("그룹 삭제 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "그룹 삭제 중 오류가 발생했습니다.");
 		}
@@ -471,7 +471,7 @@ public class UserGroupController {
 			result.put("data", userGroupService.getAvailableUsers(groupId));
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("사용 가능한 사용자 목록 조회 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "사용 가능한 사용자 목록 조회 중 오류가 발생했습니다.");
 		}
@@ -504,7 +504,7 @@ public class UserGroupController {
 			result.put("data", userGroupService.getGroupMembers(groupId));
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("그룹 멤버 목록 조회 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "그룹 멤버 목록 조회 중 오류가 발생했습니다.");
 		}
@@ -543,7 +543,7 @@ public class UserGroupController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("사용자 추가 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "사용자 추가 중 오류가 발생했습니다.");
 		}
@@ -582,7 +582,7 @@ public class UserGroupController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("사용자 제거 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "사용자 제거 중 오류가 발생했습니다.");
 		}
@@ -615,7 +615,7 @@ public class UserGroupController {
 			result.put("data", userGroupService.getSqlTemplateCategoryPermissions(groupId));
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("SQL 템플릿 카테고리 권한 조회 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "SQL 템플릿 카테고리 권한 조회 중 오류가 발생했습니다.");
 		}
@@ -648,7 +648,7 @@ public class UserGroupController {
 			result.put("data", userGroupService.getConnectionPermissions(groupId));
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("연결 정보 권한 조회 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "연결 정보 권한 조회 중 오류가 발생했습니다.");
 		}
@@ -708,7 +708,7 @@ public class UserGroupController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("연결정보 권한 저장 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "연결정보 권한 저장 중 오류가 발생했습니다.");
 		}
@@ -750,7 +750,7 @@ public class UserGroupController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("권한 저장 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "권한 저장 중 오류가 발생했습니다.");
 		}

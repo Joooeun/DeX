@@ -9,6 +9,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +21,8 @@ import kr.Windmill.controller.SQLController.SqlType;
  * 로그 정보 Dto 클래스
  */
 public class LogInfoDto {
+    
+    private static final Logger logger = LoggerFactory.getLogger(LogInfoDto.class);
     
     private String connectionId;
     private String templateId;  // 템플릿 ID 추가
@@ -130,11 +134,11 @@ public class LogInfoDto {
             this.xmlLog = xmlLog;
 
         } catch (JsonParseException e) {
-            e.printStackTrace();
+            logger.error("JSON 파싱 오류", e);
         } catch (JsonMappingException e) {
-            e.printStackTrace();
+            logger.error("JSON 매핑 오류", e);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("JSON 처리 중 I/O 오류", e);
         }
     }
 

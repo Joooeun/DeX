@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,8 @@ import kr.Windmill.util.Crypto;
 
 @Service
 public class UserService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -141,7 +145,7 @@ public class UserService {
             );
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 생성 실패", e);
             return false;
         }
     }
@@ -173,7 +177,7 @@ public class UserService {
             jdbcTemplate.update(sqlBuilder.toString(), params.toArray());
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 수정 실패: {}", userId, e);
             return false;
         }
     }
@@ -186,7 +190,7 @@ public class UserService {
             jdbcTemplate.update(sql, userId);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 삭제 실패: {}", userId, e);
             return false;
         }
     }
@@ -289,7 +293,7 @@ public class UserService {
             result.put("message", "로그인 성공");
             
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("로그인 처리 중 오류 발생", e);
             result.put("success", false);
             result.put("message", "로그인 처리 중 오류가 발생했습니다.");
         }
@@ -311,7 +315,7 @@ public class UserService {
             
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("로그아웃 처리 중 오류 발생", e);
             return false;
         }
     }
@@ -336,7 +340,7 @@ public class UserService {
             
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 그룹 매핑 중 오류 발생", e);
             return false;
         }
     }
@@ -405,7 +409,7 @@ public class UserService {
             
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 권한 저장 중 오류 발생", e);
             return false;
         }
     }
@@ -451,7 +455,7 @@ public class UserService {
             
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("비밀번호 변경 중 오류 발생", e);
             return false;
         }
     }
@@ -464,7 +468,7 @@ public class UserService {
             jdbcTemplate.update(sql, Crypto.crypt(tempPassword), userId);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("임시 비밀번호 설정 중 오류 발생", e);
             return false;
         }
     }
@@ -476,7 +480,7 @@ public class UserService {
             String storedPassword = jdbcTemplate.queryForObject(sql, String.class, userId);
             return storedPassword.equals(Crypto.crypt(tempPassword));
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("임시 비밀번호 검증 중 오류 발생", e);
             return false;
         }
     }
@@ -506,7 +510,7 @@ public class UserService {
             
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 비밀번호 초기화 중 오류 발생", e);
             return false;
         }
     }
@@ -540,7 +544,7 @@ public class UserService {
             
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 계정 초기화 중 오류 발생", e);
             return false;
         }
     }
@@ -586,7 +590,7 @@ public class UserService {
             List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, userId);
             return result.isEmpty() ? null : result.get(0);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 현재 그룹 조회 중 오류 발생", e);
             return null;
         }
     }

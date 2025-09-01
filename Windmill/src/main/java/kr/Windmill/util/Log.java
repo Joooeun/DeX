@@ -53,9 +53,9 @@ public class Log {
 
 			if (!folder.exists()) {
 				try {
-					logger.info("폴더생성여부 : " + folder.mkdirs());
+					folder.mkdirs();
 				} catch (Exception e) {
-					e.getStackTrace();
+					logger.error("로그 폴더 생성 실패", e);
 				}
 			}
 
@@ -74,7 +74,7 @@ public class Log {
 			writer.write(strNowDate2 + " id : " + data.getId() + " / ip :  " + data.getIp() + "\nDB : " + data.getConnectionId() + " / MENU : " + data.getTitle() + msg);
 			writer.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("로그 파일 쓰기 실패", e);
 		}
 	}
 
@@ -96,9 +96,9 @@ public class Log {
 
 			if (!folder.exists()) {
 				try {
-					logger.info("폴더생성여부 : " + folder.mkdirs());
+					folder.mkdirs();
 				} catch (Exception e) {
-					e.getStackTrace();
+					logger.error("로그 폴더 생성 실패", e);
 				}
 			}
 
@@ -116,7 +116,7 @@ public class Log {
 			writer.newLine();
 			writer.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("로그 파일 쓰기 실패", e);
 		}
 	}
 
@@ -138,9 +138,9 @@ public class Log {
 
 			if (!folder.exists()) {
 				try {
-					logger.info("폴더생성여부 : " + folder.mkdirs());
+					folder.mkdirs();
 				} catch (Exception e) {
-					e.getStackTrace();
+					logger.error("로그 폴더 생성 실패", e);
 				}
 			}
 
@@ -158,7 +158,7 @@ public class Log {
 			writer.newLine();
 			writer.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("로그 파일 쓰기 실패", e);
 		}
 	}
 
@@ -182,9 +182,9 @@ public class Log {
 
 			if (!folder.exists()) {
 				try {
-					logger.info("폴더생성여부 : " + folder.mkdirs());
+					folder.mkdirs();
 				} catch (Exception e) {
-					e.getStackTrace();
+					logger.error("로그 폴더 생성 실패", e);
 				}
 			}
 
@@ -205,7 +205,7 @@ public class Log {
 			writer.newLine();
 			writer.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("사용자 로그 파일 쓰기 실패", e);
 		}
 	}
 
@@ -229,9 +229,9 @@ public class Log {
 
 			if (!folder.exists()) {
 				try {
-					logger.info("폴더생성여부 : " + folder.mkdirs());
+					folder.mkdirs();
 				} catch (Exception e) {
-					e.getStackTrace();
+					logger.error("로그 폴더 생성 실패", e);
 				}
 			}
 
@@ -251,7 +251,7 @@ public class Log {
 			writer.newLine();
 			writer.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("에러 로그 파일 쓰기 실패", e);
 		}
 	}
 
@@ -273,13 +273,13 @@ public class Log {
 				return;
 			}
 
-			if (!folder.exists()) {
-				try {
-					logger.info("monitoring 폴더생성여부 : " + folder.mkdirs());
-				} catch (Exception e) {
-					e.getStackTrace();
-				}
+		if (!folder.exists()) {
+			try {
+				folder.mkdirs();
+			} catch (Exception e) {
+				logger.error("모니터링 로그 폴더 생성 실패", e);
 			}
+		}
 
 			path += File.separator + "monitoring_" + strNowDate + ".log";
 
@@ -297,7 +297,7 @@ public class Log {
 			writer.newLine();
 			writer.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("모니터링 로그 파일 쓰기 실패", e);
 		}
 	}
 
@@ -396,9 +396,9 @@ public class Log {
 
 			if (!folder.exists()) {
 				try {
-					logger.info("폴더생성여부 : " + folder.mkdirs());
+					folder.mkdirs();
 				} catch (Exception e) {
-					e.getStackTrace();
+					logger.error("로그 폴더 생성 실패", e);
 				}
 			}
 
@@ -418,7 +418,7 @@ public class Log {
 				"\nDB : " + executeDto.getConnectionId() + " / TEMPLATE : " + executeDto.getTemplateId() + msg);
 			writer.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("템플릿 로그 시작 파일 쓰기 실패", e);
 		}
 	}
 
@@ -441,9 +441,9 @@ public class Log {
 
 			if (!folder.exists()) {
 				try {
-					logger.info("폴더생성여부 : " + folder.mkdirs());
+					folder.mkdirs();
 				} catch (Exception e) {
-					e.getStackTrace();
+					logger.error("로그 폴더 생성 실패", e);
 				}
 			}
 
@@ -467,7 +467,7 @@ public class Log {
 			writer.newLine();
 			writer.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("템플릿 로그 종료 파일 쓰기 실패", e);
 		}
 	}
 

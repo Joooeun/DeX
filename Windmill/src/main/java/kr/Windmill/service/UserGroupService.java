@@ -1,5 +1,7 @@
 package kr.Windmill.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -12,6 +14,8 @@ import java.util.ArrayList;
 
 @Service
 public class UserGroupService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(UserGroupService.class);
     
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -51,7 +55,7 @@ public class UserGroupService {
             );
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("그룹 생성 실패", e);
             return false;
         }
     }
@@ -70,7 +74,7 @@ public class UserGroupService {
             );
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("그룹 수정 실패: {}", groupId, e);
             return false;
         }
     }
@@ -89,7 +93,7 @@ public class UserGroupService {
             
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("그룹 삭제 실패: {}", groupId, e);
             return false;
         }
     }
@@ -127,7 +131,7 @@ public class UserGroupService {
             jdbcTemplate.update(insertSql, userId, groupId, assignedBy);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 그룹 추가 중 오류 발생", e);
             return false;
         }
     }
@@ -140,7 +144,7 @@ public class UserGroupService {
             jdbcTemplate.update(sql, groupId, userId);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("사용자 그룹 제거 중 오류 발생", e);
             return false;
         }
     }
@@ -156,7 +160,7 @@ public class UserGroupService {
                         "ORDER BY stc.CATEGORY_ORDER, stc.CATEGORY_NAME";
             return jdbcTemplate.queryForList(sql, groupId);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("SQL 템플릿 카테고리 권한 조회 중 오류 발생", e);
             return new ArrayList<>();
         }
     }
@@ -172,7 +176,7 @@ public class UserGroupService {
                         "ORDER BY c.CONNECTION_ID";
             return jdbcTemplate.queryForList(sql, groupId);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("연결 정보 권한 조회 중 오류 발생", e);
             return new ArrayList<>();
         }
     }
@@ -215,7 +219,7 @@ public class UserGroupService {
             
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("그룹 권한 저장 중 오류 발생", e);
             return false;
         }
     }

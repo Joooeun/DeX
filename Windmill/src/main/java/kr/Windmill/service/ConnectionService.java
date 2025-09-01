@@ -231,39 +231,39 @@ public class ConnectionService {
 	@PreDestroy
 	public void stopMonitoring() {
 		cLog.monitoringLog("CONNECTION_STATUS", "Connection status monitoring stopping...");
-		System.out.println("=== ConnectionService 정리 시작 ===");
+		logger.info("=== ConnectionService 정리 시작 ===");
 		isRunning = false;
 
 		if (monitoringThread != null && monitoringThread.isAlive()) {
-			System.out.println("ConnectionStatusMonitor 스레드 종료 중...");
+			logger.info("ConnectionStatusMonitor 스레드 종료 중...");
 			monitoringThread.interrupt();
 			try {
 				monitoringThread.join(3000);
 				if (monitoringThread.isAlive()) {
 					cLog.monitoringLog("CONNECTION_STATUS_WARN", "모니터링 스레드가 3초 내에 종료되지 않았습니다. 강제 종료합니다.");
-					System.out.println("ConnectionStatusMonitor 스레드 종료 시도...");
+					logger.info("ConnectionStatusMonitor 스레드 종료 시도...");
 					monitoringThread.interrupt();
 					monitoringThread.join(1000);
 				} else {
 					cLog.monitoringLog("CONNECTION_STATUS", "모니터링 스레드가 정상적으로 종료되었습니다.");
-					System.out.println("ConnectionStatusMonitor 스레드 정상 종료 완료");
+					logger.info("ConnectionStatusMonitor 스레드 정상 종료 완료");
 				}
 			} catch (InterruptedException e) {
 				cLog.monitoringLog("CONNECTION_STATUS_WARN", "모니터링 스레드 종료 대기 중 인터럽트 발생");
-				System.out.println("ConnectionStatusMonitor 스레드 종료 중 인터럽트 발생");
+				logger.info("ConnectionStatusMonitor 스레드 종료 중 인터럽트 발생");
 				Thread.currentThread().interrupt();
 			}
 		} else {
-			System.out.println("ConnectionStatusMonitor 스레드가 이미 종료되었거나 존재하지 않습니다.");
+			logger.info("ConnectionStatusMonitor 스레드가 이미 종료되었거나 존재하지 않습니다.");
 		}
 
 		connectionStatusMap.clear();
-		System.out.println("연결 상태 맵 정리 완료");
+		logger.info("연결 상태 맵 정리 완료");
 
 		// 동적 드라이버 매니저 정리
 
 		cLog.monitoringLog("CONNECTION_STATUS", "Connection status monitoring stopped");
-		System.out.println("=== ConnectionService 정리 완료 ===");
+		logger.info("=== ConnectionService 정리 완료 ===");
 	}
 
 	private void monitorConnections() {

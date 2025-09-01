@@ -97,7 +97,7 @@ public class UserController {
 			result.put("pagination", userData);
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("사용자 목록 조회 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "사용자 목록 조회 중 오류가 발생했습니다.");
 		}
@@ -137,7 +137,7 @@ public class UserController {
 			result.put("data", userDetail);
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("사용자 상세 조회 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "사용자 상세 조회 중 오류가 발생했습니다.");
 		}
@@ -184,7 +184,7 @@ public class UserController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("사용자 생성 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "사용자 생성 중 오류가 발생했습니다.");
 		}
@@ -231,7 +231,7 @@ public class UserController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("사용자 정보 수정 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "사용자 정보 수정 중 오류가 발생했습니다.");
 		}
@@ -277,7 +277,7 @@ public class UserController {
 			}
 
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("사용자 삭제 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "사용자 삭제 중 오류가 발생했습니다.");
 		}

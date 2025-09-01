@@ -274,9 +274,7 @@ public class DynamicJdbcManager implements Closeable {
 				} catch (Exception ignore) {
 				}
 			}
-			if (!drained.isEmpty()) {
-				logger.debug("Idle 커넥션 {}개 정리 완료", drained.size());
-			}
+
 		}
 
 		private static Connection unwrapPhysical(Connection maybeProxy) {
@@ -293,7 +291,6 @@ public class DynamicJdbcManager implements Closeable {
 			// 1) idle에서 즉시 얻기
 			Connection c = idle.poll();
 			if (c != null) {
-				logger.debug("Idle 풀에서 커넥션 재사용: {}", key.connectionId);
 				return c;
 			}
 
@@ -309,14 +306,12 @@ public class DynamicJdbcManager implements Closeable {
 						created.decrementAndGet();
 					}
 				};
-				logger.debug("새 커넥션 생성: {} (현재 {}개)", key.connectionId, created.get());
 				return wrapPooled(physical, idle, closer, maxLifetimeMs, createdAt);
 			}
 
 			// 3) 누군가 반납하기를 대기
 			c = idle.poll(connectionTimeoutMs, TimeUnit.MILLISECONDS);
 			if (c != null) {
-				logger.debug("타임아웃 대기 후 커넥션 획득: {}", key.connectionId);
 				return c;
 			}
 			throw new SQLTimeoutException("Timeout waiting for connection from pool: " + key);
@@ -578,7 +573,7 @@ public class DynamicJdbcManager implements Closeable {
 	 * 사용하지 않는 풀들을 정리합니다.
 	 */
 	private void cleanupUnusedPools() {
-		logger.debug("사용하지 않는 풀 정리 시작");
+
 
 		// 현재 사용 중인 풀 키들을 수집 (실제로는 더 정교한 로직 필요)
 		// 여기서는 간단히 모든 풀을 유지
@@ -780,7 +775,7 @@ public class DynamicJdbcManager implements Closeable {
 			break;
 		}
 
-		logger.debug("JDBC URL 생성: {} -> {}", dbtype, jdbcUrl);
+
 		return jdbcUrl;
 	}
 
