@@ -44,14 +44,14 @@
                         <table id="userTable" class="table table-bordered table-striped">
                             <thead>
                                 <tr>
-                                    <th>사용자 ID</th>
-                                    <th>이름</th>
-                                    <th>상태</th>
-                                    <th>그룹</th>
-                                    <th>마지막 로그인</th>
-                                    <th>로그인 실패</th>
-                                    <th>생성일</th>
-                                    <th>관리</th>
+                                    <th><div data-toggle="tooltip" data-placement="top" title="사용자의 고유 식별자입니다. 로그인 시 사용되며, 중복되지 않습니다.">사용자 ID</div></th>
+                                    <th><div data-toggle="tooltip" data-placement="top" title="사용자의 실제 이름입니다. 화면에 표시되는 이름으로 사용됩니다.">이름</div></th>
+                                    <th><div data-toggle="tooltip" data-placement="top" title="사용자 계정의 현재 상태입니다. 활성: 정상 사용, 비활성: 로그인 불가, 잠금: 일시 제한">상태</div></th>
+                                    <th><div data-toggle="tooltip" data-placement="top" title="사용자가 속한 그룹입니다. 그룹별로 접근 권한이 설정됩니다.">그룹</div></th>
+                                    <th><div data-toggle="tooltip" data-placement="top" title="사용자가 마지막으로 로그인한 시간입니다. 보안 모니터링에 활용됩니다.">마지막 로그인</div></th>
+                                    <th><div data-toggle="tooltip" data-placement="top" title="연속 로그인 실패 횟수입니다. 일정 횟수 초과 시 계정이 잠길 수 있습니다.">로그인 실패</div></th>
+                                    <th><div data-toggle="tooltip" data-placement="top" title="사용자 계정이 생성된 날짜와 시간입니다.">생성일</div></th>
+                                    <th><div data-toggle="tooltip" data-placement="top" title="사용자 수정, 삭제, 활동 로그 조회 등의 관리 작업을 수행할 수 있습니다.">관리</div></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -91,12 +91,12 @@
                             <table class="table table-bordered table-hover" id="groupTable">
                                 <thead>
                                     <tr>
-                                        <th>그룹명</th>
-                                        <th>설명</th>
-                                        <th>상태</th>
-                                        <th>멤버 수</th>
-                                        <th>생성일</th>
-                                        <th>관리</th>
+                                        <th><div data-toggle="tooltip" data-placement="top" title="그룹의 고유 이름입니다. 사용자 권한 관리의 기본 단위로 사용되며, 중복되지 않아야 합니다.">그룹명</div></th>
+                                        <th><div data-toggle="tooltip" data-placement="top" title="그룹에 대한 설명을 입력합니다. 그룹의 용도와 권한 범위를 명확하게 작성해주세요.">설명</div></th>
+                                        <th><div data-toggle="tooltip" data-placement="top" title="그룹의 활성화 상태를 표시합니다. 활성: 정상 사용 가능, 비활성: 그룹 멤버 로그인 불가">상태</div></th>
+                                        <th><div data-toggle="tooltip" data-placement="top" title="해당 그룹에 속한 사용자의 수를 표시합니다. 그룹 멤버 관리에서 확인할 수 있습니다.">멤버 수</div></th>
+                                        <th><div data-toggle="tooltip" data-placement="top" title="그룹이 생성된 날짜와 시간을 표시합니다.">생성일</div></th>
+                                        <th><div data-toggle="tooltip" data-placement="top" title="그룹 수정, 삭제 등의 관리 작업을 수행할 수 있습니다.">관리</div></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -124,20 +124,20 @@
                 <form id="userForm">
                     <input type="hidden" id="editUserId">
                     <div class="form-group">
-                        <label for="userId">사용자 ID</label>
+                        <label for="userId" data-toggle="tooltip" data-placement="top" title="사용자의 고유 식별자입니다. 영문, 숫자, 언더스코어만 사용 가능하며, 중복되지 않아야 합니다.">사용자 ID</label>
                         <input type="text" class="form-control" id="userId" required>
                     </div>
                     <div class="form-group">
-                        <label for="userName">이름</label>
+                        <label for="userName" data-toggle="tooltip" data-placement="top" title="사용자의 실제 이름을 입력합니다. 화면에 표시되는 이름으로 사용되며, 한글, 영문 모두 사용 가능합니다.">이름</label>
                         <input type="text" class="form-control" id="userName" required>
                     </div>
                     <div class="form-group">
-                        <label for="password">비밀번호</label>
+                        <label for="password" data-toggle="tooltip" data-placement="top" title="사용자의 로그인 비밀번호를 입력합니다. 수정 시 비워두면 기존 비밀번호가 유지되며, 보안을 위해 암호화되어 저장됩니다.">비밀번호</label>
                         <input type="password" class="form-control" id="password">
                         <small class="text-muted">수정 시 비워두면 변경하지 않습니다.</small>
                     </div>
                     <div class="form-group">
-                        <label for="status">상태</label>
+                        <label for="status" data-toggle="tooltip" data-placement="top" title="사용자의 계정 상태를 설정합니다. 활성: 정상 사용 가능, 비활성: 로그인 불가, 잠금: 일시적 접근 제한">상태</label>
                         <select class="form-control" id="status">
                             <option value="ACTIVE">활성</option>
                             <option value="INACTIVE">비활성</option>
@@ -145,7 +145,7 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="groupId">그룹</label>
+                        <label for="groupId" data-toggle="tooltip" data-placement="top" title="사용자가 속할 그룹을 선택합니다. 그룹별로 접근 권한과 연결 권한이 설정되며, 사용자의 역할을 결정합니다.">그룹</label>
                         <select class="form-control" id="groupId">
                             <option value="">그룹을 선택하세요</option>
                         </select>

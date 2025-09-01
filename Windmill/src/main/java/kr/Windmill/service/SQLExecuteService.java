@@ -27,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import kr.Windmill.controller.SQLController.SqlType;
 import kr.Windmill.dto.SqlTemplateExecuteDto;
 import kr.Windmill.dto.log.LogInfoDto;
 import kr.Windmill.util.Common;
@@ -783,13 +784,17 @@ public class SQLExecuteService {
 	/**
 	 * SQL 타입 감지
 	 */
-	public static SqlType detectSqlType(String sql) {
-		String firstWord = firstword(sql);
-		if (firstWord.equalsIgnoreCase("CALL")) {
+	public static SqlType detectSqlType(String sql)  {
+
+		switch (firstword(sql)) {
+		case "CALL":
+		case "BEGIN":
 			return SqlType.CALL;
-		} else if (firstWord.equalsIgnoreCase("SELECT")) {
+		case "SELECT":
+		case "WITH":
+		case "VALUE":
 			return SqlType.EXECUTE;
-		} else {
+		default:
 			return SqlType.UPDATE;
 		}
 	}

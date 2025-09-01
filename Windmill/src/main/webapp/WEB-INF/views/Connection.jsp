@@ -100,11 +100,11 @@
 						<input type="hidden" id="editConnectionId">
 						<div class="form-group row">
 							<div class="col-md-6">
-								<label for="connectionId">연결 ID</label> <input type="text"
+								<label for="connectionId" data-toggle="tooltip" data-placement="top" title="연결의 고유 식별자입니다. 영문, 숫자, 언더스코어만 사용 가능하며, 중복되지 않아야 합니다.">연결 ID</label> <input type="text"
 									class="form-control" id="connectionId" required>
 							</div>
 							<div class="col-md-6">
-								<label for="connectionType">타입</label> <select
+								<label for="connectionType" data-toggle="tooltip" data-placement="top" title="연결 유형을 선택합니다. DB: 데이터베이스 연결, HOST: SFTP/SSH 연결">타입</label> <select
 									class="form-control" id="connectionType" required
 									onchange="updateFormByType(this.value)">
 									<option value="">타입 선택</option>
@@ -115,11 +115,11 @@
 						</div>
 						<div class="form-group row">
 							<div class="col-md-6">
-								<label for="connectionIP">IP</label> <input type="text"
+								<label for="connectionIP" data-toggle="tooltip" data-placement="top" title="연결할 서버의 IP 주소 또는 호스트명을 입력합니다. 예: 192.168.1.100 또는 db.example.com">IP</label> <input type="text"
 									class="form-control" id="connectionIP" required>
 							</div>
 							<div class="col-md-6">
-								<label for="connectionPort">포트</label> <input type="text"
+								<label for="connectionPort" data-toggle="tooltip" data-placement="top" title="연결할 서비스의 포트 번호를 입력합니다. DB: 1521(Oracle), 50000(DB2), 5432(PostgreSQL), HOST: 22(SFTP)">포트</label> <input type="text"
 									class="form-control" id="connectionPort" required>
 							</div>
 						</div>
@@ -128,11 +128,11 @@
 						<div id="dbFields" style="display: none;">
 							<div class="form-group row">
 								<div class="col-md-6">
-									<label for="databaseName">데이터베이스명</label> <input type="text"
+									<label for="databaseName" data-toggle="tooltip" data-placement="top" title="연결할 데이터베이스의 이름을 입력합니다. Oracle: SID 또는 Service Name, DB2: Database Name, PostgreSQL: Database Name">데이터베이스명</label> <input type="text"
 										class="form-control" id="databaseName">
 								</div>
 								<div class="col-md-6">
-									<label for="dbType">DB 타입</label> <select class="form-control"
+									<label for="dbType" data-toggle="tooltip" data-placement="top" title="연결할 데이터베이스의 종류를 선택합니다. 각 DB 타입에 맞는 JDBC 드라이버와 연결 문자열이 자동으로 설정됩니다.">DB 타입</label> <select class="form-control"
 										id="dbType">
 										<option value="">DB 타입 선택</option>
 										<option value="ORACLE">ORACLE</option>
@@ -145,17 +145,17 @@
 							</div>
 							<div class="form-group row">
 								<div class="col-md-6">
-									<label for="dbUsername">사용자명</label> <input type="text"
+									<label for="dbUsername" data-toggle="tooltip" data-placement="top" title="데이터베이스에 접속할 사용자 계정명을 입력합니다. 해당 사용자는 필요한 권한을 가지고 있어야 합니다.">사용자명</label> <input type="text"
 										class="form-control" id="dbUsername">
 								</div>
 								<div class="col-md-6">
-									<label for="dbPassword">비밀번호</label> <input type="password"
+									<label for="dbPassword" data-toggle="tooltip" data-placement="top" title="데이터베이스 사용자 계정의 비밀번호를 입력합니다. 보안을 위해 암호화되어 저장됩니다.">비밀번호</label> <input type="password"
 										class="form-control" id="dbPassword">
 								</div>
 							</div>
 							<div class="form-group row">
 								<div class="col-md-12">
-									<label for="jdbcDriverFile">JDBC 드라이버 파일 (선택)</label> <select
+									<label for="jdbcDriverFile" data-toggle="tooltip" data-placement="top" title="사용할 JDBC 드라이버 JAR 파일을 선택합니다. 기본 드라이버가 지원되지 않는 경우 특정 버전의 드라이버를 사용할 수 있습니다.">JDBC 드라이버 파일 (선택)</label> <select
 										class="form-control" id="jdbcDriverFile">
 										<option value="">기본 드라이버 사용</option>
 									</select>
@@ -165,7 +165,7 @@
 							</div>
 							<div class="form-group row">
 								<div class="col-md-12">
-									<label for="testSql">테스트 SQL (선택)</label>
+									<label for="testSql" data-toggle="tooltip" data-placement="top" title="연결 테스트 시 실행할 SQL을 입력합니다. 비워두면 기본 테스트 쿼리가 사용되며, 각 DB 타입에 맞는 간단한 쿼리를 입력하세요.">테스트 SQL (선택)</label>
 									<textarea class="form-control" id="testSql" rows="3"
 										placeholder="연결 테스트 시 실행할 SQL을 입력하세요. 비워두면 기본 테스트 쿼리가 사용됩니다."></textarea>
 									<small class="form-text text-muted">예: SELECT 1, SELECT
@@ -178,22 +178,22 @@
 						<div id="sftpFields" style="display: none;">
 							<div class="form-group row">
 								<div class="col-md-6">
-									<label for="sftpUsername">사용자명</label> <input type="text"
+									<label for="sftpUsername" data-toggle="tooltip" data-placement="top" title="SFTP 서버에 접속할 사용자 계정명을 입력합니다. SSH 키 인증을 사용하는 경우 비밀번호는 비워둘 수 있습니다.">사용자명</label> <input type="text"
 										class="form-control" id="sftpUsername">
 								</div>
 								<div class="col-md-6">
-									<label for="sftpPassword">비밀번호</label> <input type="password"
+									<label for="sftpPassword" data-toggle="tooltip" data-placement="top" title="SFTP 사용자 계정의 비밀번호를 입력합니다. SSH 키 인증을 사용하는 경우 비워둘 수 있으며, 보안을 위해 암호화되어 저장됩니다.">비밀번호</label> <input type="password"
 										class="form-control" id="sftpPassword">
 								</div>
 							</div>
 							<div class="form-group row">
 								<div class="col-md-6">
-									<label for="privateKeyPath">개인키 경로</label> <input type="text"
+									<label for="privateKeyPath" data-toggle="tooltip" data-placement="top" title="SSH 개인키 파일의 경로를 입력합니다. 비밀번호 대신 SSH 키 인증을 사용할 때 필요하며, 절대 경로로 입력하세요.">개인키 경로</label> <input type="text"
 										class="form-control" id="privateKeyPath"
 										placeholder="개인키 경로 (선택)">
 								</div>
 								<div class="col-md-6">
-									<label for="remotePath">원격 경로</label> <input type="text"
+									<label for="remotePath" data-toggle="tooltip" data-placement="top" title="SFTP 서버에서 접근할 기본 디렉토리 경로를 입력합니다. 연결 후 자동으로 이 경로로 이동하며, 비워두면 홈 디렉토리가 사용됩니다.">원격 경로</label> <input type="text"
 										class="form-control" id="remotePath" placeholder="원격 경로 (선택)">
 								</div>
 							</div>
