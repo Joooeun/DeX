@@ -1,4 +1,17 @@
 <%@include file="common/common.jsp"%>
+
+<!-- Toast 알림 시스템 -->
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;">
+    <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <strong class="me-auto" id="toastTitle">알림</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="toastMessage">
+        </div>
+    </div>
+</div>
+
 <div class="content-wrapper" style="margin-left: 0">
     <section class="content-header">
         <h1>사용자 관리</h1>
@@ -16,16 +29,14 @@
                                     <div class="col-sm-6">
                                         <div class="input-group" style="width: 150px; margin-right: 10px;">
                                             <input type="text" class="form-control" id="searchKeyword" placeholder="ID/이름">
-                                            <span class="input-group-btn">
-                                                <button type="button" class="btn btn-default" onclick="searchUsers()">
-                                                    <i class="fa fa-search"></i>
-                                                </button>
-                                            </span>
+                                            <button type="button" class="btn btn-outline-secondary" onclick="searchUsers()">
+                                                <i class="fa fa-search"></i>
+                                            </button>
                                         </div>
                                     </div>
                                     <div class="col-sm-6">
                                         <div class="input-group" style="width: 200px;">
-                                            <span class="input-group-addon">그룹</span>
+                                            <span class="input-group-text">그룹</span>
                                             <select class="form-control" id="groupFilter" onchange="filterByGroup()">
                                                 <option value="">전체 그룹</option>
                                             </select>
@@ -34,7 +45,7 @@
                                 </div>
                             </div>
                             <div class="col-sm-4">
-                                <button type="button" class="btn pull-right btn-primary btn-sm" onclick="showCreateUserModal()">
+                                <button type="button" class="btn float-end btn-primary btn-sm" onclick="showCreateUserModal()">
                                     <i class="fa fa-plus"></i> 새 사용자
                                 </button>
                             </div>
@@ -80,7 +91,7 @@
                 <div class="box box-primary">
                     <div class="box-header with-border">
                         <h3 class="box-title">그룹 관리</h3>
-                        <div class="box-tools pull-right">
+                        <div class="box-tools float-end">
                             <button type="button" class="btn btn-primary btn-sm" onclick="showGroupModal()">
                                 <i class="fa fa-plus"></i> 그룹 추가
                             </button>
@@ -113,11 +124,11 @@
 </div>
 
 <!-- 사용자 생성/수정 모달 -->
-<div class="modal fade" id="userModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
+<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalTitle" aria-hidden="true">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 <h4 class="modal-title" id="userModalTitle">사용자 생성</h4>
             </div>
             <div class="modal-body">
@@ -153,7 +164,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
                 <button type="button" class="btn btn-primary" onclick="saveUser()">저장</button>
             </div>
         </div>
@@ -161,11 +172,11 @@
 </div>
 
 <!-- 사용자 활동 로그 모달 -->
-<div class="modal fade" id="activityLogModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
+<div class="modal fade" id="activityLogModal" tabindex="-1" aria-labelledby="activityLogModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 <h4 class="modal-title">사용자 활동 로그</h4>
             </div>
             <div class="modal-body">
@@ -195,7 +206,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
             </div>
         </div>
     </div>
@@ -204,18 +215,22 @@
 
 
 <!-- 그룹 관리 모달 -->
-<div class="modal fade" id="groupModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
+<div class="modal fade" id="groupModal" tabindex="-1" aria-labelledby="groupModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 <h4 class="modal-title" id="groupModalTitle">그룹 추가</h4>
             </div>
             <div class="modal-body">
                 <!-- 탭 네비게이션 -->
-                <ul class="nav nav-tabs" id="groupModalTabs">
-                    <li class="active"><a href="#groupInfoTab" data-toggle="tab">그룹 정보</a></li>
-                    <li><a href="#groupPermissionsTab" data-toggle="tab">권한 관리</a></li>
+                <ul class="nav nav-tabs" id="groupModalTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="groupInfoTab-tab" data-bs-toggle="tab" data-bs-target="#groupInfoTab" type="button" role="tab" aria-controls="groupInfoTab" aria-selected="true">그룹 정보</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="groupPermissionsTab-tab" data-bs-toggle="tab" data-bs-target="#groupPermissionsTab" type="button" role="tab" aria-controls="groupPermissionsTab" aria-selected="false">권한 관리</button>
+                    </li>
                 </ul>
                 
                 <!-- 탭 콘텐츠 -->
@@ -262,7 +277,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
                 <button type="button" class="btn btn-primary" onclick="saveGroup()">저장</button>
             </div>
         </div>
@@ -339,6 +354,32 @@ $(document).ready(function() {
     });
 });
 
+// Toast 알림 시스템
+function showToast(message, type = 'info', title = '알림') {
+    const toast = document.getElementById('toast');
+    const toastTitle = document.getElementById('toastTitle');
+    const toastMessage = document.getElementById('toastMessage');
+    
+    // 타입에 따른 스타일 설정
+    toast.className = 'toast';
+    if (type === 'success') {
+        toast.classList.add('bg-success', 'text-white');
+    } else if (type === 'error') {
+        toast.classList.add('bg-danger', 'text-white');
+    } else if (type === 'warning') {
+        toast.classList.add('bg-warning', 'text-dark');
+    } else {
+        toast.classList.add('bg-info', 'text-white');
+    }
+    
+    toastTitle.textContent = title;
+    toastMessage.textContent = message;
+    
+    // Bootstrap Toast 표시
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+}
+
 // 전역 변수로 현재 페이지 관리
 var currentPage = 1;
 
@@ -365,11 +406,11 @@ function loadUserList(page) {
                 displayUserList(response.data);
                 displayPagination(response.pagination);
             } else {
-                alert(response.message);
+                showToast(response.message, 'error', '오류');
             }
         },
         error: function() {
-            alert('사용자 목록 조회 중 오류가 발생했습니다.');
+            showToast('사용자 목록 조회 중 오류가 발생했습니다.', 'error', '오류');
         }
     });
 }
@@ -449,9 +490,9 @@ function displayUserList(userList) {
             '<td>' + (user.LOGIN_FAIL_COUNT || 0) + '</td>' +
             '<td>' + formatDate(user.CREATED_TIMESTAMP) + '</td>' +
             '<td>' +
-                '<button class="btn btn-xs btn-info" onclick="editUser(\'' + user.USER_ID + '\')">수정</button> ' +
-                '<button class="btn btn-xs btn-primary" onclick="showActivityLogModal(\'' + user.USER_ID + '\')">로그</button> ' +
-                '<button class="btn btn-xs btn-danger" onclick="deleteUser(\'' + user.USER_ID + '\')">삭제</button>' +
+                '<button class="btn btn-sm btn-info" onclick="editUser(\'' + user.USER_ID + '\')">수정</button> ' +
+                '<button class="btn btn-sm btn-primary" onclick="showActivityLogModal(\'' + user.USER_ID + '\')">로그</button> ' +
+                '<button class="btn btn-sm btn-danger" onclick="deleteUser(\'' + user.USER_ID + '\')">삭제</button>' +
             '</td>' +
             '</tr>';
         tbody.append(row);
@@ -567,9 +608,10 @@ function editUser(userId) {
                 // 사용자의 현재 그룹 정보 로드
                 loadUserGroup(userId);
                 
-                $('#userModal').modal('show');
+                var userModal = new bootstrap.Modal(document.getElementById('userModal'));
+                userModal.show();
             } else {
-                alert(response.message);
+                showToast(response.message, 'error', '오류');
             }
         }
     });
@@ -619,16 +661,17 @@ function saveUser() {
         data: JSON.stringify(userData),
         success: function(response) {
             if (response.success) {
-                alert(response.message);
-                $('#userModal').modal('hide');
+                showToast(response.message, 'success', '성공');
+                var userModal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
+                userModal.hide();
                 loadUserList(currentPage);
                 updateGroupLists(); // 그룹 목록과 필터 업데이트
             } else {
-                alert(response.message);
+                showToast(response.message, 'error', '오류');
             }
         },
         error: function() {
-            alert('사용자 저장 중 오류가 발생했습니다.');
+            showToast('사용자 저장 중 오류가 발생했습니다.', 'error', '오류');
         }
     });
 }
@@ -643,15 +686,15 @@ function deleteUser(userId) {
         data: { userId: userId },
         success: function(response) {
             if (response.success) {
-                alert(response.message);
+                showToast(response.message, 'success', '성공');
                 loadUserList(currentPage);
                 updateGroupLists(); // 그룹 목록과 필터 업데이트
             } else {
-                alert(response.message);
+                showToast(response.message, 'error', '오류');
             }
         },
         error: function() {
-            alert('사용자 삭제 중 오류가 발생했습니다.');
+            showToast('사용자 삭제 중 오류가 발생했습니다.', 'error', '오류');
         }
     });
 }
@@ -757,14 +800,15 @@ function savePermissions() {
         }),
         success: function(response) {
             if (response.success) {
-                alert('권한이 저장되었습니다.');
-                $('#permissionModal').modal('hide');
+                showToast('권한이 저장되었습니다.', 'success', '성공');
+                var permissionModal = bootstrap.Modal.getInstance(document.getElementById('permissionModal'));
+                permissionModal.hide();
             } else {
-                alert(response.message);
+                showToast(response.message, 'error', '오류');
             }
         },
         error: function() {
-            alert('권한 저장 중 오류가 발생했습니다.');
+            showToast('권한 저장 중 오류가 발생했습니다.', 'error', '오류');
         }
     });
 }
@@ -772,7 +816,8 @@ function savePermissions() {
 // 활동 로그 모달 표시
 function showActivityLogModal(userId) {
     $('#logUserId').val(userId);
-    $('#activityLogModal').modal('show');
+                    var activityLogModal = new bootstrap.Modal(document.getElementById('activityLogModal'));
+                activityLogModal.show();
     loadActivityLogs();
 }
 
@@ -792,11 +837,11 @@ function loadActivityLogs() {
             if (response.success) {
                 displayActivityLogs(response.data);
             } else {
-                alert(response.message);
+                showToast(response.message, 'error', '오류');
             }
         },
         error: function() {
-            alert('활동 로그 조회 중 오류가 발생했습니다.');
+            showToast('활동 로그 조회 중 오류가 발생했습니다.', 'error', '오류');
         }
     });
 }
@@ -826,11 +871,11 @@ function loadGroupTable() {
             if (response.success) {
                 displayGroupTable(response.data);
             } else {
-                alert(response.message);
+                showToast(response.message, 'error', '오류');
             }
         },
         error: function() {
-            alert('그룹 목록 조회 중 오류가 발생했습니다.');
+            showToast('그룹 목록 조회 중 오류가 발생했습니다.', 'error', '오류');
         }
     });
 }
@@ -848,8 +893,8 @@ function displayGroupTable(groupList) {
             '<td>' + (group.MEMBER_COUNT || 0) + '</td>' +
             '<td>' + formatDate(group.CREATED_TIMESTAMP) + '</td>' +
             '<td>' +
-                '<button class="btn btn-xs btn-info" onclick="editGroup(\'' + group.GROUP_ID + '\')">수정</button> ' +
-                '<button class="btn btn-xs btn-danger" onclick="deleteGroup(\'' + group.GROUP_ID + '\')">삭제</button>' +
+                '<button class="btn btn-sm btn-info" onclick="editGroup(\'' + group.GROUP_ID + '\')">수정</button> ' +
+                '<button class="btn btn-sm btn-danger" onclick="deleteGroup(\'' + group.GROUP_ID + '\')">삭제</button>' +
             '</td>' +
             '</tr>';
         tbody.append(row);
@@ -884,8 +929,9 @@ function showGroupModal() {
     // 권한 목록 로드 (카테고리별로 표시)
     loadAllPermissions();
     
-    // 첫 번째 탭으로 이동
-    $('#groupModalTabs a[href="#groupInfoTab"]').tab('show');
+                    // 첫 번째 탭으로 이동
+                var firstTab = new bootstrap.Tab(document.querySelector('#groupInfoTab-tab'));
+                firstTab.show();
     
     $('#groupModal').modal('show');
 }
@@ -908,7 +954,8 @@ function editGroup(groupId) {
                 // 권한 정보 로드
                 loadGroupPermissions(groupId);
                 
-                $('#groupModal').modal('show');
+                var groupModal = new bootstrap.Modal(document.getElementById('groupModal'));
+                groupModal.show();
             } else {
                 alert(response.message);
             }
@@ -941,16 +988,17 @@ function saveGroup() {
                     // 새 그룹 생성 시 권한도 함께 저장
                     saveGroupPermissions(response.data.groupId);
                 }
-                alert(response.message);
-                $('#groupModal').modal('hide');
+                showToast(response.message, 'success', '성공');
+                var groupModal = bootstrap.Modal.getInstance(document.getElementById('groupModal'));
+                groupModal.hide();
                 loadGroupTable();
                 updateGroupLists(); // 사용자 모달의 그룹 목록과 필터 업데이트
             } else {
-                alert(response.message);
+                showToast(response.message, 'error', '오류');
             }
         },
         error: function() {
-            alert('그룹 저장 중 오류가 발생했습니다.');
+            showToast('그룹 저장 중 오류가 발생했습니다.', 'error', '오류');
         }
     });
 }
@@ -1085,15 +1133,15 @@ function deleteGroup(groupId) {
         data: { groupId: groupId },
         success: function(response) {
             if (response.success) {
-                alert(response.message);
+                showToast(response.message, 'success', '성공');
                 loadGroupTable();
                 updateGroupLists(); // 사용자 모달의 그룹 목록과 필터 업데이트
             } else {
-                alert(response.message);
+                showToast(response.message, 'error', '오류');
             }
         },
         error: function() {
-            alert('그룹 삭제 중 오류가 발생했습니다.');
+            showToast('그룹 삭제 중 오류가 발생했습니다.', 'error', '오류');
         }
     });
 }
@@ -1233,12 +1281,14 @@ function editGroupPermissions(groupId) {
                 loadGroupPermissions(groupId);
                 
                 // 권한 탭으로 바로 이동
-                $('#groupModal').modal('show');
+                var groupModal = new bootstrap.Modal(document.getElementById('groupModal'));
+                groupModal.show();
                 setTimeout(function() {
-                    $('#groupModalTabs a[href="#groupPermissionsTab"]').tab('show');
+                    var permissionsTab = new bootstrap.Tab(document.querySelector('#groupPermissionsTab-tab'));
+                    permissionsTab.show();
                 }, 100);
             } else {
-                alert(response.message);
+                showToast(response.message, 'error', '오류');
             }
         }
     });
@@ -1299,10 +1349,7 @@ function saveGroupPermissions(groupId) {
     });
 }
 
-// 그룹 멤버 관리 (간단한 알림)
-function showGroupMembers(groupId) {
-    alert('그룹 멤버 관리 기능은 사용자 관리에서 그룹을 선택하여 관리할 수 있습니다.');
-}
+
 
 // UserGroup 관리 페이지 열기
 function openUserGroupManagement() {
