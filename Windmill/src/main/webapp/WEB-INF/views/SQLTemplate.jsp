@@ -2,11 +2,15 @@
 
 <!-- Ace Editor CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ace.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ext-language_tools.js"></script>
+<script
+	src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ext-language_tools.js"></script>
 
 <!-- Select2 CDN for searchable dropdowns -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+<link
+	href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css"
+	rel="stylesheet" />
+<script
+	src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 
 <style>
 .category-list {
@@ -16,18 +20,18 @@
 }
 
 .category-item {
-    cursor: pointer;
-    padding: 5px;
+	cursor: pointer;
+	padding: 5px;
 	border: 1px solid #ddd;
 	margin-bottom: 3px;
-    border-radius: 3px;
+	border-radius: 3px;
 	background-color: #f9f9f9;
 	word-wrap: break-word;
 	white-space: normal;
 }
 
 .category-item:hover {
-    background-color: #e9ecef;
+	background-color: #e9ecef;
 }
 
 .category-item.selected {
@@ -62,22 +66,22 @@
 }
 
 .modal-header {
-    background-color: #007bff;
-    color: white;
+	background-color: #007bff;
+	color: white;
 }
 
 .sql-preview {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 5px;
-    padding: 10px;
-    max-height: 300px;
-    overflow-y: auto;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    line-height: 1.4;
+	background-color: #f8f9fa;
+	border: 1px solid #dee2e6;
+	border-radius: 5px;
+	padding: 10px;
+	max-height: 300px;
+	overflow-y: auto;
+	font-family: 'Courier New', monospace;
+	font-size: 12px;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	line-height: 1.4;
 }
 
 .template-count {
@@ -150,6 +154,87 @@ table th, td {
 	vertical-align: middle !important;
 	padding: 4px !important;
 	font-size: 14px !important;
+}
+</style>
+
+<style>
+/* Switch (iOS-like) */
+.switch {
+	display: inline-block;
+	position: relative;
+	width: 44px;
+	height: 22px;
+}
+
+.switch input {
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+
+.slider {
+	position: absolute;
+	cursor: pointer;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: #ccc;
+	transition: .2s;
+	border-radius: 22px;
+}
+
+.slider:before {
+	position: absolute;
+	content: "";
+	height: 18px;
+	width: 18px;
+	left: 2px;
+	bottom: 2px;
+	background-color: white;
+	transition: .2s;
+	border-radius: 50%;
+}
+
+.switch input:checked+.slider {
+	background-color: #28a745;
+}
+
+.switch input:checked+.slider:before {
+	transform: translateX(22px);
+}
+</style>
+
+<style>
+.control-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	align-items: center
+}
+
+.control-item {
+	display: flex;
+	align-items: center;
+	gap: 6px
+}
+
+.control-item .form-control {
+	height: 28px;
+	padding: 2px 6px
+}
+
+.options-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	align-items: center
+}
+
+.option-item {
+	display: flex;
+	align-items: center;
+	gap: 8px
 }
 </style>
 
@@ -614,11 +699,10 @@ table th, td {
 		
 
 		
-		// 기본 템플릿 탭 활성화
+				// 기본 템플릿 탭 활성화
 		function activateDefaultTab() {
 			$('#sqlContentTabs a:first').tab('show');
-			updateSqlPreview();
-}
+		}
 
 // Textarea 기반 SQL 에디터 초기화
 function initTextareaEditor() {
@@ -633,37 +717,6 @@ function initTextareaEditor() {
         }
     };
 }
-
-		// SQL 미리보기 업데이트
-		function updateSqlPreview() {
-			var sqlContent = '';
-			// 현재 활성 탭의 SQL 에디터에서 내용 가져오기
-			var activeTab = $('#sqlContentTabs .nav-link.active');
-			if (activeTab.length > 0) {
-				var connectionId = activeTab.attr('href').replace('#tab-', '');
-				var editorId = 'sqlEditor_' + connectionId;
-				
-				if (typeof ace !== 'undefined') {
-					try {
-						var editor = ace.edit(editorId);
-						sqlContent = editor.getValue();
-					} catch (e) {
-						sqlContent = $('#' + editorId + ' .sql-textarea').val() || '';
-					}
-				} else {
-					sqlContent = $('#' + editorId + ' .sql-textarea').val() || '';
-				}
-			} else {
-				// 활성 탭이 없으면 기존 방식 사용 (하위 호환성)
-			if (window.sqlEditor && window.sqlEditor.getValue) {
-				sqlContent = window.sqlEditor.getValue();
-			} else {
-					sqlContent = $('#sqlEditor').val();
-			}
-			}
-			
-			$('#sqlPreview').text(sqlContent);
-		}
 
 		// 파라미터 추가
 		function addParameter() {
@@ -1394,9 +1447,7 @@ function initTextareaEditor() {
 			$('#parameterTableBody, #shortcutTableBody').empty();
 			$('.template-item').removeClass('selected');
 			$('.target-template-select2').select2('destroy');
-    
-    updateSqlPreview();
-}
+		}
 
 		// SQL 템플릿 저장 (카테고리 포함)
 function saveSqlTemplate() {
@@ -1552,7 +1603,6 @@ function saveSqlTemplate() {
 				success: function (result) {
 					if (result.success) {
 						renderSqlContentTabs(result.data);
-						updateSqlPreview();
 					}
 				}
 			});
@@ -1605,7 +1655,10 @@ function saveSqlTemplate() {
 					editor.setOptions({
 						enableBasicAutocompletion: true,
 						enableSnippets: true,
-						enableLiveAutocompletion: true
+						enableLiveAutocompletion: true,
+						showPrintMargin: false,
+						showGutter: true,
+						showInvisibles: false
 					});
 
 					// 커스텀 자동완성 설정 추가
@@ -1620,7 +1673,7 @@ function saveSqlTemplate() {
 					
 					// 에디터 변경 이벤트
 					editor.on('change', function() {
-						updateSqlPreview();
+						// 변경 이벤트만 처리 (미리보기 제거)
 					});
 				} catch (e) {
 					console.log("SQL 에디터 초기화 실패:", e);
@@ -1642,7 +1695,10 @@ function saveSqlTemplate() {
 					editor.setOptions({
 						enableBasicAutocompletion: true,
 						enableSnippets: true,
-						enableLiveAutocompletion: true
+						enableLiveAutocompletion: true,
+						showPrintMargin: false,
+						showGutter: true,
+						showInvisibles: false
 					});
 
 					// 커스텀 자동완성 설정 추가
@@ -1651,13 +1707,13 @@ function saveSqlTemplate() {
 
 					editor.setValue(sqlContent || '');
 					
-					// 에디터를 전역 변수에 저장
+					// 에디터를 전역 변수에 저장 (DB 타입용)
 					window.sqlEditors = window.sqlEditors || {};
 					window.sqlEditors[dbType] = editor;
 					
 					// 에디터 변경 이벤트
 					editor.on('change', function() {
-						updateSqlPreview();
+						// 변경 이벤트만 처리 (미리보기 제거)
 					});
 				} catch (e) {
 					console.log("SQL 에디터 초기화 실패:", e);
@@ -1675,7 +1731,7 @@ function saveSqlTemplate() {
 			
 			// textarea 변경 이벤트
 			$(editorDiv).find('.sql-textarea').on('input', function() {
-						updateSqlPreview();
+				// 변경 이벤트만 처리 (미리보기 제거)
 			});
 		}
 
@@ -1686,7 +1742,7 @@ function saveSqlTemplate() {
 			
 			// textarea 변경 이벤트
 			$(editorDiv).find('.sql-textarea').on('input', function() {
-						updateSqlPreview();
+				// 변경 이벤트만 처리 (미리보기 제거)
 			});
 		}
 
@@ -1871,128 +1927,7 @@ function saveSqlTemplate() {
 			}
 		}
 
-		// SQL 내용 복사
-		function copySqlContent() {
-			var activeTab = $('#sqlContentTabs .nav-link.active');
-			if (activeTab.length === 0) {
-				alert('복사할 SQL 내용을 선택해주세요.');
-				return;
-			}
 
-			var dbType = activeTab.attr('href').replace('#tab-', '');
-			var contentId = $('.sql-editor-container[data-db-type="' + dbType + '"]').data('content-id');
-			
-			if (!contentId) {
-				alert('새로 추가된 SQL 내용은 복사할 수 없습니다.');
-				return;
-			}
-
-			// 하드코딩된 DB 타입 목록 사용
-			var dbTypes = [
-				{DB_TYPE: 'ORACLE', CONNECTION_COUNT: 0},
-				{DB_TYPE: 'MYSQL', CONNECTION_COUNT: 0},
-				{DB_TYPE: 'POSTGRESQL', CONNECTION_COUNT: 0},
-				{DB_TYPE: 'MSSQL', CONNECTION_COUNT: 0},
-				{DB_TYPE: 'DB2', CONNECTION_COUNT: 0},
-				{DB_TYPE: 'H2', CONNECTION_COUNT: 0}
-			];
-			showCopyDbTypeSelectionModal(dbTypes, contentId, dbType);
-		}
-
-		// 복사 대상 DB 타입 선택 모달 표시
-		function showCopyDbTypeSelectionModal(dbTypes, sourceContentId, sourceDbType) {
-			var modalHtml = '<div class="modal fade" id="copySqlContentModal" tabindex="-1">' +
-				'<div class="modal-dialog modal-lg">' +
-				'<div class="modal-content">' +
-				'<div class="modal-header">' +
-				'<h5 class="modal-title">SQL 내용 복사</h5>' +
-				'<button type="button" class="close" data-dismiss="modal">&times;</button>' +
-				'</div>' +
-				'<div class="modal-body">' +
-				'<div class="form-group">' +
-				'<label><strong>대상 DB 타입 선택</strong></label><br>' +
-				'<small class="text-muted">선택한 DB 타입에 SQL 내용을 복사합니다.</small>' +
-				'<div id="copyDbTypeSelection" class="mt-3">' +
-				'<label>선택할 DB 타입:</label><br>';
-			
-			dbTypes.forEach(function(dbType) {
-				if (dbType.DB_TYPE !== sourceDbType) {
-					modalHtml += '<div class="form-check form-check-inline">' +
-						'<input class="form-check-input" type="checkbox" id="copy_dbtype_' + dbType.DB_TYPE + '" value="' + dbType.DB_TYPE + '">' +
-						'<label class="form-check-label" for="copy_dbtype_' + dbType.DB_TYPE + '">' + 
-						dbType.DB_TYPE + ' (' + dbType.CONNECTION_COUNT + '개 연결)</label>' +
-						'</div>';
-				}
-			});
-			
-			modalHtml += '</div></div></div>' +
-				'<div class="modal-footer">' +
-				'<button type="button" class="btn btn-secondary" data-dismiss="modal">취소</button>' +
-				'<button type="button" class="btn btn-primary" onclick="confirmCopySqlContent(\'' + sourceContentId + '\')">복사</button>' +
-				'</div></div></div></div>';
-
-			$('body').append(modalHtml);
-			$('#copySqlContentModal').modal('show');
-		}
-
-		// SQL 내용 복사 확인
-		function confirmCopySqlContent(sourceContentId) {
-			// 선택된 DB 타입들
-			var selectedDbTypes = [];
-			$('#copyDbTypeSelection input[type="checkbox"]:checked').each(function() {
-				selectedDbTypes.push($(this).val());
-			});
-			
-			if (selectedDbTypes.length === 0) {
-				alert('하나 이상의 DB 타입을 선택해주세요.');
-				return;
-			}
-			
-			// 각 DB 타입에 대해 복사 요청
-			var copyPromises = selectedDbTypes.map(function(dbType) {
-				return $.ajax({
-					type: 'POST',
-					url: '/SQLTemplate/sql-content/copy',
-					data: {
-						sourceContentId: sourceContentId,
-						targetDbType: dbType
-					}
-				});
-			});
-			
-			Promise.all(copyPromises).then(function(results) {
-				var successCount = 0;
-				var errorMessages = [];
-				
-				results.forEach(function(result, index) {
-					if (result.success) {
-						successCount++;
-					} else {
-						errorMessages.push(selectedDbTypes[index] + ': ' + result.error);
-					}
-				});
-				
-				if (successCount > 0) {
-					showToast(successCount + '개 DB 타입에 SQL 내용이 복사되었습니다.', 'success');
-					// 현재 템플릿의 SQL 내용 다시 로드
-					var templateId = $('#sqlTemplateId').val();
-					if (templateId) {
-						loadSqlContents(templateId);
-					}
-				}
-				
-				if (errorMessages.length > 0) {
-					showToast('일부 복사 실패: ' + errorMessages.join(', '), 'error');
-				}
-				
-				$('#copySqlContentModal').modal('hide');
-				$('#copySqlContentModal').remove();
-			}).catch(function() {
-				showToast('복사 중 오류가 발생했습니다.', 'error');
-				$('#copySqlContentModal').modal('hide');
-				$('#copySqlContentModal').remove();
-			});
-		}
 
 // SQL 템플릿 삭제
 function deleteSqlTemplate() {
@@ -2369,45 +2304,72 @@ function testSqlTemplate() {
 			});
 			return parameters;
 		}
+
+		$(function() {
+			$('#sqlInactive').on('change', function() {
+				if ($(this).is(':checked')) {
+					$('#sqlTemplateStatus').val('INACTIVE');
+				} else {
+					$('#sqlTemplateStatus').val('ACTIVE');
+				}
+			});
+			// 템플릿 상세 로드 시 상태에 따라 체크박스 동기화
+			function syncInactiveCheckbox() {
+				if ($('#sqlTemplateStatus').val() === 'INACTIVE') {
+					$('#sqlInactive').prop('checked', true);
+				} else {
+					$('#sqlInactive').prop('checked', false);
+				}
+			}
+			$('#sqlTemplateStatus').on('change', syncInactiveCheckbox);
+			// 상세 정보 로드 후에도 동기화
+			var origLoadDetail = window.loadSqlTemplateDetail;
+			window.loadSqlTemplateDetail = function() {
+				origLoadDetail.apply(this, arguments);
+				setTimeout(syncInactiveCheckbox, 100);
+			};
+		});
 </script>
 
 <!-- Toast 알림 컨테이너 -->
-<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999; width: 350px;"></div>
+<div id="toastContainer"
+	style="position: fixed; top: 20px; right: 20px; z-index: 9999; width: 350px;"></div>
 
 <style>
 @keyframes slideInRight {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
+	from { 
+		transform: translateX(100%);
+		opacity: 0;
+	}
+	to {
+		transform: translateX(0);
+		opacity: 1;
+	}
 }
 </style>
 
 <!-- Content Wrapper -->
 <div class="content-wrapper" style="margin-left: 0">
-    <!-- Content Header -->
-    <section class="content-header">
-        <h1>SQL 템플릿 관리</h1>
-        <ol class="breadcrumb">
-            <li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
-            <li class="active">SQL 템플릿 관리</li>
-        </ol>
-    </section>
-    
-    <!-- Main content -->
-    <section class="content">
-        <div class="row">
+	<!-- Content Header -->
+	<section class="content-header">
+		<h1>SQL 템플릿 관리</h1>
+		<ol class="breadcrumb">
+			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
+			<li class="active">SQL 템플릿 관리</li>
+		</ol>
+	</section>
+
+	<!-- Main content -->
+	<section class="content">
+		<div class="row">
 			<!-- 카테고리 목록 패널 -->
-            <div class="col-md-3">
-                <div class="box box-primary">
-                    <div class="box-header with-border">
+			<div class="col-md-3">
+				<div class="box box-primary">
+					<div class="box-header with-border">
 						<h3 class="box-title">카테고리 목록</h3>
 						<div class="box-tools pull-right">
-							<button type="button" class="btn btn-box-tool" onclick="createCategory()">
+							<button type="button" class="btn btn-box-tool"
+								onclick="createCategory()">
 								<i class="fa fa-plus"></i> 새 카테고리
 							</button>
 						</div>
@@ -2422,80 +2384,85 @@ function testSqlTemplate() {
 				<div class="box box-success">
 					<div class="box-header with-border">
 						<h3 class="box-title">템플릿 목록</h3>
-                        <div class="box-tools pull-right">
-                            <button type="button" class="btn btn-box-tool" onclick="createNewSqlTemplate()">
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-box-tool"
+								onclick="createNewSqlTemplate()">
 								<i class="fa fa-plus"></i> 새 템플릿
-                            </button>
-                        </div>
-                    </div>
-                    <div class="box-body">
+							</button>
+						</div>
+					</div>
+					<div class="box-body">
 						<div id="templateList" class="template-list">
 							<!-- 템플릿이 여기에 로드됩니다 -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- SQL 편집 패널 -->
-            <div class="col-md-9">
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- SQL 편집 패널 -->
+			<div class="col-md-9">
 				<div class="box box-info">
-                    <div class="box-header with-border">
-                        <h3 class="box-title">SQL 템플릿 편집</h3>
-                        <div class="box-tools pull-right">
-                            <button type="button" class="btn btn-info btn-sm" onclick="testSqlTemplate()">
-                                <i class="fa fa-play"></i> 테스트
-                            </button>
-                            <button type="button" class="btn btn-success btn-sm" onclick="saveSqlTemplate()">
-                                <i class="fa fa-save"></i> 저장
-                            </button>
-                            <button type="button" class="btn btn-danger btn-sm" onclick="deleteSqlTemplate()">
-                                <i class="fa fa-trash"></i> 삭제
-                            </button>
-                        </div>
-                    </div>
-                    <div class="box-body">
+					<div class="box-header with-border">
+						<h3 class="box-title">SQL 템플릿 편집</h3>
+						<div class="box-tools pull-right">
+							<button type="button" class="btn btn-info btn-sm"
+								onclick="testSqlTemplate()">
+								<i class="fa fa-play"></i> 테스트
+							</button>
+							<button type="button" class="btn btn-success btn-sm"
+								onclick="saveSqlTemplate()">
+								<i class="fa fa-save"></i> 저장
+							</button>
+							<button type="button" class="btn btn-danger btn-sm"
+								onclick="deleteSqlTemplate()">
+								<i class="fa fa-trash"></i> 삭제
+							</button>
+						</div>
+					</div>
+					<div class="box-body">
 						<!-- 숨겨진 ID 필드 -->
 						<input type="hidden" id="sqlTemplateId">
 
-                        <!-- 기본 정보 -->
+						<!-- 기본 정보 -->
 						<div class="row">
 
-							<div class="col-md-6">
+							<div class="col-md-8">
 								<!-- 설정 정보 -->
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿의 고유 이름입니다. 대시보드와 메뉴에서 표시되며, 100자 이하로 입력해주세요.">SQL 이름</label> <input type="text" class="form-control" id="sqlTemplateName" placeholder="SQL 이름">
-                                </div>
-                            </div>
-									<div class="col-md-8">
-									<div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="템플릿의 사용 상태를 설정합니다. 활성: 사용 가능, 비활성: 사용 불가, 초안: 작성 중">상태</label>
-											<select class="form-control" id="sqlTemplateStatus">
-												<option value="ACTIVE">활성</option>
-												<option value="INACTIVE">비활성</option>
-												<option value="DRAFT">초안</option>
-											</select>
-                                </div>
-                            </div>
-
-
-                            <div class="col-md-4">
-                                <div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습습니다.">실행 제한 (행)</label> <input type="number" class="form-control" id="sqlExecutionLimit" value="0" min="0" max="20000" placeholder="최대 반환 행 수">
+								<div class="row">
+									<div class="col-md-2">
+										<div class="form-group">
+											<label data-toggle="tooltip" data-placement="top"
+												title="SQL 템플릿의 고유 이름입니다. 대시보드와 메뉴에서 표시되며, 100자 이하로 입력해주세요.">SQL
+												이름</label> <input type="text" class="form-control"
+												id="sqlTemplateName" placeholder="SQL 이름">
 										</div>
 									</div>
-									<div class="col-md-4">
+
+									<div class="col-md-2">
 										<div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="대시보드에서 자동으로 데이터를 새로고침하는 간격을 설정합니다. 0으로 설정하면 자동 새로고침을 사용하지 않습니다.">새로고침 간격 (초)</label> <input type="number" class="form-control" id="sqlRefreshTimeout" value="0" min="0" max="3600" placeholder="새로고침 대기 시간">
+											<label data-toggle="tooltip" data-placement="top"
+												title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습습니다.">실행
+												제한 (행)</label> <input type="number" class="form-control"
+												id="sqlExecutionLimit" value="0" min="0" max="20000"
+												placeholder="최대 반환 행 수">
 										</div>
 									</div>
-									<div class="col-md-4">
+
+									<div class="col-md-2">
 										<div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="대시보드에서 차트로 표시할 컬럼을 선택합니다">차트 매핑</label>
-											<select class="form-control" id="sqlChartMapping">
+											<label data-toggle="tooltip" data-placement="top"
+												title="대시보드에서 자동으로 데이터를 새로고침하는 간격을 설정합니다. 0으로 설정하면 자동 새로고침을 사용하지 않습니다.">새로고침
+												간격 (초)</label> <input type="number" class="form-control"
+												id="sqlRefreshTimeout" value="0" min="0" max="3600"
+												placeholder="새로고침 대기 시간">
+										</div>
+									</div>
+
+									<div class="col-md-2">
+										<div class="form-group">
+											<label data-toggle="tooltip" data-placement="top"
+												title="대시보드에서 차트로 표시할 컬럼을 선택합니다">차트 매핑</label> <select
+												class="form-control" id="sqlChartMapping">
 												<option value="">차트 매핑 없음</option>
 												<option value="APPL_COUNT">애플리케이션 수</option>
 												<option value="LOCK_WAIT_COUNT">락 대기 수</option>
@@ -2504,57 +2471,79 @@ function testSqlTemplate() {
 											</select>
 										</div>
 									</div>
+
+									<!-- 옵션 박스 -->
 									<div class="col-md-4">
-										<div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="SQL 결과에서 개행 문자를 그대로 표시할지 설정합니다. 체크하면 텍스트 내의 줄바꿈이 화면에 반영됩니다.">개행 보기</label>
-											<div class="checkbox">
-												<label>
-													<input type="checkbox" id="sqlNewline" checked> 개행 문자 표시
-												</label>
+										<div class="row">
+
+											<div class="col-md-4">
+												<!-- 개행 보기 -->
+												<div class="form-group" style="margin-bottom: 15px;">
+													<label data-toggle="tooltip" data-placement="top"
+														title="개행 문자 표시"
+														style="display: block; margin-bottom: 5px;">개행 보기</label>
+													<label class="switch"> <input type="checkbox"
+														id="sqlNewline" checked> <span class="slider"></span>
+													</label>
+												</div>
+											</div>
+											<div class="col-md-4">
+												<!-- 비활성화 -->
+												<div class="form-group" style="margin-bottom: 15px;">
+													<label data-toggle="tooltip" data-placement="top"
+														title="템플릿 사용 상태 토글 (활성/비활성)"
+														style="display: block; margin-bottom: 5px;">비활성화</label> <label
+														class="switch"> <input type="checkbox"
+														id="sqlInactive"> <span class="slider"></span>
+													</label> <select class="form-control" id="sqlTemplateStatus"
+														style="display: none;">
+														<option value="ACTIVE">활성</option>
+														<option value="INACTIVE">비활성</option>
+													</select>
+												</div>
+											</div>
+											<div class="col-md-4">
+												<!-- 감사 로그 -->
+												<div class="form-group" style="margin-bottom: 15px;">
+													<label data-toggle="tooltip" data-placement="top"
+														title="감사 로그 저장"
+														style="display: block; margin-bottom: 5px;">감사 로그</label>
+													<label class="switch"> <input type="checkbox"
+														id="sqlAudit"> <span class="slider"></span>
+													</label>
+												</div>
 											</div>
 										</div>
 									</div>
-									<div class="col-md-4">
-										<div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="SQL 실행 시 사용자, 실행 시간, 파라미터 등의 정보를 감사 로그에 저장할지 설정합니다. 보안 및 모니터링에 활용됩니다.">감사 로그</label>
-											<div class="checkbox">
-												<label>
-													<input type="checkbox" id="sqlAudit"> 감사 로그 저장
-												</label>
-											</div>
-										</div>
-									</div>
-										</div>
-									</div>
+
 								</div>
-								<!-- 추가 정보 -->
-								<div class="row">
-									<div class="col-md-12">
-										<div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿에 대한 상세한 설명을 입력합니다.">설명</label>
-											<textarea class="form-control" id="sqlTemplateDesc" rows="2" placeholder="SQL 템플릿에 대한 설명을 입력하세요"></textarea>
-                                </div>
-                            </div>
-                        </div>
-                        
-								
+
+								<div class="form-group">
+									<label data-toggle="tooltip" data-placement="top"
+										title="SQL 템플릿에 대한 상세한 설명을 입력합니다.">설명</label>
+									<textarea class="form-control" id="sqlTemplateDesc" rows="2"
+										placeholder="SQL 템플릿에 대한 설명을 입력하세요"></textarea>
+								</div>
 
 							</div>
+							<div class="col-md-4">
 
-							<div class="col-md-6">
-                        <div class="form-group">
-									<label data-toggle="tooltip" data-placement="top" title="SQL 템플릿을 분류하여 관리합니다. 카테고리별로 템플릿을 그룹화하여 찾기 쉽게 만들 수 있습니다.">카테고리</label>
-									<select class="form-control" id="sqlTemplateCategories" multiple>
+								<!-- 추가 정보 -->
+								<div class="form-group">
+									<label data-toggle="tooltip" data-placement="top"
+										title="SQL 템플릿을 분류하여 관리합니다. 카테고리별로 템플릿을 그룹화하여 찾기 쉽게 만들 수 있습니다.">카테고리</label>
+									<select class="form-control" id="sqlTemplateCategories"
+										multiple>
 										<!-- 카테고리 옵션들이 여기에 로드됩니다 -->
 									</select>
-                        </div>
-                        
-								<!-- DB 연결 선택 -->
-                        <div class="form-group">
-											<label data-toggle="tooltip" data-placement="top" title="이 SQL 템플릿을 사용할 수 있는 데이터베이스 연결을 선택합니다. 아무것도 선택하지 않으면 모든 DB 연결에서 사용 가능합니다.">접근 가능한 DB 연결</label>
-											<select class="form-control" id="accessibleConnections" multiple>
-												<!-- DB 연결 옵션들이 여기에 로드됩니다 -->
-											</select>
+								</div>
+								<div class="form-group">
+									<label data-toggle="tooltip" data-placement="top"
+										title="이 SQL 템플릿을 사용할 수 있는 데이터베이스 연결을 선택합니다. 아무것도 선택하지 않으면 모든 DB 연결에서 사용 가능합니다.">접근
+										가능한 DB 연결</label> <select class="form-control"
+										id="accessibleConnections" multiple>
+										<!-- DB 연결 옵션들이 여기에 로드됩니다 -->
+									</select>
 								</div>
 							</div>
 						</div>
@@ -2565,18 +2554,28 @@ function testSqlTemplate() {
 							<div class="row">
 								<div class="col-md-12">
 									<div class="table-responsive">
-										<table class="table table-bordered table-striped align-middle" id="parameterTable">
+										<table class="table table-bordered table-striped align-middle"
+											id="parameterTable">
 											<thead>
 												<tr>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터의 입력 순서를 설정합니다. 숫자가 작을수록 먼저 입력받으며, 사용자 입력 화면에서도 이 순서대로 표시됩니다.">순서</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="SQL 내에서 사용할 파라미터 이름입니다. SQL 문에서 ${파라미터명} 형태로 사용되며, 실행 시 실제 값으로 치환됩니다.">파라미터명</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터에 대한 설명을 입력합니다. 사용자가 입력할 때 도움말로 표시되며, 올바른 값을 입력할 수 있도록 안내합니다.">설명</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터의 데이터 타입을 설정합니다. 문자열: 문자열 바인딩, 숫자: 숫자 바인딩, 텍스트: 긴 문자열용, SQL: SQL 코드 조각, 로그: 로깅용(바인딩 안됨)">타입</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터의 기본값을 설정합니다.">기본값</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터가 반드시 입력되어야 하는지 설정합니다. 체크하면 사용자가 값을 입력하지 않으면 SQL 실행이 차단됩니다.">필수</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터를 읽기 전용으로 설정합니다. 체크하면 사용자가 값을 수정할 수 없으며, 기본값이나 시스템에서 설정된 값만 사용됩니다.">읽기전용</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터 입력 필드를 화면에서 숨깁니다. 체크하면 사용자에게 표시되지 않지만, 기본값이나 시스템 값이 SQL에 전달됩니다.">숨김</div></th>
-													<th><div data-toggle="tooltip" data-placement="top" title="파라미터를 비활성화합니다. 체크하면 입력 필드가 비활성화되어 사용자가 값을 입력할 수 없으며, SQL 실행에서도 제외됩니다.">비활성화</div></th
+													<th><div data-toggle="tooltip" data-placement="top"
+															title="파라미터의 입력 순서를 설정합니다. 숫자가 작을수록 먼저 입력받으며, 사용자 입력 화면에서도 이 순서대로 표시됩니다.">순서</div></th>
+													<th><div data-toggle="tooltip" data-placement="top"
+															title="SQL 내에서 사용할 파라미터 이름입니다. SQL 문에서 \${파라미터명} 형태로 사용되며, 실행 시 실제 값으로 치환됩니다.">파라미터명</div></th>
+													<th><div data-toggle="tooltip" data-placement="top"
+															title="파라미터에 대한 설명을 입력합니다. 사용자가 입력할 때 도움말로 표시되며, 올바른 값을 입력할 수 있도록 안내합니다.">설명</div></th>
+													<th><div data-toggle="tooltip" data-placement="top"
+															title="파라미터의 데이터 타입을 설정합니다. 문자열: 문자열 바인딩, 숫자: 숫자 바인딩, 텍스트: 긴 문자열용, SQL: SQL 코드 조각, 로그: 로깅용(바인딩 안됨)">타입</div></th>
+													<th><div data-toggle="tooltip" data-placement="top"
+															title="파라미터의 기본값을 설정합니다.">기본값</div></th>
+													<th><div data-toggle="tooltip" data-placement="top"
+															title="파라미터가 반드시 입력되어야 하는지 설정합니다. 체크하면 사용자가 값을 입력하지 않으면 SQL 실행이 차단됩니다.">필수</div></th>
+													<th><div data-toggle="tooltip" data-placement="top"
+															title="파라미터를 읽기 전용으로 설정합니다. 체크하면 사용자가 값을 수정할 수 없으며, 기본값이나 시스템에서 설정된 값만 사용됩니다.">읽기전용</div></th>
+													<th><div data-toggle="tooltip" data-placement="top"
+															title="파라미터 입력 필드를 화면에서 숨깁니다. 체크하면 사용자에게 표시되지 않지만, 기본값이나 시스템 값이 SQL에 전달됩니다.">숨김</div></th>
+													<th><div data-toggle="tooltip" data-placement="top"
+															title="파라미터를 비활성화합니다. 체크하면 입력 필드가 비활성화되어 사용자가 값을 입력할 수 없으며, SQL 실행에서도 제외됩니다.">비활성화</div></th>
 													<th></th>
 												</tr>
 											</thead>
@@ -2585,7 +2584,8 @@ function testSqlTemplate() {
 											</tbody>
 										</table>
 									</div>
-									<button type="button" class="btn btn-primary btn-sm" onclick="addParameter()">
+									<button type="button" class="btn btn-primary btn-sm"
+										onclick="addParameter()">
 										<i class="fa fa-plus"></i> 파라미터 추가
 									</button>
 								</div>
@@ -2594,16 +2594,15 @@ function testSqlTemplate() {
 
 						<!-- DB별 SQL 내용 관리 -->
 						<div class="form-group">
-							<label data-toggle="tooltip" data-placement="top" title="DB 연결별로 SQL 내용을 관리합니다. 각 DB의 문법에 맞게 SQL을 작성할 수 있습니다.">DB별 SQL 내용</label>
+							<label data-toggle="tooltip" data-placement="top"
+								title="DB 연결별로 SQL 내용을 관리합니다. 각 DB의 문법에 맞게 SQL을 작성할 수 있습니다.">DB별
+								SQL 내용</label>
 
 							<!-- DB 연결 탭 -->
 							<ul class="nav nav-tabs" id="sqlContentTabs">
 								<!-- 기본 템플릿 탭 (항상 첫 번째) -->
-								<li class="nav-item active">
-									<a class="nav-link" data-toggle="tab" href="#tab-default">
-										기본 템플릿
-									</a>
-								</li>
+								<li class="nav-item active"><a class="nav-link"
+									data-toggle="tab" href="#tab-default"> 기본 템플릿 </a></li>
 								<!-- 추가 DB 연결 탭들이 여기에 동적으로 생성됩니다 -->
 							</ul>
 
@@ -2611,8 +2610,15 @@ function testSqlTemplate() {
 							<div class="tab-content" id="sqlContentTabContent">
 								<!-- 기본 템플릿 컨텐츠 (항상 첫 번째) -->
 								<div class="tab-pane active" id="tab-default">
-									<div class="sql-editor-container" data-db-type="default" data-content-id="DEFAULT">
-										<div id="sqlEditor_default" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>
+									<div class="sql-editor-container" data-db-type="default"
+										data-content-id="DEFAULT">
+										<div id="sqlEditor_default" class="sql-editor"
+											style="height: 300px; border: 1px solid #ccc;"></div>
+										<div class="sql-editor-toggle" style="text-align: center; margin-top: 5px;">
+											<button type="button" class="btn btn-sm btn-default" id="toggleSqlEditor" style="border-radius: 50%; width: 30px; height: 30px; padding: 0;">
+												<i class="fa fa-chevron-down"></i>
+											</button>
+										</div>
 									</div>
 								</div>
 								<!-- 추가 DB 연결 SQL 에디터가 여기에 동적으로 생성됩니다 -->
@@ -2621,12 +2627,11 @@ function testSqlTemplate() {
 							<!-- SQL 내용 관리 버튼 -->
 							<div class="row" style="margin-top: 10px;">
 								<div class="col-md-12">
-									<button type="button" class="btn btn-primary btn-sm" onclick="addSqlContent()">
+									<button type="button" class="btn btn-primary btn-sm"
+										onclick="addSqlContent()">
 										<i class="fa fa-plus"></i> SQL 내용 추가
 									</button>
-									<button type="button" class="btn btn-info btn-sm" onclick="copySqlContent()">
-										<i class="fa fa-copy"></i> SQL 내용 복사
-									</button>
+
 								</div>
 							</div>
 						</div>
@@ -2639,17 +2644,32 @@ function testSqlTemplate() {
 							<div class="row">
 								<div class="col-md-12">
 									<div class="table-responsive">
-										<table class="table table-bordered table-striped" id="shortcutTable">
+										<table class="table table-bordered table-striped"
+											id="shortcutTable">
 											<thead>
 												<tr>
-													<th width="12%"><div data-toggle="tooltip" data-placement="top" title="키보드 단축키를 설정합니다. F1~F12 키 중에서 선택하여 빠른 SQL 실행이 가능합니다.">단축키</div></th>
-													<th width="18%"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 설명적인 이름을 입력합니다.">단축키명</div></th>
-													<th width="20%"><div data-toggle="tooltip" data-placement="top" title="단축키를 눌렀을 때 실행할 SQL 템플릿을 선택합니다.">대상 템플릿</div></th>
-													<th width="15%"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 상세한 설명을 입력합니다.">설명</div></th>
-													<th width="10%"><div data-toggle="tooltip" data-placement="top" title="단축키 실행 시 파라미터로 전달할 컬럼의 인덱스를 설정합니다. 1,2,3 형태로 여러 컬럼을 지정할 수 있습니다.">소스 컬럼</div></th>
-													<th width="10%"><div data-toggle="tooltip" data-placement="top" title="단축키를 자동으로 실행할지 설정합니다. 체크하면 조건이 만족될 때 자동으로 SQL이 실행됩니다다.">자동실행</div></th>
-													<th width="10%"><div data-toggle="tooltip" data-placement="top" title="단축키의 활성화 상태를 설정합니다. 활성으로 설정하면 단축키가 사용 가능하며, 비활성으로 설정하면 사용할 수 없습니다.">상태</div></th>
-													<th width="5%"><div data-toggle="tooltip" data-placement="top" title="삭제"></div></th>
+													<th width="12%"><div data-toggle="tooltip"
+															data-placement="top"
+															title="키보드 단축키를 설정합니다. F1~F12 키 중에서 선택하여 빠른 SQL 실행이 가능합니다.">단축키</div></th>
+													<th width="18%"><div data-toggle="tooltip"
+															data-placement="top" title="단축키에 대한 설명적인 이름을 입력합니다.">단축키명</div></th>
+													<th width="20%"><div data-toggle="tooltip"
+															data-placement="top"
+															title="단축키를 눌렀을 때 실행할 SQL 템플릿을 선택합니다.">대상 템플릿</div></th>
+													<th width="15%"><div data-toggle="tooltip"
+															data-placement="top" title="단축키에 대한 상세한 설명을 입력합니다.">설명</div></th>
+													<th width="10%"><div data-toggle="tooltip"
+															data-placement="top"
+															title="단축키 실행 시 파라미터로 전달할 컬럼의 인덱스를 설정합니다. 1,2,3 형태로 여러 컬럼을 지정할 수 있습니다.">소스
+															컬럼</div></th>
+													<th width="10%"><div data-toggle="tooltip"
+															data-placement="top"
+															title="단축키를 자동으로 실행할지 설정합니다. 체크하면 조건이 만족될 때 자동으로 SQL이 실행됩니다다.">자동실행</div></th>
+													<th width="10%"><div data-toggle="tooltip"
+															data-placement="top"
+															title="단축키의 활성화 상태를 설정합니다. 활성으로 설정하면 단축키가 사용 가능하며, 비활성으로 설정하면 사용할 수 없습니다.">상태</div></th>
+													<th width="5%"><div data-toggle="tooltip"
+															data-placement="top" title="삭제"></div></th>
 												</tr>
 											</thead>
 											<tbody id="shortcutTableBody">
@@ -2657,35 +2677,31 @@ function testSqlTemplate() {
 											</tbody>
 										</table>
 									</div>
-									<button type="button" class="btn btn-success btn-sm" onclick="addShortcut()">
+									<button type="button" class="btn btn-success btn-sm"
+										onclick="addShortcut()">
 										<i class="fa fa-plus"></i> 단축키 추가
 									</button>
 								</div>
 							</div>
-                        </div>
-                        
-                        <!-- 미리보기 -->
-                        <div class="form-group">
-                            <label>SQL 미리보기</label>
-                            <div id="sqlPreview" class="sql-preview"></div>
-                        </div>
-                        
-                        <!-- 테스트 결과 -->
-                        <div id="testResult"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+						</div>
+
+						<!-- 테스트 결과 -->
+						<div id="testResult"></div>
+					</div>
+				</div>
+			</div>
+	</section>
 </div>
 
 <!-- 카테고리 모달 -->
-<div class="modal fade" id="categoryModal" tabindex="-1" role="dialog" aria-labelledby="categoryModalLabel" aria-hidden="true">
+<div class="modal fade" id="categoryModal" tabindex="-1" role="dialog"
+	aria-labelledby="categoryModalLabel" aria-hidden="true">
 	<div class="modal-dialog" role="document">
 		<div class="modal-content">
 			<div class="modal-header">
 				<h5 class="modal-title" id="categoryModalTitle">카테고리 관리</h5>
-				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+				<button type="button" class="close" data-dismiss="modal"
+					aria-label="Close">
 					<span aria-hidden="true">&times;</span>
 				</button>
 			</div>
@@ -2693,18 +2709,57 @@ function testSqlTemplate() {
 				<form id="categoryForm">
 					<input type="hidden" id="categoryId">
 					<div class="form-group">
-						<label for="categoryName" data-toggle="tooltip" data-placement="top" title="SQL 템플릿을 분류할 카테고리의 이름을 입력합니다. 고유한 이름이어야 하며, 기존 카테고리와 중복되지 않아야 합니다.">카테고리 이름</label> <input type="text" class="form-control" id="categoryName" required>
+						<label for="categoryName" data-toggle="tooltip"
+							data-placement="top"
+							title="SQL 템플릿을 분류할 카테고리의 이름을 입력합니다. 고유한 이름이어야 하며, 기존 카테고리와 중복되지 않아야 합니다.">카테고리
+							이름</label> <input type="text" class="form-control" id="categoryName"
+							required>
 					</div>
 					<div class="form-group">
-						<label for="categoryDescription" data-toggle="tooltip" data-placement="top" title="카테고리에 대한 설명을 입력합니다. 해당 카테고리에 어떤 종류의 SQL 템플릿들이 포함되는지 명확하게 작성해주세요.">설명 (선택 사항)</label>
+						<label for="categoryDescription" data-toggle="tooltip"
+							data-placement="top"
+							title="카테고리에 대한 설명을 입력합니다. 해당 카테고리에 어떤 종류의 SQL 템플릿들이 포함되는지 명확하게 작성해주세요.">설명
+							(선택 사항)</label>
 						<textarea class="form-control" id="categoryDescription" rows="3"></textarea>
 					</div>
 				</form>
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-secondary" data-dismiss="modal">취소</button>
-				<button type="button" class="btn btn-primary" id="categoryModalSaveBtn" onclick="saveCategory()">저장</button>
+				<button type="button" class="btn btn-primary"
+					id="categoryModalSaveBtn" onclick="saveCategory()">저장</button>
 			</div>
 		</div>
 	</div>
 </div>
+
+<!-- SQL 에디터 접기/펼치기 기능 -->
+<script>
+$(document).ready(function() {
+	$('#toggleSqlEditor').on('click', function() {
+		var editor = $('#sqlEditor_default');
+		var button = $(this);
+		var icon = button.find('i');
+		
+		if (icon.hasClass('fa-chevron-down')) {
+			// 펼치기
+			editor.css('height', '70vh');
+			icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+		} else {
+			// 접기
+			editor.css('height', '300px');
+			icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+		}
+		
+		// Ace 에디터 리사이즈
+		if (typeof ace !== 'undefined') {
+			try {
+				var aceEditor = ace.edit('sqlEditor_default');
+				aceEditor.resize();
+			} catch (e) {
+				console.log('Ace editor resize failed:', e);
+			}
+		}
+	});
+});
+</script>

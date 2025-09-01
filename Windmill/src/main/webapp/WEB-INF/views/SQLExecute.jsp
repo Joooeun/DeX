@@ -53,11 +53,11 @@
 }
 
 .expenda .collapsed:after {
-	content: '더보기 ▼';
+	content: '';
 }
 
 #expenda:not(.collapsed):after {
-	content: '접기 ▲';
+	content: '';
 }
 
 .tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-title
@@ -87,6 +87,11 @@ var graphcolor = ['#FF583A','#4B963E', '#FF9032', '#23439F','#FEDD0F','#561475',
 // SQL 텍스트 저장 변수
 var sql_text = "";
 
+// 실행 결과 저장 변수
+var lastExecutionData = null;
+var lastExecutionColumns = null;
+var lastExecutionTableOption = null;
+
 // 자동 새로고침 관련 변수
 var timeRemain = null;
 var isPaused = false; // 일시정지 상태 변수
@@ -100,13 +105,21 @@ var tableoption;
 var temp_column;
 var tableHeight=0;
 
-	// ========================================
-	// 페이지 로드 시 초기화 함수
-	// ========================================
-	$(document).ready(function() {
-		
-		// 일시정지 버튼 초기화
-		$("#pauseBtn").hide();
+			// ========================================
+		// 페이지 로드 시 초기화 함수
+		// ========================================
+		$(document).ready(function() {
+			
+			// 일시정지 버튼 초기화
+			$("#pauseBtn").hide();
+
+			// 개행보기 체크박스 초기 상태 확인 및 적용
+			if ($("#newline").prop('checked')) {
+				// 체크박스가 체크되어 있으면 개행보기 강제 적용
+				setTimeout(function() {
+					$("#newline").trigger('change');
+				}, 100);
+			}
 
 		// 차트 초기화
 		ctx = document.getElementById('myChart');
@@ -223,28 +236,40 @@ var tableHeight=0;
 		// ========================================
 		$(document).keydown(function(event) {
 			if (event.keyCode == '112') {
+				event.preventDefault();
 				sendSql($("#F1").val());
 			} else if (event.keyCode == '113') {
+				event.preventDefault();
 				sendSql($("#F2").val());
 			} else if (event.keyCode == '114') {
+				event.preventDefault();
 				sendSql($("#F3").val());
 			} else if (event.keyCode == '115') {
+				event.preventDefault();
 				sendSql($("#F4").val());
 			} else if (event.keyCode == '116') {
+				event.preventDefault();
 				sendSql($("#F5").val());
 			} else if (event.keyCode == '117') {
+				event.preventDefault();
 				sendSql($("#F6").val());
 			} else if (event.keyCode == '118') {
+				event.preventDefault();
 				sendSql($("#F7").val());
 			} else if (event.keyCode == '119') {
+				event.preventDefault();
 				sendSql($("#F8").val());
 			} else if (event.keyCode == '120') {
+				event.preventDefault();
 				sendSql($("#F9").val());
 			} else if (event.keyCode == '121') {
+				event.preventDefault();
 				sendSql($("#F10").val());
 			} else if (event.keyCode == '122') {
+				event.preventDefault();
 				sendSql($("#F11").val());
 			} else if (event.keyCode == '가나다라마바사') {
+				event.preventDefault();
 				sendSql($("#F12").val());
 			}
 		});
@@ -268,6 +293,10 @@ var tableHeight=0;
 			if ($(this).prop('checked')) {
 				
 				column = column.map((item)=>{
+					// 숫자 타입 컬럼은 formatter 변경하지 않음
+					if (item.hozAlign === "right") {
+						return item;
+					}
 					return {...item, formatter : "textarea", width:undefined}
 				});
 				table = new Tabulator("#result_table", {
@@ -285,7 +314,13 @@ var tableHeight=0;
 				
 			} else {
 				
-				column = column.map((item)=>{return {...item, formatter : "plaintext"}});
+				column = column.map((item)=>{
+					// 숫자 타입 컬럼은 formatter 변경하지 않음
+					if (item.hozAlign === "right") {
+						return item;
+					}
+					return {...item, formatter : "plaintext"}
+				});
 				
 				table = new Tabulator("#result_table", {
 					data: data,
@@ -323,6 +358,53 @@ var tableHeight=0;
 		    $([document.documentElement, document.body]).animate({
 		        scrollTop: $("#result_table").offset().top-50
 		    }, 700);
+		});
+		
+		// Bootstrap collapse 이벤트로 아이콘 변경
+		$('#result_table').on('show.bs.collapse', function () {
+		    var button = $('#expenda');
+		    var icon = button.find('i');
+		    icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+		});
+		
+		$('#result_table').on('hide.bs.collapse', function () {
+		    var button = $('#expenda');
+		    var icon = button.find('i');
+		    icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+		});
+
+		// 탭 전환 시 Result 탭으로 이동할 때 저장된 데이터로 테이블 다시 그리기
+		$('a[href="#result"]').on('shown.bs.tab', function (e) {
+			if (lastExecutionData && lastExecutionColumns && lastExecutionTableOption) {
+				// 기존 테이블 제거
+				if (table) {
+					table.destroy();
+				}
+				
+				// 저장된 데이터로 테이블 다시 생성
+				table = new Tabulator("#result_table", {
+					data: lastExecutionData,
+					columns: $("#newline").prop('checked') ? lastExecutionColumns.map((item)=>{
+						return {...item, width:undefined}
+					}):lastExecutionColumns,
+					...lastExecutionTableOption,
+					height: $('#result_table').hasClass( "in" )?"85vh":lastExecutionTableOption.height,
+				});
+				
+				// 컬럼 크기 조정 이벤트 처리
+				table.on("columnResized", function(col){
+					lastExecutionColumns = lastExecutionColumns.map((it, idx)=>{
+						if(it.title == col.getField())
+							return {...it, width:col.getWidth()}
+						else
+							return it
+					})
+				});
+				
+				// 결과 정보 표시
+				$("#result-text").text('total : ' + lastExecutionData.length + ' records, on ' + dateFormat2(ondate));
+				$("#save").css('display', 'block');
+			}
 		});
 
 	});
@@ -538,7 +620,7 @@ var tableHeight=0;
 								if ([-6, 5, 4, 6, 7, 8, 2, -5, 3].includes(resultData.rowhead[title].type)) {
 									culmnitem.hozAlign = "right";
 								} else {
-									if (newline) {
+									if ($("#newline").prop('checked')) {
 										culmnitem.formatter = "textarea"
 									} else {
 										culmnitem.formatter = "plaintext"
@@ -595,6 +677,11 @@ var tableHeight=0;
 					return obj
 				})
 
+				// 실행 결과 저장
+				lastExecutionData = data;
+				lastExecutionColumns = column;
+				lastExecutionTableOption = tableoption;
+
 				// 테이블 옵션 설정
 				tableoption = {
 					maxHeight: "85vh",
@@ -623,10 +710,10 @@ var tableHeight=0;
 				    }
 				}
 			    
-							    // Tabulator 테이블 생성
+							    				// Tabulator 테이블 생성
 			    table = new Tabulator("#result_table", {
 					data: data,
-					columns: newline ? column.map((item)=>{
+					columns: $("#newline").prop('checked') ? column.map((item)=>{
 						return {...item, width:undefined}
 					}):column,
 					...tableoption,
@@ -659,6 +746,11 @@ var tableHeight=0;
 				// 테이블 다시 그리기
 				setTimeout(() => {
 					table.redraw();
+					
+					// 개행보기 체크박스 상태 확인 및 적용
+					if ($("#newline").prop('checked')) {
+						$("#newline").trigger('change');
+					}
 				}, 100);
 
 				// 결과 정보 표시
@@ -1091,7 +1183,11 @@ var tableHeight=0;
 									</c:if>
 								</div>
 								<div id="result_table" class="tabulator-placeholder table-striped table-bordered" style="display: block"></div>
-								<a role="button" id="expenda" class="collapsed" data-toggle="collapse" href="#result_table" aria-expanded="false" aria-controls="result_table"></a>
+								<div style="text-align: center; margin-top: 5px;">
+									<button type="button" id="expenda" class="btn btn-sm btn-default collapsed" data-toggle="collapse" href="#result_table" aria-expanded="false" aria-controls="result_table" style="border-radius: 50%; width: 30px; height: 30px; padding: 0;">
+										<i class="fa fa-chevron-down"></i>
+									</button>
+								</div>
 							</div>
 
 							<div role="tabpanel" class="tab-pane" id="chart">

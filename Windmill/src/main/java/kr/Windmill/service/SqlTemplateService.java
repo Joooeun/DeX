@@ -49,7 +49,7 @@ public class SqlTemplateService {
 			String mappedSql = "SELECT m.CATEGORY_ID, t.TEMPLATE_ID, t.TEMPLATE_NAME " +
 					"FROM SQL_TEMPLATE_CATEGORY_MAPPING m " +
 					"JOIN SQL_TEMPLATE t ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
-					"WHERE t.STATUS = 'ACTIVE' ORDER BY m.MAPPING_ORDER, t.TEMPLATE_NAME";
+					"WHERE t.STATUS = 'ACTIVE' ORDER BY t.TEMPLATE_NAME ASC";
 			List<Map<String, Object>> mapped = jdbcTemplate.queryForList(mappedSql);
 
 			Map<String, List<Map<String, Object>>> categoryIdToTemplates = new HashMap<>();
@@ -128,7 +128,7 @@ public class SqlTemplateService {
 					"JOIN USER_GROUP_MAPPING ugm ON gcm.GROUP_ID = ugm.GROUP_ID " +
 					"WHERE c.STATUS = 'ACTIVE' AND t.STATUS = 'ACTIVE' " +
 					"AND ugm.USER_ID = ? " +
-					"ORDER BY c.CATEGORY_ORDER, c.CATEGORY_NAME, m.MAPPING_ORDER, t.TEMPLATE_NAME";
+					"ORDER BY c.CATEGORY_ORDER, c.CATEGORY_NAME, t.TEMPLATE_NAME ASC";
 
 			List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, userId);
 
@@ -723,7 +723,7 @@ public class SqlTemplateService {
                         "FROM SQL_TEMPLATE t " +
                         "LEFT JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
                         "WHERE t.STATUS = 'ACTIVE' AND m.TEMPLATE_ID IS NULL " +
-                        "ORDER BY t.CREATED_TIMESTAMP DESC";
+                        "ORDER BY t.TEMPLATE_NAME ASC";
 			return jdbcTemplate.queryForList(sql);
 		} else {
 			// 특정 카테고리의 템플릿 조회
@@ -731,7 +731,7 @@ public class SqlTemplateService {
                         "FROM SQL_TEMPLATE t " +
                         "JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
                         "WHERE t.STATUS = 'ACTIVE' AND m.CATEGORY_ID = ? " +
-                        "ORDER BY m.MAPPING_ORDER, t.TEMPLATE_NAME";
+                        "ORDER BY t.TEMPLATE_NAME ASC";
 			return jdbcTemplate.queryForList(sql, categoryId);
 		}
 	}
