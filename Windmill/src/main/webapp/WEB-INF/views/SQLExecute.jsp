@@ -1085,8 +1085,10 @@ var tableHeight=0;
 									</c:if>
 
 									<c:forEach var="item" items="${parameters}" varStatus="status">
+									<%-- <div>${item }</div> --%>
 										<c:choose>
-											<c:when test="${item.PARAMETER_TYPE == 'text' || item.PARAMETER_TYPE == 'sql'}">
+										
+											<c:when test="${fn:toUpperCase(item.PARAMETER_TYPE) == 'TEXT' || fn:toUpperCase(item.PARAMETER_TYPE) == 'SQL'}">
 												<div class="col-xs-12">
 													<div class="form-group" style="margin-bottom: 0">
 														<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 13px">${fn:toUpperCase(item.PARAMETER_NAME)}</span>
@@ -1102,15 +1104,15 @@ var tableHeight=0;
 
 											<c:otherwise>
 												<div class="col-lg-2 col-md-3 col-sm-4 col-xs-5">
-													<div class="form-group ${item.IS_REQUIRED ? 'required' : ''}">
-														<c:if test="${item.PARAMETER_NAME != 'memberId' && !item.IS_HIDDEN}">
+													<div class="form-group ${item.IS_REQUIRED == true ? 'required' : ''}">
+														<c:if test="${item.PARAMETER_NAME != 'memberId' && item.IS_HIDDEN != true}">
 															<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 13px">${fn:toUpperCase(item.PARAMETER_NAME)}</span>
 														</c:if>
 														<div style="margin: 2px 0">
-															<input type="${item.PARAMETER_NAME=='memberId' || item.IS_HIDDEN ? 'hidden' : 'text'}" class="form-control paramvalue" paramtitle="${item.PARAMETER_NAME}" paramtype="${item.PARAMETER_TYPE}"
+															<input type="${item.PARAMETER_NAME=='memberId' || item.IS_HIDDEN == true ? 'hidden' : 'text'}" class="form-control paramvalue" paramtitle="${item.PARAMETER_NAME}" paramtype="${item.PARAMETER_TYPE}"
 																value="${item.PARAMETER_NAME == 'memberId' ? memberId : (not empty sendvalue.split('&')[status.count-1]?sendvalue.split('&')[status.count-1]:item.DEFAULT_VALUE)}" style="padding: 0 2px;"
-																<c:if test="${item.IS_REQUIRED}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.IS_DISABLED}">disabled</c:if>
-																<c:if test="${item.PARAMETER_NAME=='memberId' || item.IS_READONLY}">readonly</c:if>>
+																<c:if test="${item.IS_REQUIRED == true}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.IS_DISABLED == true}">disabled</c:if>
+																<c:if test="${item.PARAMETER_NAME=='memberId' || item.IS_READONLY == true}">readonly</c:if>>
 														</div>
 													</div>
 												</div>

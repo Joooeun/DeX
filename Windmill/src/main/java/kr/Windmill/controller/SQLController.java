@@ -54,8 +54,13 @@ public class SQLController {
 		String templateId = request.getParameter("templateId");
 		if (templateId != null && !templateId.trim().isEmpty()) {
 			mv.addObject("sendvalue", request.getParameter("sendvalue"));
-			mv.setViewName("redirect:/SQLTemplate?templateId=" + templateId);
-			mv.addObject("Excute", request.getParameter("excute") == null ? false : request.getParameter("excute"));
+			String excuteParam = request.getParameter("Excute");
+			String redirectUrl = "/SQLTemplate?templateId=" + templateId;
+			if (excuteParam != null) {
+				redirectUrl += "&Excute=" + excuteParam;
+			}
+			mv.setViewName("redirect:" + redirectUrl);
+			mv.addObject("Excute", request.getParameter("Excute") == null ? false : request.getParameter("Excute"));
 			return mv;
 		}
 
@@ -159,7 +164,7 @@ public class SQLController {
 			mv.addObject("sql", sql);
 			mv.addObject("Param", Param);
 			mv.addObject("ShortKey", ShortKey);
-			mv.addObject("Excute", request.getParameter("excute") == null ? false : request.getParameter("excute"));
+			mv.addObject("Excute", request.getParameter("Excute") == null ? false : request.getParameter("Excute"));
 			mv.addObject("Connection", session.getAttribute("Connection"));
 			mv.addObject("DownloadEnable", DownloadEnable);
 

@@ -540,16 +540,17 @@ public class SqlTemplateService {
 					Boolean autoExecute = (Boolean) shortcut.get("autoExecute");
 					Boolean isActive = (Boolean) shortcut.get("isActive");
 
-					if (key != null && !key.trim().isEmpty() && name != null && !name.trim().isEmpty() && targetTemplateId != null && !targetTemplateId.trim().isEmpty()) {
+										if (key != null && !key.trim().isEmpty() && name != null && !name.trim().isEmpty() && targetTemplateId != null && !targetTemplateId.trim().isEmpty()) {
 						String description = (String) shortcut.get("description");
 						String sourceColumns = (String) shortcut.get("sourceColumns");
+
                         jdbcTemplate.update(
                             "INSERT INTO SQL_TEMPLATE_SHORTCUT (SOURCE_TEMPLATE_ID, TARGET_TEMPLATE_ID, SHORTCUT_KEY, SHORTCUT_NAME, SHORTCUT_DESCRIPTION, SOURCE_COLUMN_INDEXES, AUTO_EXECUTE, IS_ACTIVE) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                             templateId, targetTemplateId.trim(), key.trim(), name.trim(), description, sourceColumns, autoExecute != null ? autoExecute : true, isActive != null ? isActive : true);
 					}
 				}
 			} catch (Exception e) {
-                // logger.warn("단축키 JSON 파싱 실패: " + e.getMessage()); // Original code had this line commented out
+                logger.error("단축키 저장 실패: " + e.getMessage(), e);
 			}
 		}
 
@@ -939,33 +940,28 @@ public class SqlTemplateService {
 	private List<Map<String, Object>> parseShortcutsJson(String json) {
 		List<Map<String, Object>> shortcuts = new ArrayList<>();
 		try {
-			if (json.startsWith("[") && json.endsWith("]")) {
-				String content = json.substring(1, json.length() - 1);
-				String[] items = content.split("\\},\\s*\\{");
-
-				for (String item : items) {
-					item = item.replaceAll("[{}]", "");
-					Map<String, Object> shortcut = new HashMap<>();
-
-					String[] pairs = item.split(",");
-					for (String pair : pairs) {
-						String[] kv = pair.split(":");
-						if (kv.length == 2) {
-							String key = kv[0].trim().replaceAll("\"", "");
-							String value = kv[1].trim().replaceAll("\"", "");
-
-							if ("autoExecute".equals(key) || "isActive".equals(key)) {
-								shortcut.put(key, "true".equals(value));
-							} else {
-								shortcut.put(key, value);
-							}
-						}
+			// Jackson ObjectMapper 사용하여 정확한 JSON 파싱
+			ObjectMapper mapper = new ObjectMapper();
+			List<Map<String, Object>> parsedShortcuts = mapper.readValue(json, List.class);
+			
+			for (Object obj : parsedShortcuts) {
+				if (obj instanceof Map) {
+					@SuppressWarnings("unchecked")
+					Map<String, Object> shortcut = (Map<String, Object>) obj;
+					
+					// 불린 값 변환
+					if (shortcut.containsKey("autoExecute")) {
+						shortcut.put("autoExecute", Boolean.valueOf(shortcut.get("autoExecute").toString()));
 					}
+					if (shortcut.containsKey("isActive")) {
+						shortcut.put("isActive", Boolean.valueOf(shortcut.get("isActive").toString()));
+					}
+					
 					shortcuts.add(shortcut);
 				}
 			}
 		} catch (Exception e) {
-            // logger.error("단축키 JSON 파싱 실패: " + e.getMessage()); // Original code had this line commented out
+            logger.error("단축키 JSON 파싱 실패: " + e.getMessage(), e);
 		}
 		return shortcuts;
 	}

@@ -811,11 +811,25 @@ public class SQLExecuteService {
 	 * SQL 주석 제거
 	 */
 	public static String removeComments(String sql) {
-		// 한 줄 주석 제거
-		sql = sql.replaceAll("--.*$", "");
-		// 블록 주석 제거
+		if (sql == null) return "";
+		
+		// 블록 주석 제거 (/* ... */)
 		sql = sql.replaceAll("/\\*.*?\\*/", "");
-		return sql;
+		
+		// 한 줄 주석 제거 (-- ...)
+		String[] lines = sql.split("\n");
+		StringBuilder result = new StringBuilder();
+		
+		for (String line : lines) {
+			// -- 이후 부분 제거
+			int commentIndex = line.indexOf("--");
+			if (commentIndex >= 0) {
+				line = line.substring(0, commentIndex);
+			}
+			result.append(line).append("\n");
+		}
+		
+		return result.toString().trim();
 	}
 
 	/**

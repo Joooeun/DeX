@@ -72,8 +72,12 @@
 				str += $(".Resultrow.success").children('div').eq(column[i]).text().trim();
 			}
 		}else{
-			
-			str = value.split('&')[1].split(',').join('&')
+			// 단축키로 전달된 파라미터 처리 개선
+			if (column.length > 0 && column[0].trim() !== '') {
+				str = column.join('&');
+			} else {
+				str = '';
+			}
 		}
 
 		$("#sendvalue").val(str);
@@ -135,7 +139,7 @@
 				document.ParamForm.action = "/HTML?Path=" + value.split('&')[0];
 			} else {
 
-				document.ParamForm.action = "/SQL?excute=" + value.split('&')[2] + "&templateId=" + value.split('&')[0];
+				document.ParamForm.action = "/SQL?Excute=" + value.split('&')[2] + "&templateId=" + value.split('&')[0];
 			}
 			
 			document.ParamForm.method = "POST";

@@ -975,16 +975,21 @@ function initTextareaEditor() {
 			var hasValidSqlContent = false;
 			var emptySqlTabs = [];
 			
-			// 기본 템플릿 검증
+						// 기본 템플릿 검증
 			var defaultSqlContent = '';
 			if (typeof ace !== 'undefined') {
 				try {
-					var defaultEditor = ace.edit('sqlEditor_default');
-					defaultSqlContent = defaultEditor.getValue();
+					var defaultEditorElement = document.getElementById('sqlEditor_default');
+					if (defaultEditorElement && defaultEditorElement.classList.contains('ace_editor')) {
+						var defaultEditor = ace.edit('sqlEditor_default');
+						defaultSqlContent = defaultEditor.getValue();
+					} else {
+						defaultSqlContent = $('#sqlEditor_default .sql-textarea').val() || '';
+					}
 				} catch (e) {
 					defaultSqlContent = $('#sqlEditor_default .sql-textarea').val() || '';
 				}
-    } else {
+			} else {
 				defaultSqlContent = $('#sqlEditor_default .sql-textarea').val() || '';
 			}
 			
@@ -1001,14 +1006,19 @@ function initTextareaEditor() {
 				var editorId = 'sqlEditor_' + connectionId;
 			var sqlContent = '';
 				
-				if (typeof ace !== 'undefined') {
+								if (typeof ace !== 'undefined') {
 					try {
-						var editor = ace.edit(editorId);
-						sqlContent = editor.getValue();
+						var editorElement = document.getElementById(editorId);
+						if (editorElement && editorElement.classList.contains('ace_editor')) {
+							var editor = ace.edit(editorId);
+							sqlContent = editor.getValue();
+						} else {
+							sqlContent = $('#' + editorId + ' .sql-textarea').val() || '';
+						}
 					} catch (e) {
 						sqlContent = $('#' + editorId + ' .sql-textarea').val() || '';
 					}
-			} else {
+				} else {
 					sqlContent = $('#' + editorId + ' .sql-textarea').val() || '';
 				}
 				
@@ -1410,7 +1420,7 @@ function initTextareaEditor() {
 
 					if (key && key.trim() && name && name.trim()
 						&& targetTemplate) {
-						shortcuts.push({
+						var shortcutData = {
 							key: key.trim(),
 							name: name.trim(),
 							targetTemplateId: targetTemplate,
@@ -1418,7 +1428,9 @@ function initTextareaEditor() {
 							sourceColumns: $(this).find('.source-columns').val(),
 							autoExecute: $(this).find('.auto-execute').is(':checked'),
 							isActive: $(this).find('.shortcut-status').is(':checked')
-						});
+						};
+						
+						shortcuts.push(shortcutData);
 					}
 				});
 			return shortcuts;
@@ -1432,8 +1444,31 @@ function initTextareaEditor() {
 			$('#sqlExecutionLimit').val('0');
 			$('#sqlRefreshTimeout').val('0');
 			$('#sqlChartMapping').val('');
-			$('#sqlNewline').prop('checked', true);
+			// 개행 보기 설정 (이벤트 트리거 방지)
+			$('#sqlNewline').off('change').prop('checked', true);
 			$('#sqlAudit').prop('checked', false);
+			
+			// 에디터 초기화 완료 후 이벤트 핸들러 재연결
+			setTimeout(function() {
+				$('#sqlNewline').on('change', function() {
+					// Ace Editor가 초기화되지 않은 상태에서는 아무것도 하지 않음
+					if (typeof ace === 'undefined' || !window.sqlEditors) {
+						return;
+					}
+					
+					try {
+						// 모든 SQL 에디터에 대해 안전하게 처리
+						Object.keys(window.sqlEditors).forEach(function(dbType) {
+							var editor = window.sqlEditors[dbType];
+							if (editor && typeof editor.resize === 'function') {
+								editor.resize();
+							}
+						});
+					} catch (e) {
+						console.log('개행 보기 변경 시 에디터 리사이즈 실패:', e);
+					}
+				});
+			}, 500);
 			$('#sqlTemplateCategories').val(null).trigger('change');
 			$('#accessibleConnections').val(null).trigger('change');
 			$('#sqlContent').val('');
@@ -1514,7 +1549,7 @@ function saveSqlTemplate() {
 				chartMapping: chartMapping,
 				newline: newline,
 				audit: audit,
-				categoryIds: selectedCategoryIds.join(','),
+				categoryIds: selectedCategoryIds ? selectedCategoryIds.join(',') : '',
 				sqlContent: defaultSqlContent, // 기본 템플릿의 SQL 내용
 				additionalSqlContents: JSON.stringify(additionalSqlContents), // 추가 SQL 내용들
 				accessibleConnectionIds: accessibleConnectionIds ? accessibleConnectionIds.join(',') : '',
@@ -1569,8 +1604,31 @@ function saveSqlTemplate() {
 						$('#sqlRefreshTimeout').val(
 							template.refreshTimeout || 0);
 						$('#sqlChartMapping').val(template.chartMapping || '');
-						$('#sqlNewline').prop('checked', template.newline !== false);
+						// 개행 보기 설정 (이벤트 트리거 방지)
+						$('#sqlNewline').off('change').prop('checked', template.newline !== false);
 						$('#sqlAudit').prop('checked', template.audit === true);
+						
+						// 에디터 초기화 완료 후 이벤트 핸들러 재연결
+						setTimeout(function() {
+							$('#sqlNewline').on('change', function() {
+								// Ace Editor가 초기화되지 않은 상태에서는 아무것도 하지 않음
+								if (typeof ace === 'undefined' || !window.sqlEditors) {
+									return;
+								}
+								
+								try {
+									// 모든 SQL 에디터에 대해 안전하게 처리
+									Object.keys(window.sqlEditors).forEach(function(dbType) {
+										var editor = window.sqlEditors[dbType];
+										if (editor && typeof editor.resize === 'function') {
+											editor.resize();
+										}
+									});
+								} catch (e) {
+									console.log('개행 보기 변경 시 에디터 리사이즈 실패:', e);
+								}
+							});
+						}, 500);
 
 						// 접근 가능한 DB 연결 설정
 						if (template.accessibleConnectionIds) {
@@ -1648,38 +1706,43 @@ function saveSqlTemplate() {
 		function initSqlEditorForConnection(connectionId, sqlContent) {
 			if (typeof ace !== 'undefined') {
 				try {
-					ace.require("ace/ext/language_tools");
-					var editor = ace.edit("sqlEditor_" + connectionId);
-					editor.setTheme("ace/theme/chrome");
-					editor.session.setMode("ace/mode/sql");
-					editor.setOptions({
-						enableBasicAutocompletion: true,
-						enableSnippets: true,
-						enableLiveAutocompletion: true,
-						showPrintMargin: false,
-						showGutter: true,
-						showInvisibles: false
-					});
+					var editorElement = document.getElementById("sqlEditor_" + connectionId);
+					if (editorElement) {
+						ace.require("ace/ext/language_tools");
+						var editor = ace.edit("sqlEditor_" + connectionId);
+						editor.setTheme("ace/theme/chrome");
+						editor.session.setMode("ace/mode/sql");
+						editor.setOptions({
+							enableBasicAutocompletion: true,
+							enableSnippets: true,
+							enableLiveAutocompletion: true,
+							showPrintMargin: false,
+							showGutter: true,
+							showInvisibles: false
+						});
 
-					// 커스텀 자동완성 설정 추가
-					updateAllEditorsCompleters()
-					
+						// 커스텀 자동완성 설정 추가
+						updateAllEditorsCompleters()
+						
 
-					editor.setValue(sqlContent || '');
-					
-					// 에디터를 전역 변수에 저장
-					window.sqlEditors = window.sqlEditors || {};
-					window.sqlEditors[connectionId] = editor;
-					
-					// 에디터 변경 이벤트
-					editor.on('change', function() {
-						// 변경 이벤트만 처리 (미리보기 제거)
-					});
+						editor.setValue(sqlContent || '');
+						
+						// 에디터를 전역 변수에 저장
+						window.sqlEditors = window.sqlEditors || {};
+						window.sqlEditors[connectionId] = editor;
+						
+						// 에디터 변경 이벤트
+						editor.on('change', function() {
+							// 변경 이벤트만 처리 (미리보기 제거)
+						});
+					} else {
+						initTextareaEditorForConnection(connectionId, sqlContent);
+					}
 				} catch (e) {
 					console.log("SQL 에디터 초기화 실패:", e);
 					initTextareaEditorForConnection(connectionId, sqlContent);
 				}
-						} else {
+			} else {
 				initTextareaEditorForConnection(connectionId, sqlContent);
 			}
 		}
@@ -1688,38 +1751,43 @@ function saveSqlTemplate() {
 		function initSqlEditorForDbType(dbType, sqlContent) {
 			if (typeof ace !== 'undefined') {
 				try {
-					ace.require("ace/ext/language_tools");
-					var editor = ace.edit("sqlEditor_" + dbType);
-					editor.setTheme("ace/theme/chrome");
-					editor.session.setMode("ace/mode/sql");
-					editor.setOptions({
-						enableBasicAutocompletion: true,
-						enableSnippets: true,
-						enableLiveAutocompletion: true,
-						showPrintMargin: false,
-						showGutter: true,
-						showInvisibles: false
-					});
+					var editorElement = document.getElementById("sqlEditor_" + dbType);
+					if (editorElement) {
+						ace.require("ace/ext/language_tools");
+						var editor = ace.edit("sqlEditor_" + dbType);
+						editor.setTheme("ace/theme/chrome");
+						editor.session.setMode("ace/mode/sql");
+						editor.setOptions({
+							enableBasicAutocompletion: true,
+							enableSnippets: true,
+							enableLiveAutocompletion: true,
+							showPrintMargin: false,
+							showGutter: true,
+							showInvisibles: false
+						});
 
-					// 커스텀 자동완성 설정 추가
-					updateAllEditorsCompleters()
-					
+						// 커스텀 자동완성 설정 추가
+						updateAllEditorsCompleters()
+						
 
-					editor.setValue(sqlContent || '');
-					
-					// 에디터를 전역 변수에 저장 (DB 타입용)
-					window.sqlEditors = window.sqlEditors || {};
-					window.sqlEditors[dbType] = editor;
-					
-					// 에디터 변경 이벤트
-					editor.on('change', function() {
-						// 변경 이벤트만 처리 (미리보기 제거)
-					});
+						editor.setValue(sqlContent || '');
+						
+						// 에디터를 전역 변수에 저장 (DB 타입용)
+						window.sqlEditors = window.sqlEditors || {};
+						window.sqlEditors[dbType] = editor;
+						
+						// 에디터 변경 이벤트
+						editor.on('change', function() {
+							// 변경 이벤트만 처리 (미리보기 제거)
+						});
+					} else {
+						initTextareaEditorForDbType(dbType, sqlContent);
+					}
 				} catch (e) {
 					console.log("SQL 에디터 초기화 실패:", e);
 					initTextareaEditorForDbType(dbType, sqlContent);
 				}
-						} else {
+			} else {
 				initTextareaEditorForDbType(dbType, sqlContent);
 			}
 		}
@@ -2155,15 +2223,20 @@ function testSqlTemplate() {
 			var contentId = activeTab.closest('.sql-editor-container').data('content-id');
 			
 			// SQL 내용 가져오기
-    var sqlContent = '';
+			var sqlContent = '';
 			if (typeof ace !== 'undefined') {
 				try {
-					var editor = ace.edit("sqlEditor_" + dbType);
-					sqlContent = editor.getValue();
+					var editorElement = document.getElementById("sqlEditor_" + dbType);
+					if (editorElement && editorElement.classList.contains('ace_editor')) {
+						var editor = ace.edit("sqlEditor_" + dbType);
+						sqlContent = editor.getValue();
+					} else {
+						sqlContent = $('#sqlEditor_' + dbType + ' .sql-textarea').val();
+					}
 				} catch (e) {
 					sqlContent = $('#sqlEditor_' + dbType + ' .sql-textarea').val();
 				}
-    } else {
+			} else {
 				sqlContent = $('#sqlEditor_' + dbType + ' .sql-textarea').val();
 			}
 			
@@ -2754,8 +2827,13 @@ $(document).ready(function() {
 		// Ace 에디터 리사이즈
 		if (typeof ace !== 'undefined') {
 			try {
-				var aceEditor = ace.edit('sqlEditor_default');
-				aceEditor.resize();
+				var aceEditorElement = document.getElementById('sqlEditor_default');
+				if (aceEditorElement && aceEditorElement.classList.contains('ace_editor')) {
+					var aceEditor = ace.edit('sqlEditor_default');
+					if (aceEditor && typeof aceEditor.resize === 'function') {
+						aceEditor.resize();
+					}
+				}
 			} catch (e) {
 				console.log('Ace editor resize failed:', e);
 			}
