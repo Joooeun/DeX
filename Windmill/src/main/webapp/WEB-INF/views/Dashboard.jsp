@@ -1006,8 +1006,13 @@
                             var parameterString = '';
                             
                             if (sourceColumns && sourceColumns.trim() !== '') {
-                                var columnIndexes = sourceColumns.split(',').map(function(index) {
-                                    return parseInt(index.trim()) - 1; // 0-based index로 변환
+                                var columnIndexes = sourceColumns.split(',').map(function(index, arrayIndex) {
+                                    var trimmedIndex = index.trim();
+                                    // 빈 값이면 null 반환, 숫자면 0-based index로 변환
+                                    return trimmedIndex === '' ? null : parseInt(trimmedIndex) - 1;
+                                }).filter(function(index) {
+                                    // null이 아닌 값만 필터링
+                                    return index !== null;
                                 });
                                 
                                 var paramValues = [];

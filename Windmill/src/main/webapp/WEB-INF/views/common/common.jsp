@@ -69,7 +69,13 @@
 				if (i > 0) {
 					str += '&';
 				}
+				
+				if(column[i]==0){
+					str += "";
+				}else{
+					
 				str += $(".Resultrow.success").children('div').eq(column[i]).text().trim();
+				}
 			}
 		}else{
 			// 단축키로 전달된 파라미터 처리 개선

@@ -1137,10 +1137,10 @@ function initTextareaEditor() {
 						return col.trim();
 					});
 					
-					// 숫자 형식 검증
+					// 숫자 형식 검증 (빈 문자열 허용)
 					for (var i = 0; i < sourceColumns.length; i++) {
-						if (!/^\d+$/.test(sourceColumns[i])) {
-							errors.push('소스 컬럼은 숫자만 입력 가능합니다. (순서: ' + (index + 1) + ', 값: ' + sourceColumns[i] + ')');
+						if (!/^\d*$/.test(sourceColumns[i])) {
+							errors.push('소스 컬럼은 숫자 또는 빈 값만 입력 가능합니다. (순서: ' + (index + 1) + ', 값: ' + sourceColumns[i] + ')');
 							break;
 						}
 					}
@@ -1150,11 +1150,18 @@ function initTextareaEditor() {
 						// 동기적으로 파라미터 정보 가져오기 (검증을 위해)
 						var parameterCount = getParameterCount(shortcut.targetTemplateId);
 						if (parameterCount > 0) {
-							var maxColumnIndex = Math.max.apply(null, sourceColumns.map(function(col) {
+							// 빈 문자열이 아닌 숫자만 필터링하여 최대값 계산
+							var numericColumns = sourceColumns.filter(function(col) {
+								return col !== '';
+							}).map(function(col) {
 								return parseInt(col);
-							}));
-							if (maxColumnIndex > parameterCount) {
-								errors.push('소스 컬럼 인덱스가 대상 템플릿의 파라미터 개수를 초과합니다. (순서: ' + (index + 1) + ', 최대: ' + parameterCount + ', 입력: ' + maxColumnIndex + ')');
+							});
+							
+							if (numericColumns.length > 0) {
+								var maxColumnIndex = Math.max.apply(null, numericColumns);
+								if (maxColumnIndex > parameterCount) {
+									errors.push('소스 컬럼 인덱스가 대상 템플릿의 파라미터 개수를 초과합니다. (순서: ' + (index + 1) + ', 최대: ' + parameterCount + ', 입력: ' + maxColumnIndex + ')');
+								}
 							}
 						}
 					}
@@ -1274,7 +1281,7 @@ function initTextareaEditor() {
 						+ '" placeholder="단축키 설명"></td>'
 						+ '<td><input type="text" class="form-control source-columns" value="'
 						+ (shortcut.SOURCE_COLUMN_INDEXES || '')
-						+ '" placeholder="1,2,3"></td>'
+						+ '" placeholder="1,,3 (빈 값은 해당 파라미터 건너뛰기)" title="소스 컬럼 인덱스를 입력합니다. 콤마로 구분된 숫자 형태로 입력 (예: 1,,3 - 첫번째와 세번째 파라미터만 전달)"></td>'
 						+ '<td><div><input type="checkbox" class="auto-execute"'
 						+ (shortcut.AUTO_EXECUTE ? ' checked' : '')
 						+ '></div></td>'
@@ -1337,23 +1344,23 @@ function initTextareaEditor() {
 						});
 						
 						var placeholder = parameterIndexes.join(',');
-						sourceColumnsInput.attr('placeholder', placeholder);
+						sourceColumnsInput.attr('placeholder', placeholder + ' (예: 1,,3)');
 						
 						// 툴팁 업데이트
 						var tooltipText = '대상 템플릿의 파라미터 순서: ' + placeholder + 
 							' (예: ' + result.data.map(function(param, index) {
 								return (index + 1) + ':' + param.PARAMETER_NAME;
-							}).join(', ') + ')';
+							}).join(', ') + '). 빈 값(,)으로 특정 파라미터를 건너뛸 수 있습니다.';
 						
 						sourceColumnsInput.attr('title', tooltipText);
     } else {
-						sourceColumnsInput.attr('placeholder', '1,2,3');
-						sourceColumnsInput.attr('title', '소스 컬럼 인덱스를 입력합니다. 콤마로 구분된 숫자 형태로 입력 (예: 1,2,3)');
+						sourceColumnsInput.attr('placeholder', '1,,3 (빈 값은 해당 파라미터 건너뛰기)');
+						sourceColumnsInput.attr('title', '소스 컬럼 인덱스를 입력합니다. 콤마로 구분된 숫자 형태로 입력 (예: 1,,3 - 첫번째와 세번째 파라미터만 전달)');
 					}
 				},
 				error: function() {
-					sourceColumnsInput.attr('placeholder', '1,2,3');
-					sourceColumnsInput.attr('title', '소스 컬럼 인덱스를 입력합니다. 콤마로 구분된 숫자 형태로 입력 (예: 1,2,3)');
+					sourceColumnsInput.attr('placeholder', '1,,3 (빈 값은 해당 파라미터 건너뛰기)');
+					sourceColumnsInput.attr('title', '소스 컬럼 인덱스를 입력합니다. 콤마로 구분된 숫자 형태로 입력 (예: 1,,3 - 첫번째와 세번째 파라미터만 전달)');
 				}
 			});
 		}
