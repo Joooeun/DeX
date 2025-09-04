@@ -50,6 +50,9 @@ public class ConnectionService {
 	private JdbcTemplate jdbcTemplate;
 
 	@Autowired
+	private PermissionService permissionService;
+
+	@Autowired
 	public ConnectionService(Common common, Log log, DynamicJdbcManager dynamicJdbcManager) {
 		this.com = common;
 		this.cLog = log;
@@ -413,9 +416,9 @@ public class ConnectionService {
 
 	public List<ConnectionStatusDto> getConnectionStatusesForUser(String userId) {
 		try {
-			if ("admin".equals(userId)) {
-				return getAllConnectionStatuses();
-			}
+					if (permissionService.isAdmin(userId)) {
+			return getAllConnectionStatuses();
+		}
 
 			// 사용자가 권한을 가진 연결 ID 목록 조회
 			List<String> authorizedConnectionIds = getUserDatabaseConnections(userId);
@@ -877,7 +880,7 @@ public class ConnectionService {
 		List<String> allConnections = com.ConnectionnList();
 
 		// admin 사용자는 모든 연결에 접근 가능
-		if ("admin".equals(userId)) {
+		if (permissionService.isAdmin(userId)) {
 			return allConnections;
 		}
 
@@ -1249,7 +1252,7 @@ public class ConnectionService {
 	 */
 	private List<Map<String, Object>> filterConnectionsByPermission(String userId, List<Map<String, Object>> connections, String connectionType) {
 		// 관리자는 모든 연결에 접근 가능
-		if ("admin".equals(userId)) {
+		if (permissionService.isAdmin(userId)) {
 			return connections;
 		}
 

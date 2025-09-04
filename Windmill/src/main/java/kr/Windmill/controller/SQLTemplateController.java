@@ -278,7 +278,7 @@ public class SQLTemplateController {
 		try {
 			String sqlId = request.getParameter("sqlId");
 
-			if (!"admin".equals(userId)) {
+			if (!permissionService.isAdmin(userId)) {
 				Map<String, Object> result = new HashMap<>();
 				result.put("success", false);
 				result.put("error", "관리자만 삭제할 수 있습니다.");

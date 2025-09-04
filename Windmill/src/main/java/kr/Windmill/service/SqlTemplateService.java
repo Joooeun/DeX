@@ -27,6 +27,9 @@ public class SqlTemplateService {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
+	@Autowired
+	private PermissionService permissionService;
+
 	private final Common com;
 
 	@Autowired
@@ -114,7 +117,7 @@ public class SqlTemplateService {
 
 		try {
 			// 관리자인 경우 전체 트리 반환
-			if ("admin".equals(userId)) {
+			if (permissionService.isAdmin(userId)) {
 				return getFullMenuTree();
 			}
 

@@ -21,6 +21,7 @@ import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
 import kr.Windmill.util.VersionUtil;
 import kr.Windmill.service.UserService;
+import kr.Windmill.service.PermissionService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
@@ -30,12 +31,14 @@ public class LoginController {
 	private final Common com;
 	private final Log cLog;
 	private final UserService userService;
+	private final PermissionService permissionService;
 	
 	@Autowired
-	public LoginController(Common common, Log log, UserService userService) {
+	public LoginController(Common common, Log log, UserService userService, PermissionService permissionService) {
 		this.com = common;
 		this.cLog = log;
 		this.userService = userService;
+		this.permissionService = permissionService;
 	}
 
 	@RequestMapping(path = "/", method = RequestMethod.GET)
@@ -129,7 +132,7 @@ public class LoginController {
 		// admin 권한 확인을 위한 사용자 ID 추가
 		String memberId = (String) session.getAttribute("memberId");
 		mv.addObject("memberId", memberId);
-		mv.addObject("isAdmin", "admin".equals(memberId));
+		mv.addObject("isAdmin", permissionService.isAdmin(memberId));
 
 		return mv;
 	}
@@ -166,7 +169,7 @@ public class LoginController {
 	@RequestMapping(path = "/Dashboard")
 	public ModelAndView dashboard(HttpServletRequest request, ModelAndView mv, HttpSession session) {
 		String memberId = (String) session.getAttribute("memberId");
-		if (memberId == null || !"admin".equals(memberId)) {
+		if (memberId == null || !permissionService.isAdmin(memberId)) {
 			mv.setViewName("redirect:/index");
 			return mv;
 		}
