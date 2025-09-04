@@ -63,8 +63,6 @@ public class Common {
 	public static String tempPath = "";
 	public static String JdbcPath = ""; // JDBC 드라이버 폴더 경로
 	public static String RootPath = "";
-	public static String LogDB = "";
-	public static String DownloadIP = "";
 	public static String LogCOL = "";
 	public static int Timeout = 15;
 
@@ -98,11 +96,8 @@ public class Common {
 		// RootPath가 유효한 경우에만 다른 경로들 설정
 		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
 		JdbcPath = props.getProperty("Root") + File.separator + "jdbc" + File.separator;
-		Timeout = Integer.parseInt(props.getProperty("Timeout") == null ? "15" : props.getProperty("Timeout"));
-		LogDB = props.getProperty("LogDB");
-		DownloadIP = props.getProperty("DownloadIP");
 		LogCOL = props.getProperty("LogCOL");
-		logger.info("RootPath : " + RootPath + " / Timeout : " + Timeout + " / LogDB : " + LogDB);
+		logger.info("RootPath : " + RootPath);
 
 		// RootPath 유효성 확인 후 JDBC 폴더 생성
 		if (isRootPathValid()) {
@@ -532,8 +527,6 @@ public class Common {
 			tempPath = "";
 			JdbcPath = "";
 			RootPath = "";
-			LogDB = "";
-			DownloadIP = "";
 			LogCOL = "";
 			logger.info("정적 변수 정리 완료");
 

@@ -303,7 +303,7 @@ public class Log {
 
 	public void log_DB(LogInfoDto data) {
 
-		if (data.getConnectionId().equals(com.LogDB) || !data.isAudit()) {
+		if (!data.isAudit()) {
 			return;
 		}
 
@@ -322,10 +322,10 @@ public class Log {
 			duration = java.time.Duration.between(data.getStart(), data.getEnd()).toMillis();
 		}
 		
-		// DEXLOG 테이블에 삽입 (기존 Log.java와 동일한 구조)
+		// DEXLOG 테이블에 삽입 (기존 순서 유지)
 		String sql = "INSERT INTO DEXLOG (" +
 			"USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, " +
-			"SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID_REF" +
+			"SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID" +
 			") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 		
 		jdbcTemplate.update(sql,
@@ -339,8 +339,8 @@ public class Log {
 			data.getResult(),                               // RESULT_MSG
 			duration,                                       // DURATION
 			data.getStart(),                                // EXECUTE_DATE
-			data.getParams(),                               // XML_LOG (파라미터 정보)
-			data.getLogId()                                 // LOG_ID_REF
+			data.getXmlLog(),                               // XML_LOG (파라미터 정보)
+			data.getLogId()                                 // LOG_ID
 		);
 		
 		logger.debug("DEXLOG 저장 완료: {} - {}", data.getId(), data.getConnectionId());
@@ -475,7 +475,7 @@ public class Log {
 	 * SqlTemplateExecuteDto를 사용한 DB 로그 저장
 	 */
 	public void log_DB(SqlTemplateExecuteDto executeDto) {
-		if (executeDto.getConnectionId().equals(com.LogDB) || !executeDto.getAudit()) {
+		if (!executeDto.getAudit()) {
 			return;
 		}
 
@@ -512,10 +512,10 @@ public class Log {
 			}
 		}
 		
-		// DEXLOG 테이블에 삽입
+		// DEXLOG 테이블에 삽입 (기존 순서 유지)
 		String sql = "INSERT INTO DEXLOG (" +
 			"USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, " +
-			"SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID_REF" +
+			"SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID" +
 			") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 		
 		jdbcTemplate.update(sql,
@@ -530,7 +530,7 @@ public class Log {
 			duration,                                       // DURATION
 			executeDto.getStartTime(),                      // EXECUTE_DATE
 			paramJson,                                      // XML_LOG (파라미터 정보)
-			executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli()  // LOG_ID_REF
+			executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli()  // LOG_ID
 		);
 		
 		logger.debug("DEXLOG 저장 완료 (Template): {} - {}", executeDto.getMemberId(), executeDto.getConnectionId());

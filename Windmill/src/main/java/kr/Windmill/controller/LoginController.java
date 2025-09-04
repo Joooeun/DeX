@@ -22,6 +22,7 @@ import kr.Windmill.util.Log;
 import kr.Windmill.util.VersionUtil;
 import kr.Windmill.service.UserService;
 import kr.Windmill.service.PermissionService;
+import kr.Windmill.service.SystemConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
@@ -32,13 +33,15 @@ public class LoginController {
 	private final Log cLog;
 	private final UserService userService;
 	private final PermissionService permissionService;
+	private final SystemConfigService systemConfigService;
 	
 	@Autowired
-	public LoginController(Common common, Log log, UserService userService, PermissionService permissionService) {
+	public LoginController(Common common, Log log, UserService userService, PermissionService permissionService, SystemConfigService systemConfigService) {
 		this.com = common;
 		this.cLog = log;
 		this.userService = userService;
 		this.permissionService = permissionService;
+		this.systemConfigService = systemConfigService;
 	}
 
 	@RequestMapping(path = "/", method = RequestMethod.GET)
@@ -56,8 +59,9 @@ public class LoginController {
 	public String login(HttpServletRequest request, Model model, HttpServletResponse response) {
 
 		HttpSession session = request.getSession();
-		logger.info("Timeout : {} min", Common.Timeout);
-		session.setMaxInactiveInterval(Common.Timeout * 60);
+		int sessionTimeout = systemConfigService.getIntConfigValue("SESSION_TIMEOUT", 600);
+		logger.info("Timeout : {} min", sessionTimeout);
+		session.setMaxInactiveInterval(sessionTimeout * 60);
 
 		String userId = request.getParameter("id");
 		String password = request.getParameter("pw");

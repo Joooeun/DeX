@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
 import kr.Windmill.service.SqlTemplateService;
+import kr.Windmill.service.SystemConfigService;
 import kr.Windmill.service.SqlContentService;
 import kr.Windmill.service.PermissionService;
 import kr.Windmill.service.SQLExecuteService;
@@ -44,6 +45,9 @@ public class SQLTemplateController {
 
 	@Autowired
 	private SQLExecuteService sqlExecuteService;
+
+	@Autowired
+	private SystemConfigService systemConfigService;
 
 	@Autowired
 	private Common com;
@@ -103,7 +107,8 @@ public class SQLTemplateController {
 
 			// DownloadEnable 설정 (IP 기반)
 			String clientIp = request.getRemoteAddr();
-			boolean downloadEnable = com.getIp(request).matches(com.DownloadIP);
+			String downloadIpPattern = systemConfigService.getConfigValue("DOWNLOAD_IP_PATTERN", "10.240.13.*");
+			boolean downloadEnable = isIpAllowed(com.getIp(request), downloadIpPattern);
 			mv.addObject("DownloadEnable", downloadEnable);
 
 			// 파라미터 정보 조회
@@ -843,5 +848,32 @@ public class SQLTemplateController {
 		}
 
 		return result;
+	}
+	
+	/**
+	 * IP 주소가 허용된 패턴과 일치하는지 확인합니다.
+	 * @param clientIp 클라이언트 IP 주소
+	 * @param pattern IP 패턴 (예: 10.240.13.*, 192.168.1.0/24, *)
+	 * @return 허용 여부
+	 */
+	private boolean isIpAllowed(String clientIp, String pattern) {
+		if (clientIp == null || pattern == null) {
+			return false;
+		}
+		
+		// 모든 IP 허용
+		if ("*".equals(pattern.trim())) {
+			return true;
+		}
+		
+		// 와일드카드 패턴 처리 (예: 10.240.13.*)
+		if (pattern.contains("*")) {
+			// *를 정규식의 .*로 변환하고 .을 \.로 이스케이프
+			String regex = pattern.replace(".", "\\.").replace("*", ".*");
+			return clientIp.matches(regex);
+		}
+		
+		// 정확한 IP 매칭
+		return clientIp.equals(pattern);
 	}
 }
