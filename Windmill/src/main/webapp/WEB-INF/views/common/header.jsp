@@ -277,6 +277,23 @@ var changePW
 
 <body class="sidebar-mini skin-purple-light">
 
+<!-- 공지사항 표시 영역 -->
+<div id="noticeBanner" class="alert alert-info" style="margin: 0; border-radius: 0; display: none;">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-11">
+                <i class="fa fa-bullhorn"></i>
+                <span id="noticeContent"></span>
+            </div>
+            <div class="col-md-1 text-right">
+                <button type="button" class="close" onclick="hideNotice()" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 	<div class="wrapper">
 		<header class="main-header">
 			<!-- Logo -->
@@ -333,6 +350,9 @@ var changePW
 						</a></li>
 						
 						<li class="treeview"><a href="/SQLTemplate" target="iframe"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span>
+						</a></li>
+						
+						<li class="treeview"><a href="/SystemConfig" target="iframe"> <i class="fa fa-cog"></i> <span>환경설정</span>
 						</a></li>
 					</c:if>
 
@@ -446,3 +466,37 @@ var changePW
 			</div>
 		</div>
 		<!-- ------------------------------공지사항 end------------------------------ -->
+		
+		<script>
+		// 공지사항 관련 함수들
+		function loadNotice() {
+			$.ajax({
+				url: '/SystemConfig/getNotice',
+				type: 'GET',
+				success: function(response) {
+					if (response.success && response.noticeEnabled === 'true' && response.noticeContent) {
+						showNotice(response.noticeContent);
+					} else {
+						hideNotice();
+					}
+				},
+				error: function() {
+					hideNotice();
+				}
+			});
+		}
+		
+		function showNotice(content) {
+			$('#noticeContent').text(content);
+			$('#noticeBanner').show();
+		}
+		
+		function hideNotice() {
+			$('#noticeBanner').hide();
+		}
+		
+		// 페이지 로드 시 공지사항 확인
+		$(document).ready(function() {
+			loadNotice();
+		});
+		</script>

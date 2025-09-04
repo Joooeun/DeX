@@ -303,7 +303,7 @@ var tableHeight=0;
 					data: data,
 					columns: column,
 					...tableoption,
-					height: $('#result_table').hasClass( "in" )?"85vh":tableoption.height,
+					height: $('#result_table').hasClass( "in" )?"85vh":(tableoption && tableoption.height ? tableoption.height : "400px"),
 				});
 				
 				setTimeout(() => {
@@ -326,7 +326,7 @@ var tableHeight=0;
 					data: data,
 					columns: column,
 					...tableoption,
-					height: $('#result_table').hasClass( "in" )?"85vh":tableoption.height,
+					height: $('#result_table').hasClass( "in" )?"85vh":(tableoption && tableoption.height ? tableoption.height : "400px"),
 				});
 			}
 		});
@@ -717,7 +717,7 @@ var tableHeight=0;
 						return {...item, width:undefined}
 					}):column,
 					...tableoption,
-					height: $('#result_table').hasClass( "in" )?"85vh":tableoption.height,
+					height: $('#result_table').hasClass( "in" )?"85vh":(tableoption && tableoption.height ? tableoption.height : "400px"),
 				});
 				
 				// 컬럼 크기 조정 이벤트 처리
