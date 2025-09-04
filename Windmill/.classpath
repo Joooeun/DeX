@@ -9,6 +9,7 @@
 	<classpathentry excluding="**" kind="src" output="target/classes" path="src/main/resources">
 		<attributes>
 			<attribute name="maven.pomderived" value="true"/>
+			<attribute name="optional" value="true"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="con" path="org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER">
@@ -32,8 +33,6 @@
 	</classpathentry>
 	<classpathentry kind="lib" path="src/main/webapp/WEB-INF/lib/ojdbc6.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/lib"/>
-	<classpathentry kind="con" path="org.eclipse.jst.j2ee.internal.web.container"/>
-	<classpathentry kind="con" path="org.eclipse.jst.j2ee.internal.module.container"/>
 	<classpathentry kind="lib" path="src/main/webapp/WEB-INF/lib/DeXcrypto.jar"/>
 	<classpathentry kind="lib" path="src/main/webapp/WEB-INF/lib/postgresql-42.2.23.jar"/>
 	<classpathentry kind="lib" path="src/main/webapp/WEB-INF/lib/tibero6-jdbc.jar"/>
@@ -46,6 +45,13 @@
 		<attributes>
 			<attribute name="optional" value="true"/>
 			<attribute name="test" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry excluding="**" kind="src" output="target/test-classes" path="src/test/resources">
+		<attributes>
+			<attribute name="maven.pomderived" value="true"/>
+			<attribute name="test" value="true"/>
+			<attribute name="optional" value="true"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="output" path="target/classes"/>

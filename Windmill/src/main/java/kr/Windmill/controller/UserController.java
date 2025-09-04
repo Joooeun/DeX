@@ -35,7 +35,7 @@ public class UserController {
 
 		String memberId = (String) session.getAttribute("memberId");
 
-		if (!memberId.equals("admin")) {
+		if (!Common.isAdmin(memberId)) {
 
 			mv.addObject("params", com.showMessageAndRedirect("권한이 없습니다.", "index", "GET"));
 			mv.setViewName("common/messageRedirect");

@@ -68,6 +68,7 @@ public class LoginController {
 				if (map.get("TEMPPW").equals("true") && map.get("PW").equals(request.getParameter("pw"))) {
 
 					session.setAttribute("memberId", request.getParameter("id"));
+					session.setAttribute("isAdmin", Common.isAdmin(request.getParameter("id")));
 					session.setAttribute("changePW", true);
 					cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 성공, 비밀번호 변경 필요");
 
@@ -80,6 +81,7 @@ public class LoginController {
 				} else if (map.get("PW").equals(request.getParameter("pw"))) {
 
 					session.setAttribute("memberId", request.getParameter("id"));
+					session.setAttribute("isAdmin", Common.isAdmin(request.getParameter("id")));
 					session.setAttribute("changePW", false);
 					cLog.userLog(request.getParameter("id"), com.getIp(request), " 로그인 성공");
 

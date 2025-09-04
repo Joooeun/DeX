@@ -52,7 +52,7 @@ public class ConnectionController {
 		List<String> dblist = com.ConnectionnList(request.getParameter("TYPE"));
 		String id = (String) session.getAttribute("memberId");
 
-		if (!id.equals("admin")) {
+		if (!Common.isAdmin(id)) {
 			Map<String, String> map = com.UserConf(id);
 			List<String> strList = new ArrayList<>(Arrays.asList(map.get("CONNECTION").split(",")));
 

@@ -64,6 +64,7 @@ public class Common {
 	public static String DownloadIP = "";
 	public static String LogCOL = "";
 	public static int Timeout = 15;
+	public static List<String> AdminRoles = new ArrayList<>();
 
 	public Common() {
 		system_properties = getClass().getResource("").getPath().replaceAll("(WEB-INF).*", "$1") + File.separator + "system.properties";
@@ -92,6 +93,11 @@ public class Common {
 		LogDB = props.getProperty("LogDB");
 		DownloadIP = props.getProperty("DownloadIP");
 		LogCOL = props.getProperty("LogCOL");
+		
+		// AdminRoles 설정
+		String adminRolesStr = props.getProperty("AdminRole", "admin");
+		AdminRoles = Arrays.asList(adminRolesStr.split(","));
+		
 		logger.info("RootPath : " + RootPath + " / Timeout : " + Timeout + " / LogDB : " + LogDB);
 
 	}
@@ -1018,6 +1024,11 @@ public class Common {
 
 	public static void setRootPath(String rootPath) {
 		RootPath = rootPath;
+	}
+
+	// 관리자 권한 체크 메서드
+	public static boolean isAdmin(String memberId) {
+		return AdminRoles.contains(memberId);
 	}
 
 }

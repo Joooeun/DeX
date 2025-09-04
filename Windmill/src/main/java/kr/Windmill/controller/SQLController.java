@@ -185,7 +185,7 @@ public class SQLController {
 		Map<String, String> map = com.UserConf(id);
 		List<Map<String, ?>> list = com.getfiles(Common.SrcPath, 0);
 
-		if (!id.equals("admin")) {
+		if (!Common.isAdmin(id)) {
 			List<String> strList = new ArrayList<>(Arrays.asList(map.get("MENU").split(",")));
 
 			return list.stream().filter(menu -> strList.contains(menu.get("Name"))).collect(Collectors.toList());

@@ -310,8 +310,8 @@ var changePW
 
 
 
-					<c:if test="${memberId eq 'admin'}">
-						<li class="treeview"><a><i class="fa fa-code-fork"></i><span>5e83eb5 / 46246f0</span></a></li>
+					<c:if test="${isAdmin}">
+						<li class="treeview"><a><i class="fa fa-code-fork"></i><span>fe4bf93 / a8a100d</span></a></li>
 						<li class="treeview"><a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span>
 
 						</a> <!-- <ul class="treeview-menu" id="ConnectionList">
