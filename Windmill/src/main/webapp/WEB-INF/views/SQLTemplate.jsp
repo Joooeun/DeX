@@ -1280,8 +1280,8 @@ function initTextareaEditor() {
 						+ (shortcut.SHORTCUT_DESCRIPTION || '')
 						+ '" placeholder="단축키 설명"></td>'
 						+ '<td><input type="text" class="form-control source-columns" value="'
-						+ (shortcut.SOURCE_COLUMN_INDEXES || '')
-						+ '" placeholder="1,,3 (빈 값은 해당 파라미터 건너뛰기)" title="소스 컬럼 인덱스를 입력합니다. 콤마로 구분된 숫자 형태로 입력 (예: 1,,3 - 첫번째와 세번째 파라미터만 전달)"></td>'
+						+ (shortcut.SOURCE_COLUMNS || '')
+						+ '" placeholder="1,2,3"></td>'
 						+ '<td><div><input type="checkbox" class="auto-execute"'
 						+ (shortcut.AUTO_EXECUTE ? ' checked' : '')
 						+ '></div></td>'
@@ -1455,6 +1455,9 @@ function initTextareaEditor() {
 			$('#sqlNewline').off('change').prop('checked', true);
 			$('#sqlAudit').prop('checked', false);
 			
+			// 해당 메뉴로 이동 버튼 비활성화
+			updateGoToTemplateButton();
+			
 			// 에디터 초기화 완료 후 이벤트 핸들러 재연결
 			setTimeout(function() {
 				$('#sqlNewline').on('change', function() {
@@ -1614,6 +1617,9 @@ function saveSqlTemplate() {
 						// 개행 보기 설정 (이벤트 트리거 방지)
 						$('#sqlNewline').off('change').prop('checked', template.newline !== false);
 						$('#sqlAudit').prop('checked', template.audit === true);
+						
+						// 해당 메뉴로 이동 버튼 활성화
+						updateGoToTemplateButton();
 						
 						// 에디터 초기화 완료 후 이벤트 핸들러 재연결
 						setTimeout(function() {
@@ -2040,85 +2046,42 @@ function deleteSqlTemplate() {
     });
 }
 
-// SQL 테스트 실행
-function testSqlTemplate() {
-			var templateId = $('#sqlTemplateId').val();
-			if (!templateId) {
-				showToast('테스트할 템플릿을 선택해주세요.', 'error');
-				return;
-			}
+// 해당 메뉴로 이동 버튼 상태 업데이트
+function updateGoToTemplateButton() {
+	var templateId = $('#sqlTemplateId').val();
+	var button = $('#goToTemplateBtn');
+	
+	if (templateId && templateId.trim() !== '') {
+		button.prop('disabled', false);
+	} else {
+		button.prop('disabled', true);
+	}
+}
 
-			// 현재 활성 탭의 DB 연결 ID 가져오기
-			var activeTab = $('#sqlContentTabs .nav-link.active');
-			var connectionId = null;
-			if (activeTab.length > 0) {
-				connectionId = activeTab.attr('href').replace('#tab-', '');
-			}
+// 해당 메뉴로 이동
+function goToTemplate() {
+	var templateId = $('#sqlTemplateId').val();
+	if (!templateId) {
+		showToast('이동할 템플릿을 선택해주세요.', 'error');
+		return;
+	}
+	
+	// newpage 안의 iframe을 타겟으로 사용
+	var parentWindow = window.parent || window;
+	var newpageIframe = $(parentWindow.document).find('#newpage iframe');
+	var targetName = newpageIframe.attr('name') || 'iframe';
+	
+	var url = '/SQL?templateId=' + templateId;
+	
+	// 단순한 링크 생성 및 클릭 (사이드바와 동일한 방식)
+	var link = document.createElement('a');
+	link.href = url;
+	link.target = targetName;
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+}
 
-			// 파라미터 JSON 생성 (기존 형식 유지)
-			var parameters = [];
-			$('#parameterTableBody tr').each(function() {
-				var paramName = $(this).find('.param-name').val();
-				var paramValue = $(this).find('.param-value').val();
-				var paramType = $(this).find('.param-type').val();
-				if (paramName && paramValue !== undefined) {
-					parameters.push({
-						title: paramName,
-						value: paramValue,
-						type: paramType || 'string'
-					});
-				}
-			});
-
-			$('#testResult').html('<div class="alert alert-info">SQL 테스트 중...</div>');
-
-			$.ajax({
-				type: 'POST',
-				url: '/SQLTemplate/test',
-				data: {
-					templateId: templateId,
-					connectionId: connectionId,
-					parameters: JSON.stringify(parameters),
-					limit: 100,
-					audit: $('#sqlAudit').is(':checked')
-				},
-				success: function (result) {
-					if (result.success) {
-						var data = result.data;
-						var html = '<div class="alert alert-success">SQL 실행 성공!</div>';
-						
-						if (data && data.rowhead && data.rowbody) {
-							html += '<div class="table-responsive"><table class="table table-bordered table-striped">';
-							
-							// 헤더
-							html += '<thead><tr>';
-							data.rowhead.forEach(function(header) {
-								html += '<th>' + (header.title || header) + '</th>';
-							});
-							html += '</tr></thead>';
-							
-							// 데이터
-							html += '<tbody>';
-							data.rowbody.forEach(function(row) {
-								html += '<tr>';
-								row.forEach(function(cell) {
-									html += '<td>' + (cell || '') + '</td>';
-								});
-								html += '</tr>';
-							});
-							html += '</tbody></table></div>';
-						}
-						
-						$('#testResult').html(html);
-					} else {
-						$('#testResult').html('<div class="alert alert-danger">SQL 실행 실패: ' + result.error + '</div>');
-					}
-				},
-				error: function(xhr, status, error) {
-					$('#testResult').html('<div class="alert alert-danger">테스트 중 오류가 발생했습니다: ' + error + '</div>');
-				}
-			});
-		}
 
 		// SQL 에디터 내용 변경 시 미리보기 업데이트
 		$(document).on('input', '#sqlEditor, #sqlTextarea', function () {
@@ -2485,9 +2448,9 @@ function testSqlTemplate() {
 					<div class="box-header with-border">
 						<h3 class="box-title">SQL 템플릿 편집</h3>
 						<div class="box-tools pull-right">
-							<button type="button" class="btn btn-info btn-sm"
-								onclick="testSqlTemplate()">
-								<i class="fa fa-play"></i> 테스트
+							<button type="button" class="btn btn-primary btn-sm" id="goToTemplateBtn"
+								onclick="goToTemplate()" disabled>
+								<i class="fa fa-external-link"></i> 해당 메뉴로 이동
 							</button>
 							<button type="button" class="btn btn-success btn-sm"
 								onclick="saveSqlTemplate()">
@@ -2738,14 +2701,14 @@ function testSqlTemplate() {
 															title="단축키를 눌렀을 때 실행할 SQL 템플릿을 선택합니다.">대상 템플릿</div></th>
 													<th width="15%"><div data-toggle="tooltip"
 															data-placement="top" title="단축키에 대한 상세한 설명을 입력합니다.">설명</div></th>
-													<th width="10%"><div data-toggle="tooltip"
+													<th width="8%"><div data-toggle="tooltip"
 															data-placement="top"
 															title="단축키 실행 시 파라미터로 전달할 컬럼의 인덱스를 설정합니다. 1,2,3 형태로 여러 컬럼을 지정할 수 있습니다.">소스
 															컬럼</div></th>
-													<th width="10%"><div data-toggle="tooltip"
+													<th width="8%"><div data-toggle="tooltip"
 															data-placement="top"
 															title="단축키를 자동으로 실행할지 설정합니다. 체크하면 조건이 만족될 때 자동으로 SQL이 실행됩니다다.">자동실행</div></th>
-													<th width="10%"><div data-toggle="tooltip"
+													<th width="8%"><div data-toggle="tooltip"
 															data-placement="top"
 															title="단축키의 활성화 상태를 설정합니다. 활성으로 설정하면 단축키가 사용 가능하며, 비활성으로 설정하면 사용할 수 없습니다.">상태</div></th>
 													<th width="5%"><div data-toggle="tooltip"
@@ -2812,6 +2775,7 @@ function testSqlTemplate() {
 		</div>
 	</div>
 </div>
+
 
 <!-- SQL 에디터 접기/펼치기 기능 -->
 <script>

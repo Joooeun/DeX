@@ -952,6 +952,19 @@ public class SQLExecuteService {
 			result = createErrorResult(e.getMessage(), sql);
 		}
 		
+		// 실행 시간 정보를 결과에 추가
+		if (result != null) {
+			Duration executionTime = Duration.between(executeDto.getStartTime(), executeDto.getEndTime());
+			// Map<String, List> 타입이므로 List로 감싸서 추가
+			List<Object> executionTimeList = new ArrayList<>();
+			executionTimeList.add(executionTime.toMillis());
+			result.put("executionTime", executionTimeList);
+			
+			List<String> executionTimeFormattedList = new ArrayList<>();
+			executionTimeFormattedList.add(new DecimalFormat("###,###").format(executionTime.toMillis()) + "ms");
+			result.put("executionTimeFormatted", executionTimeFormattedList);
+		}
+		
 		return result;
 	}
 	

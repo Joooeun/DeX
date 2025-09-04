@@ -296,57 +296,6 @@ public class SQLTemplateController {
 		}
 	}
 
-	@ResponseBody
-	@RequestMapping(path = "/SQLTemplate/test")
-	public Map<String, Object> testSqlTemplate(@ModelAttribute SqlTemplateExecuteDto executeDto, HttpServletRequest request, HttpSession session) {
-		String userId = (String) session.getAttribute("memberId");
-		Map<String, Object> result = new HashMap<>();
-
-		try {
-			// 세션 정보 설정
-			executeDto.setMemberId(userId);
-			executeDto.setIp(request.getRemoteAddr());
-
-			// 필수 파라미터 검증
-			if (executeDto.getTemplateId() == null || executeDto.getTemplateId().trim().isEmpty()) {
-				result.put("success", false);
-				result.put("error", "템플릿 ID가 필요합니다.");
-				return result;
-			}
-
-			// limit 기본값 설정 (테스트용으로 100으로 설정)
-			if (executeDto.getLimit() == null) {
-				executeDto.setLimit(100);
-			}
-
-			// 파라미터 파싱
-			if (executeDto.getParameters() != null && !executeDto.getParameters().trim().isEmpty()) {
-				try {
-					List<Map<String, Object>> paramList = com.getListFromString(executeDto.getParameters());
-					executeDto.setParameterList(paramList);
-				} catch (Exception e) {
-					logger.warn("파라미터 JSON 파싱 실패: {}", e.getMessage());
-					result.put("success", false);
-					result.put("error", "파라미터 형식이 올바르지 않습니다.");
-					return result;
-				}
-			}
-
-			// SQL 실행
-			Map<String, List> executionResult = sqlExecuteService.executeTemplateSQL(executeDto);
-
-			result.put("success", true);
-			result.put("data", executionResult);
-
-			return result;
-
-		} catch (Exception e) {
-			logger.error("SQL 템플릿 테스트 실패: {}", e.getMessage(), e);
-			result.put("success", false);
-			result.put("error", "SQL 테스트 실패: " + e.getMessage());
-			return result;
-		}
-	}
 
 	/**
 	 * 간단한 SQL 문법 검증

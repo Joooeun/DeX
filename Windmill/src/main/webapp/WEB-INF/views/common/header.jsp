@@ -192,6 +192,10 @@ var changePW
 
 		$('#iframe_1').contents().find('#menus a').attr("target",
 				'iframe' + pageid);
+		
+		// SQLTemplate의 "해당 메뉴로 이동" 링크 타겟도 변경
+		$('#iframe_1').contents().find('#goToTemplateLink').attr("target",
+				'iframe' + pageid);
 		//alert($('#iframe' + (pageNum == 1 ? '' : pageNum - 1)).contents().find('.ParamForm').length)
 		//$('.iframe').contents().find('.ParamForm').attr("target", 'iframe' + pageid)
 		//console.log($('#iframe').contents().find('.content-header>h1').text())

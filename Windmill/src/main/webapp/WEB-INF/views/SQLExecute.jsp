@@ -753,8 +753,12 @@ var tableHeight=0;
 					}
 				}, 100);
 
-				// 결과 정보 표시
-				$("#result-text").text('total : ' + data.length + ' records, on ' + dateFormat2(ondate));
+				// 결과 정보 표시 (실행 시간 포함)
+				var executionTime = '0ms';
+				if (result.executionTimeFormatted && result.executionTimeFormatted.length > 0) {
+					executionTime = result.executionTimeFormatted[0];
+				}
+				$("#result-text").text('total : ' + data.length + ' records, 실행시간 : ' + executionTime + ', on ' + dateFormat2(ondate));
 				$("#save").css('display', 'block');
 
 				$("#loadingdiv").css('display','none')
