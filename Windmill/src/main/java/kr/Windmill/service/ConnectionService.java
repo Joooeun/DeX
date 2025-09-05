@@ -190,15 +190,48 @@ public class ConnectionService {
 	}
 
 	/**
-	 * 연결 ID로 TEST_SQL을 조회합니다.
+	 * 연결 ID로 TEST_SQL을 조회합니다. TEST_SQL이 없으면 DB_TYPE에 맞는 기본 테스트 SQL을 반환합니다.
 	 */
 	private String getTestSql(String connectionId) {
 		try {
-			String sql = "SELECT TEST_SQL FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
-			return jdbcTemplate.queryForObject(sql, String.class, connectionId);
+			String sql = "SELECT TEST_SQL, DB_TYPE FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
+			Map<String, Object> result = jdbcTemplate.queryForMap(sql, connectionId);
+			
+			String testSql = (String) result.get("TEST_SQL");
+			if (testSql != null && !testSql.trim().isEmpty()) {
+				return testSql;
+			}
+			
+			// TEST_SQL이 없으면 DB_TYPE에 맞는 기본 테스트 SQL 사용
+			String dbType = (String) result.get("DB_TYPE");
+			return getDefaultTestSql(dbType);
 		} catch (Exception e) {
 			logger.debug("TEST_SQL 조회 실패: {} - {}", connectionId, e.getMessage());
-			return null;
+			return "SELECT 1"; // 기본값
+		}
+	}
+
+	/**
+	 * DB_TYPE에 맞는 기본 테스트 SQL을 반환합니다.
+	 */
+	private String getDefaultTestSql(String dbType) {
+		if (dbType == null) {
+			return "SELECT 1";
+		}
+		
+		switch (dbType.toUpperCase()) {
+			case "ORACLE":
+				return "SELECT 1 FROM DUAL";
+			case "DB2":
+				return "SELECT 1 FROM SYSIBM.SYSDUMMY1";
+			case "TIBERO":
+				return "SELECT 1 FROM DUAL";
+			case "POSTGRESQL":
+				return "SELECT 1";
+			case "MYSQL":
+				return "SELECT 1";
+			default:
+				return "SELECT 1";
 		}
 	}
 
@@ -1027,14 +1060,15 @@ public class ConnectionService {
 			String sql = "INSERT INTO DATABASE_CONNECTION (CONNECTION_ID, DB_TYPE, HOST_IP, PORT, "
 					+ "DATABASE_NAME, USERNAME, PASSWORD, JDBC_DRIVER_FILE, CONNECTION_POOL_SETTINGS, "
 					+ "CONNECTION_TIMEOUT, QUERY_TIMEOUT, MAX_POOL_SIZE, MIN_POOL_SIZE, STATUS, "
-					+ "MONITORING_ENABLED, MONITORING_INTERVAL, CREATED_BY) "
-					+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+					+ "MONITORING_ENABLED, MONITORING_INTERVAL, TEST_SQL, CREATED_BY) "
+					+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 			jdbcTemplate.update(sql, connectionData.get("CONNECTION_ID"), connectionData.get("DB_TYPE"), connectionData.get("HOST_IP"), connectionData.get("PORT"),
 					connectionData.get("DATABASE_NAME"), connectionData.get("USERNAME"), connectionData.get("PASSWORD"),
 					connectionData.get("JDBC_DRIVER_FILE"), connectionData.get("CONNECTION_POOL_SETTINGS"), connectionData.get("CONNECTION_TIMEOUT"),
 					connectionData.get("QUERY_TIMEOUT"), connectionData.get("MAX_POOL_SIZE"), connectionData.get("MIN_POOL_SIZE"), 
-					connectionData.get("STATUS"), connectionData.get("MONITORING_ENABLED"), connectionData.get("MONITORING_INTERVAL"), userId);
+					connectionData.get("STATUS"), connectionData.get("MONITORING_ENABLED"), connectionData.get("MONITORING_INTERVAL"), 
+					connectionData.get("TEST_SQL"), userId);
 		} else {
 			// 기존 연결 수정 - 모니터링 설정 변경 확인
 			boolean monitoringEnabledChanged = checkMonitoringSettingChanged(connectionId, connectionData);
@@ -1048,14 +1082,14 @@ public class ConnectionService {
 					+ "DATABASE_NAME = ?, USERNAME = ?, PASSWORD = ?, JDBC_DRIVER_FILE = ?, "
 					+ "CONNECTION_POOL_SETTINGS = ?, CONNECTION_TIMEOUT = ?, QUERY_TIMEOUT = ?, "
 					+ "MAX_POOL_SIZE = ?, MIN_POOL_SIZE = ?, STATUS = ?, MONITORING_ENABLED = ?, "
-					+ "MONITORING_INTERVAL = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " + "WHERE CONNECTION_ID = ?";
+					+ "MONITORING_INTERVAL = ?, TEST_SQL = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " + "WHERE CONNECTION_ID = ?";
 
 			jdbcTemplate.update(sql, connectionData.get("CONNECTION_ID"), connectionData.get("DB_TYPE"), connectionData.get("HOST_IP"), connectionData.get("PORT"),
 					connectionData.get("DATABASE_NAME"), connectionData.get("USERNAME"), connectionData.get("PASSWORD"),
 					connectionData.get("JDBC_DRIVER_FILE"), connectionData.get("CONNECTION_POOL_SETTINGS"), connectionData.get("CONNECTION_TIMEOUT"),
 					connectionData.get("QUERY_TIMEOUT"), connectionData.get("MAX_POOL_SIZE"), connectionData.get("MIN_POOL_SIZE"), 
-					connectionData.get("STATUS"), connectionData.get("MONITORING_ENABLED"), connectionData.get("MONITORING_INTERVAL"), userId,
-					connectionId);
+					connectionData.get("STATUS"), connectionData.get("MONITORING_ENABLED"), connectionData.get("MONITORING_INTERVAL"), 
+					connectionData.get("TEST_SQL"), userId, connectionId);
 			
 			// 연결 ID가 변경된 경우 연결 상태 캐시 정리
 			if (connectionIdChanged) {
