@@ -747,6 +747,14 @@ public class SQLTemplateController {
 
 			result.put("success", true);
 			result.put("data", executionResult);
+			
+			// 실행시간 정보 추가
+			if (executeDto.getExecutionTime() != null) {
+				result.put("executionTime", executeDto.getExecutionTime().toMillis());
+			}
+			if (executeDto.getRows() != null) {
+				result.put("rows", executeDto.getRows());
+			}
 
 		} catch (Exception e) {
 			logger.error("SQL 템플릿 실행 중 오류 발생: {}", e.getMessage(), e);
