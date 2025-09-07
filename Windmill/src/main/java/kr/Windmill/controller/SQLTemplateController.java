@@ -226,8 +226,6 @@ public class SQLTemplateController {
 			String configContent = request.getParameter("configContent");
 			String parameters = request.getParameter("parameters");
 			String shortcuts = request.getParameter("shortcuts");
-			String auditStr = request.getParameter("audit");
-
 			// 숫자 파라미터 변환
 			Integer sqlVersion = null;
 			Integer executionLimit = null;
@@ -252,6 +250,7 @@ public class SQLTemplateController {
 
 			// audit 파라미터 처리
 			Boolean audit = false;
+			String auditStr = request.getParameter("audit");
 			if (auditStr != null && !auditStr.trim().isEmpty()) {
 				audit = Boolean.parseBoolean(auditStr);
 			}
@@ -727,6 +726,24 @@ public class SQLTemplateController {
 			// limit 기본값 설정
 			if (executeDto.getLimit() == null) {
 				executeDto.setLimit(1000);
+			}
+
+			// 템플릿에서 audit 설정 조회
+			try {
+				Map<String, Object> templateInfo = sqlTemplateService.getSqlTemplateDetail(executeDto.getTemplateId());
+				if (templateInfo.get("success").equals(true)) {
+					@SuppressWarnings("unchecked")
+					Map<String, Object> templateData = (Map<String, Object>) templateInfo.get("data");
+					Boolean audit = (Boolean) templateData.get("audit");
+					executeDto.setAudit(audit != null ? audit : false);
+					logger.debug("템플릿 audit 설정 조회: templateId={}, audit={}", executeDto.getTemplateId(), audit);
+				} else {
+					executeDto.setAudit(false);
+					logger.warn("템플릿 정보 조회 실패: {}", templateInfo.get("error"));
+				}
+			} catch (Exception e) {
+				logger.warn("템플릿 audit 설정 조회 실패: {}", e.getMessage());
+				executeDto.setAudit(false);
 			}
 
 			// 파라미터 파싱

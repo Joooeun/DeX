@@ -154,8 +154,6 @@ public class SQLController {
 						mv.addObject("desc", line.split("=")[1]);
 					} else if (line.split("=")[0].equals("SAVE")) {
 						mv.addObject("save", line.split("=")[1].toLowerCase());
-					} else if (line.split("=")[0].equals("AUDIT")) {
-						mv.addObject("audit", line.split("=")[1].toLowerCase());
 					}
 
 				}
@@ -229,6 +227,14 @@ public class SQLController {
 
 		data.setId(session.getAttribute("memberId").toString());
 		data.setIp(com.getIp(request));
+
+		// properties 파일에서 audit 설정 조회
+		String auditStr = request.getParameter("audit");
+		if (auditStr != null && !auditStr.trim().isEmpty()) {
+			data.setAudit(Boolean.parseBoolean(auditStr));
+		} else {
+			data.setAudit(false); // 기본값
+		}
 
 		try {
 			// 공통 SQL 실행 서비스 사용

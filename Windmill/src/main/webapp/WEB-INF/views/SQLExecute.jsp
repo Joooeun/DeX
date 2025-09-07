@@ -565,9 +565,9 @@ var tableHeight=0;
 				templateId: '${templateId}',
 				connectionId: $("#connectionlist").val(),
 				sqlContent: $("#sql_text").val(),
-				parameters: JSON.stringify(params),
-				limit: $("#limit").val() == 0 ? (limit ? 20000 : 0) : (limit ?  Math.min(20000,  $("#limit").val()) : $("#limit").val()),
-				audit: ${audit == null ? false : audit}
+				parameters: JSON.stringify(params),  // 일반 파라미터만
+				log: JSON.stringify(log),            // LOG 파라미터만 (예전 소스와 동일)
+				limit: $("#limit").val() == 0 ? (limit ? 20000 : 0) : (limit ?  Math.min(20000,  $("#limit").val()) : $("#limit").val())
 			},
 			success: function(result, status, jqXHR) {
 				

@@ -14,6 +14,7 @@ public class SqlTemplateExecuteDto {
     private String connectionId;      // DB 연결 ID (선택적)
     private String sqlContent;        // 직접 입력된 SQL 내용 (선택적)
     private String parameters;        // 파라미터 JSON 문자열
+    private String log;               // LOG 파라미터 JSON 문자열 (예전 소스와 동일)
     private List<Map<String, Object>> parameterList;  // 파싱된 파라미터 리스트
     private Integer limit;            // 실행 제한 (기본값: 1000)
     private Boolean audit;            // 감사 로그 저장 여부
@@ -65,6 +66,14 @@ public class SqlTemplateExecuteDto {
     
     public void setParameters(String parameters) {
         this.parameters = parameters;
+    }
+    
+    public String getLog() {
+        return log;
+    }
+    
+    public void setLog(String log) {
+        this.log = log;
     }
     
     public List<Map<String, Object>> getParameterList() {

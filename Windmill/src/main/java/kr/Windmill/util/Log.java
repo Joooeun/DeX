@@ -6,12 +6,16 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import kr.Windmill.dto.log.LogInfoDto;
 import kr.Windmill.dto.SqlTemplateExecuteDto;
@@ -322,6 +326,12 @@ public class Log {
 			duration = java.time.Duration.between(data.getStart(), data.getEnd()).toMillis();
 		}
 		
+		// XML_LOG 필드 처리 (null이거나 빈 문자열인 경우 기본 XML 제공)
+		String xmlLog = data.getXmlLog();
+		if (xmlLog == null || xmlLog.trim().isEmpty()) {
+			xmlLog = "<xml></xml>";
+		}
+		
 		// DEXLOG 테이블에 삽입 (기존 순서 유지)
 		String sql = "INSERT INTO DEXLOG (" +
 			"USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, " +
@@ -338,8 +348,8 @@ public class Log {
 			data.getLogsql(),                               // SQL_TEXT
 			data.getResult(),                               // RESULT_MSG
 			duration,                                       // DURATION
-			data.getStart(),                                // EXECUTE_DATE
-			data.getXmlLog(),                               // XML_LOG (파라미터 정보)
+			data.getStart() != null ? java.sql.Timestamp.from(data.getStart()) : null,  // EXECUTE_DATE
+			xmlLog,                                         // XML_LOG (파라미터 정보)
 			data.getLogId()                                 // LOG_ID
 		);
 		
@@ -348,6 +358,16 @@ public class Log {
 	
 
 	
+	/**
+	 * XML 특수문자 인코딩 메서드 (LogInfoDto와 동일)
+	 */
+	private String encodeXml(String input) {
+		if (input == null || input.isEmpty()) {
+			return input;
+		}
+		return input.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("'", "&apos;").replace("\"", "&quot;");
+	}
+
 	/**
 	 * SQL 텍스트에서 실행 타입을 추출합니다.
 	 */
@@ -493,22 +513,25 @@ public class Log {
 			duration = java.time.Duration.between(executeDto.getStartTime(), executeDto.getEndTime()).toMillis();
 		}
 		
-		// 파라미터 정보를 JSON 형태로 변환
-		String paramJson = "{}";
-		if (executeDto.getParameterList() != null && !executeDto.getParameterList().isEmpty()) {
+		// XML_LOG는 LOG 파라미터만 저장 (예전 소스와 동일한 방식)
+		String paramXml = "<xml></xml>";
+		if (executeDto.getLog() != null && !executeDto.getLog().trim().isEmpty()) {
 			try {
-				// 간단한 JSON 형태로 변환 (실제로는 Jackson 등을 사용하는 것이 좋음)
-				StringBuilder json = new StringBuilder("{");
-				for (int i = 0; i < executeDto.getParameterList().size(); i++) {
-					java.util.Map<String, Object> param = executeDto.getParameterList().get(i);
-					if (i > 0) json.append(",");
-					json.append("\"").append(param.get("title")).append("\":\"").append(param.get("value")).append("\"");
+				// LOG 파라미터 JSON을 파싱하여 XML로 변환 (예전 LogInfoDTO.setLog()와 동일)
+				ObjectMapper objectMapper = new ObjectMapper();
+				HashMap<String, String> dataMap = objectMapper.readValue(executeDto.getLog(), HashMap.class);
+				
+				StringBuilder xml = new StringBuilder("<xml>");
+				for (Map.Entry<String, String> entry : dataMap.entrySet()) {
+					xml.append("<").append(entry.getKey()).append(">");
+					xml.append(encodeXml(entry.getValue()));
+					xml.append("</").append(entry.getKey()).append(">");
 				}
-				json.append("}");
-				paramJson = json.toString();
+				xml.append("</xml>");
+				paramXml = xml.toString();
 			} catch (Exception e) {
-				logger.warn("파라미터 JSON 변환 실패: {}", e.getMessage());
-				paramJson = "{}";
+				logger.warn("LOG 파라미터 XML 변환 실패: {}", e.getMessage());
+				paramXml = "<xml></xml>";
 			}
 		}
 		
@@ -522,14 +545,14 @@ public class Log {
 			executeDto.getMemberId(),                        // USER_ID
 			executeDto.getIp(),                              // IP
 			executeDto.getConnectionId(),                     // CONN_DB
-			"SQL_TEMPLATE",                                  // MENU (템플릿 실행임을 표시)
+			executeDto.getTemplateId(),                      // MENU (템플릿 ID)
 			getExecutionType(executeDto.getSqlContent()),    // SQL_TYPE
 			executeDto.getRows(),                           // RESULT_ROWS
 			executeDto.getSqlContent(),                     // SQL_TEXT
 			executeDto.getResult(),                         // RESULT_MSG
 			duration,                                       // DURATION
-			executeDto.getStartTime(),                      // EXECUTE_DATE
-			paramJson,                                      // XML_LOG (파라미터 정보)
+			java.sql.Timestamp.from(executeDto.getStartTime()) ,  // EXECUTE_DATE
+			paramXml,                                       // XML_LOG (파라미터 정보)
 			executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli()  // LOG_ID
 		);
 		
