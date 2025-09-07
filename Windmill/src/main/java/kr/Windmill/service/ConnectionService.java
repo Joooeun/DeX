@@ -650,9 +650,6 @@ public class ConnectionService {
 			int port = Integer.parseInt(connConfig.get("PORT"));
 			String username = connConfig.get("USER");
 			String password = connConfig.get("PW");
-			String privateKeyPath = connConfig.get("PRIVATE_KEY_PATH");
-			String remotePath = connConfig.get("REMOTE_PATH");
-			int timeout = Integer.parseInt(connConfig.getOrDefault("CONNECTION_TIMEOUT", "30"));
 
 			// JSch를 사용한 SFTP 연결 테스트
 			com.jcraft.jsch.JSch jsch = new com.jcraft.jsch.JSch();
@@ -660,15 +657,10 @@ public class ConnectionService {
 			com.jcraft.jsch.ChannelSftp channelSftp = null;
 
 			try {
-				// 개인키가 있으면 추가
-				if (privateKeyPath != null && !privateKeyPath.trim().isEmpty()) {
-					jsch.addIdentity(privateKeyPath);
-				}
-
 				// 세션 생성
 				session = jsch.getSession(username, host, port);
 				session.setConfig("StrictHostKeyChecking", "no");
-				session.setTimeout(timeout * 1000); // 밀리초 단위
+				session.setTimeout(30000); // 30초 타임아웃
 
 				// 비밀번호가 있으면 설정
 				if (password != null && !password.trim().isEmpty()) {
@@ -682,20 +674,9 @@ public class ConnectionService {
 				channelSftp = (com.jcraft.jsch.ChannelSftp) session.openChannel("sftp");
 				channelSftp.connect();
 
-				// 원격 경로가 있으면 접근 가능한지 확인
-				if (remotePath != null && !remotePath.trim().isEmpty()) {
-					try {
-						channelSftp.cd(remotePath);
-						logger.info("SFTP 연결 테스트 성공 - Host: {}, User: {}, Path: {}", host, username, remotePath);
-					} catch (Exception e) {
-						result.put("success", false);
-						result.put("error", "연결은 성공했지만 지정된 경로에 접근할 수 없습니다: " + remotePath);
-						result.put("errorType", "PATH_ACCESS_ERROR");
-						return result;
-					}
-				} else {
-					logger.info("SFTP 연결 테스트 성공 - Host: {}, User: {}", host, username);
-				}
+				// 기본 경로 접근 확인
+				channelSftp.cd("/");
+				logger.info("SFTP 연결 테스트 성공 - Host: {}, User: {}", host, username);
 
 				result.put("success", true);
 				return result;
@@ -961,6 +942,11 @@ public class ConnectionService {
 		String sql = "SELECT * FROM SFTP_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY SFTP_CONNECTION_ID";
 		List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql);
 
+		// SFTP_CONNECTION_ID를 CONNECTION_ID로 매핑
+		for (Map<String, Object> conn : connections) {
+			conn.put("CONNECTION_ID", conn.get("SFTP_CONNECTION_ID"));
+		}
+
 		// 권한 필터링 적용
 		return filterConnectionsByPermission(userId, connections, "SFTP");
 	}
@@ -1192,25 +1178,30 @@ public class ConnectionService {
 	 */
 	private boolean saveSftpConnection(Map<String, Object> connectionData, String userId) {
 		String connectionId = (String) connectionData.get("CONNECTION_ID");
-		boolean isNew = connectionId == null || connectionId.trim().isEmpty();
+		
+		// 기존 연결인지 확인 (editConnectionId가 있으면 수정, 없으면 신규)
+		String editConnectionId = (String) connectionData.get("editConnectionId");
+		boolean isNew = editConnectionId == null || editConnectionId.trim().isEmpty();
 
 		if (isNew) {
-			// 새 연결 생성
-			connectionId = "SFTP_" + System.currentTimeMillis();
+			// 새 연결 생성 - 화면에서 입력받은 ID 사용
+			if (connectionId == null || connectionId.trim().isEmpty()) {
+				// ID가 없으면 자동 생성
+				connectionId = "SFTP_" + System.currentTimeMillis();
+			}
+			connectionData.put("CONNECTION_ID", connectionId); // ID를 connectionData에 설정
 			String sql = "INSERT INTO SFTP_CONNECTION (SFTP_CONNECTION_ID, HOST_IP, PORT, "
-					+ "USERNAME, PASSWORD, PRIVATE_KEY_PATH, REMOTE_PATH, CONNECTION_TIMEOUT, CREATED_BY) " + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+					+ "USERNAME, PASSWORD, CREATED_BY) " + "VALUES (?, ?, ?, ?, ?, ?)";
 
 			jdbcTemplate.update(sql, connectionId, connectionData.get("HOST_IP"), connectionData.get("PORT"), connectionData.get("USERNAME"),
-					connectionData.get("PASSWORD"), connectionData.get("PRIVATE_KEY_PATH"), connectionData.get("REMOTE_PATH"),
-					connectionData.get("CONNECTION_TIMEOUT"), userId);
+					connectionData.get("PASSWORD"), userId);
 		} else {
 			// 기존 연결 수정
-			String sql = "UPDATE SFTP_CONNECTION SET HOST_IP = ?, PORT = ?, " + "USERNAME = ?, PASSWORD = ?, PRIVATE_KEY_PATH = ?, REMOTE_PATH = ?, "
-					+ "CONNECTION_TIMEOUT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " + "WHERE SFTP_CONNECTION_ID = ?";
+				String sql = "UPDATE SFTP_CONNECTION SET HOST_IP = ?, PORT = ?, " + "USERNAME = ?, PASSWORD = ?, "
+						+ "MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " + "WHERE SFTP_CONNECTION_ID = ?";
 
-			jdbcTemplate.update(sql, connectionData.get("HOST_IP"), connectionData.get("PORT"), connectionData.get("USERNAME"),
-					connectionData.get("PASSWORD"), connectionData.get("PRIVATE_KEY_PATH"), connectionData.get("REMOTE_PATH"),
-					connectionData.get("CONNECTION_TIMEOUT"), userId, connectionId);
+				jdbcTemplate.update(sql, connectionData.get("HOST_IP"), connectionData.get("PORT"), connectionData.get("USERNAME"),
+						connectionData.get("PASSWORD"), userId, connectionId);
 		}
 
 		return true;

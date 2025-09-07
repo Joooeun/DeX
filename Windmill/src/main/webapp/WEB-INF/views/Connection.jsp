@@ -186,24 +186,6 @@
 										class="form-control" id="sftpPassword">
 								</div>
 							</div>
-							<div class="form-group row">
-								<div class="col-md-6">
-									<label for="privateKeyPath" data-toggle="tooltip" data-placement="top" title="SSH 개인키 파일의 경로를 입력합니다. 비밀번호 대신 SSH 키 인증을 사용할 때 필요하며, 절대 경로로 입력하세요.">개인키 경로</label> <input type="text"
-										class="form-control" id="privateKeyPath"
-										placeholder="개인키 경로 (선택)">
-								</div>
-								<div class="col-md-6">
-									<label for="remotePath" data-toggle="tooltip" data-placement="top" title="SFTP 서버에서 접근할 기본 디렉토리 경로를 입력합니다. 연결 후 자동으로 이 경로로 이동하며, 비워두면 홈 디렉토리가 사용됩니다.">원격 경로</label> <input type="text"
-										class="form-control" id="remotePath" placeholder="원격 경로 (선택)">
-								</div>
-							</div>
-							<div class="form-group row">
-								<div class="col-md-6">
-									<label for="connectionTimeout">연결 타임아웃</label> <input
-										type="number" class="form-control" id="connectionTimeout"
-										value="30">
-								</div>
-							</div>
 						</div>
 
 						<!-- 공통 필드들 -->
@@ -216,21 +198,27 @@
 									<option value="MAINTENANCE">점검중</option>
 								</select>
 							</div>
-							<div class="col-md-6">
-								<label for="monitoringEnabled">모니터링 활성화</label>
-								<select class="form-control" id="monitoringEnabled">
-									<option value="true">활성화</option>
-									<option value="false">비활성화</option>
-								</select>
-							</div>
 						</div>
-						<div class="form-group row">
-							<div class="col-md-6">
-								<label for="monitoringInterval">모니터링 간격 (초)</label>
-								<input type="number" class="form-control" id="monitoringInterval" 
-									value="300" min="60" max="3600" 
-									placeholder="60초 ~ 3600초 (기본값: 300초)">
-								<small class="form-text text-muted">연결 상태를 확인하는 간격을 설정합니다.</small>
+						
+						<!-- 모니터링 필드들 (DB 연결에서만 표시) -->
+						<div id="monitoringFields">
+							<div class="form-group row">
+								<div class="col-md-6">
+									<label for="monitoringEnabled">모니터링 활성화</label>
+									<select class="form-control" id="monitoringEnabled">
+										<option value="true">활성화</option>
+										<option value="false">비활성화</option>
+									</select>
+								</div>
+							</div>
+							<div class="form-group row">
+								<div class="col-md-6">
+									<label for="monitoringInterval">모니터링 간격 (초)</label>
+									<input type="number" class="form-control" id="monitoringInterval" 
+										value="300" min="60" max="3600" 
+										placeholder="60초 ~ 3600초 (기본값: 300초)">
+									<small class="form-text text-muted">연결 상태를 확인하는 간격을 설정합니다.</small>
+								</div>
 							</div>
 						</div>
 					</form>
@@ -517,10 +505,6 @@
 					} else {
 						$('#sftpUsername').val(connection.USERNAME);
 						$('#sftpPassword').val(connection.PASSWORD);
-						$('#privateKeyPath').val(connection.PRIVATE_KEY_PATH);
-						$('#remotePath').val(connection.REMOTE_PATH);
-						$('#connectionTimeout').val(
-								connection.CONNECTION_TIMEOUT);
 						$('#dbFields').hide();
 						$('#sftpFields').show();
 					}
@@ -558,11 +542,9 @@
 			connectionData.JDBC_DRIVER_FILE = $('#jdbcDriverFile').val();
 			connectionData.TEST_SQL = $('#testSql').val();
 		} else {
+			connectionData.CONNECTION_ID = $('#connectionId').val(); // SFTP 연결에서도 ID 설정
 			connectionData.USERNAME = $('#sftpUsername').val();
 			connectionData.PASSWORD = $('#sftpPassword').val();
-			connectionData.PRIVATE_KEY_PATH = $('#privateKeyPath').val();
-			connectionData.REMOTE_PATH = $('#remotePath').val();
-			connectionData.CONNECTION_TIMEOUT = $('#connectionTimeout').val();
 		}
 
 		$.ajax({
@@ -615,12 +597,15 @@
 		if (connectionType === 'DB') {
 			$('#dbFields').show();
 			$('#sftpFields').hide();
+			$('#monitoringFields').show(); // DB 연결에서만 모니터링 필드 표시
 		} else if (connectionType === 'HOST') {
 			$('#dbFields').hide();
 			$('#sftpFields').show();
+			$('#monitoringFields').hide(); // SFTP 연결에서는 모니터링 필드 숨김
 		} else {
 			$('#dbFields').hide();
 			$('#sftpFields').hide();
+			$('#monitoringFields').hide();
 		}
 	}
 
@@ -677,9 +662,6 @@
 		} else {
 			testData.USERNAME = $('#sftpUsername').val();
 			testData.PASSWORD = $('#sftpPassword').val();
-			testData.PRIVATE_KEY_PATH = $('#privateKeyPath').val();
-			testData.REMOTE_PATH = $('#remotePath').val();
-			testData.CONNECTION_TIMEOUT = $('#connectionTimeout').val();
 		}
 
 		$.ajax({

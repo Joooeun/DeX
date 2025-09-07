@@ -1,14 +1,10 @@
 package kr.Windmill.controller;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -25,7 +21,6 @@ import org.springframework.web.servlet.ModelAndView;
 
 import kr.Windmill.dto.connection.ConnectionStatusDto;
 import kr.Windmill.service.ConnectionService;
-import kr.Windmill.dto.connection.ConnectionDto;
 import kr.Windmill.util.Common;
 
 @Controller
@@ -102,6 +97,15 @@ public class ConnectionController {
 				List<String> dbConnections = connectionService.getUserDatabaseConnections(userId);
 				result.put("success", true);
 				result.put("data", dbConnections);
+			} else if ("HOST".equals(type)) {
+				// FileRead.jsp, FileUpload.jsp에서 사용: 사용자가 권한을 가진 SFTP 연결만 반환
+				List<Map<String, Object>> sftpConnections = connectionService.getSftpConnections(userId);
+				List<String> connectionIds = new ArrayList<>();
+				for (Map<String, Object> conn : sftpConnections) {
+					connectionIds.add((String) conn.get("CONNECTION_ID"));
+				}
+				result.put("success", true);
+				result.put("data", connectionIds);
 			} else {
 				// 관리화면에서 사용: 모든 연결 목록 (페이징 포함)
 				String searchKeyword = request.getParameter("searchKeyword");
@@ -161,10 +165,7 @@ public class ConnectionController {
 			connectionData.put("JDBC_DRIVER_FILE", request.getParameter("JDBC_DRIVER_FILE"));
 			connectionData.put("TEST_SQL", request.getParameter("TEST_SQL"));
 
-			// SFTP 관련 필드
-			connectionData.put("PRIVATE_KEY_PATH", request.getParameter("PRIVATE_KEY_PATH"));
-			connectionData.put("REMOTE_PATH", request.getParameter("REMOTE_PATH"));
-			connectionData.put("CONNECTION_TIMEOUT", request.getParameter("CONNECTION_TIMEOUT"));
+			// SFTP 관련 필드 (예전 소스와 동일하게 단순화)
 
 			// 상태 및 모니터링 필드
 			connectionData.put("STATUS", request.getParameter("STATUS"));
@@ -326,10 +327,7 @@ public class ConnectionController {
 				return result;
 			}
 
-			// 기존 연결 테스트 (connectionId로)
-			String connectionId = request.getParameter("connectionId");
-
-			// 새 연결 테스트 (폼 데이터로)
+			// 연결 테스트 (폼 데이터로)
 			long startTime = System.currentTimeMillis();
 
 			// 연결 정보를 Map으로 수집 (새로운 필드명 지원)

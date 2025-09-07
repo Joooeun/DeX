@@ -16,8 +16,12 @@
 				TYPE : "HOST"
 			},
 			success : function(result) {
-				for (var i = 0; i < result.length; i++) {
-					$('#connectionlist').append("<option value='" + result[i].split('.')[0] + "'>" + result[i].split('.')[0] + "</option>");
+				if (result.success && result.data) {
+					for (var i = 0; i < result.data.length; i++) {
+						$('#connectionlist').append("<option value='" + result.data[i] + "'>" + result.data[i] + "</option>");
+					}
+				} else {
+					console.log("SFTP 연결 목록을 가져올 수 없습니다:", result);
 				}
 			},
 			error : function() {
@@ -81,7 +85,7 @@
 			url : '/FILE/readfile',
 			data : {
 				FilePath : $("#FilePath").val().split("\\").join("/"),
-				Connection : $("#connectionlist").val()
+				connectionId : $("#connectionlist").val()
 			},
 			success : function(result) {
 

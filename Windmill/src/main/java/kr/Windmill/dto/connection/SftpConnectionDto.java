@@ -12,9 +12,6 @@ public class SftpConnectionDto {
     private Integer port;
     private String username;
     private String password;
-    private String privateKeyPath;
-    private String remotePath;
-    private Integer connectionTimeout;
     private String status;
     private LocalDateTime createdTimestamp;
     private String createdBy;
@@ -71,29 +68,6 @@ public class SftpConnectionDto {
         this.password = password;
     }
     
-    public String getPrivateKeyPath() {
-        return privateKeyPath;
-    }
-    
-    public void setPrivateKeyPath(String privateKeyPath) {
-        this.privateKeyPath = privateKeyPath;
-    }
-    
-    public String getRemotePath() {
-        return remotePath;
-    }
-    
-    public void setRemotePath(String remotePath) {
-        this.remotePath = remotePath;
-    }
-    
-    public Integer getConnectionTimeout() {
-        return connectionTimeout;
-    }
-    
-    public void setConnectionTimeout(Integer connectionTimeout) {
-        this.connectionTimeout = connectionTimeout;
-    }
     
     public String getStatus() {
         return status;
