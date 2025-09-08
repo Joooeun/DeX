@@ -5,7 +5,7 @@
 	<groupId>kr.Windmill</groupId>
 	<artifactId>Windmill</artifactId>
 	<packaging>war</packaging>
-	<version>2.2.2</version>
+	<version>2.2.3</version>
 	<name>Windmill</name>
 	<url>http://www.Windmill.kr</url>
 
@@ -126,6 +126,22 @@
 			<version>${junit.version}</version>
 			<scope>test</scope>
 		</dependency>
+		
+		<!-- Selenium WebDriver for browser automation testing -->
+		<dependency>
+			<groupId>org.seleniumhq.selenium</groupId>
+			<artifactId>selenium-java</artifactId>
+			<version>4.15.0</version>
+			<scope>test</scope>
+		</dependency>
+		
+		<!-- WebDriverManager for automatic driver management - removed due to version conflicts -->
+		<!-- <dependency>
+			<groupId>io.github.bonigarcia</groupId>
+			<artifactId>webdrivermanager</artifactId>
+			<version>4.4.3</version>
+			<scope>test</scope>
+		</dependency> -->
 		<dependency>
 			<groupId>commons-fileupload</groupId>
 			<artifactId>commons-fileupload</artifactId>
