@@ -32,11 +32,7 @@
 			if (list.type === 'folder') {
 				var child2 = $('<ul class="nav nav-pills nav-stacked"></ul>');
 				var folder;
-				if (list.Path && list.Path.substring(4) == 0) {
-					folder = $('<div class="col-lg-3 col-md-4 col-sm-6"><div class="box box-solid"></div></div>');
-				} else {
-					folder = $('<div class="col-md-12"><div class="box box-solid"></div></div>');
-				}
+				folder = $('<div class="col-lg-3 col-md-4 col-sm-6"><div class="box box-solid"></div></div>');
 				var folder2 = $('<div class="box-header with-border" style="background-color: #605ca810; border-radius: 10px;"><h3 class="box-title">'
 						+ list.Name
 						+ '</h3><div class="box-tools"><button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-minus"></i></button></div></div>');

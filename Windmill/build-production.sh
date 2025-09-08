@@ -56,7 +56,7 @@ if [ $? -eq 0 ]; then
     echo "Maven 빌드 성공"
     
     # ROOT.war 파일 복사
-    cp target/Windmill-$NEW_VERSION.war target/ROOT.war
+    cp target/Windmill-$NEW_VERSION.war /Users/jooeunpark/git/dexshare/ROOT.war
     echo "ROOT.war 파일 생성 완료: target/ROOT.war"
     
     echo "=== 빌드 완료 ==="
