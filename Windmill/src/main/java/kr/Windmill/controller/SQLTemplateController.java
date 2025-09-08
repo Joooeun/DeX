@@ -554,6 +554,32 @@ public class SQLTemplateController {
 	}
 
 	@ResponseBody
+	@RequestMapping(path = "/SQLTemplate/category/reorder", method = RequestMethod.POST)
+	public Map<String, Object> reorderCategories(HttpServletRequest request, HttpSession session) {
+		String userId = (String) session.getAttribute("userId");
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String categoryId = request.getParameter("categoryId");
+			String direction = request.getParameter("direction"); // "up" or "down"
+
+			if (categoryId == null || direction == null) {
+				result.put("success", false);
+				result.put("message", "필수 파라미터가 누락되었습니다.");
+				return result;
+			}
+
+			return sqlTemplateService.reorderCategory(categoryId, direction, userId);
+		} catch (Exception e) {
+			logger.error("카테고리 순서 변경 실패", e);
+			result.put("success", false);
+			result.put("message", "카테고리 순서 변경 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	@ResponseBody
 	@RequestMapping(path = "/SQLTemplate/parameters")
 	public Map<String, Object> getTemplateParameters(HttpServletRequest request, HttpSession session) {
 		String templateId = request.getParameter("templateId");

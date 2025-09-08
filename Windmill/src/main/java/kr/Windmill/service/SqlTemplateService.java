@@ -731,6 +731,76 @@ public class SqlTemplateService {
 	}
 
 	/**
+	 * 카테고리 순서 변경 (위/아래)
+	 */
+	@Transactional
+	public Map<String, Object> reorderCategory(String categoryId, String direction, String userId) {
+		Map<String, Object> result = new HashMap<>();
+
+		if (categoryId == null || categoryId.trim().isEmpty()) {
+			result.put("success", false);
+			result.put("error", "카테고리 ID가 지정되지 않았습니다.");
+			return result;
+		}
+
+		if (!"up".equals(direction) && !"down".equals(direction)) {
+			result.put("success", false);
+			result.put("error", "방향은 'up' 또는 'down'이어야 합니다.");
+			return result;
+		}
+
+		try {
+			// 현재 카테고리의 순서 조회
+			Integer currentOrder = jdbcTemplate.queryForObject(
+				"SELECT CATEGORY_ORDER FROM SQL_TEMPLATE_CATEGORY WHERE CATEGORY_ID = ? AND STATUS = 'ACTIVE'", 
+				Integer.class, categoryId);
+
+			if (currentOrder == null) {
+				result.put("success", false);
+				result.put("error", "카테고리를 찾을 수 없습니다.");
+				return result;
+			}
+
+			// 교환할 카테고리 찾기
+			String targetOrderSql;
+			if ("up".equals(direction)) {
+				// 위로 이동: 현재 순서보다 작은 순서 중 가장 큰 값
+				targetOrderSql = "SELECT CATEGORY_ID, CATEGORY_ORDER FROM SQL_TEMPLATE_CATEGORY WHERE CATEGORY_ORDER < ? AND STATUS = 'ACTIVE' ORDER BY CATEGORY_ORDER DESC LIMIT 1";
+			} else {
+				// 아래로 이동: 현재 순서보다 큰 순서 중 가장 작은 값
+				targetOrderSql = "SELECT CATEGORY_ID, CATEGORY_ORDER FROM SQL_TEMPLATE_CATEGORY WHERE CATEGORY_ORDER > ? AND STATUS = 'ACTIVE' ORDER BY CATEGORY_ORDER ASC LIMIT 1";
+			}
+
+			List<Map<String, Object>> targetCategories = jdbcTemplate.queryForList(targetOrderSql, currentOrder);
+			
+			if (targetCategories.isEmpty()) {
+				result.put("success", false);
+				result.put("error", "이동할 수 있는 위치가 없습니다.");
+				return result;
+			}
+
+			Map<String, Object> targetCategory = targetCategories.get(0);
+			String targetCategoryId = (String) targetCategory.get("CATEGORY_ID");
+			Integer targetOrder = (Integer) targetCategory.get("CATEGORY_ORDER");
+
+			// 순서 교환
+			String updateCurrentSql = "UPDATE SQL_TEMPLATE_CATEGORY SET CATEGORY_ORDER = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE CATEGORY_ID = ?";
+			String updateTargetSql = "UPDATE SQL_TEMPLATE_CATEGORY SET CATEGORY_ORDER = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE CATEGORY_ID = ?";
+
+			jdbcTemplate.update(updateCurrentSql, targetOrder, userId, categoryId);
+			jdbcTemplate.update(updateTargetSql, currentOrder, userId, targetCategoryId);
+
+			result.put("success", true);
+			result.put("message", "카테고리 순서가 변경되었습니다.");
+		} catch (Exception e) {
+			result.put("success", false);
+			result.put("error", "카테고리 순서 변경 실패: " + e.getMessage());
+		}
+
+		return result;
+	}
+
+	/**
 	 * 카테고리별 템플릿 목록 조회
 	 */
 	public List<Map<String, Object>> getTemplatesByCategory(String categoryId) {

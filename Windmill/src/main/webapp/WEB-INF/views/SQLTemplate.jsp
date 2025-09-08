@@ -98,7 +98,163 @@
 .category-checkboxes .checkbox label {
 	font-size: 12px;
 	line-height: 1.2;
-	word-wrap: break-word;
+}
+
+.category-icon {
+	cursor: pointer;
+	margin: 0 2px;
+	padding: 2px;
+	border-radius: 2px;
+	transition: all 0.2s ease;
+}
+
+.category-icon:hover {
+	background-color: rgba(0, 0, 0, 0.1);
+}
+
+.order-icon {
+	color: #666;
+	font-size: 12px;
+}
+
+.order-icon:hover {
+	color: #007bff;
+	background-color: rgba(0, 123, 255, 0.1);
+}
+
+.edit-icon {
+	color: #28a745;
+}
+
+.edit-icon:hover {
+	color: #1e7e34;
+	background-color: rgba(40, 167, 69, 0.1);
+}
+
+.delete-icon {
+	color: #dc3545;
+}
+
+.delete-icon:hover {
+	color: #c82333;
+	background-color: rgba(220, 53, 69, 0.1);
+}
+
+/* 파라미터 테이블 반응형 개선 */
+.parameter-table-container {
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+#parameterTable {
+	min-width: 1000px; /* 최소 너비 보장 */
+	table-layout: fixed;
+}
+
+#parameterTable th,
+#parameterTable td {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	padding: 8px 4px;
+	font-size: 12px;
+}
+
+/* 컬럼별 너비 조정 */
+#parameterTable th:nth-child(1), #parameterTable td:nth-child(1) { width: 60px; } /* 순서 */
+#parameterTable th:nth-child(2), #parameterTable td:nth-child(2) { width: 120px; } /* 파라미터명 */
+#parameterTable th:nth-child(3), #parameterTable td:nth-child(3) { width: 150px; } /* 설명 */
+#parameterTable th:nth-child(4), #parameterTable td:nth-child(4) { width: 80px; } /* 타입 */
+#parameterTable th:nth-child(5), #parameterTable td:nth-child(5) { width: 100px; } /* 기본값 */
+#parameterTable th:nth-child(6), #parameterTable td:nth-child(6) { width: 50px; } /* 필수 */
+#parameterTable th:nth-child(7), #parameterTable td:nth-child(7) { width: 50px; } /* 읽기전용 */
+#parameterTable th:nth-child(8), #parameterTable td:nth-child(8) { width: 50px; } /* 숨김 */
+#parameterTable th:nth-child(9), #parameterTable td:nth-child(9) { width: 50px; } /* 비활성화 */
+#parameterTable th:nth-child(10), #parameterTable td:nth-child(10) { width: 50px; } /* 삭제 */
+
+/* 파라미터 입력 필드 개선 */
+.parameter-name, .parameter-description, .parameter-default {
+	font-size: 11px;
+	padding: 4px 6px;
+}
+
+.parameter-type {
+	font-size: 11px;
+	padding: 4px 6px;
+}
+
+/* 체크박스 중앙 정렬 */
+#parameterTable td div {
+	text-align: center;
+}
+
+#parameterTable td div input[type="checkbox"] {
+	margin: 0;
+}
+
+/* 순서 버튼 개선 */
+.move-up, .move-down {
+	padding: 1px 3px;
+	margin: 1px;
+	font-size: 10px;
+	line-height: 1;
+}
+
+/* 모바일에서 파라미터 테이블 스크롤 힌트 */
+@media (max-width: 768px) {
+	.parameter-table-container::after {
+		content: "← 좌우로 스크롤하여 더 많은 컬럼을 확인하세요";
+		display: block;
+		text-align: center;
+		font-size: 11px;
+		color: #666;
+		margin-top: 5px;
+		padding: 5px;
+		background-color: #f8f9fa;
+		border-radius: 3px;
+	}
+}
+
+/* 기본 정보 섹션 반응형 개선 */
+@media (max-width: 1200px) {
+	.col-lg-3 {
+		margin-bottom: 15px;
+	}
+}
+
+@media (max-width: 992px) {
+	.col-md-6 {
+		margin-bottom: 15px;
+	}
+}
+
+@media (max-width: 768px) {
+	.col-sm-12 {
+		margin-bottom: 15px;
+	}
+	
+	/* 모바일에서 레이블 텍스트 줄바꿈 방지 */
+	.form-group label {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		font-size: 12px;
+	}
+	
+	/* 모바일에서 스위치 버튼 크기 조정 */
+	.switch {
+		width: 40px;
+		height: 20px;
+	}
+	
+	.slider:before {
+		height: 16px;
+		width: 16px;
+	}
+	
+	.switch input:checked + .slider:before {
+		transform: translateX(20px);
+	}
 }
 
 .bg-gray {
@@ -300,7 +456,13 @@ table th, td {
 						+ category.CATEGORY_ID
 						+ '\')">'
 						+ '<div class="row">'
-						+ '<div class="col-md-8">'
+						+ '<div class="col-md-1" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0px 0px 0px 5px;">'
+						+ '<i class="fa fa-chevron-up category-icon order-icon" onclick="event.stopPropagation(); reorderCategory(\''
+						+ category.CATEGORY_ID + '\', \'up\')" title="위로 이동" style="margin: 1px 0;"></i>'
+						+ '<i class="fa fa-chevron-down category-icon order-icon" onclick="event.stopPropagation(); reorderCategory(\''
+						+ category.CATEGORY_ID + '\', \'down\')" title="아래로 이동" style="margin: 1px 0;"></i>'
+						+ '</div>'
+						+ '<div class="col-md-7">'
 						+ '<strong>'
 						+ category.CATEGORY_NAME
 						+ '</strong><br>'
@@ -631,6 +793,29 @@ table th, td {
     } else {
 						alert('삭제 실패: ' + result.error);
 					}
+				}
+			});
+		}
+
+		// 카테고리 순서 변경
+		function reorderCategory(categoryId, direction) {
+			$.ajax({
+				type: 'POST',
+				url: '/SQLTemplate/category/reorder',
+				data: {
+					categoryId: categoryId,
+					direction: direction
+				},
+				success: function (result) {
+					if (result.success) {
+						// 카테고리 목록 새로고침
+						loadCategories();
+					} else {
+						alert('순서 변경 실패: ' + result.error);
+					}
+				},
+				error: function () {
+					alert('순서 변경 중 오류가 발생했습니다.');
 				}
 			});
 		}
@@ -1479,7 +1664,13 @@ function initTextareaEditor() {
 					}
 				});
 			}, 500);
-			$('#sqlTemplateCategories').val(null).trigger('change');
+			// 현재 선택된 카테고리를 자동으로 설정
+			var selectedCategory = $('.category-item.selected').data('id');
+			if (selectedCategory && selectedCategory !== 'UNCATEGORIZED') {
+				$('#sqlTemplateCategories').val([selectedCategory]).trigger('change');
+			} else {
+				$('#sqlTemplateCategories').val(null).trigger('change');
+			}
 			$('#accessibleConnections').val(null).trigger('change');
 			$('#sqlContent').val('');
 
@@ -2544,7 +2735,7 @@ function goToTemplate() {
 							<div class="col-md-8">
 								<!-- 설정 정보 -->
 								<div class="row">
-									<div class="col-md-2">
+									<div class="col-lg-3 col-md-6 col-sm-12">
 										<div class="form-group">
 											<label data-toggle="tooltip" data-placement="top"
 												title="SQL 템플릿의 고유 이름입니다. 대시보드와 메뉴에서 표시되며, 100자 이하로 입력해주세요.">SQL
@@ -2553,17 +2744,17 @@ function goToTemplate() {
 										</div>
 									</div>
 
-									<div class="col-md-2">
+									<div class="col-lg-3 col-md-6 col-sm-12">
 										<div class="form-group">
 											<label data-toggle="tooltip" data-placement="top"
-												title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습습니다.">실행
+												title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습니다.">실행
 												제한 (행)</label> <input type="number" class="form-control"
 												id="sqlExecutionLimit" value="0" min="0" max="20000"
 												placeholder="최대 반환 행 수">
 										</div>
 									</div>
 
-									<div class="col-md-2">
+									<div class="col-lg-3 col-md-6 col-sm-12">
 										<div class="form-group">
 											<label data-toggle="tooltip" data-placement="top"
 												title="대시보드에서 자동으로 데이터를 새로고침하는 간격을 설정합니다. 0으로 설정하면 자동 새로고침을 사용하지 않습니다.">새로고침
@@ -2573,7 +2764,7 @@ function goToTemplate() {
 										</div>
 									</div>
 
-									<div class="col-md-2">
+									<div class="col-lg-3 col-md-6 col-sm-12">
 										<div class="form-group">
 											<label data-toggle="tooltip" data-placement="top"
 												title="대시보드에서 차트로 표시할 컬럼을 선택합니다">차트 매핑</label> <select
@@ -2588,10 +2779,9 @@ function goToTemplate() {
 									</div>
 
 									<!-- 옵션 박스 -->
-									<div class="col-md-4">
+									<div class="col-lg-9 col-md-12">
 										<div class="row">
-
-											<div class="col-md-4">
+											<div class="col-lg-4 col-md-4 col-sm-4">
 												<!-- 개행 보기 -->
 												<div class="form-group" style="margin-bottom: 15px;">
 													<label data-toggle="tooltip" data-placement="top"
@@ -2602,7 +2792,7 @@ function goToTemplate() {
 													</label>
 												</div>
 											</div>
-											<div class="col-md-4">
+											<div class="col-lg-4 col-md-4 col-sm-4">
 												<!-- 비활성화 -->
 												<div class="form-group" style="margin-bottom: 15px;">
 													<label data-toggle="tooltip" data-placement="top"
@@ -2617,7 +2807,7 @@ function goToTemplate() {
 													</select>
 												</div>
 											</div>
-											<div class="col-md-4">
+											<div class="col-lg-4 col-md-4 col-sm-4">
 												<!-- 감사 로그 -->
 												<div class="form-group" style="margin-bottom: 15px;">
 													<label data-toggle="tooltip" data-placement="top"
@@ -2641,7 +2831,7 @@ function goToTemplate() {
 								</div>
 
 							</div>
-							<div class="col-md-4">
+							<div class="col-lg-4 col-md-12">
 
 								<!-- 추가 정보 -->
 								<div class="form-group">
@@ -2668,7 +2858,7 @@ function goToTemplate() {
 							<label>파라미터 관리</label>
 							<div class="row">
 								<div class="col-md-12">
-									<div class="table-responsive">
+									<div class="table-responsive parameter-table-container">
 										<table class="table table-bordered table-striped align-middle"
 											id="parameterTable">
 											<thead>
