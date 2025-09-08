@@ -1501,7 +1501,7 @@ function saveSqlTemplate() {
 				return;
 			}
 
-    var sqlId = $('#sqlTemplateId').val();
+    var templateId = $('#sqlTemplateId').val();
     var sqlName = $('#sqlTemplateName').val();
 			var sqlDesc = $('#sqlTemplateDesc').val();
 			var sqlStatus = $('#sqlTemplateStatus').val();
@@ -1519,26 +1519,26 @@ function saveSqlTemplate() {
 				defaultSqlContent = window.sqlEditors['default'].getValue();
 			}
 
-			// 모든 탭의 SQL 내용 수집
+			// 모든 탭의 SQL 내용 수집 (CONNECTION_ID 기반)
 			var additionalSqlContents = [];
 			$('#sqlContentTabs .nav-item').each(function() {
 				var tabLink = $(this).find('.nav-link');
 				var href = tabLink.attr('href');
 				if (href && href !== '#tab-default') {
-					var dbType = href.replace('#tab-', '');
+					var connectionId = href.replace('#tab-', '');  // dbType → connectionId로 변경
 					var sqlContent = '';
 					
 					// Ace 에디터에서 내용 가져오기
-					if (window.sqlEditors && window.sqlEditors[dbType]) {
-						sqlContent = window.sqlEditors[dbType].getValue();
+					if (window.sqlEditors && window.sqlEditors[connectionId]) {
+						sqlContent = window.sqlEditors[connectionId].getValue();
     } else {
 						// Textarea에서 내용 가져오기
-						sqlContent = $('#sqlEditor_' + dbType + ' .sql-textarea').val() || '';
+						sqlContent = $('#sqlEditor_' + connectionId + ' .sql-textarea').val() || '';
 					}
 					
 					if (sqlContent.trim()) {
 						additionalSqlContents.push({
-							dbType: dbType,
+							connectionId: connectionId,  // dbType → connectionId로 변경
 							sqlContent: sqlContent
 						});
 					}
@@ -1550,7 +1550,7 @@ function saveSqlTemplate() {
 			var shortcuts = collectShortcuts();
     
     var data = {
-        sqlId: sqlId,
+        templateId: templateId,
         sqlName: sqlName,
 				sqlDesc: sqlDesc,
 				sqlStatus: sqlStatus,
@@ -1575,8 +1575,6 @@ function saveSqlTemplate() {
 				success: function (result) {
             if (result.success) {
                 alert('SQL 템플릿이 저장되었습니다.');
-						// 폼 초기화
-						createNewSqlTemplate();
 						// 템플릿 목록 새로고침
 						var selectedCategory = $('.category-item.selected').data(
 							'id');
@@ -1598,13 +1596,13 @@ function saveSqlTemplate() {
 				type: 'GET',
 				url: '/SQLTemplate/detail',
 				data: {
-					sqlId: templateId
+					templateId: templateId
 				},
 				success: function (result) {
 					
 					if (result.success) {
 						var template = result.data;
-						$('#sqlTemplateId').val(template.sqlId);
+						$('#sqlTemplateId').val(template.templateId);
 						$('#sqlTemplateName').val(template.sqlName);
 						$('#sqlTemplateDesc').val(template.sqlDesc || '');
 						$('#sqlTemplateStatus').val(
@@ -1665,6 +1663,7 @@ function saveSqlTemplate() {
 
 		// SQL 내용 목록 로드
 		function loadSqlContents(templateId) {
+			console.log('loadSqlContents 호출됨 - templateId:', templateId);
 			$.ajax({
 				type: 'GET',
 				url: '/SQLTemplate/sql-contents',
@@ -1672,43 +1671,71 @@ function saveSqlTemplate() {
 					templateId: templateId
 				},
 				success: function (result) {
+					console.log('loadSqlContents 응답:', result);
 					if (result.success) {
+						console.log('SQL 내용 데이터:', result.data);
 						renderSqlContentTabs(result.data);
+					} else {
+						console.error('loadSqlContents 실패:', result.error);
 					}
+				},
+				error: function(xhr, status, error) {
+					console.error('loadSqlContents AJAX 오류:', error);
 				}
 			});
 		}
 
 		// SQL 내용 탭 렌더링
 		function renderSqlContentTabs(contents) {
+			console.log('renderSqlContentTabs 호출됨 - contents:', contents);
 			// 기존 추가 탭들 제거
 			$('#sqlContentTabs .nav-item:not(:first)').remove();
 			$('#sqlContentTabContent .tab-pane:not(#tab-default)').remove();
 
 			// 추가 SQL 내용 탭들 추가
 			if (contents && contents.length > 0) {
+				console.log('추가 SQL 내용 탭 생성 - 개수:', contents.length);
 				contents.forEach(function (content) {
-					var tabId = 'tab-' + content.DB_TYPE;
+					var tabId = 'tab-' + content.CONNECTION_ID;
+					var connectionExists = content.CONNECTION_EXISTS !== false; // 기본값은 true
+					var tabText = content.CONNECTION_ID;
+					var tabClass = 'nav-link';
+					
+					// 연결이 삭제된 경우 빨간색으로 표시
+					if (!connectionExists) {
+						tabText += ' <span class="text-danger">(연결 삭제됨)</span>';
+						tabClass += ' text-danger';
+					}
 					
 					// 탭 생성
 					$('#sqlContentTabs').append(
 						'<li class="nav-item">' +
-						'<a class="nav-link" data-toggle="tab" href="#' + tabId + '">' +
-						content.DB_TYPE +
+						'<a class="' + tabClass + '" data-toggle="tab" href="#' + tabId + '">' +
+						tabText +
 						'</a></li>'
 					);
 
-					// 탭 컨텐츠 생성
-					$('#sqlContentTabContent').append(
-						'<div class="tab-pane fade" id="' + tabId + '">' +
-						'<div class="sql-editor-container" data-db-type="' + content.DB_TYPE + '" data-content-id="' + content.CONTENT_ID + '">' +
-						'<div id="sqlEditor_' + content.DB_TYPE + '" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>' +
-						'<button type="button" class="btn btn-danger btn-sm mt-2" onclick="deleteSqlContent(\'' + content.CONTENT_ID + '\')">삭제</button>' +
-						'</div></div>'
-					);
+					// 탭 컨텐츠 생성 (복합 키 방식)
+					var contentHtml = '<div class="tab-pane fade" id="' + tabId + '">' +
+						'<div class="sql-editor-container" data-connection-id="' + content.CONNECTION_ID + '" data-template-id="' + content.TEMPLATE_ID + '">';
+					
+					// 연결이 삭제된 경우 경고 메시지 추가
+					if (!connectionExists) {
+						contentHtml += '<div class="alert alert-warning" role="alert">' +
+							'<i class="fa fa-exclamation-triangle"></i> ' +
+							'<strong>경고:</strong> 해당 연결(' + content.CONNECTION_ID + ')이 삭제되었습니다. ' +
+							'다른 연결을 선택하거나 이 SQL 내용을 삭제하세요.' +
+							'</div>';
+					}
+					
+					contentHtml += '<div id="sqlEditor_' + content.CONNECTION_ID + '" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>' +
+						'<button type="button" class="btn btn-danger btn-sm mt-2" onclick="deleteSqlContent(\'' + content.TEMPLATE_ID + '\', \'' + content.CONNECTION_ID + '\')">삭제</button>' +
+						'</div></div>';
+					
+					$('#sqlContentTabContent').append(contentHtml);
 
-					// SQL 에디터 초기화
-					initSqlEditorForDbType(content.DB_TYPE, content.SQL_CONTENT);
+					// SQL 에디터 초기화 (복합 키 방식)
+					initSqlEditorForConnection(content.CONNECTION_ID, content.SQL_CONTENT);
 				});
 			}
 			
@@ -1760,14 +1787,15 @@ function saveSqlTemplate() {
 			}
 		}
 
-		// 특정 DB 타입용 SQL 에디터 초기화
-		function initSqlEditorForDbType(dbType, sqlContent) {
+
+		// 특정 연결용 SQL 에디터 초기화
+		function initSqlEditorForConnection(connectionId, sqlContent) {
 			if (typeof ace !== 'undefined') {
 				try {
-					var editorElement = document.getElementById("sqlEditor_" + dbType);
+					var editorElement = document.getElementById("sqlEditor_" + connectionId);
 					if (editorElement) {
 						ace.require("ace/ext/language_tools");
-						var editor = ace.edit("sqlEditor_" + dbType);
+						var editor = ace.edit("sqlEditor_" + connectionId);
 						editor.setTheme("ace/theme/chrome");
 						editor.session.setMode("ace/mode/sql");
 						editor.setOptions({
@@ -1785,23 +1813,23 @@ function saveSqlTemplate() {
 
 						editor.setValue(sqlContent || '');
 						
-						// 에디터를 전역 변수에 저장 (DB 타입용)
+						// 에디터를 전역 변수에 저장 (연결 ID용)
 						window.sqlEditors = window.sqlEditors || {};
-						window.sqlEditors[dbType] = editor;
+						window.sqlEditors[connectionId] = editor;
 						
 						// 에디터 변경 이벤트
 						editor.on('change', function() {
 							// 변경 이벤트만 처리 (미리보기 제거)
 						});
 					} else {
-						initTextareaEditorForDbType(dbType, sqlContent);
+						initTextareaEditorForConnection(connectionId, sqlContent);
 					}
 				} catch (e) {
 					console.log("SQL 에디터 초기화 실패:", e);
-					initTextareaEditorForDbType(dbType, sqlContent);
+					initTextareaEditorForConnection(connectionId, sqlContent);
 				}
 			} else {
-				initTextareaEditorForDbType(dbType, sqlContent);
+				initTextareaEditorForConnection(connectionId, sqlContent);
 			}
 		}
 
@@ -1816,33 +1844,58 @@ function saveSqlTemplate() {
 			});
 		}
 
-		// Textarea 기반 SQL 에디터 초기화
-		function initTextareaEditorForDbType(dbType, sqlContent) {
-			var editorDiv = document.getElementById("sqlEditor_" + dbType);
-			editorDiv.innerHTML = '<textarea class="sql-textarea" style="width: 100%; height: 100%; font-family: monospace; font-size: 14px; border: none; resize: none; outline: none;">' + (sqlContent || '') + '</textarea>';
-			
-			// textarea 변경 이벤트
-			$(editorDiv).find('.sql-textarea').on('input', function() {
-				// 변경 이벤트만 처리 (미리보기 제거)
-			});
-		}
 
 		// SQL 내용 추가 (기본 템플릿은 이미 존재하므로 추가 SQL만 생성)
 		function addSqlContent() {
-			// 하드코딩된 DB 타입 목록 사용
-			var dbTypes = [
-				{DB_TYPE: 'ORACLE', CONNECTION_COUNT: 0},
-				{DB_TYPE: 'MYSQL', CONNECTION_COUNT: 0},
-				{DB_TYPE: 'POSTGRESQL', CONNECTION_COUNT: 0},
-				{DB_TYPE: 'MSSQL', CONNECTION_COUNT: 0},
-				{DB_TYPE: 'DB2', CONNECTION_COUNT: 0},
-				{DB_TYPE: 'H2', CONNECTION_COUNT: 0}
-			];
-			showDbTypeSelectionModal(dbTypes);
+			// 접근 가능한 연결 목록 가져오기 (multiple select이므로 배열 반환)
+			var accessibleConnectionIds = $('#accessibleConnections').val();
+			
+			// multiple select의 경우 배열이 반환됨
+			if (!accessibleConnectionIds || accessibleConnectionIds.length === 0) {
+				alert('먼저 "접근 가능한 DB 연결"을 설정해주세요.');
+				return;
+			}
+			
+			// 배열에서 빈 값 제거
+			var connectionIds = accessibleConnectionIds.filter(function(id) {
+				return id && id.trim && id.trim().length > 0;
+			});
+			
+			if (connectionIds.length === 0) {
+				alert('접근 가능한 연결이 없습니다.');
+				return;
+			}
+			
+			// 접근 가능한 연결들만 서버에서 조회
+			$.ajax({
+				url: '/Connection/list',
+				type: 'POST',
+				data: { type: 'DB' },
+				success: function(result) {
+					if (result.success && result.data) {
+						// 접근 가능한 연결들만 필터링
+						var accessibleConnections = result.data.filter(function(connection) {
+							return connectionIds.includes(connection.CONNECTION_ID);
+						});
+						
+						if (accessibleConnections.length === 0) {
+							alert('접근 가능한 연결이 없습니다.');
+							return;
+						}
+						
+						showConnectionSelectionModal(accessibleConnections);
+					} else {
+						alert('연결 목록을 가져올 수 없습니다.');
+					}
+				},
+				error: function() {
+					alert('연결 목록을 가져오는 중 오류가 발생했습니다.');
+				}
+			});
 		}
 
-		// DB 타입 선택 모달 표시
-		function showDbTypeSelectionModal(dbTypes) {
+		// 연결 선택 모달 표시
+		function showConnectionSelectionModal(connections) {
 			var modalHtml = '<div class="modal fade" id="addSqlContentModal" tabindex="-1">' +
 				'<div class="modal-dialog modal-lg">' +
 				'<div class="modal-content">' +
@@ -1852,19 +1905,23 @@ function saveSqlTemplate() {
 				'</div>' +
 				'<div class="modal-body">' +
 				'<div class="alert alert-info">' +
-				'<strong>참고:</strong> 기본 템플릿은 이미 존재합니다. 특정 DB 타입에 맞는 추가 SQL 내용을 생성합니다.' +
+				'<strong>참고:</strong> 기본 템플릿은 이미 존재합니다. 특정 연결에 맞는 추가 SQL 내용을 생성합니다.' +
 				'</div>' +
 				'<div class="form-group">' +
-				'<label><strong>DB 타입 선택</strong></label><br>' +
-				'<small class="text-muted">선택한 DB 타입의 모든 활성 연결에 대해 SQL 내용이 생성됩니다.</small>' +
-				'<div id="dbTypeSelection" class="mt-3">' +
-				'<label>선택할 DB 타입:</label><br>';
+				'<label><strong>연결 선택</strong></label><br>' +
+				'<small class="text-muted">선택한 연결에 대해 SQL 내용이 생성됩니다.</small>' +
+				'<div id="connectionSelection" class="mt-3">' +
+				'<label>선택할 연결:</label><br>';
 			
-			dbTypes.forEach(function(dbType) {
+			connections.forEach(function(connection) {
+				var isUsed = isConnectionAlreadyUsed(connection.CONNECTION_ID);
+				var disabledAttr = isUsed ? 'disabled' : '';
+				var usedText = isUsed ? ' <span class="text-danger">(이미 사용 중)</span>' : '';
+				
 				modalHtml += '<div class="form-check form-check-inline">' +
-					'<input class="form-check-input" type="checkbox" id="dbtype_' + dbType.DB_TYPE + '" value="' + dbType.DB_TYPE + '">' +
-					'<label class="form-check-label" for="dbtype_' + dbType.DB_TYPE + '">' + 
-					dbType.DB_TYPE + ' (' + dbType.CONNECTION_COUNT + '개 연결)</label>' +
+					'<input class="form-check-input" type="checkbox" id="conn_' + connection.CONNECTION_ID + '" value="' + connection.CONNECTION_ID + '" ' + disabledAttr + '>' +
+					'<label class="form-check-label" for="conn_' + connection.CONNECTION_ID + '">' + 
+					connection.CONNECTION_ID + ' (' + connection.DB_TYPE + ')' + usedText + '</label>' +
 					'</div>';
 			});
 			
@@ -1887,23 +1944,36 @@ function saveSqlTemplate() {
 				return;
 			}
 
-			// 선택된 DB 타입들에 대해 SQL 내용 생성
-			var selectedDbTypes = [];
-			$('#dbTypeSelection input[type="checkbox"]:checked').each(function() {
-				selectedDbTypes.push($(this).val());
+			// 선택된 연결들에 대해 SQL 내용 생성
+			var selectedConnections = [];
+			$('#connectionSelection input[type="checkbox"]:checked').each(function() {
+				selectedConnections.push($(this).val());
 			});
 			
-			if (selectedDbTypes.length === 0) {
-				alert('하나 이상의 DB 타입을 선택해주세요.');
+			if (selectedConnections.length === 0) {
+				alert('하나 이상의 연결을 선택해주세요.');
 				return;
 			}
 			
-			// 각 DB 타입에 대해 SQL 내용 탭 생성
-			selectedDbTypes.forEach(function(dbType) {
+			// 중복 연결 체크
+			var duplicateConnections = [];
+			selectedConnections.forEach(function(connectionId) {
+				// 기존에 같은 연결의 SQL 내용이 있는지 확인
+				if (isConnectionAlreadyUsed(connectionId)) {
+					duplicateConnections.push(connectionId);
+				}
+			});
+			
+			if (duplicateConnections.length > 0) {
+				alert('다음 연결들은 이미 SQL 내용이 존재합니다:\n' + duplicateConnections.join(', ') + '\n\n기존 SQL 내용을 삭제한 후 다시 시도해주세요.');
+				return;
+			}
+			
+			// 각 연결에 대해 SQL 내용 탭 생성
+			selectedConnections.forEach(function(connectionId) {
 				var content = {
-					CONTENT_ID: '',
 					TEMPLATE_ID: templateId,
-					DB_TYPE: dbType,
+					CONNECTION_ID: connectionId,
 					SQL_CONTENT: '',
 					IS_DEFAULT: false
 				};
@@ -1930,12 +2000,12 @@ function saveSqlTemplate() {
 		function addSqlContentTab(content) {
 			var tabsContainer = $('#sqlContentTabs');
 			var contentContainer = $('#sqlContentTabContent');
-			var tabId = 'tab-' + (content.DB_TYPE || 'default');
-			var displayName = content.DB_TYPE ? content.DB_TYPE : '기본 템플릿';
+			var tabId = 'tab-' + (content.CONNECTION_ID || 'default');
+			var displayName = content.CONNECTION_ID ? content.CONNECTION_ID : '기본 템플릿';
 			
 			// 기존 탭이 있는지 확인
 			if ($('#' + tabId).length > 0) {
-				alert('이미 해당 DB 타입의 SQL 내용이 존재합니다.');
+				alert('이미 해당 연결의 SQL 내용이 존재합니다.');
 				return;
 			}
 
@@ -1946,15 +2016,15 @@ function saveSqlTemplate() {
 				'</a></li>');
 			tabsContainer.append(tab);
 
-			// 탭 컨텐츠 생성
+			// 탭 컨텐츠 생성 (복합 키 방식)
 			var tabContent = $('<div class="tab-pane fade" id="' + tabId + '">' +
-				'<div class="sql-editor-container" data-db-type="' + (content.DB_TYPE || 'default') + '" data-content-id="' + content.CONTENT_ID + '">' +
-				'<div id="sqlEditor_' + (content.DB_TYPE || 'default') + '" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>' +
+				'<div class="sql-editor-container" data-connection-id="' + (content.CONNECTION_ID || 'default') + '" data-template-id="' + content.TEMPLATE_ID + '">' +
+				'<div id="sqlEditor_' + (content.CONNECTION_ID || 'default') + '" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>' +
 				'<div class="form-check mt-2">' +
-				'<input class="form-check-input" type="radio" name="defaultSql" value="' + (content.DB_TYPE || 'default') + '">' +
+				'<input class="form-check-input" type="radio" name="defaultSql" value="' + (content.CONNECTION_ID || 'default') + '">' +
 				'<label class="form-check-label">기본 SQL로 설정</label>' +
 				'</div>' +
-				'<button type="button" class="btn btn-danger btn-sm mt-2" onclick="deleteSqlContentTab(\'' + (content.DB_TYPE || 'default') + '\')">삭제</button>' +
+				'<button type="button" class="btn btn-danger btn-sm mt-2" onclick="deleteSqlContentTab(\'' + (content.CONNECTION_ID || 'default') + '\')">삭제</button>' +
 				'</div></div>');
 			contentContainer.append(tabContent);
 
@@ -1962,32 +2032,35 @@ function saveSqlTemplate() {
 			$('a[href="#' + tabId + '"]').tab('show');
 
 			// SQL 에디터 초기화
-			if (content.DB_TYPE) {
-				initSqlEditorForDbType(content.DB_TYPE, content.SQL_CONTENT || '');
-			} else {
-				initSqlEditorForConnection(content.CONNECTION_ID || 'default', content.SQL_CONTENT || '');
-			}
+			initSqlEditorForConnection(content.CONNECTION_ID || 'default', content.SQL_CONTENT || '');
+		}
+
+		// 연결이 이미 사용 중인지 확인
+		function isConnectionAlreadyUsed(connectionId) {
+			// 현재 화면에 있는 탭들 중에서 해당 연결 ID가 있는지 확인
+			return $('#sqlContentTabs a[href="#tab-' + connectionId + '"]').length > 0;
 		}
 
 		// SQL 내용 탭 삭제 (새로 추가된 것)
-		function deleteSqlContentTab(dbType) {
+		function deleteSqlContentTab(connectionId) {
 			if (confirm('이 SQL 내용을 삭제하시겠습니까?')) {
-				$('#tab-' + dbType).remove();
-				$('a[href="#tab-' + dbType + '"]').parent().remove();
+				$('#tab-' + connectionId).remove();
+				$('a[href="#tab-' + connectionId + '"]').parent().remove();
 				
 				// 첫 번째 탭 활성화
 				$('#sqlContentTabs .nav-link:first').tab('show');
 			}
 		}
 
-		// SQL 내용 삭제
-		function deleteSqlContent(contentId) {
+		// SQL 내용 삭제 (복합 키 방식)
+		function deleteSqlContent(templateId, connectionId) {
 			if (confirm('이 SQL 내용을 삭제하시겠습니까?\n삭제된 내용은 복구할 수 없습니다.')) {
 				$.ajax({
 					type: 'POST',
 					url: '/SQLTemplate/sql-content/delete',
 					data: {
-						contentId: contentId
+						templateId: templateId,
+						connectionId: connectionId
 					},
 					success: function (result) {
 						if (result.success) {
@@ -2012,8 +2085,8 @@ function saveSqlTemplate() {
 
 // SQL 템플릿 삭제
 function deleteSqlTemplate() {
-    var sqlId = $('#sqlTemplateId').val();
-    if (!sqlId) {
+    var templateId = $('#sqlTemplateId').val();
+    if (!templateId) {
 				alert('삭제할 템플릿을 선택해주세요.');
         return;
     }
@@ -2026,7 +2099,7 @@ function deleteSqlTemplate() {
 				type: 'POST',
         url: '/SQLTemplate/delete',
 				data: {
-					sqlId: sqlId
+					templateId: templateId
 				},
 				success: function (result) {
             if (result.success) {
@@ -2083,14 +2156,14 @@ function goToTemplate() {
 }
 
 
-		// SQL 에디터 내용 변경 시 미리보기 업데이트
+		// SQL 에디터 내용 변경 시 처리 (미리보기 제거됨)
 		$(document).on('input', '#sqlEditor, #sqlTextarea', function () {
-			updateSqlPreview();
+			// 변경 이벤트만 처리 (미리보기 제거)
 		});
 
-		// Ace Editor 내용 변경 시 미리보기 업데이트
+		// Ace Editor 내용 변경 시 처리 (미리보기 제거됨)
 		$(document).on('change', '#sqlEditor', function () {
-			updateSqlPreview();
+			// 변경 이벤트만 처리 (미리보기 제거)
 		});
 
 		// 파라미터 속성 JSON 파싱 (하위 호환성용)
@@ -2249,9 +2322,8 @@ function goToTemplate() {
 
 		// 탭 변경 시 SQL 내용 저장
 		$(document).on('shown.bs.tab', '#sqlContentTabs .nav-link', function() {
-			// 새 탭의 SQL 미리보기 업데이트
-    updateSqlPreview();
-});
+			// 탭 변경 시 처리 (미리보기 제거됨)
+		});
 
 		// 기본 SQL 설정 변경 시 저장
 		$(document).on('change', 'input[name="defaultSql"]', function() {
@@ -2653,8 +2725,8 @@ function goToTemplate() {
 							<div class="tab-content" id="sqlContentTabContent">
 								<!-- 기본 템플릿 컨텐츠 (항상 첫 번째) -->
 								<div class="tab-pane active" id="tab-default">
-									<div class="sql-editor-container" data-db-type="default"
-										data-content-id="DEFAULT">
+									<div class="sql-editor-container" data-connection-id="default"
+										data-template-id="${templateId}">
 										<div id="sqlEditor_default" class="sql-editor"
 											style="height: 300px; border: 1px solid #ccc;"></div>
 										<div class="sql-editor-toggle" style="text-align: center; margin-top: 5px;">

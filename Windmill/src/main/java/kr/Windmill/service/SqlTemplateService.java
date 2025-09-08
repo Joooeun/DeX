@@ -184,7 +184,7 @@ public class SqlTemplateService {
 		Map<String, Object> result = new HashMap<>();
 		if (templateId == null || templateId.trim().isEmpty()) {
 			result.put("success", false);
-			result.put("error", "SQL ID가 지정되지 않았습니다.");
+			result.put("error", "템플릿 ID가 지정되지 않았습니다.");
 			return result;
 		}
 
@@ -198,7 +198,7 @@ public class SqlTemplateService {
 
 		Map<String, Object> row = rows.get(0);
 		Map<String, Object> data = new HashMap<>();
-		data.put("sqlId", row.get("TEMPLATE_ID"));
+		data.put("templateId", row.get("TEMPLATE_ID"));
 		data.put("sqlName", row.get("TEMPLATE_NAME"));
 		data.put("sqlDesc", row.get("TEMPLATE_DESC"));
 		data.put("sqlContent", row.get("SQL_CONTENT"));
@@ -557,32 +557,45 @@ public class SqlTemplateService {
 			}
 		}
 
-		// 추가 SQL 내용 처리
+		// 추가 SQL 내용 처리 (CONNECTION_ID 기반)
 		if (additionalSqlContents != null && !additionalSqlContents.trim().isEmpty()) {
+			logger.debug("추가 SQL 내용 처리 시작 - templateId: {}, additionalSqlContents: {}", templateId, additionalSqlContents);
 			try {
 				List<Map<String, Object>> additionalContents = com.getListFromString(additionalSqlContents);
+				logger.debug("추가 SQL 내용 파싱 완료 - 개수: {}", additionalContents.size());
+				
 				for (Map<String, Object> content : additionalContents) {
-					String dbType = (String) content.get("dbType");
+					String connectionId = (String) content.get("connectionId");  // dbType → connectionId로 변경
 					String contentSql = (String) content.get("sqlContent");
 					
-					if (dbType != null && !dbType.trim().isEmpty() && contentSql != null && !contentSql.trim().isEmpty()) {
-						// 기존 SQL_CONTENT 삭제
-						jdbcTemplate.update("DELETE FROM SQL_CONTENT WHERE TEMPLATE_ID = ? AND DB_TYPE = ?", templateId, dbType);
+					logger.debug("SQL 내용 처리 - connectionId: {}, sqlContent 길이: {}", connectionId, contentSql != null ? contentSql.length() : 0);
+					
+					if (connectionId != null && !connectionId.trim().isEmpty() && contentSql != null && !contentSql.trim().isEmpty()) {
+						// 기존 SQL_CONTENT 삭제 (CONNECTION_ID 기반)
+						int deletedRows = jdbcTemplate.update("DELETE FROM SQL_CONTENT WHERE TEMPLATE_ID = ? AND CONNECTION_ID = ?", templateId, connectionId);
+						logger.debug("기존 SQL_CONTENT 삭제 완료 - 삭제된 행 수: {}", deletedRows);
 						
-						// 새 SQL_CONTENT 추가
-						String contentId = "CONTENT_" + templateId + "_" + dbType + "_" + System.currentTimeMillis();
-						jdbcTemplate.update(
-							"INSERT INTO SQL_CONTENT (CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, CREATED_BY) VALUES (?, ?, ?, ?, ?)",
-							contentId, templateId, dbType, contentSql, userId);
+						// 새 SQL_CONTENT 추가 (CONNECTION_ID 기반, 복합 키 사용)
+						int insertedRows = jdbcTemplate.update(
+							"INSERT INTO SQL_CONTENT (TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, CREATED_BY) VALUES (?, ?, ?, ?)",
+							templateId, connectionId, contentSql, userId);
+						logger.debug("새 SQL_CONTENT 추가 완료 - 삽입된 행 수: {}, templateId: {}, connectionId: {}", insertedRows, templateId, connectionId);
+					} else {
+						logger.warn("SQL 내용이 비어있거나 연결 ID가 지정되지 않음 - connectionId: {}, contentSql: {}", connectionId, contentSql != null ? "있음" : "없음");
 					}
 				}
+				logger.info("추가 SQL 내용 처리 완료 - templateId: {}, 처리된 항목 수: {}", templateId, additionalContents.size());
 			} catch (Exception e) {
-				logger.warn("추가 SQL 내용 처리 실패: " + e.getMessage());
+				logger.error("추가 SQL 내용 처리 실패 - templateId: {}, additionalSqlContents: {}", templateId, additionalSqlContents, e);
+				// 트랜잭션 롤백을 위해 예외를 다시 던짐
+				throw new RuntimeException("추가 SQL 내용 처리 실패: " + e.getMessage(), e);
 			}
+		} else {
+			logger.debug("추가 SQL 내용이 없음 - templateId: {}", templateId);
 		}
 
 		result.put("success", true);
-		result.put("sqlId", templateId);
+		result.put("templateId", templateId);
 		result.put("message", "SQL 템플릿이 저장되었습니다.");
 		return result;
 	}
@@ -595,7 +608,7 @@ public class SqlTemplateService {
 		Map<String, Object> result = new HashMap<>();
 		if (templateId == null || templateId.trim().isEmpty()) {
 			result.put("success", false);
-			result.put("error", "SQL ID가 지정되지 않았습니다.");
+			result.put("error", "템플릿 ID가 지정되지 않았습니다.");
 			return result;
 		}
 

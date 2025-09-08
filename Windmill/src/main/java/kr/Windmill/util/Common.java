@@ -43,6 +43,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import crypt.AES256Cipher;
@@ -373,30 +374,61 @@ public class Common {
 			return list;
 		}
 
-		JSONArray jsonArray = new JSONArray();
-		JSONParser jsonParser = new JSONParser();
-
 		try {
-			jsonArray = (JSONArray) jsonParser.parse(jsonStr);
-		} catch (ParseException e) {
-			logger.error("JSON 파싱 오류: {}", e.getMessage());
-			return list;
-		} catch (Exception e) {
-			logger.error("JSON 처리 중 예상치 못한 오류: {}", e.getMessage());
-			return list;
-		}
-
-		if (jsonArray != null) {
-			int jsonSize = jsonArray.size();
-			for (int i = 0; i < jsonSize; i++) {
-				try {
-					Map<String, Object> map = getMapFromJsonObject((JSONObject) jsonArray.get(i));
-					if (map != null) {
-						list.add(map);
+			// Jackson ObjectMapper를 사용한 안전한 JSON 파싱
+			ObjectMapper objectMapper = new ObjectMapper();
+			objectMapper.configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+			objectMapper.configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
+			
+			// JSON 배열로 파싱 시도
+			JsonNode jsonNode = objectMapper.readTree(jsonStr);
+			
+			if (jsonNode.isArray()) {
+				for (JsonNode node : jsonNode) {
+					if (node.isObject()) {
+						@SuppressWarnings("unchecked")
+						Map<String, Object> map = objectMapper.convertValue(node, Map.class);
+						if (map != null) {
+							list.add(map);
+						}
 					}
-				} catch (Exception e) {
-					logger.error("JSON 객체 처리 중 오류 (인덱스 {}): {}", i, e.getMessage());
 				}
+			} else if (jsonNode.isObject()) {
+				// 단일 객체인 경우 배열로 변환
+				@SuppressWarnings("unchecked")
+				Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
+				if (map != null) {
+					list.add(map);
+				}
+			}
+			
+			logger.debug("JSON 파싱 성공 - 파싱된 객체 수: {}", list.size());
+			
+		} catch (Exception e) {
+			logger.error("JSON 파싱 실패 - jsonStr: {}, 오류: {}", jsonStr, e.getMessage(), e);
+			
+			// 기존 방식으로 폴백 시도
+			try {
+				JSONArray jsonArray = new JSONArray();
+				JSONParser jsonParser = new JSONParser();
+				jsonArray = (JSONArray) jsonParser.parse(jsonStr);
+				
+				if (jsonArray != null) {
+					int jsonSize = jsonArray.size();
+					for (int i = 0; i < jsonSize; i++) {
+						try {
+							Map<String, Object> map = getMapFromJsonObject((JSONObject) jsonArray.get(i));
+							if (map != null) {
+								list.add(map);
+							}
+						} catch (Exception ex) {
+							logger.error("JSON 객체 처리 중 오류 (인덱스 {}): {}", i, ex.getMessage());
+						}
+					}
+				}
+				logger.debug("기존 방식으로 JSON 파싱 성공 - 파싱된 객체 수: {}", list.size());
+			} catch (Exception fallbackEx) {
+				logger.error("기존 방식 JSON 파싱도 실패: {}", fallbackEx.getMessage());
 			}
 		}
 
@@ -413,7 +445,9 @@ public class Common {
 		Map<String, Object> map = null;
 
 		try {
-			map = new ObjectMapper().readValue(jsonObject.toJSONString(), Map.class);
+			@SuppressWarnings("unchecked")
+			Map<String, Object> tempMap = new ObjectMapper().readValue(jsonObject.toJSONString(), Map.class);
+			map = tempMap;
 		} catch (JsonParseException e) {
 			logger.error("JSON 파싱 오류: {}", e.getMessage());
 		} catch (JsonMappingException e) {

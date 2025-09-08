@@ -194,10 +194,10 @@ public class SQLTemplateController {
 	@ResponseBody
 	@RequestMapping(path = "/SQLTemplate/detail")
 	public Map<String, Object> getSqlTemplateDetail(HttpServletRequest request, HttpSession session) {
-		String sqlId = request.getParameter("sqlId");
+		String templateId = request.getParameter("templateId");
 
 		try {
-			return sqlTemplateService.getSqlTemplateDetail(sqlId);
+			return sqlTemplateService.getSqlTemplateDetail(templateId);
 		} catch (Exception e) {
 			logger.error("SQL 템플릿 상세 조회 실패", e);
 			Map<String, Object> result = new HashMap<>();
@@ -213,7 +213,7 @@ public class SQLTemplateController {
 		String userId = (String) session.getAttribute("memberId");
 
 		try {
-			String sqlId = request.getParameter("sqlId");
+			String templateId = request.getParameter("templateId");
 			String sqlName = request.getParameter("sqlName");
 			String sqlDesc = request.getParameter("sqlDesc");
 			String sqlVersionStr = request.getParameter("sqlVersion");
@@ -261,7 +261,7 @@ public class SQLTemplateController {
 			// additionalSqlContents 파라미터 처리
 			String additionalSqlContents = request.getParameter("additionalSqlContents");
 
-			return sqlTemplateService.saveSqlTemplate(sqlId, sqlName, sqlDesc, sqlVersion, sqlStatus, executionLimit, refreshTimeout, newline, audit,
+			return sqlTemplateService.saveSqlTemplate(templateId, sqlName, sqlDesc, sqlVersion, sqlStatus, executionLimit, refreshTimeout, newline, audit,
 					categoryIds, accessibleConnectionIds, chartMapping, sqlContent, configContent, parameters, shortcuts, additionalSqlContents,
 					userId);
 
@@ -280,7 +280,7 @@ public class SQLTemplateController {
 		String userId = (String) session.getAttribute("memberId");
 
 		try {
-			String sqlId = request.getParameter("sqlId");
+			String templateId = request.getParameter("templateId");
 
 			if (!permissionService.isAdmin(userId)) {
 				Map<String, Object> result = new HashMap<>();
@@ -289,7 +289,7 @@ public class SQLTemplateController {
 				return result;
 			}
 
-			return sqlTemplateService.deleteSqlTemplate(sqlId, userId);
+			return sqlTemplateService.deleteSqlTemplate(templateId, userId);
 
 		} catch (Exception e) {
 			logger.error("SQL 템플릿 삭제 실패", e);
@@ -629,12 +629,11 @@ public class SQLTemplateController {
 		String userId = (String) session.getAttribute("memberId");
 
 		try {
-			String contentId = request.getParameter("contentId");
 			String templateId = request.getParameter("templateId");
-			String dbType = request.getParameter("dbType");
+			String connectionId = request.getParameter("connectionId");
 			String sqlContent = request.getParameter("sqlContent");
 
-			return sqlContentService.saveSqlContent(contentId, templateId, dbType, sqlContent, userId);
+			return sqlContentService.saveSqlContent(templateId, connectionId, sqlContent, userId);
 
 		} catch (Exception e) {
 			logger.error("SQL 내용 저장 실패", e);
@@ -651,9 +650,10 @@ public class SQLTemplateController {
 		String userId = (String) session.getAttribute("memberId");
 
 		try {
-			String contentId = request.getParameter("contentId");
+			String templateId = request.getParameter("templateId");
+			String connectionId = request.getParameter("connectionId");
 
-			return sqlContentService.deleteSqlContent(contentId, userId);
+			return sqlContentService.deleteSqlContent(templateId, connectionId, userId);
 
 		} catch (Exception e) {
 			logger.error("SQL 내용 삭제 실패", e);
@@ -664,25 +664,6 @@ public class SQLTemplateController {
 		}
 	}
 
-	@ResponseBody
-	@RequestMapping(path = "/SQLTemplate/sql-content/copy")
-	public Map<String, Object> copySqlContent(HttpServletRequest request, HttpSession session) {
-		String userId = (String) session.getAttribute("memberId");
-
-		try {
-			String sourceContentId = request.getParameter("sourceContentId");
-			String targetDbType = request.getParameter("targetDbType");
-
-			return sqlContentService.copySqlContent(sourceContentId, targetDbType, userId);
-
-		} catch (Exception e) {
-			logger.error("SQL 내용 복사 실패", e);
-			Map<String, Object> result = new HashMap<>();
-			result.put("success", false);
-			result.put("error", "SQL 내용 복사 실패: " + e.getMessage());
-			return result;
-		}
-	}
 
 	@ResponseBody
 	@RequestMapping(path = "/SQLTemplate/db-connections")

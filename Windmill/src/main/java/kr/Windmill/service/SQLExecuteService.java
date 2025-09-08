@@ -96,31 +96,18 @@ public class SQLExecuteService {
 						data.getTemplateId());
 				}
 			} else {
-				// DB 타입 조회
-				String dbType = getDbTypeByConnectionId(connectionId);
-				if (dbType == null) {
-					logger.warn("DB 타입을 찾을 수 없음: connectionId={}", connectionId);
-					// 기본 템플릿 사용
-					Map<String, Object> defaultSqlContent = sqlContentService.getDefaultSqlContent(data.getTemplateId());
-					if (defaultSqlContent != null) {
-						sql = (String) defaultSqlContent.get("SQL_CONTENT");
-						logger.info("템플릿 기본 SQL 내용 사용: templateId={}, connectionId={}", 
-							data.getTemplateId(), connectionId);
-					}
+				// CONNECTION_ID 기반 SQL 내용 조회
+				Map<String, Object> sqlContent = sqlContentService.getSqlContentByTemplateAndConnectionId(
+					data.getTemplateId(), connectionId);
+				
+				if (sqlContent != null) {
+					sql = (String) sqlContent.get("SQL_CONTENT");
+					String contentConnectionId = (String) sqlContent.get("CONNECTION_ID");
+					logger.info("템플릿 SQL 내용 사용: templateId={}, requestedConnectionId={}, contentConnectionId={}", 
+						data.getTemplateId(), connectionId, contentConnectionId);
 				} else {
-					// 특정 DB 타입의 SQL 내용 조회
-					Map<String, Object> sqlContent = sqlContentService.getSqlContentByTemplateAndDbType(
-						data.getTemplateId(), dbType);
-					
-					if (sqlContent != null) {
-						sql = (String) sqlContent.get("SQL_CONTENT");
-						String contentDbType = (String) sqlContent.get("DB_TYPE");
-						logger.info("템플릿 SQL 내용 사용: templateId={}, requestedConnectionId={}, dbType={}", 
-							data.getTemplateId(), connectionId, contentDbType);
-					} else {
-						logger.warn("템플릿 SQL 내용을 찾을 수 없음: templateId={}, dbType={}", 
-							data.getTemplateId(), dbType);
-					}
+					logger.warn("템플릿 SQL 내용을 찾을 수 없음: templateId={}, connectionId={}", 
+						data.getTemplateId(), connectionId);
 				}
 			}
 		}
@@ -1415,20 +1402,16 @@ public class SQLExecuteService {
 				throw new Exception("템플릿의 기본 SQL 내용을 찾을 수 없습니다: " + templateId);
 			}
 		} else {
-			// DB 타입 조회
-			String dbType = getDbTypeByConnectionId(connectionId);
-			if (dbType == null) {
-				throw new Exception("DB 타입을 찾을 수 없습니다: connectionId=" + connectionId);
-			}
-			
-			// 특정 DB 타입의 SQL 내용 조회
-			Map<String, Object> sqlContent = sqlContentService.getSqlContentByTemplateAndDbType(templateId, dbType);
+			// CONNECTION_ID 기반 SQL 내용 조회 (복합 키 방식)
+			Map<String, Object> sqlContent = sqlContentService.getSqlContentByTemplateAndConnectionId(templateId, connectionId);
 			if (sqlContent != null) {
 				String sql = (String) sqlContent.get("SQL_CONTENT");
-				logger.info("템플릿 SQL 내용 사용: templateId={}, connectionId={}, dbType={}", templateId, connectionId, dbType);
+				String contentConnectionId = (String) sqlContent.get("CONNECTION_ID");
+				logger.info("템플릿 SQL 내용 사용: templateId={}, requestedConnectionId={}, contentConnectionId={}", 
+					templateId, connectionId, contentConnectionId);
 				return sql;
 			} else {
-				throw new Exception("템플릿 SQL 내용을 찾을 수 없습니다: templateId=" + templateId + ", dbType=" + dbType);
+				throw new Exception("템플릿 SQL 내용을 찾을 수 없습니다: templateId=" + templateId + ", connectionId=" + connectionId);
 			}
 		}
 	}
@@ -1545,34 +1528,18 @@ public class SQLExecuteService {
 		return sqlContentService.getSqlContentsByTemplate(templateId);
 	}
 
-	/**
-	 * 연결 ID로 DB 타입 조회
-	 */
-	private String getDbTypeByConnectionId(String connectionId) {
-		try {
-			String sql = "SELECT DB_TYPE FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
-			List<Map<String, Object>> results = jdbcTemplate.queryForList(sql, connectionId);
-			if (!results.isEmpty()) {
-				return (String) results.get(0).get("DB_TYPE");
-			}
-		} catch (Exception e) {
-			logger.error("DB 타입 조회 실패: connectionId={}", connectionId, e);
-		}
-		return null;
-	}
 
 	/**
-	 * 템플릿의 특정 DB 타입 SQL 내용 조회
+	 * 템플릿의 특정 연결 ID SQL 내용 조회 (복합 키 방식)
 	 * 
 	 * @param templateId 템플릿 ID
 	 * @param connectionId DB 연결 ID
 	 * @return SQL 내용
 	 */
 	public Map<String, Object> getTemplateSqlContent(String templateId, String connectionId) {
-		String dbType = getDbTypeByConnectionId(connectionId);
-		if (dbType == null) {
+		if (connectionId == null || connectionId.trim().isEmpty()) {
 			return sqlContentService.getDefaultSqlContent(templateId);
 		}
-		return sqlContentService.getSqlContentByTemplateAndDbType(templateId, dbType);
+		return sqlContentService.getSqlContentByTemplateAndConnectionId(templateId, connectionId);
 	}
 }
