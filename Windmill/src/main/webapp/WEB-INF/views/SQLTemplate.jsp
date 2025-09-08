@@ -400,6 +400,9 @@ table th, td {
 			loadDbConnections();
 			initSqlEditors();
 
+			// 변경사항 추적 설정
+			setupChangeTracking();
+
 			// 부트스트랩 툴팁 초기화
 			$('[data-toggle="tooltip"]').tooltip({
 				placement: 'top',
@@ -667,6 +670,7 @@ table th, td {
 
 		// 템플릿의 카테고리 정보 로드
 		function loadTemplateCategories(templateId) {
+			return new Promise(function(resolve, reject) {
 			$.ajax({
 				type: 'GET',
 				url: '/SQLTemplate/category/list',
@@ -698,8 +702,15 @@ table th, td {
 							
 							$('#sqlTemplateCategories').val(selectedCategories).trigger('change');
 						}
+							resolve(result.data);
+						} else {
+							resolve([]);
 					}
+					},
+					error: function(xhr, status, error) {
+						reject(error);
 				}
+				});
 			});
 		}
 
@@ -835,6 +846,8 @@ table th, td {
 				url: '/SQLTemplate/db-connections',
 				success: function (result) {
 					if (result.success) {
+						// 전역 변수에 저장
+						window.dbConnections = result.data;
 						renderDbConnections(result.data);
 					}
 				}
@@ -869,7 +882,7 @@ table th, td {
 				if (typeof ace !== 'undefined') {
 					clearInterval(checkAce);
 					
-					initSqlEditorForConnection('default', '');
+					initSqlEditorForConnection('sqlEditor_default', '');
 				}
 			}, 100);
 
@@ -877,7 +890,7 @@ table th, td {
 			setTimeout(function () {
 				if (typeof ace === 'undefined') {
 					clearInterval(checkAce);
-					console.log("Ace Editor 로드 타임아웃, textarea 사용");
+					// Ace Editor 로드 타임아웃, textarea 사용
 				}
 			}, 5000);
 		}
@@ -887,6 +900,29 @@ table th, td {
 				// 기본 템플릿 탭 활성화
 		function activateDefaultTab() {
 			$('#sqlContentTabs a:first').tab('show');
+		}
+
+		// 에디터에 포커스 설정
+		function focusEditor(editorId) {
+			if (typeof ace !== 'undefined') {
+				try {
+					var editorElement = document.getElementById(editorId);
+					if (editorElement && editorElement.classList.contains('ace_editor')) {
+						var editor = ace.edit(editorId);
+						if (editor && typeof editor.focus === 'function') {
+							editor.focus();
+						}
+					} else {
+						// textarea인 경우
+						var textarea = $('#' + editorId + ' .sql-textarea');
+						if (textarea.length > 0) {
+							textarea.focus();
+						}
+					}
+				} catch (e) {
+					console.error('에디터 포커스 실패:', e);
+				}
+			}
 		}
 
 // Textarea 기반 SQL 에디터 초기화
@@ -1000,8 +1036,10 @@ function initTextareaEditor() {
 
 		// 파라미터 목록 로드
 		function loadParameters(templateId) {
+			return new Promise(function(resolve, reject) {
 			if (!templateId) {
 				$('#parameterTableBody').empty();
+					resolve([]);
 				return;
 			}
 
@@ -1013,14 +1051,18 @@ function initTextareaEditor() {
 				},
 				success: function (result) {
 					if (result.success) {
-						renderParameters(result.data);
-						
-						// 파라미터 로드 후 자동완성 업데이트
-						updateAllEditorsCompleters();
+							// 메모리 객체에 파라미터 저장
+							window.currentTemplate.parameters = result.data || [];
+							resolve(result.data);
 					} else {
 						$('#parameterTableBody').empty();
+							resolve([]);
 					}
+					},
+					error: function(xhr, status, error) {
+						reject(error);
 				}
+				});
 			});
 		}
 
@@ -1221,7 +1263,7 @@ function initTextareaEditor() {
 			
 			// 빈 SQL 탭이 있으면 경고 (에러는 아님)
 			if (emptySqlTabs.length > 0) {
-				console.log('빈 SQL 탭들:', emptySqlTabs);
+				// 빈 SQL 탭들은 경고만 표시
 			}
 
 			var executionLimit = parseInt($('#sqlExecutionLimit').val());
@@ -1385,7 +1427,7 @@ function initTextareaEditor() {
 		function parametersToConfigString(parameters) {
 			var configLines = [];
 			parameters.forEach(function (param) {
-				configLines.push(param.name + '=' + (param.defaultValue || ''));
+				configLines.push(param.PARAMETER_NAME + '=' + (param.PARAMETER_DEFAULT || ''));
 			});
 			return configLines.join('\n');
 		}
@@ -1423,8 +1465,10 @@ function initTextareaEditor() {
 
 		// 단축키 목록 로드
 		function loadShortcuts(templateId) {
+			return new Promise(function(resolve, reject) {
 			if (!templateId) {
 				$('#shortcutTableBody').empty();
+					resolve([]);
 				return;
 			}
 
@@ -1436,11 +1480,18 @@ function initTextareaEditor() {
 				},
 				success: function (result) {
 					if (result.success) {
-						renderShortcuts(result.data);
+							// 메모리 객체에 단축키 저장
+							window.currentTemplate.shortcuts = result.data || [];
+							resolve(result.data);
     } else {
 						$('#shortcutTableBody').empty();
+							resolve([]);
 					}
+					},
+					error: function(xhr, status, error) {
+						reject(error);
 				}
+				});
 			});
 		}
 
@@ -1519,8 +1570,6 @@ function initTextareaEditor() {
 				url: '/SQLTemplate/parameters',
 				data: { templateId: templateId },
 				success: function (result) {
-					
-					console.log(result)
 					if (result.success && result.data && result.data.length > 0) {
 						// 파라미터 순서대로 인덱스 생성
 						var parameterIndexes = [];
@@ -1630,6 +1679,9 @@ function initTextareaEditor() {
 
 		// 새 SQL 템플릿 생성
 		function createNewSqlTemplate() {
+			// 로딩 상태 설정 (초기화 중에는 변경사항으로 간주하지 않음)
+			window.isLoading = true;
+			
 			// 폼 초기화
 			$('#sqlTemplateId, #sqlTemplateName, #sqlTemplateDesc').val('');
 			$('#sqlTemplateStatus').val('ACTIVE');
@@ -1659,9 +1711,9 @@ function initTextareaEditor() {
 								editor.resize();
 							}
 						});
-					} catch (e) {
-						console.log('개행 보기 변경 시 에디터 리사이즈 실패:', e);
-					}
+				} catch (e) {
+					console.error('개행 보기 변경 시 에디터 리사이즈 실패:', e);
+				}
 				});
 			}, 500);
 			// 현재 선택된 카테고리를 자동으로 설정
@@ -1677,12 +1729,31 @@ function initTextareaEditor() {
 			// 탭 초기화
 			$('#sqlContentTabs .nav-item:not(:first)').remove();
 			$('#sqlContentTabContent .tab-pane:not(#tab-default)').remove();
-			initSqlEditorForConnection('default', '');
+			initSqlEditorForConnection('sqlEditor_default', '');
 
 			// 테이블 초기화
 			$('#parameterTableBody, #shortcutTableBody').empty();
 			$('.template-item').removeClass('selected');
 			$('.target-template-select2').select2('destroy');
+			
+			// 새 템플릿 객체 초기화
+			window.currentTemplate = {
+				templateId: '',
+				templateName: '',
+				description: '',
+				sqlContent: '',
+				parameters: [],
+				shortcuts: [],
+				sqlContents: []
+			};
+			
+			// 원본 템플릿 백업 (변경사항 비교용)
+			window.originalTemplate = JSON.parse(JSON.stringify(window.currentTemplate));
+			
+			// 변경사항 초기화 및 로딩 상태 해제
+			window.hasUnsavedChanges = false;
+			window.isLoading = false;
+			updateSaveButtonState();
 		}
 
 		// SQL 템플릿 저장 (카테고리 포함)
@@ -1692,94 +1763,185 @@ function saveSqlTemplate() {
 				return;
 			}
 
-    var templateId = $('#sqlTemplateId').val();
-    var sqlName = $('#sqlTemplateName').val();
-			var sqlDesc = $('#sqlTemplateDesc').val();
-			var sqlStatus = $('#sqlTemplateStatus').val();
-			var executionLimit = $('#sqlExecutionLimit').val();
-			var refreshTimeout = $('#sqlRefreshTimeout').val();
-			var chartMapping = $('#sqlChartMapping').val();
-			var newline = $('#sqlNewline').is(':checked');
-			var audit = $('#sqlAudit').is(':checked');
-			var selectedCategoryIds = $('#sqlTemplateCategories').val();
-			var accessibleConnectionIds = $('#accessibleConnections').val();
-
-			// 기본 템플릿의 SQL 내용 가져오기
-			var defaultSqlContent = '';
-			if (window.sqlEditors && window.sqlEditors['default']) {
-				defaultSqlContent = window.sqlEditors['default'].getValue();
+			// 메모리 객체가 없으면 에러
+			if (!window.currentTemplate) {
+				alert('저장할 템플릿 데이터가 없습니다.');
+				return;
 			}
 
-			// 모든 탭의 SQL 내용 수집 (CONNECTION_ID 기반)
-			var additionalSqlContents = [];
-			$('#sqlContentTabs .nav-item').each(function() {
-				var tabLink = $(this).find('.nav-link');
-				var href = tabLink.attr('href');
-				if (href && href !== '#tab-default') {
-					var connectionId = href.replace('#tab-', '');  // dbType → connectionId로 변경
-					var sqlContent = '';
-					
-					// Ace 에디터에서 내용 가져오기
-					if (window.sqlEditors && window.sqlEditors[connectionId]) {
-						sqlContent = window.sqlEditors[connectionId].getValue();
+			// 변경사항이 없으면 저장하지 않음
+			if (!window.hasUnsavedChanges) {
+				alert('변경된 내용이 없습니다.');
+				return;
+			}
+
+			// 메모리 객체에서 현재 화면 데이터로 업데이트
+			updateTemplateFromUI();
+
+			// JSON 전체를 서버로 전송
+			saveTemplateToServer();
+		}
+
+		// UI에서 메모리 객체로 데이터 업데이트
+		function updateTemplateFromUI() {
+			if (!window.currentTemplate) return;
+
+			// 기본 템플릿 정보 업데이트
+			window.currentTemplate.templateId = $('#sqlTemplateId').val();
+			window.currentTemplate.templateName = $('#sqlTemplateName').val();
+			window.currentTemplate.description = $('#sqlTemplateDesc').val();
+			window.currentTemplate.status = $('#sqlTemplateStatus').val();
+			window.currentTemplate.executionLimit = $('#sqlExecutionLimit').val();
+			window.currentTemplate.refreshTimeout = $('#sqlRefreshTimeout').val();
+			window.currentTemplate.chartMapping = $('#sqlChartMapping').val();
+			window.currentTemplate.newline = $('#sqlNewline').is(':checked');
+			window.currentTemplate.audit = $('#sqlAudit').is(':checked');
+			window.currentTemplate.selectedCategoryIds = $('#sqlTemplateCategories').val();
+			window.currentTemplate.accessibleConnectionIds = $('#accessibleConnections').val();
+
+			// 기본 SQL 내용 업데이트
+			if (window.sqlEditors && window.sqlEditors['sqlEditor_default']) {
+				window.currentTemplate.sqlContent = window.sqlEditors['sqlEditor_default'].getValue();
     } else {
-						// Textarea에서 내용 가져오기
-						sqlContent = $('#sqlEditor_' + connectionId + ' .sql-textarea').val() || '';
-					}
-					
-					if (sqlContent.trim()) {
-						additionalSqlContents.push({
-							connectionId: connectionId,  // dbType → connectionId로 변경
-							sqlContent: sqlContent
-						});
-					}
+				// Ace Editor가 없는 경우 textarea에서 가져오기
+				window.currentTemplate.sqlContent = $('#sqlEditor_default .sql-textarea').val() || '';
+			}
+
+			// 추가 SQL 내용 업데이트
+			window.currentTemplate.sqlContents.forEach(function(content) {
+				var editorId = 'sqlEditor_' + content.CONNECTION_ID.replace(/,/g, '_');
+				if (window.sqlEditors && window.sqlEditors[editorId]) {
+					content.SQL_CONTENT = window.sqlEditors[editorId].getValue();
+				} else {
+					content.SQL_CONTENT = $('#' + editorId + ' .sql-textarea').val() || '';
 				}
 			});
 
-			var parameters = collectParameters();
-			var configContent = parametersToConfigString(parameters);
-			var shortcuts = collectShortcuts();
-    
-    var data = {
-        templateId: templateId,
-        sqlName: sqlName,
-				sqlDesc: sqlDesc,
-				sqlStatus: sqlStatus,
-				executionLimit: executionLimit,
-				refreshTimeout: refreshTimeout,
-				chartMapping: chartMapping,
-				newline: newline,
-				audit: audit,
-				categoryIds: selectedCategoryIds ? selectedCategoryIds.join(',') : '',
-				sqlContent: defaultSqlContent, // 기본 템플릿의 SQL 내용
-				additionalSqlContents: JSON.stringify(additionalSqlContents), // 추가 SQL 내용들
-				accessibleConnectionIds: accessibleConnectionIds ? accessibleConnectionIds.join(',') : '',
-				configContent: configContent,
-				parameters: JSON.stringify(parameters),
-				shortcuts: JSON.stringify(shortcuts)
-    };
-    
-    $.ajax({
-        type: 'post',
-        url: '/SQLTemplate/save',
-        data: data,
-				success: function (result) {
-            if (result.success) {
-                alert('SQL 템플릿이 저장되었습니다.');
+			// 파라미터 정보 업데이트 (테이블에서) - 올바른 셀렉터 사용
+			window.currentTemplate.parameters = [];
+			$('#parameterTableBody tr').each(function() {
+				var row = $(this);
+				var param = {
+					PARAMETER_NAME: row.find('.parameter-name').val(),
+					PARAMETER_TYPE: row.find('.parameter-type').val(),
+					PARAMETER_DEFAULT: row.find('.parameter-default').val(),
+					DESCRIPTION: row.find('.parameter-description').val(),
+					PARAMETER_ORDER: row.find('.parameter-order').val(),
+					IS_REQUIRED: row.find('.parameter-required').is(':checked'),
+					PARAMETER_READONLY: row.find('.parameter-readonly').is(':checked'),
+					IS_HIDDEN: row.find('.parameter-hidden').is(':checked'),
+					IS_DISABLED: row.find('.parameter-disabled').is(':checked')
+				};
+				if (param.PARAMETER_NAME && param.PARAMETER_NAME.trim()) {
+					window.currentTemplate.parameters.push(param);
+				}
+			});
+
+			// 단축키 정보 업데이트 (테이블에서) - 올바른 셀렉터 사용
+			window.currentTemplate.shortcuts = [];
+			$('#shortcutTableBody tr').each(function() {
+				var row = $(this);
+				var shortcut = {
+					SHORTCUT_KEY: row.find('.shortcut-key').val(),
+					SHORTCUT_NAME: row.find('.shortcut-name').val(),
+					TARGET_TEMPLATE_ID: row.find('.target-template-select2').val(),
+					SHORTCUT_DESCRIPTION: row.find('.shortcut-description').val(),
+					SOURCE_COLUMNS: row.find('.source-columns').val(),
+					AUTO_EXECUTE: row.find('.auto-execute').is(':checked'),
+					IS_ACTIVE: row.find('.shortcut-status').is(':checked')
+				};
+				if (shortcut.SHORTCUT_KEY && shortcut.SHORTCUT_KEY.trim()) {
+					window.currentTemplate.shortcuts.push(shortcut);
+				}
+			});
+		}
+
+		// SQL 내용을 서버 형식으로 변환
+		function convertSqlContentsForServer(sqlContents) {
+			var result = [];
+			
+			sqlContents.forEach(function(content) {
+				// 여러 연결이 쉼표로 구분된 경우 분리
+				var connectionIds = content.CONNECTION_ID.split(',');
+				
+				connectionIds.forEach(function(connectionId) {
+					result.push({
+						connectionId: connectionId.trim(),
+						sqlContent: content.SQL_CONTENT
+					});
+				});
+			});
+			
+			return result;
+		}
+
+		// 연결 ID로 연결 이름 가져오기
+		function getConnectionName(connectionId) {
+			// 전역 연결 목록에서 찾기
+			if (window.dbConnections) {
+				var connection = window.dbConnections.find(function(conn) {
+					return conn.CONNECTION_ID === connectionId;
+				});
+				return connection ? connection.CONNECTION_NAME : connectionId;
+			}
+			return connectionId;
+		}
+
+		// 서버로 템플릿 저장
+		function saveTemplateToServer() {
+			// 기존 저장 형식으로 변환
+			var data = {
+				templateId: window.currentTemplate.templateId,
+				sqlName: window.currentTemplate.templateName,
+				sqlDesc: window.currentTemplate.description,
+				sqlStatus: window.currentTemplate.status,
+				executionLimit: window.currentTemplate.executionLimit,
+				refreshTimeout: window.currentTemplate.refreshTimeout,
+				chartMapping: window.currentTemplate.chartMapping,
+				newline: window.currentTemplate.newline,
+				audit: window.currentTemplate.audit,
+				categoryIds: window.currentTemplate.selectedCategoryIds ? window.currentTemplate.selectedCategoryIds.join(',') : '',
+				sqlContent: window.currentTemplate.sqlContent,
+				additionalSqlContents: JSON.stringify(convertSqlContentsForServer(window.currentTemplate.sqlContents)),
+				accessibleConnectionIds: window.currentTemplate.accessibleConnectionIds ? window.currentTemplate.accessibleConnectionIds.join(',') : '',
+				configContent: parametersToConfigString(window.currentTemplate.parameters),
+				parameters: JSON.stringify(window.currentTemplate.parameters),
+				shortcuts: JSON.stringify(window.currentTemplate.shortcuts),
+				// 삭제된 SQL 내용을 명시적으로 알려주기 위한 플래그
+				replaceAllSqlContents: true
+			};
+			
+			$.ajax({
+				type: 'POST',
+				url: '/SQLTemplate/save',
+				data: data,
+				success: function(result) {
+					if (result.success) {
+						showToast('템플릿이 저장되었습니다.', 'success');
+						
+						// 변경사항 초기화
+						window.hasUnsavedChanges = false;
+						window.originalTemplate = JSON.parse(JSON.stringify(window.currentTemplate));
+						updateSaveButtonState();
+						
 						// 템플릿 목록 새로고침
-						var selectedCategory = $('.category-item.selected').data(
-							'id');
+						var selectedCategory = $('.category-item.selected').data('id');
 						if (selectedCategory) {
 							loadTemplatesByCategory(selectedCategory);
 						}
 						// 카테고리별 템플릿 개수 업데이트
 						loadCategoryTemplateCounts();
-            } else {
-                alert('저장 실패: ' + result.error);
-            }
+					} else {
+						showToast('저장 실패: ' + result.error, 'error');
+					}
+				},
+				error: function(xhr, status, error) {
+					console.error('저장 중 오류:', error);
+					showToast('저장 중 오류가 발생했습니다.', 'error');
 				}
 			});
 		}
+
 
 		// SQL 템플릿 상세 정보 로드
 		function loadSqlTemplateDetail(templateId) {
@@ -1826,9 +1988,9 @@ function saveSqlTemplate() {
 											editor.resize();
 										}
 									});
-								} catch (e) {
-									console.log('개행 보기 변경 시 에디터 리사이즈 실패:', e);
-								}
+				} catch (e) {
+					console.error('개행 보기 변경 시 에디터 리사이즈 실패:', e);
+				}
 							});
 						}, 500);
 
@@ -1838,13 +2000,11 @@ function saveSqlTemplate() {
 							$('#accessibleConnections').val(connectionIds).trigger('change');
 						}
 
-						// 기본 템플릿의 SQL 내용을 숨겨진 필드에 설정
-						initSqlEditorForConnection('default',template.sqlContent || '');
+						// 기본 템플릿의 SQL 내용을 에디터에 설정
+						initSqlEditorForConnection('sqlEditor_default', template.sqlContent || '');
 
-						loadTemplateCategories(templateId);
-						loadParameters(templateId);
-						loadShortcuts(templateId);
-						loadSqlContents(templateId);
+						// 템플릿 정보를 JSON 객체로 통합 관리
+						loadTemplateData(templateId, template);
 					} else {
 						alert('템플릿 정보 로드 실패: ' + result.error);
 					}
@@ -1852,9 +2012,49 @@ function saveSqlTemplate() {
     });
 }
 
-		// SQL 내용 목록 로드
+		// 통합 템플릿 데이터 로드 (JSON 객체로 관리)
+		function loadTemplateData(templateId, baseTemplate) {
+			// 기본 템플릿 정보로 JSON 객체 초기화
+			window.currentTemplate = {
+				templateId: templateId,
+				templateName: baseTemplate.templateName || '',
+				category: baseTemplate.category || '',
+				description: baseTemplate.description || '',
+				sqlContent: baseTemplate.sqlContent || '',
+				parameters: [],
+				shortcuts: [],
+				sqlContents: []
+			};
+			
+			// 변경사항 추적 일시 중단 (로딩 중에는 변경사항으로 간주하지 않음)
+			window.isLoading = true;
+			
+			// 병렬로 모든 데이터 로드
+			Promise.all([
+				loadTemplateCategories(templateId),
+				loadParameters(templateId),
+				loadShortcuts(templateId),
+				loadSqlContents(templateId)
+			]).then(function(results) {
+				// 모든 데이터 로드 완료 후 화면 렌더링
+				renderAllTemplateData();
+				
+				// 원본 템플릿 백업 (변경사항 비교용) - 렌더링 완료 후
+				window.originalTemplate = JSON.parse(JSON.stringify(window.currentTemplate));
+				
+				// 변경사항 초기화 및 추적 재개
+				window.hasUnsavedChanges = false;
+				window.isLoading = false;
+				updateSaveButtonState();
+			}).catch(function(error) {
+				console.error('템플릿 데이터 로드 중 오류:', error);
+				window.isLoading = false;
+			});
+		}
+
+		// SQL 내용 목록 로드 (Promise 기반)
 		function loadSqlContents(templateId) {
-			console.log('loadSqlContents 호출됨 - templateId:', templateId);
+			return new Promise(function(resolve, reject) {
 			$.ajax({
 				type: 'GET',
 				url: '/SQLTemplate/sql-contents',
@@ -1862,31 +2062,54 @@ function saveSqlTemplate() {
 					templateId: templateId
 				},
 				success: function (result) {
-					console.log('loadSqlContents 응답:', result);
 					if (result.success) {
-						console.log('SQL 내용 데이터:', result.data);
-						renderSqlContentTabs(result.data);
+							// 메모리 객체에 SQL 내용 저장
+							window.currentTemplate.sqlContents = result.data || [];
+							resolve(result.data);
 					} else {
 						console.error('loadSqlContents 실패:', result.error);
+							reject(result.error);
 					}
 				},
 				error: function(xhr, status, error) {
 					console.error('loadSqlContents AJAX 오류:', error);
-				}
+						reject(error);
+					}
+				});
 			});
 		}
 
+		// 모든 템플릿 데이터 렌더링
+		function renderAllTemplateData() {
+			if (!window.currentTemplate) {
+				console.error('currentTemplate이 없습니다.');
+				return;
+		}
+
 		// SQL 내용 탭 렌더링
-		function renderSqlContentTabs(contents) {
-			console.log('renderSqlContentTabs 호출됨 - contents:', contents);
+			renderSqlContentTabs(window.currentTemplate.sqlContents);
+			
+			// 파라미터 렌더링
+			renderParameters(window.currentTemplate.parameters);
+			
+			// 단축키 렌더링
+			renderShortcuts(window.currentTemplate.shortcuts);
+		}
+
+		// SQL 내용 탭 렌더링 (JSON 기반)
+		function renderSqlContentTabs(contents, activateLastTab) {
+			// contents가 없으면 메모리 객체에서 가져오기
+			if (!contents && window.currentTemplate) {
+				contents = window.currentTemplate.sqlContents || [];
+			}
+			
 			// 기존 추가 탭들 제거
 			$('#sqlContentTabs .nav-item:not(:first)').remove();
 			$('#sqlContentTabContent .tab-pane:not(#tab-default)').remove();
 
 			// 추가 SQL 내용 탭들 추가
 			if (contents && contents.length > 0) {
-				console.log('추가 SQL 내용 탭 생성 - 개수:', contents.length);
-				contents.forEach(function (content) {
+				contents.forEach(function (content, index) {
 					var tabId = 'tab-' + content.CONNECTION_ID;
 					var connectionExists = content.CONNECTION_EXISTS !== false; // 기본값은 true
 					var tabText = content.CONNECTION_ID;
@@ -1898,12 +2121,19 @@ function saveSqlTemplate() {
 						tabClass += ' text-danger';
 					}
 					
-					// 탭 생성
+					// 탭 생성 (편집 버튼 포함)
 					$('#sqlContentTabs').append(
-						'<li class="nav-item">' +
-						'<a class="' + tabClass + '" data-toggle="tab" href="#' + tabId + '">' +
+						'<li class="nav-item" style="display: inline-flex; align-items: center;">' +
+						'<a class="' + tabClass + '" data-toggle="tab" href="#' + tabId + '" style="display: inline-flex; align-items: center;">' +
 						tabText +
-						'</a></li>'
+						
+						'<button type="button" class="btn btn-sm btn-outline-secondary" ' +
+						'onclick="editSqlConnections(\'' + content.CONNECTION_ID + '\')" ' +
+						'title="연결 편집" style="padding: 2px 6px; font-size: 12px; margin-left: 5px; border: none; background: transparent;">' +
+						'<i class="fa fa-edit"></i>' +
+						'</button>' +
+						'</a>' +
+						'</li>'
 					);
 
 					// 탭 컨텐츠 생성 (복합 키 방식)
@@ -1919,74 +2149,43 @@ function saveSqlTemplate() {
 							'</div>';
 					}
 					
-					contentHtml += '<div id="sqlEditor_' + content.CONNECTION_ID + '" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>' +
-						'<button type="button" class="btn btn-danger btn-sm mt-2" onclick="deleteSqlContent(\'' + content.TEMPLATE_ID + '\', \'' + content.CONNECTION_ID + '\')">삭제</button>' +
+					// 유효한 HTML ID 생성 (쉼표를 언더스코어로 변경)
+					var editorId = 'sqlEditor_' + content.CONNECTION_ID.replace(/,/g, '_');
+					
+					contentHtml += '<div id="' + editorId + '" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>' +
+						'<button type="button" class="btn btn-danger btn-sm mt-2" onclick="deleteSqlContentTab(\'' + content.CONNECTION_ID + '\')">삭제</button>' +
 						'</div></div>';
 					
 					$('#sqlContentTabContent').append(contentHtml);
 
-					// SQL 에디터 초기화 (복합 키 방식)
-					initSqlEditorForConnection(content.CONNECTION_ID, content.SQL_CONTENT);
+					// SQL 에디터 초기화 (유효한 ID 사용)
+					initSqlEditorForConnection(editorId, content.SQL_CONTENT);
+					
+					// 마지막 탭이고 활성화 요청이 있으면 해당 탭 활성화
+					if (activateLastTab && index === contents.length - 1) {
+						setTimeout(function() {
+							$('a[href="#' + tabId + '"]').tab('show');
+							// 에디터에 포커스
+							focusEditor(editorId);
+						}, 100);
+					}
 				});
 			}
 			
+			// 기본 탭 활성화 (새로 추가된 탭이 없는 경우에만)
+			if (!activateLastTab) {
 			activateDefaultTab();
-		}
-
-		// 특정 연결용 SQL 에디터 초기화
-		function initSqlEditorForConnection(connectionId, sqlContent) {
-			if (typeof ace !== 'undefined') {
-				try {
-					var editorElement = document.getElementById("sqlEditor_" + connectionId);
-					if (editorElement) {
-						ace.require("ace/ext/language_tools");
-						var editor = ace.edit("sqlEditor_" + connectionId);
-						editor.setTheme("ace/theme/chrome");
-						editor.session.setMode("ace/mode/sql");
-						editor.setOptions({
-							enableBasicAutocompletion: true,
-							enableSnippets: true,
-							enableLiveAutocompletion: true,
-							showPrintMargin: false,
-							showGutter: true,
-							showInvisibles: false
-						});
-
-						// 커스텀 자동완성 설정 추가
-						updateAllEditorsCompleters()
-						
-
-						editor.setValue(sqlContent || '');
-						
-						// 에디터를 전역 변수에 저장
-						window.sqlEditors = window.sqlEditors || {};
-						window.sqlEditors[connectionId] = editor;
-						
-						// 에디터 변경 이벤트
-						editor.on('change', function() {
-							// 변경 이벤트만 처리 (미리보기 제거)
-						});
-					} else {
-						initTextareaEditorForConnection(connectionId, sqlContent);
-					}
-				} catch (e) {
-					console.log("SQL 에디터 초기화 실패:", e);
-					initTextareaEditorForConnection(connectionId, sqlContent);
-				}
-			} else {
-				initTextareaEditorForConnection(connectionId, sqlContent);
 			}
 		}
 
-
 		// 특정 연결용 SQL 에디터 초기화
-		function initSqlEditorForConnection(connectionId, sqlContent) {
+		function initSqlEditorForConnection(editorId, sqlContent) {
 			if (typeof ace !== 'undefined') {
 				try {
-					var editorElement = document.getElementById("sqlEditor_" + connectionId);
+					var editorElement = document.getElementById(editorId);
 					if (editorElement) {
 						ace.require("ace/ext/language_tools");
-						var editor = ace.edit("sqlEditor_" + connectionId);
+						var editor = ace.edit(editorId);
 						editor.setTheme("ace/theme/chrome");
 						editor.session.setMode("ace/mode/sql");
 						editor.setOptions({
@@ -2004,57 +2203,73 @@ function saveSqlTemplate() {
 
 						editor.setValue(sqlContent || '');
 						
-						// 에디터를 전역 변수에 저장 (연결 ID용)
+						// 에디터를 전역 변수에 저장 (에디터 ID용)
 						window.sqlEditors = window.sqlEditors || {};
-						window.sqlEditors[connectionId] = editor;
+						window.sqlEditors[editorId] = editor;
 						
 						// 에디터 변경 이벤트
 						editor.on('change', function() {
-							// 변경 이벤트만 처리 (미리보기 제거)
+							// 변경사항 추적
+							markTemplateChanged();
 						});
 					} else {
-						initTextareaEditorForConnection(connectionId, sqlContent);
+						initTextareaEditorForConnection(editorId, sqlContent);
 					}
 				} catch (e) {
-					console.log("SQL 에디터 초기화 실패:", e);
-					initTextareaEditorForConnection(connectionId, sqlContent);
+					console.error("SQL 에디터 초기화 실패:", e);
+					initTextareaEditorForConnection(editorId, sqlContent);
 				}
 			} else {
-				initTextareaEditorForConnection(connectionId, sqlContent);
+				initTextareaEditorForConnection(editorId, sqlContent);
 			}
 		}
 
 		// Textarea 기반 SQL 에디터 초기화 (연결용)
-		function initTextareaEditorForConnection(connectionId, sqlContent) {
-			var editorDiv = document.getElementById("sqlEditor_" + connectionId);
+		function initTextareaEditorForConnection(editorId, sqlContent) {
+			var editorDiv = document.getElementById(editorId);
+			if (!editorDiv) {
+				console.error('에디터 요소를 찾을 수 없습니다:', editorId);
+				return;
+			}
 			editorDiv.innerHTML = '<textarea class="sql-textarea" style="width: 100%; height: 100%; font-family: monospace; font-size: 14px; border: none; resize: none; outline: none;">' + (sqlContent || '') + '</textarea>';
 			
 			// textarea 변경 이벤트
 			$(editorDiv).find('.sql-textarea').on('input', function() {
-				// 변경 이벤트만 처리 (미리보기 제거)
+				// 변경사항 추적
+				markTemplateChanged();
 			});
 		}
 
 
 		// SQL 내용 추가 (기본 템플릿은 이미 존재하므로 추가 SQL만 생성)
 		function addSqlContent() {
+			// 편집 모드인지 확인
+			var isEditMode = window.editMode || false;
+			var currentEditingConnectionId = window.currentEditingConnectionId || null;
+			
 			// 접근 가능한 연결 목록 가져오기 (multiple select이므로 배열 반환)
 			var accessibleConnectionIds = $('#accessibleConnections').val();
 			
+			// 편집 모드가 아닌 경우에만 접근 가능한 연결 체크
+			if (!isEditMode) {
 			// multiple select의 경우 배열이 반환됨
+				// 접근 가능한 연결이 설정되지 않았으면 모든 연결 허용
 			if (!accessibleConnectionIds || accessibleConnectionIds.length === 0) {
-				alert('먼저 "접근 가능한 DB 연결"을 설정해주세요.');
-				return;
-			}
-			
+					// 모든 연결 허용 (필터링하지 않음)
+					accessibleConnectionIds = null;
+				} else {
 			// 배열에서 빈 값 제거
 			var connectionIds = accessibleConnectionIds.filter(function(id) {
 				return id && id.trim && id.trim().length > 0;
 			});
 			
 			if (connectionIds.length === 0) {
-				alert('접근 가능한 연결이 없습니다.');
-				return;
+						// 빈 배열이면 모든 연결 허용
+						accessibleConnectionIds = null;
+					} else {
+						accessibleConnectionIds = connectionIds;
+					}
+				}
 			}
 			
 			// 접근 가능한 연결들만 서버에서 조회
@@ -2064,17 +2279,26 @@ function saveSqlTemplate() {
 				data: { type: 'DB' },
 				success: function(result) {
 					if (result.success && result.data) {
-						// 접근 가능한 연결들만 필터링
-						var accessibleConnections = result.data.filter(function(connection) {
-							return connectionIds.includes(connection.CONNECTION_ID);
+						var connections = result.data;
+						
+						// SFTP 연결 제외 (DB 연결만)
+						connections = connections.filter(function(connection) {
+							return connection.DB_TYPE && connection.DB_TYPE !== 'SFTP';
 						});
 						
-						if (accessibleConnections.length === 0) {
-							alert('접근 가능한 연결이 없습니다.');
+						// 편집 모드가 아닌 경우에만 접근 가능한 연결들만 필터링
+						if (!isEditMode && accessibleConnectionIds) {
+							connections = connections.filter(function(connection) {
+								return accessibleConnectionIds.includes(connection.CONNECTION_ID);
+							});
+						}
+						
+						if (connections.length === 0) {
+							alert('연결이 없습니다.');
 							return;
 						}
 						
-						showConnectionSelectionModal(accessibleConnections);
+						showConnectionSelectionModal(connections, isEditMode, currentEditingConnectionId);
 					} else {
 						alert('연결 목록을 가져올 수 없습니다.');
 					}
@@ -2086,31 +2310,56 @@ function saveSqlTemplate() {
 		}
 
 		// 연결 선택 모달 표시
-		function showConnectionSelectionModal(connections) {
+		function showConnectionSelectionModal(connections, isEditMode, currentEditingConnectionId) {
+			// 편집 모드인지 확인
+			isEditMode = isEditMode || false;
+			currentEditingConnectionId = currentEditingConnectionId || null;
+			
+			// 현재 템플릿에 이미 사용 중인 연결들 확인
+			var usedConnections = [];
+			$('#sqlContentTabs .nav-item').each(function() {
+				var tabLink = $(this).find('.nav-link');
+				var href = tabLink.attr('href');
+				if (href && href !== '#tab-default') {
+					var connectionId = href.replace('#tab-', '');
+					usedConnections.push(connectionId);
+				}
+			});
+			
+			var modalTitle = isEditMode ? 'SQL 연결 편집' : '추가 SQL 내용 생성';
+			var modalInfo = isEditMode ? 
+				'<strong>편집:</strong> 현재 연결(' + currentEditingConnectionId + ')을 다른 연결로 변경하거나 제거할 수 있습니다.' :
+				'<strong>참고:</strong> 기본 템플릿은 이미 존재합니다. 특정 연결에 맞는 추가 SQL 내용을 생성합니다.';
+			
 			var modalHtml = '<div class="modal fade" id="addSqlContentModal" tabindex="-1">' +
 				'<div class="modal-dialog modal-lg">' +
 				'<div class="modal-content">' +
 				'<div class="modal-header">' +
-				'<h5 class="modal-title">추가 SQL 내용 생성</h5>' +
+				'<h5 class="modal-title">' + modalTitle + '</h5>' +
 				'<button type="button" class="close" onclick="cancelAddSqlContent()">&times;</button>' +
 				'</div>' +
 				'<div class="modal-body">' +
-				'<div class="alert alert-info">' +
-				'<strong>참고:</strong> 기본 템플릿은 이미 존재합니다. 특정 연결에 맞는 추가 SQL 내용을 생성합니다.' +
-				'</div>' +
+				'<div class="alert alert-info">' + modalInfo + '</div>' +
 				'<div class="form-group">' +
 				'<label><strong>연결 선택</strong></label><br>' +
-				'<small class="text-muted">선택한 연결에 대해 SQL 내용이 생성됩니다.</small>' +
+				'<small class="text-muted">' + (isEditMode ? '변경할 연결을 선택하거나 현재 연결의 체크를 해제하여 제거할 수 있습니다.' : '선택한 연결에 대해 SQL 내용이 생성됩니다.') + '</small>' +
 				'<div id="connectionSelection" class="mt-3">' +
 				'<label>선택할 연결:</label><br>';
 			
 			connections.forEach(function(connection) {
-				var isUsed = isConnectionAlreadyUsed(connection.CONNECTION_ID);
-				var disabledAttr = isUsed ? 'disabled' : '';
+				var isUsed = usedConnections.includes(connection.CONNECTION_ID);
+				// 편집 모드에서는 현재 연결도 체크 해제할 수 있도록 disabled 제외
+				var disabledAttr = (isUsed && !(isEditMode && currentEditingConnectionId === connection.CONNECTION_ID)) ? 'disabled' : '';
 				var usedText = isUsed ? ' <span class="text-danger">(이미 사용 중)</span>' : '';
 				
+				// 편집 모드인 경우 현재 연결은 기본으로 체크된 상태로 표시
+				var checkedAttr = '';
+				if (isEditMode && currentEditingConnectionId === connection.CONNECTION_ID) {
+					checkedAttr = 'checked';
+				}
+				
 				modalHtml += '<div class="form-check form-check-inline">' +
-					'<input class="form-check-input" type="checkbox" id="conn_' + connection.CONNECTION_ID + '" value="' + connection.CONNECTION_ID + '" ' + disabledAttr + '>' +
+					'<input class="form-check-input" type="checkbox" id="conn_' + connection.CONNECTION_ID + '" value="' + connection.CONNECTION_ID + '" ' + disabledAttr + ' ' + checkedAttr + '>' +
 					'<label class="form-check-label" for="conn_' + connection.CONNECTION_ID + '">' + 
 					connection.CONNECTION_ID + ' (' + connection.DB_TYPE + ')' + usedText + '</label>' +
 					'</div>';
@@ -2119,7 +2368,7 @@ function saveSqlTemplate() {
 			modalHtml += '</div></div></div>' +
 				'<div class="modal-footer">' +
 				'<button type="button" class="btn btn-secondary" onclick="cancelAddSqlContent()">취소</button>' +
-				'<button type="button" class="btn btn-primary" onclick="confirmAddSqlContent()">추가</button>' +
+				'<button type="button" class="btn btn-primary" onclick="confirmAddSqlContent()">' + (isEditMode ? '적용' : '추가') + '</button>' +
 				'</div></div></div></div>';
 
 			$('body').append(modalHtml);
@@ -2129,6 +2378,8 @@ function saveSqlTemplate() {
 		// SQL 내용 추가 확인
 		function confirmAddSqlContent() {
 			var templateId = $('#sqlTemplateId').val();
+			var isEditMode = window.editMode || false;
+			var currentEditingConnectionId = window.currentEditingConnectionId || null;
 			
 			if (!templateId) {
 				alert('먼저 템플릿을 선택해주세요.');
@@ -2141,12 +2392,26 @@ function saveSqlTemplate() {
 				selectedConnections.push($(this).val());
 			});
 			
-			if (selectedConnections.length === 0) {
+			// 편집 모드가 아닌 경우에만 연결 선택 체크
+			if (!isEditMode && selectedConnections.length === 0) {
 				alert('하나 이상의 연결을 선택해주세요.');
 				return;
 			}
 			
-			// 중복 연결 체크
+			// 편집 모드인 경우 현재 연결이 체크 해제되었는지 확인
+			var removeCurrent = false;
+			if (isEditMode && currentEditingConnectionId) {
+				removeCurrent = !$('#conn_' + currentEditingConnectionId).is(':checked');
+			}
+			
+			// 편집 모드에서 아무것도 선택하지 않은 경우
+			if (isEditMode && selectedConnections.length === 0 && !removeCurrent) {
+				alert('추가할 연결을 선택하거나 현재 연결을 제거하세요.');
+				return;
+			}
+			
+			// 중복 연결 체크 (편집 모드가 아닌 경우에만)
+			if (!isEditMode) {
 			var duplicateConnections = [];
 			selectedConnections.forEach(function(connectionId) {
 				// 기존에 같은 연결의 SQL 내용이 있는지 확인
@@ -2158,19 +2423,56 @@ function saveSqlTemplate() {
 			if (duplicateConnections.length > 0) {
 				alert('다음 연결들은 이미 SQL 내용이 존재합니다:\n' + duplicateConnections.join(', ') + '\n\n기존 SQL 내용을 삭제한 후 다시 시도해주세요.');
 				return;
+				}
 			}
 			
-			// 각 연결에 대해 SQL 내용 탭 생성
-			selectedConnections.forEach(function(connectionId) {
-				var content = {
-					TEMPLATE_ID: templateId,
-					CONNECTION_ID: connectionId,
+			if (isEditMode) {
+				// 편집 모드: 현재 탭의 연결을 선택된 연결들로 교체
+				if (selectedConnections.length === 0) {
+					// 현재 연결 제거
+					window.currentTemplate.sqlContents = window.currentTemplate.sqlContents.filter(function(content) {
+						return content.CONNECTION_ID !== currentEditingConnectionId;
+					});
+				} else {
+					// 현재 연결을 선택된 연결들로 교체
+					for (var i = 0; i < window.currentTemplate.sqlContents.length; i++) {
+						if (window.currentTemplate.sqlContents[i].CONNECTION_ID === currentEditingConnectionId) {
+							// 여러 연결을 하나의 객체로 통합
+							window.currentTemplate.sqlContents[i].CONNECTION_ID = selectedConnections.join(',');
+							window.currentTemplate.sqlContents[i].CONNECTION_NAME = selectedConnections.map(function(connId) {
+								return getConnectionName(connId);
+							}).join(', ');
+							break;
+						}
+					}
+				}
+				
+				// 전체 재렌더링 (마지막 탭 활성화)
+				renderSqlContentTabs(null, true);
+				markTemplateChanged();
+			} else {
+				// 일반 모드: 선택된 연결들을 하나의 탭으로 통합
+				if (selectedConnections.length > 0) {
+					// 여러 연결을 하나의 객체로 통합
+					var newSqlContent = {
+						CONNECTION_ID: selectedConnections.join(','),
 					SQL_CONTENT: '',
-					IS_DEFAULT: false
-				};
-
-				addSqlContentTab(content);
-			});
+						CONNECTION_NAME: selectedConnections.map(function(connId) {
+							return getConnectionName(connId);
+						}).join(', ')
+					};
+					
+					window.currentTemplate.sqlContents.push(newSqlContent);
+				}
+				
+				// 전체 재렌더링 (마지막 탭 활성화)
+				renderSqlContentTabs(null, true);
+				markTemplateChanged();
+			}
+			
+			// 편집 모드 변수 초기화
+			window.editMode = false;
+			window.currentEditingConnectionId = null;
 			
 			// 모달 완전히 제거
 			$('#addSqlContentModal').modal('hide');
@@ -2181,30 +2483,102 @@ function saveSqlTemplate() {
 
 		// SQL 내용 추가 취소
 		function cancelAddSqlContent() {
+			// 편집 모드 변수 초기화
+			window.editMode = false;
+			window.currentEditingConnectionId = null;
+			
 			$('#addSqlContentModal').modal('hide');
 			$('body').removeClass('modal-open');
 			$('.modal-backdrop').remove();
 			$('#addSqlContentModal').remove();
 		}
 
+		// 전역 템플릿 객체 (메모리 기반 편집)
+		window.currentTemplate = null;
+		window.hasUnsavedChanges = false;
+		window.originalTemplate = null;
+		window.isLoading = false;
+
+		// 템플릿 변경사항 추적
+		function markTemplateChanged() {
+			// 로딩 중이거나 초기화 중에는 변경사항으로 간주하지 않음
+			if (window.isLoading || !window.currentTemplate) {
+				return;
+			}
+			window.hasUnsavedChanges = true;
+			updateSaveButtonState();
+		}
+
+		// UI 변경사항 추적 이벤트 리스너 설정
+		function setupChangeTracking() {
+			// 기본 템플릿 정보 변경 추적
+			$('#sqlTemplateName, #sqlTemplateDesc, #sqlTemplateStatus, #sqlExecutionLimit, #sqlRefreshTimeout, #sqlChartMapping').on('input change', markTemplateChanged);
+			$('#sqlNewline, #sqlAudit').on('change', markTemplateChanged);
+			$('#sqlTemplateCategories, #accessibleConnections').on('change', markTemplateChanged);
+
+			// SQL 에디터 변경 추적
+			$(document).on('input', '.sql-editor textarea, .sql-textarea', markTemplateChanged);
+
+			// 파라미터 테이블 변경 추적
+			$(document).on('input change', '#parameterTableBody input, #parameterTableBody select', markTemplateChanged);
+
+			// 단축키 테이블 변경 추적
+			$(document).on('input change', '#shortcutTableBody input', markTemplateChanged);
+		}
+
+		// 저장 버튼 상태 업데이트
+		function updateSaveButtonState() {
+			var saveBtn = $('button[onclick="saveSqlTemplate()"]');
+			if (window.hasUnsavedChanges) {
+				saveBtn.removeClass('btn-success').addClass('btn-warning');
+				saveBtn.html('<i class="fa fa-save"></i> 저장 (변경됨)');
+			} else {
+				saveBtn.removeClass('btn-warning').addClass('btn-success');
+				saveBtn.html('<i class="fa fa-save"></i> 저장');
+			}
+		}
+
+		// SQL 연결 편집 모달 열기 (메모리 기반)
+		function editSqlConnections(currentConnectionId) {
+			if (!window.currentTemplate) {
+				alert('먼저 템플릿을 선택해주세요.');
+				return;
+			}
+
+			// 편집 모드로 기존 모달 재활용
+			window.editMode = true;
+			window.currentEditingConnectionId = currentConnectionId;
+			
+			// 기존 addSqlContent 함수 호출 (편집 모드로)
+			addSqlContent();
+		}
+
+
 		// SQL 내용 탭 추가
-		function addSqlContentTab(content) {
+		function addSqlContentTab(content, skipDuplicateCheck) {
 			var tabsContainer = $('#sqlContentTabs');
 			var contentContainer = $('#sqlContentTabContent');
 			var tabId = 'tab-' + (content.CONNECTION_ID || 'default');
 			var displayName = content.CONNECTION_ID ? content.CONNECTION_ID : '기본 템플릿';
 			
-			// 기존 탭이 있는지 확인
-			if ($('#' + tabId).length > 0) {
+			// 기존 탭이 있는지 확인 (편집 모드가 아닌 경우에만)
+			if (!skipDuplicateCheck && $('#' + tabId).length > 0) {
 				alert('이미 해당 연결의 SQL 내용이 존재합니다.');
 				return;
 			}
 
-			// 탭 생성
-			var tab = $('<li class="nav-item">' +
-				'<a class="nav-link" data-toggle="tab" href="#' + tabId + '">' +
+			// 탭 생성 (편집 버튼 포함)
+			var tab = $('<li class="nav-item" style="display: inline-flex; align-items: center;">' +
+				'<a class="nav-link" data-toggle="tab" href="#' + tabId + '" style="display: inline-flex; align-items: center;">' +
 				displayName + ' <span class="badge badge-warning">새로 추가</span>' +
-				'</a></li>');
+				
+				'<button type="button" class="btn btn-sm btn-outline-secondary" ' +
+				'onclick="editSqlConnections(\'' + (content.CONNECTION_ID || 'default') + '\')" ' +
+				'title="연결 편집" style="padding: 2px 6px; font-size: 12px; margin-left: 5px; border: none; background: transparent;">' +
+				'<i class="fa fa-edit"></i>' +
+				'</button>' +
+				'</a>' +
+				'</li>');
 			tabsContainer.append(tab);
 
 			// 탭 컨텐츠 생성 (복합 키 방식)
@@ -2232,15 +2606,135 @@ function saveSqlTemplate() {
 			return $('#sqlContentTabs a[href="#tab-' + connectionId + '"]').length > 0;
 		}
 
-		// SQL 내용 탭 삭제 (새로 추가된 것)
-		function deleteSqlContentTab(connectionId) {
-			if (confirm('이 SQL 내용을 삭제하시겠습니까?')) {
-				$('#tab-' + connectionId).remove();
-				$('a[href="#tab-' + connectionId + '"]').parent().remove();
-				
-				// 첫 번째 탭 활성화
-				$('#sqlContentTabs .nav-link:first').tab('show');
+		// SQL 내용 탭 삭제 (메모리 기반)
+		function deleteSqlContentTab(connectionId, skipConfirm) {
+			if (!skipConfirm && !confirm('이 SQL 내용을 삭제하시겠습니까?')) {
+				return;
 			}
+			
+			// 메모리 객체에서 연결 제거
+			if (window.currentTemplate && window.currentTemplate.sqlContents) {
+				window.currentTemplate.sqlContents = window.currentTemplate.sqlContents.filter(function(content) {
+					return content.CONNECTION_ID !== connectionId;
+				});
+			}
+			
+			// 전체 재렌더링
+			renderSqlContentTabs();
+			
+			// 변경사항 표시
+			markTemplateChanged();
+		}
+
+		// 메모리에서 연결 정보 업데이트
+		function updateConnectionInMemory(oldConnectionId, newConnectionId) {
+			if (!window.currentTemplate || !window.currentTemplate.sqlContents) {
+				return;
+			}
+
+			// 메모리 객체에서 연결 정보 찾아서 업데이트
+			for (var i = 0; i < window.currentTemplate.sqlContents.length; i++) {
+				if (window.currentTemplate.sqlContents[i].CONNECTION_ID === oldConnectionId) {
+					window.currentTemplate.sqlContents[i].CONNECTION_ID = newConnectionId;
+					break;
+				}
+			}
+
+			// 화면 리렌더링
+			renderSqlContentTabs();
+			
+			// 변경사항 표시
+			markTemplateChanged();
+		}
+
+		// 메모리에서 연결 제거
+		function removeConnectionFromMemory(connectionId) {
+			if (!window.currentTemplate || !window.currentTemplate.sqlContents) {
+				return;
+			}
+
+			// 메모리 객체에서 연결 제거
+			window.currentTemplate.sqlContents = window.currentTemplate.sqlContents.filter(function(content) {
+				return content.CONNECTION_ID !== connectionId;
+			});
+
+			// 화면 리렌더링
+			renderSqlContentTabs();
+			
+			// 변경사항 표시
+			markTemplateChanged();
+		}
+
+		// 메모리에 새 연결 추가
+		function addConnectionToMemory(connectionId) {
+			if (!window.currentTemplate) {
+				// 템플릿 객체가 없으면 초기화
+				window.currentTemplate = {
+					sqlContents: []
+				};
+			}
+
+			if (!window.currentTemplate.sqlContents) {
+				window.currentTemplate.sqlContents = [];
+			}
+
+			// 중복 체크
+			var exists = window.currentTemplate.sqlContents.some(function(content) {
+				return content.CONNECTION_ID === connectionId;
+			});
+
+			if (exists) {
+				alert('이미 해당 연결의 SQL 내용이 존재합니다.');
+				return;
+			}
+
+			// 새 연결 추가
+			var newContent = {
+				TEMPLATE_ID: $('#sqlTemplateId').val(),
+				CONNECTION_ID: connectionId,
+				SQL_CONTENT: '',
+				IS_DEFAULT: false
+			};
+
+			window.currentTemplate.sqlContents.push(newContent);
+
+			// 화면 리렌더링
+			renderSqlContentTabs();
+			
+			// 변경사항 표시
+			markTemplateChanged();
+		}
+
+		// 기존 탭의 연결 정보 업데이트 (DOM 직접 조작 - 레거시)
+		function updateTabConnection(oldConnectionId, newConnectionId) {
+			// 기존 탭의 ID와 내용 변경
+			var oldTabId = 'tab-' + oldConnectionId;
+			var newTabId = 'tab-' + newConnectionId;
+			
+			// 탭 링크 업데이트
+			var tabLink = $('a[href="#' + oldTabId + '"]');
+			tabLink.attr('href', '#' + newTabId);
+			tabLink.text(newConnectionId);
+			
+			// 탭 컨텐츠 업데이트
+			var tabContent = $('#' + oldTabId);
+			tabContent.attr('id', newTabId);
+			tabContent.find('.sql-editor-container').attr('data-connection-id', newConnectionId);
+			
+			// SQL 에디터 ID 업데이트
+			var editorId = 'sqlEditor_' + newConnectionId;
+			tabContent.find('.sql-editor').attr('id', editorId);
+			
+			// 편집 버튼의 onclick 이벤트 업데이트
+			tabContent.closest('.nav-item').find('button[onclick*="editSqlConnections"]')
+				.attr('onclick', 'editSqlConnections(\'' + newConnectionId + '\')');
+			
+			// 삭제 버튼의 onclick 이벤트 업데이트
+			tabContent.find('button[onclick*="deleteSqlContentTab"]')
+				.attr('onclick', 'deleteSqlContentTab(\'' + newConnectionId + '\')');
+			
+			// 기본 SQL 라디오 버튼 업데이트
+			tabContent.find('input[name="defaultSql"]').attr('value', newConnectionId);
 		}
 
 		// SQL 내용 삭제 (복합 키 방식)
@@ -2385,7 +2879,7 @@ function goToTemplate() {
 					}
 				}
 			} catch (e) {
-				console.log('파라미터 속성 파싱 실패:', e);
+				console.error('파라미터 속성 파싱 실패:', e);
 			}
 
 			return attributes;
@@ -2442,14 +2936,12 @@ function goToTemplate() {
 				// 활성 탭이 없으면 첫 번째 탭 사용
 				activeTab = $('#sqlContentTabs .nav-link:first');
 				if (!activeTab.length) {
-					console.warn('탭을 찾을 수 없습니다.');
 					return;
 				}
 			}
 			
 			var href = activeTab.attr('href');
 			if (!href) {
-				console.warn('탭의 href 속성을 찾을 수 없습니다.');
 				return;
 			}
 			
@@ -3067,9 +3559,9 @@ $(document).ready(function() {
 						aceEditor.resize();
 					}
 				}
-			} catch (e) {
-				console.log('Ace editor resize failed:', e);
-			}
+				} catch (e) {
+					console.error('Ace editor resize failed:', e);
+				}
 		}
 	});
 });

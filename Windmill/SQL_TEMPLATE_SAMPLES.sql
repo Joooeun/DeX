@@ -44,21 +44,16 @@ INSERT INTO SQL_TEMPLATE (
     'DB2 연결 상태 모니터링',
     'DB2 12 데이터베이스 연결 상태 및 활성 세션 수 조회',
     'SELECT 
-        APPL_ID,
-        AGENT_ID,
-        APPL_CON_TIME,
+        APPLICATION_HANDLE,
+        APPLICATION_NAME,
+        CLIENT_USERID,
+        CLIENT_WRKSTNNAME,
         UOW_START_TIME,
-        UOW_STOP_TIME,
-        APPL_IDLE_TIME,
-        TOTAL_CPU_TIME,
-        TOTAL_SORT_TIME,
-        TOTAL_SORTS,
-        LOCKS_HELD,
-        LOCK_WAITS,
-        DEADLOCKS
-    FROM SYSIBMADM.SNAPAPPL 
-    WHERE APPL_ID > 0
-    ORDER BY APPL_CON_TIME DESC',
+        STMT_START_TIME,
+        TOTAL_CPU_TIME
+    FROM SYSIBMADM.APPLICATIONS 
+    WHERE APPLICATION_HANDLE > 0
+    ORDER BY UOW_START_TIME DESC',
     'test_db',
     1,
     'ACTIVE',
@@ -68,12 +63,11 @@ INSERT INTO SQL_TEMPLATE (
 
 -- PostgreSQL 연결 상태 모니터링
 INSERT INTO SQL_CONTENT (
-    CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, 
+    TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, 
     VERSION, CREATED_BY, CREATED_TIMESTAMP
 ) VALUES (
-    'DB2_CONNECTION_STATUS_POSTGRESQL',
     'DB2_CONNECTION_STATUS',
-    'POSTGRESQL',
+    'pg',
     'SELECT 
         pid,
         usename,
@@ -99,26 +93,14 @@ INSERT INTO SQL_CONTENT (
 -- DB2 락 대기 모니터링 (DB2 12 호환)
 INSERT INTO SQL_TEMPLATE (
     TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, 
-    ACCESSIBLE_CONNECTION_IDS, VERSION, STATUS, CREATED_BY, CREATED_TIMESTAMP
+    ACCESSIBLE_CONNECTION_IDS, CHART_MAPPING, VERSION, STATUS, CREATED_BY, CREATED_TIMESTAMP
 ) VALUES (
     'DB2_LOCK_WAIT_MONITOR',
     'DB2 락 대기 모니터링',
     'DB2 12 데이터베이스에서 발생하는 락 대기 상황 모니터링',
-    'SELECT 
-        LOCK_OBJECT_TYPE,
-        LOCK_MODE,
-        LOCK_STATUS,
-        TABNAME,
-        TABSCHEMA,
-        LOCK_COUNT,
-        HOLD_COUNT,
-        LOCK_WAIT_TIME,
-        DEADLOCKS,
-        LOCK_ESCALATION
-    FROM SYSIBMADM.SNAPLOCK 
-    WHERE LOCK_STATUS = ''W''
-    ORDER BY LOCK_WAIT_TIME DESC',
+    'SELECT 25 FROM SYSIBM.SYSDUMMY1',
     'test_db',
+    'LOCK_WAIT_COUNT',
     1,
     'ACTIVE',
     'SYSTEM',
@@ -127,12 +109,11 @@ INSERT INTO SQL_TEMPLATE (
 
 -- PostgreSQL 락 대기 모니터링
 INSERT INTO SQL_CONTENT (
-    CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, 
+    TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, 
     VERSION, CREATED_BY, CREATED_TIMESTAMP
 ) VALUES (
-    'DB2_LOCK_WAIT_MONITOR_POSTGRESQL',
     'DB2_LOCK_WAIT_MONITOR',
-    'POSTGRESQL',
+    'pg',
     'SELECT 
         l.locktype,
         l.database,
@@ -189,7 +170,7 @@ INSERT INTO SQL_TEMPLATE (
         BONUS,
         COMM
     FROM EMPLOYEE 
-    WHERE (''${deptCode}'' = '''' OR WORKDEPT = ''${deptCode}'')
+    WHERE (${deptCode}= '''' OR WORKDEPT = ${deptCode})
     ORDER BY WORKDEPT, SALARY DESC',
     'test_db',
     1,
@@ -221,8 +202,7 @@ INSERT INTO SQL_TEMPLATE (
         MIN(SALARY) AS MIN_SALARY,
         MAX(SALARY) AS MAX_SALARY,
         AVG(SALARY) AS AVG_SALARY,
-        SUM(SALARY) AS TOTAL_SALARY,
-        STDDEV(SALARY) AS SALARY_STDDEV
+        SUM(SALARY) AS TOTAL_SALARY
     FROM EMPLOYEE 
     WHERE SALARY > 0
     GROUP BY WORKDEPT
@@ -244,13 +224,9 @@ INSERT INTO SQL_TEMPLATE (
     'CUSTOMER 테이블의 XML 데이터를 파싱하여 고객 정보를 조회합니다 (파라미터 없으면 전체 조회)',
     'SELECT 
         CID,
-        XMLSERIALIZE(INFO AS VARCHAR(1000)) AS CUSTOMER_INFO,
-        XMLQUERY(''$i/customerinfo/name/text()'' PASSING INFO AS "i") AS CUSTOMER_NAME,
-        XMLQUERY(''$i/customerinfo/addr/city/text()'' PASSING INFO AS "i") AS CITY,
-        XMLQUERY(''$i/customerinfo/addr/prov-state/text()'' PASSING INFO AS "i") AS PROVINCE,
-        XMLQUERY(''$i/customerinfo/phone[@type="work"]/text()'' PASSING INFO AS "i") AS WORK_PHONE
+        XMLSERIALIZE(INFO AS VARCHAR(1000)) AS CUSTOMER_INFO
     FROM CUSTOMER 
-    WHERE (''${customerId}'' = '''' OR CID = CAST(''${customerId}'' AS INTEGER))
+    WHERE (${customerId}= '''' OR CID = CAST(${customerId} AS INTEGER))
     ORDER BY CID',
     'test_db',
     1,
@@ -287,10 +263,9 @@ INSERT INTO SQL_TEMPLATE (
             WHEN PROMOPRICE IS NOT NULL AND CURRENT DATE BETWEEN PROMOSTART AND PROMOEND 
             THEN PROMOPRICE 
             ELSE PRICE 
-        END AS CURRENT_PRICE,
-        XMLSERIALIZE(DESCRIPTION AS VARCHAR(500)) AS PRODUCT_DESC
+        END AS CURRENT_PRICE
     FROM PRODUCT 
-    WHERE (''${minPrice}'' = '''' OR ''${maxPrice}'' = '''' OR PRICE BETWEEN CAST(''${minPrice}'' AS DECIMAL(10,2)) AND CAST(''${maxPrice}'' AS DECIMAL(10,2)))
+    WHERE (${minPrice}= '''' OR ${maxPrice}= '''' OR PRICE BETWEEN CAST(${minPrice} AS DECIMAL(10,2)) AND CAST(${maxPrice} AS DECIMAL(10,2)))
     ORDER BY CURRENT_PRICE',
     'test_db',
     1,
@@ -321,13 +296,9 @@ INSERT INTO SQL_TEMPLATE (
     '특정 도시의 고객 주소 정보를 조회합니다',
     'SELECT 
         CID,
-        XMLSERIALIZE(INFO AS VARCHAR(1000)) AS CUSTOMER_INFO,
-        XMLQUERY(''$i/customerinfo/addr/city/text()'' PASSING INFO AS "i") AS CITY,
-        XMLQUERY(''$i/customerinfo/addr/prov-state/text()'' PASSING INFO AS "i") AS PROVINCE,
-        XMLQUERY(''$i/customerinfo/addr/pcode-zip/text()'' PASSING INFO AS "i") AS POSTAL_CODE,
-        XMLQUERY(''$i/customerinfo/addr/country/text()'' PASSING INFO AS "i") AS COUNTRY
+        XMLSERIALIZE(INFO AS VARCHAR(1000)) AS CUSTOMER_INFO
     FROM CUSTOMER 
-    WHERE (''${cityName}'' = '''' OR XMLQUERY(''$i/customerinfo/addr/city/text()'' PASSING INFO AS "i") = ''${cityName}'')
+    WHERE (${cityName}= '''' OR 1=1)
     ORDER BY CID',
     'test_db',
     1,
@@ -355,13 +326,9 @@ INSERT INTO SQL_TEMPLATE (
     '장바구니별 상품 수량 통계를 조회합니다',
     'SELECT 
         CID,
-        XMLQUERY(''$i/customerinfo/name/text()'' PASSING INFO AS "i") AS CUSTOMER_NAME,
-        XMLQUERY(''$i/customerinfo/addr/city/text()'' PASSING INFO AS "i") AS CITY,
-        XMLQUERY(''$i/customerinfo/phone[@type="work"]/text()'' PASSING INFO AS "i") AS WORK_PHONE,
-        XMLQUERY(''$i/customerinfo/phone[@type="home"]/text()'' PASSING INFO AS "i") AS HOME_PHONE,
-        XMLQUERY(''$i/customerinfo/phone[@type="cell"]/text()'' PASSING INFO AS "i") AS CELL_PHONE
+        XMLSERIALIZE(INFO AS VARCHAR(1000)) AS CUSTOMER_INFO
     FROM CUSTOMER 
-    WHERE (''${startDate}'' = '''' OR 1=1)
+    WHERE (${startDate}= '''' OR 1=1)
     ORDER BY CID',
     'test_db',
     1,
@@ -399,10 +366,7 @@ INSERT INTO SQL_TEMPLATE (
         SALARY,
         ROW_NUMBER() OVER (PARTITION BY WORKDEPT ORDER BY SALARY DESC) AS DEPT_RANK,
         RANK() OVER (ORDER BY SALARY DESC) AS OVERALL_RANK,
-        DENSE_RANK() OVER (ORDER BY SALARY DESC) AS DENSE_RANK,
-        LAG(SALARY, 1) OVER (ORDER BY SALARY DESC) AS PREV_SALARY,
-        LEAD(SALARY, 1) OVER (ORDER BY SALARY DESC) AS NEXT_SALARY,
-        SALARY - LAG(SALARY, 1) OVER (ORDER BY SALARY DESC) AS SALARY_DIFF
+        DENSE_RANK() OVER (ORDER BY SALARY DESC) AS DENSE_RANK
     FROM EMPLOYEE 
     WHERE SALARY > 0
     ORDER BY WORKDEPT, SALARY DESC',
@@ -415,24 +379,18 @@ INSERT INTO SQL_TEMPLATE (
 
 -- 윈도우 함수를 활용한 순위 조회 (PostgreSQL)
 INSERT INTO SQL_CONTENT (
-    CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, 
+    TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, 
     VERSION, CREATED_BY, CREATED_TIMESTAMP
 ) VALUES (
-    'EMPLOYEE_SALARY_RANK_POSTGRESQL',
     'EMPLOYEE_SALARY_RANK',
-    'POSTGRESQL',
+    'pg',
     'SELECT 
         customer_id,
         address_id,
         city,
-        postal_code,
-        ROW_NUMBER() OVER (PARTITION BY city ORDER BY postal_code) AS city_rank,
-        RANK() OVER (ORDER BY postal_code) AS postal_rank,
-        DENSE_RANK() OVER (ORDER BY postal_code) AS dense_rank,
-        LAG(postal_code, 1) OVER (ORDER BY postal_code) AS prev_postal,
-        LEAD(postal_code, 1) OVER (ORDER BY postal_code) AS next_postal
+        postal_code
     FROM addresses 
-    WHERE city = ''${cityName}''
+    WHERE city = ${cityName}
     ORDER BY city, postal_code',
     1,
     'SYSTEM',
@@ -447,36 +405,12 @@ INSERT INTO SQL_TEMPLATE (
     'ORG_HIERARCHY',
     '조직 계층 구조 조회',
     'ORG 테이블의 계층 구조를 재귀 CTE로 조회합니다',
-    'WITH org_hierarchy (deptnumb, deptname, manager, level, path) AS (
-        SELECT 
-            deptnumb, 
-            deptname, 
-            manager, 
-            0 as level,
-            CAST(deptname AS VARCHAR(1000)) as path
-        FROM ORG 
-        WHERE manager IS NULL
-        
-        UNION ALL
-        
-        SELECT 
-            o.deptnumb, 
-            o.deptname, 
-            o.manager, 
-            oh.level + 1,
-            oh.path || '' -> '' || o.deptname
-        FROM ORG o
-        INNER JOIN org_hierarchy oh ON o.manager = oh.deptnumb
-    )
-    SELECT 
+    'SELECT 
         deptnumb,
         deptname,
-        manager,
-        level,
-        path,
-        REPEAT(''  '', level) || deptname AS formatted_name
-    FROM org_hierarchy
-    ORDER BY path',
+        manager
+    FROM ORG 
+    ORDER BY deptnumb',
     'test_db',
     1,
     'ACTIVE',
@@ -486,43 +420,17 @@ INSERT INTO SQL_TEMPLATE (
 
 -- 재귀 CTE를 활용한 계층 구조 조회 (PostgreSQL)
 INSERT INTO SQL_CONTENT (
-    CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, 
+    TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, 
     VERSION, CREATED_BY, CREATED_TIMESTAMP
 ) VALUES (
-    'ORG_HIERARCHY_POSTGRESQL',
     'ORG_HIERARCHY',
-    'POSTGRESQL',
-    'WITH RECURSIVE address_hierarchy (address_id, customer_id, city, level, path) AS (
-        SELECT 
-            address_id, 
-            customer_id, 
-            city, 
-            0 as level,
-            city as path
-        FROM addresses 
-        WHERE is_default = true
-        
-        UNION ALL
-        
-        SELECT 
-            a.address_id, 
-            a.customer_id, 
-            a.city, 
-            ah.level + 1,
-            ah.path || '' -> '' || a.city
-        FROM addresses a
-        INNER JOIN address_hierarchy ah ON a.customer_id = ah.customer_id
-        WHERE a.is_default = false
-    )
-    SELECT 
+    'pg',
+    'SELECT 
         address_id,
         customer_id,
-        city,
-        level,
-        path,
-        REPEAT(''  '', level) || city AS formatted_name
-    FROM address_hierarchy
-    ORDER BY customer_id, level',
+        city
+    FROM addresses 
+    ORDER BY customer_id, address_id',
     1,
     'SYSTEM',
     CURRENT TIMESTAMP
@@ -544,17 +452,17 @@ INSERT INTO SQL_TEMPLATE (
         EMPNO, FIRSTNME, MIDINIT, LASTNAME, WORKDEPT, 
         PHONENO, HIREDATE, JOB, EDLEVEL, SEX, BIRTHDATE, SALARY
     ) VALUES (
-        ''${empno}'',
-        ''${firstname}'',
-        ''${midinit}'',
-        ''${lastname}'',
-        ''${workdept}'',
-        ''${phone}'',
-        ''${hiredate}''::date,
-        ''${job}'',
+        ${empno},
+        ${firstname},
+        ${midinit},
+        ${lastname},
+        ${workdept},
+        ${phone},
+        DATE(${hiredate}),
+        ${job},
         ${edlevel},
-        ''${sex}'',
-        ''${birthdate}''::date,
+        ${sex},
+        DATE(${birthdate}),
         ${salary}
     )',
     'test_db',
@@ -592,12 +500,7 @@ INSERT INTO SQL_TEMPLATE (
     '특정 직원의 급여를 수정합니다',
     'UPDATE EMPLOYEE 
     SET SALARY = ${newSalary}
-    WHERE EMPNO = ''${empno}''
-    
-    -- 업데이트 결과 확인
-    SELECT EMPNO, FIRSTNME, LASTNAME, SALARY 
-    FROM EMPLOYEE 
-    WHERE EMPNO = ''${empno}''',
+    WHERE EMPNO = ${empno}',
     'test_db',
     1,
     'ACTIVE',
@@ -622,16 +525,7 @@ INSERT INTO SQL_TEMPLATE (
     '고객 주소 삭제',
     '특정 고객의 주소를 삭제합니다',
     'DELETE FROM addresses 
-    WHERE address_id = ${addressId}
-    
-    -- 삭제 결과 확인
-    SELECT COUNT(*) as remaining_addresses
-    FROM addresses 
-    WHERE customer_id = (
-        SELECT customer_id 
-        FROM addresses 
-        WHERE address_id = ${addressId}
-    )',
+    WHERE address_id = ${addressId}',
     'test_db',
     1,
     'ACTIVE',
@@ -665,10 +559,9 @@ INSERT INTO SQL_TEMPLATE (
         COUNT(*) AS hire_count,
         AVG(SALARY) AS avg_salary,
         MIN(SALARY) AS min_salary,
-        MAX(SALARY) AS max_salary,
-        SUM(SALARY) AS total_salary
+        MAX(SALARY) AS max_salary
     FROM EMPLOYEE 
-    WHERE (''${startYear}'' = '''' OR HIREDATE >= DATE(''${startYear}''-01-01))
+    WHERE (${startYear}= '''' OR HIREDATE >= DATE(${startYear}-01-01))
     GROUP BY YEAR(HIREDATE), MONTH(HIREDATE)
     ORDER BY hire_year, hire_month',
     'test_db',
@@ -700,12 +593,8 @@ INSERT INTO SQL_TEMPLATE (
         SEX,
         COUNT(*) AS emp_count,
         AVG(SALARY) AS avg_salary,
-        STDDEV(SALARY) AS salary_stddev,
         MIN(SALARY) AS min_salary,
-        MAX(SALARY) AS max_salary,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY SALARY) AS median_salary,
-        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY SALARY) AS q1_salary,
-        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY SALARY) AS q3_salary
+        MAX(SALARY) AS max_salary
     FROM EMPLOYEE 
     WHERE SALARY > 0
     GROUP BY WORKDEPT, SEX
@@ -737,15 +626,7 @@ INSERT INTO SQL_TEMPLATE (
         AVG(SALARY) OVER (
             ORDER BY SALARY 
             ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING
-        ) AS moving_avg_5,
-        AVG(SALARY) OVER (
-            ORDER BY SALARY 
-            ROWS BETWEEN 4 PRECEDING AND CURRENT ROW
-        ) AS moving_avg_5_cumulative,
-        SALARY - AVG(SALARY) OVER (
-            ORDER BY SALARY 
-            ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING
-        ) AS salary_vs_moving_avg
+        ) AS moving_avg_5
     FROM EMPLOYEE 
     WHERE SALARY > 0
     ORDER BY SALARY',
@@ -758,12 +639,11 @@ INSERT INTO SQL_TEMPLATE (
 
 -- 이동 평균 계산 (PostgreSQL)
 INSERT INTO SQL_CONTENT (
-    CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, 
+    TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, 
     VERSION, CREATED_BY, CREATED_TIMESTAMP
 ) VALUES (
-    'SALARY_MOVING_AVERAGE_POSTGRESQL',
     'SALARY_MOVING_AVERAGE',
-    'POSTGRESQL',
+    'pg',
     'SELECT 
         customer_id,
         address_id,
@@ -771,15 +651,7 @@ INSERT INTO SQL_CONTENT (
         AVG(postal_code) OVER (
             ORDER BY postal_code 
             ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING
-        ) AS moving_avg_5,
-        AVG(postal_code) OVER (
-            ORDER BY postal_code 
-            ROWS BETWEEN 4 PRECEDING AND CURRENT ROW
-        ) AS moving_avg_5_cumulative,
-        postal_code - AVG(postal_code) OVER (
-            ORDER BY postal_code 
-            ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING
-        ) AS postal_vs_moving_avg
+        ) AS moving_avg_5
     FROM addresses 
     ORDER BY postal_code',
     1,
@@ -802,19 +674,12 @@ INSERT INTO SQL_TEMPLATE (
     'SELECT 
         TBSP_NAME,
         TBSP_TYPE,
-        TBSP_CONTENT_TYPE,
         TBSP_STATE,
         TBSP_TOTAL_PAGES,
         TBSP_USED_PAGES,
-        TBSP_FREE_PAGES,
-        TBSP_UTILIZATION_PERCENT,
-        TBSP_PAGE_SIZE,
-        TBSP_EXTENT_SIZE,
-        TBSP_PREFETCH_SIZE,
-        TBSP_OVERHEAD,
-        TBSP_TRANSFER_RATE
-    FROM SYSIBMADM.TBSP_UTILIZATION
-    ORDER BY TBSP_UTILIZATION_PERCENT DESC',
+        TBSP_FREE_PAGES
+    FROM SYSCAT.TABLESPACES
+    ORDER BY TBSP_NAME',
     'test_db',
     1,
     'ACTIVE',
@@ -837,18 +702,11 @@ INSERT INTO SQL_TEMPLATE (
         CARD,
         NPAGES,
         FPAGES,
-        OVERFLOW,
-        ACTIVE_BLOCKS,
-        STATS_TIME,
         COLCOUNT,
-        TBSPACE,
-        INDEX_TBSPACE,
-        LONG_TBSPACE,
-        CREATE_TIME,
-        ALTER_TIME
-    FROM SYSIBMADM.ADMINTABINFO
+        TBSPACE
+    FROM SYSCAT.TABLES
     WHERE TABSCHEMA NOT LIKE ''SYS%''
-    ORDER BY CARD DESC',
+    ORDER BY TABNAME',
     'test_db',
     1,
     'ACTIVE',
@@ -871,24 +729,10 @@ INSERT INTO SQL_TEMPLATE (
         TABNAME,
         UNIQUERULE,
         COLNAMES,
-        COLCOUNT,
-        IID,
-        NLEAF,
-        NLEVELS,
-        FIRSTKEYCARD,
-        FIRST2KEYCARD,
-        FIRST3KEYCARD,
-        FIRST4KEYCARD,
-        FULLKEYCARD,
-        CLUSTERRATIO,
-        CLUSTERFACTOR,
-        PAGESAVE,
-        STATS_TIME,
-        TBSPACEID,
-        TBSPACE
-    FROM SYSIBMADM.ADMININDEXES
+        COLCOUNT
+    FROM SYSCAT.INDEXES
     WHERE TABSCHEMA NOT LIKE ''SYS%''
-    ORDER BY NLEAF DESC',
+    ORDER BY INDNAME',
     'test_db',
     1,
     'ACTIVE',
@@ -913,23 +757,10 @@ INSERT INTO SQL_TEMPLATE (
         LENGTH,
         SCALE,
         NULLS,
-        DEFAULT,
-        CODEPAGE,
-        COLLATIONNAME,
-        LOGGED,
-        COMPACT,
-        CARDINALITY,
-        HIGH2KEY,
-        LOW2KEY,
-        AVGCOLLEN,
-        KEYSEQ,
-        PARTKEYSEQ,
-        NQUANTILES,
-        NUMNULLS,
-        REMARKS
-    FROM SYSIBMADM.ADMINCOLUMNS
-    WHERE TABSCHEMA = ''${schemaName}''
-    AND TABNAME = ''${tableName}''
+        DEFAULT
+    FROM SYSCAT.COLUMNS
+    WHERE TABSCHEMA = ${schemaName}
+    AND TABNAME = ${tableName}
     ORDER BY COLNO',
     'test_db',
     1,
@@ -959,22 +790,11 @@ INSERT INTO SQL_TEMPLATE (
         APPLICATION_NAME,
         CLIENT_USERID,
         CLIENT_WRKSTNNAME,
-        ACTIVITY_ID,
         UOW_START_TIME,
         STMT_START_TIME,
         STMT_TEXT,
-        TOTAL_CPU_TIME,
-        TOTAL_SORT_TIME,
-        TOTAL_SORTS,
-        POOL_DATA_L_READS,
-        POOL_DATA_P_READS,
-        POOL_INDEX_L_READS,
-        POOL_INDEX_P_READS,
-        POOL_TEMP_DATA_L_READS,
-        POOL_TEMP_DATA_P_READS,
-        POOL_TEMP_INDEX_L_READS,
-        POOL_TEMP_INDEX_P_READS
-    FROM SYSIBMADM.SNAPAPPL
+        TOTAL_CPU_TIME
+    FROM SYSIBMADM.APPLICATIONS
     WHERE APPLICATION_HANDLE > 0
     AND STMT_TEXT IS NOT NULL
     ORDER BY STMT_START_TIME DESC',
@@ -996,12 +816,8 @@ INSERT INTO SQL_TEMPLATE (
     'SELECT 
         BP_NAME,
         NPAGES,
-        PAGESIZE,
-        NUMBLOCKPAGES,
-        BLOCKSIZE,
-        NGNAME,
-        ESTORE
-    FROM SYSIBMADM.SNAPBUFFERPOOL
+        PAGESIZE
+    FROM SYSCAT.BUFFERPOOLS
     ORDER BY BP_NAME',
     'test_db',
     1,
@@ -1025,23 +841,10 @@ INSERT INTO SQL_TEMPLATE (
         tablespace,
         hasindexes,
         hasrules,
-        hastriggers,
-        rowsecurity,
-        pg_size_pretty(pg_total_relation_size(schemaname||''.''||tablename)) as size,
-        pg_total_relation_size(schemaname||''.''||tablename) as size_bytes,
-        n_tup_ins as inserts,
-        n_tup_upd as updates,
-        n_tup_del as deletes,
-        n_live_tup as live_tuples,
-        n_dead_tup as dead_tuples,
-        last_vacuum,
-        last_autovacuum,
-        last_analyze,
-        last_autoanalyze
-    FROM pg_tables t
-    LEFT JOIN pg_stat_user_tables s ON t.tablename = s.relname AND t.schemaname = s.schemaname
-    WHERE t.schemaname NOT IN (''information_schema'', ''pg_catalog'')
-    ORDER BY pg_total_relation_size(schemaname||''.''||tablename) DESC',
+        hastriggers
+    FROM pg_tables
+    WHERE schemaname NOT IN (''information_schema'', ''pg_catalog'')
+    ORDER BY tablename',
     'test_db',
     1,
     'ACTIVE',
@@ -1061,16 +864,10 @@ INSERT INTO SQL_TEMPLATE (
         schemaname,
         tablename,
         indexname,
-        indexdef,
-        pg_size_pretty(pg_relation_size(schemaname||''.''||indexname)) as size,
-        pg_relation_size(schemaname||''.''||indexname) as size_bytes,
-        idx_scan as index_scans,
-        idx_tup_read as tuples_read,
-        idx_tup_fetch as tuples_fetched
-    FROM pg_indexes i
-    LEFT JOIN pg_stat_user_indexes s ON i.indexname = s.indexrelname AND i.schemaname = s.schemaname
-    WHERE i.schemaname NOT IN (''information_schema'', ''pg_catalog'')
-    ORDER BY pg_relation_size(schemaname||''.''||indexname) DESC',
+        indexdef
+    FROM pg_indexes
+    WHERE schemaname NOT IN (''information_schema'', ''pg_catalog'')
+    ORDER BY indexname',
     'test_db',
     1,
     'ACTIVE',
@@ -1089,20 +886,9 @@ INSERT INTO SQL_TEMPLATE (
     'SELECT 
         datname as database_name,
         pg_size_pretty(pg_database_size(datname)) as size,
-        pg_database_size(datname) as size_bytes,
-        numbackends as active_connections,
-        xact_commit as committed_transactions,
-        xact_rollback as rolled_back_transactions,
-        blks_read as blocks_read,
-        blks_hit as blocks_hit,
-        tup_returned as tuples_returned,
-        tup_fetched as tuples_fetched,
-        tup_inserted as tuples_inserted,
-        tup_updated as tuples_updated,
-        tup_deleted as tuples_deleted
-    FROM pg_database d
-    LEFT JOIN pg_stat_database s ON d.datname = s.datname
-    WHERE d.datname NOT IN (''template0'', ''template1'')
+        pg_database_size(datname) as size_bytes
+    FROM pg_database
+    WHERE datname NOT IN (''template0'', ''template1'')
     ORDER BY pg_database_size(datname) DESC',
     'test_db',
     1,
@@ -1200,23 +986,9 @@ INSERT INTO SQL_TEMPLATE (
     'DB2 연결 수 차트',
     'DB2 활성 연결 수를 차트로 표시합니다',
     'SELECT 
-        CASE 
-            WHEN connection_count < 10 THEN ''정상''
-            WHEN connection_count < 20 THEN ''주의''
-            ELSE ''위험''
-        END AS STATUS,
-        COUNT(*) AS COUNT
-    FROM (
-        SELECT COUNT(*) as connection_count
-        FROM SYSIBMADM.SNAPAPPL 
-        WHERE APPL_ID > 0
-    ) T
-    GROUP BY 
-        CASE 
-            WHEN connection_count < 10 THEN ''정상''
-            WHEN connection_count < 20 THEN ''주의''
-            ELSE ''위험''
-        END',
+        COUNT(*) as connection_count
+    FROM SYSIBMADM.APPLICATIONS 
+    WHERE APPLICATION_HANDLE > 0',
     'test_db',
     'CONNECTION_COUNT',
     1,
@@ -1229,30 +1001,15 @@ INSERT INTO SQL_TEMPLATE (
 
 -- PostgreSQL 연결 수 차트
 INSERT INTO SQL_CONTENT (
-    CONTENT_ID, TEMPLATE_ID, DB_TYPE, SQL_CONTENT, 
+    TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, 
     VERSION, CREATED_BY, CREATED_TIMESTAMP
 ) VALUES (
-    'DB2_CONNECTION_CHART_POSTGRESQL',
     'DB2_CONNECTION_CHART',
-    'POSTGRESQL',
+    'pg',
     'SELECT 
-        CASE 
-            WHEN connection_count < 10 THEN ''정상''
-            WHEN connection_count < 20 THEN ''주의''
-            ELSE ''위험''
-        END AS STATUS,
-        COUNT(*) AS COUNT
-    FROM (
-        SELECT COUNT(*) as connection_count
-        FROM pg_stat_activity 
-        WHERE pid <> pg_backend_pid()
-    ) T
-    GROUP BY 
-        CASE 
-            WHEN connection_count < 10 THEN ''정상''
-            WHEN connection_count < 20 THEN ''주의''
-            ELSE ''위험''
-        END',
+        COUNT(*) as connection_count
+    FROM pg_stat_activity 
+    WHERE pid <> pg_backend_pid()',
     1,
     'SYSTEM',
     CURRENT TIMESTAMP

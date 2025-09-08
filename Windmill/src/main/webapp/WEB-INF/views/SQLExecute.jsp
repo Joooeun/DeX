@@ -197,7 +197,6 @@ var tableHeight=0;
 							} else if (connectionCount === 1) {
 								// 접근가능한 DB 연결이 하나만 있으면 자동 선택
 								connectionOptions.first().prop('selected', true);
-								console.log('접근가능한 연결이 하나뿐이므로 자동 선택됨:', connectionOptions.first().val());
 							}
 							
 							var shortkey = ${Excute};
@@ -810,7 +809,6 @@ var tableHeight=0;
 				$("#loadingdiv").css('display','none')
 				// 에러 발생 시 자동 새로고침 중지
 				stopAutoRefresh();
-				console.log(JSON.stringify(error))
 				alert('시스템오류');
 			}
 		});

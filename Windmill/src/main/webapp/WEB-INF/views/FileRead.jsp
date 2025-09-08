@@ -21,7 +21,7 @@
 						$('#connectionlist').append("<option value='" + result.data[i] + "'>" + result.data[i] + "</option>");
 					}
 				} else {
-					console.log("SFTP 연결 목록을 가져올 수 없습니다:", result);
+					// SFTP 연결 목록을 가져올 수 없습니다
 				}
 			},
 			error : function() {
@@ -50,11 +50,9 @@
 				window.resultEditor.setReadOnly(true); // 읽기 전용
 				window.resultEditor.resize();
 			} else {
-				console.log("Ace Editor not available, using textarea");
 				initTextareaEditor();
 			}
 		} catch (e) {
-			console.log("Ace Editor initialization failed, using textarea");
 			initTextareaEditor();
 		}
 	}

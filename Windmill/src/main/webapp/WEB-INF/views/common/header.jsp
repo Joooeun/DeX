@@ -103,7 +103,6 @@ var changePW
 	function setCookie(name, value, expiredays){
 		var today = new Date();
 	
-		console.log(today.getDate())
 	
 		today.setDate(today.getDate() + expiredays); // 현재시간에 하루를 더함 
 	
@@ -117,7 +116,6 @@ var changePW
 		
 		if (document.cookie != "") {
 			var cookie_array = cookie.split("; ");
-			console.log(cookie_array)
 			for ( var index in cookie_array) {
 				var cookie_name = cookie_array[index].split("=");
 				if (cookie_name[0] == "mycookie") {
@@ -152,10 +150,8 @@ var changePW
 		if (text == '') {
 			return;
 		} else {
-			//console.log('text : ', $('#' + frameid).contents().find('.content-header>h1').text(), frameid)
 			var newtab = true;
 			for (var i = 0; i < $('#pageTab a').length; i++) {
-				//console.log('text2 : ', text, $('#pageTab a:eq(' + i + ')').text().replace(/x$/, ''))
 				if (text == $('#pageTab a:eq(' + i + ')').text()) {
 
 					newtab = false;
@@ -198,7 +194,6 @@ var changePW
 				'iframe' + pageid);
 		//alert($('#iframe' + (pageNum == 1 ? '' : pageNum - 1)).contents().find('.ParamForm').length)
 		//$('.iframe').contents().find('.ParamForm').attr("target", 'iframe' + pageid)
-		//console.log($('#iframe').contents().find('.content-header>h1').text())
 
 	}
 

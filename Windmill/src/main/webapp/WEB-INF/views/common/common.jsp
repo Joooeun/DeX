@@ -52,8 +52,6 @@
 
 		for (var i = 0; i < $(parent.document).find('#pageTab a').length; i++) {
 
-			//console.log($(parent.document).find('#pageTab a:eq(' + i + ')').text())
-			//console.log("sdfsdf", value.split('&')[0], $(parent.document).find('#pageTab a:eq(' + i + ')').text().replace(/x$/, ''))
 			if (value.split('&')[0] == $(parent.document).find('#pageTab a:eq(' + i + ')').text().replace(/x$/, '')) {
 				target = $(parent.document).find('#pageTabContent>div:eq(' + i + ')>iframe').attr('id');
 				//$(parent.document).find('#pageTab a:eq(' + i + ')').tab('show');
@@ -115,7 +113,6 @@
 					pathval += column[i];
 				}
 			}
-			//console.log(pathval)
 			myForm.Path.value = pathval;
 
 			myForm.submit();
@@ -136,7 +133,6 @@
 					pathval += column[i];
 				}
 			}
-			//console.log("[deddbsssssug]",pathval)
 
 			window.open(pathval.replace("?", "?param="), '_blank')
 		} else {
@@ -189,7 +185,6 @@
 
 			// 안전한 속성 접근을 위한 검증
 			if (!list || !list.Name) {
-				console.warn('Invalid menu item:', list);
 				continue;
 			}
 

@@ -968,11 +968,11 @@
                             executeShortcut(firstActiveShortcut, parameters);
                         } else {
                             // 활성화된 단축키가 없으면 토스트 메시지 표시
-                            showToast('LOCK_WAIT_COUNT에 설정된 활성화된 단축키가 없습니다. 템플릿 관리에서 단축키를 설정해주세요.', 'warning');
+                            showToast('이 차트에 설정된 단축키가 없습니다. 템플릿 관리에서 단축키를 설정해주세요.', 'info');
                         }
                     } else {
                         // 단축키가 없으면 토스트 메시지 표시
-                        showToast('LOCK_WAIT_COUNT에 설정된 단축키가 없습니다. 템플릿 관리에서 단축키를 설정해주세요.', 'warning');
+                        showToast('이 차트에 설정된 단축키가 없습니다. 템플릿 관리에서 단축키를 설정해주세요.', 'info');
                     }
                 },
                 error: function(xhr, status, error) {
@@ -1051,11 +1051,11 @@
                             
                         } else {
                             logDebug('활성화된 단축키가 없습니다.');
-                            showToast('이 차트에 설정된 단축키가 없습니다.', 'info');
+                            showToast('이 차트에 설정된 단축키가 없습니다. 템플릿 관리에서 단축키를 설정해주세요.', 'info');
                         }
                     } else {
                         logDebug('단축키가 없습니다.');
-                        showToast('이 차트에 설정된 단축키가 없습니다.', 'info');
+                        showToast('이 차트에 설정된 단축키가 없습니다. 템플릿 관리에서 단축키를 설정해주세요.', 'info');
                     }
                 },
                 error: function() {

@@ -425,7 +425,7 @@ public class SqlTemplateService {
                                                Integer version, String status, Integer executionLimit, 
                                                Integer refreshTimeout, Boolean newline, Boolean audit, String categoryIds,
                                                String accessibleConnectionIds, String chartMapping, String sqlContent, String configContent, String parametersJson, 
-                                               String shortcutsJson, String additionalSqlContents, String userId) {
+                                               String shortcutsJson, String additionalSqlContents, Boolean replaceAllSqlContents, String userId) {
 		Map<String, Object> result = new HashMap<>();
 
 		if (templateName == null || templateName.trim().isEmpty()) {
@@ -559,10 +559,16 @@ public class SqlTemplateService {
 
 		// 추가 SQL 내용 처리 (CONNECTION_ID 기반)
 		if (additionalSqlContents != null && !additionalSqlContents.trim().isEmpty()) {
-			logger.debug("추가 SQL 내용 처리 시작 - templateId: {}, additionalSqlContents: {}", templateId, additionalSqlContents);
+			logger.debug("추가 SQL 내용 처리 시작 - templateId: {}, additionalSqlContents: {}, replaceAllSqlContents: {}", templateId, additionalSqlContents, replaceAllSqlContents);
 			try {
 				List<Map<String, Object>> additionalContents = com.getListFromString(additionalSqlContents);
 				logger.debug("추가 SQL 내용 파싱 완료 - 개수: {}", additionalContents.size());
+				
+				// replaceAllSqlContents가 true이면 기존 모든 SQL_CONTENT 삭제
+				if (replaceAllSqlContents != null && replaceAllSqlContents) {
+					int deletedAllRows = jdbcTemplate.update("DELETE FROM SQL_CONTENT WHERE TEMPLATE_ID = ?", templateId);
+					logger.debug("기존 모든 SQL_CONTENT 삭제 완료 - 삭제된 행 수: {}", deletedAllRows);
+				}
 				
 				for (Map<String, Object> content : additionalContents) {
 					String connectionId = (String) content.get("connectionId");  // dbType → connectionId로 변경
@@ -571,9 +577,11 @@ public class SqlTemplateService {
 					logger.debug("SQL 내용 처리 - connectionId: {}, sqlContent 길이: {}", connectionId, contentSql != null ? contentSql.length() : 0);
 					
 					if (connectionId != null && !connectionId.trim().isEmpty() && contentSql != null && !contentSql.trim().isEmpty()) {
-						// 기존 SQL_CONTENT 삭제 (CONNECTION_ID 기반)
-						int deletedRows = jdbcTemplate.update("DELETE FROM SQL_CONTENT WHERE TEMPLATE_ID = ? AND CONNECTION_ID = ?", templateId, connectionId);
-						logger.debug("기존 SQL_CONTENT 삭제 완료 - 삭제된 행 수: {}", deletedRows);
+						// replaceAllSqlContents가 false이면 개별 삭제
+						if (replaceAllSqlContents == null || !replaceAllSqlContents) {
+							int deletedRows = jdbcTemplate.update("DELETE FROM SQL_CONTENT WHERE TEMPLATE_ID = ? AND CONNECTION_ID = ?", templateId, connectionId);
+							logger.debug("기존 SQL_CONTENT 삭제 완료 - 삭제된 행 수: {}", deletedRows);
+						}
 						
 						// 새 SQL_CONTENT 추가 (CONNECTION_ID 기반, 복합 키 사용)
 						int insertedRows = jdbcTemplate.update(
@@ -584,7 +592,7 @@ public class SqlTemplateService {
 						logger.warn("SQL 내용이 비어있거나 연결 ID가 지정되지 않음 - connectionId: {}, contentSql: {}", connectionId, contentSql != null ? "있음" : "없음");
 					}
 				}
-				logger.info("추가 SQL 내용 처리 완료 - templateId: {}, 처리된 항목 수: {}", templateId, additionalContents.size());
+				logger.info("추가 SQL 내용 처리 완료 - templateId: {}, 처리된 항목 수: {}, replaceAllSqlContents: {}", templateId, additionalContents.size(), replaceAllSqlContents);
 			} catch (Exception e) {
 				logger.error("추가 SQL 내용 처리 실패 - templateId: {}, additionalSqlContents: {}", templateId, additionalSqlContents, e);
 				// 트랜잭션 롤백을 위해 예외를 다시 던짐

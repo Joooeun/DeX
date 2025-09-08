@@ -260,10 +260,17 @@ public class SQLTemplateController {
 
 			// additionalSqlContents 파라미터 처리
 			String additionalSqlContents = request.getParameter("additionalSqlContents");
+			
+			// replaceAllSqlContents 파라미터 처리
+			Boolean replaceAllSqlContents = false;
+			String replaceAllSqlContentsStr = request.getParameter("replaceAllSqlContents");
+			if (replaceAllSqlContentsStr != null && !replaceAllSqlContentsStr.trim().isEmpty()) {
+				replaceAllSqlContents = Boolean.parseBoolean(replaceAllSqlContentsStr);
+			}
 
 			return sqlTemplateService.saveSqlTemplate(templateId, sqlName, sqlDesc, sqlVersion, sqlStatus, executionLimit, refreshTimeout, newline, audit,
 					categoryIds, accessibleConnectionIds, chartMapping, sqlContent, configContent, parameters, shortcuts, additionalSqlContents,
-					userId);
+					replaceAllSqlContents, userId);
 
 		} catch (Exception e) {
 			logger.error("SQL 템플릿 저장 실패", e);

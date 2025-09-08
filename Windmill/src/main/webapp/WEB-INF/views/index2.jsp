@@ -26,7 +26,6 @@
 
 			// 안전한 속성 접근을 위한 검증
 			if (!list || !list.Name) {
-				console.warn('Invalid menu item:', list);
 				continue;
 			}
 
