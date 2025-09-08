@@ -141,46 +141,81 @@ var tableHeight=0;
 		});
 
 		// ========================================
-		// 데이터베이스 연결 목록 조회
+		// 데이터베이스 연결 목록 조회 (템플릿 접근가능한 연결과 교집합)
 		// ========================================
+		var templateId = '${templateId}';
+		
+		// 템플릿 정보 조회하여 접근가능한 연결 ID 가져오기
 		$.ajax({
-			type: 'post',
-			url: "/Connection/list",
-			data: {
-				TYPE: "DB"
-			},
-			success: function(result) {
-				// 모든 DB 연결을 드롭다운에 추가
-				for (var i = 0; i < result.data.length; i++) {
-					var connectionId = result.data[i].split('.')[0];
-					$('#connectionlist').append("<option value='" + connectionId + "'>" + connectionId + "</option>");
-				}
+			type: 'GET',
+			url: '/SQLTemplate/detail',
+			data: { templateId: templateId },
+			success: function(templateResult) {
+				if (templateResult.success && templateResult.data) {
+					var accessibleConnectionIds = templateResult.data.accessibleConnectionIds || '';
+					var allowedConnections = accessibleConnectionIds ? accessibleConnectionIds.split(',') : [];
+					
+					// 모든 DB 연결 조회
+					$.ajax({
+						type: 'post',
+						url: "/Connection/list",
+						data: {
+							TYPE: "DB"
+						},
+						success: function(result) {
+							// 접근가능한 연결만 필터링하여 드롭다운에 추가
+							for (var i = 0; i < result.data.length; i++) {
+								var connectionId = result.data[i].split('.')[0];
+								
+								// 템플릿에 접근가능한 연결이 설정되어 있으면 필터링
+								if (allowedConnections.length > 0) {
+									if (allowedConnections.includes(connectionId)) {
+										$('#connectionlist').append("<option value='" + connectionId + "'>" + connectionId + "</option>");
+									}
+								} else {
+									// 접근가능한 연결이 설정되지 않았으면 모든 연결 표시
+									$('#connectionlist').append("<option value='" + connectionId + "'>" + connectionId + "</option>");
+								}
+							}
 
-				// 기본 선택: 세션에 값이 있거나 DB 연결이 하나만 가능할 때만
-				var selectedConnection = '${Connection}';
-				var optionCount = $('#connectionlist option').length;
-				
-				if (selectedConnection && selectedConnection.trim() !== '') {
-					// 세션에 선택된 연결이 있으면 해당 연결 선택
-					$('#connectionlist option').each(function() {
-						if ($(this).val() === selectedConnection) {
-							$(this).prop('selected', true);
-							return false;
+							// 기본 선택: 세션에 값이 있거나 DB 연결이 하나만 가능할 때만
+							var selectedConnection = '${Connection}';
+							var allOptions = $('#connectionlist option');
+							var connectionOptions = allOptions.filter(function() {
+								return $(this).val() !== '' && $(this).val() !== '====Connection====';
+							});
+							var connectionCount = connectionOptions.length;
+							
+							if (selectedConnection && selectedConnection.trim() !== '') {
+								// 세션에 선택된 연결이 있으면 해당 연결 선택
+								$('#connectionlist option').each(function() {
+									if ($(this).val() === selectedConnection) {
+										$(this).prop('selected', true);
+										return false;
+									}
+								});
+							} else if (connectionCount === 1) {
+								// 접근가능한 DB 연결이 하나만 있으면 자동 선택
+								connectionOptions.first().prop('selected', true);
+								console.log('접근가능한 연결이 하나뿐이므로 자동 선택됨:', connectionOptions.first().val());
+							}
+							
+							var shortkey = ${Excute};
+
+							if (shortkey && $("#connectionlist option:selected").val() != '') {
+								excute();
+							}
+						},
+						error: function() {
+							alert("시스템 에러");
 						}
 					});
-				} else if (optionCount === 1) {
-					// DB 연결이 하나만 가능하면 기본 선택
-					$('#connectionlist option:first').prop('selected', true);
-				}
-				
-				var shortkey = ${Excute};
-
-				if (shortkey && $("#connectionlist option:selected").val() != '') {
-					excute();
+				} else {
+					alert("템플릿 정보를 가져올 수 없습니다.");
 				}
 			},
 			error: function() {
-				alert("시스템 에러");
+				alert("템플릿 정보 조회 중 오류가 발생했습니다.");
 			}
 		});
 

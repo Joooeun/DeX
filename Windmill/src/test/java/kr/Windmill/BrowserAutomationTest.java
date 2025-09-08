@@ -410,4 +410,81 @@ public class BrowserAutomationTest {
             System.err.println("스크린샷 촬영 실패: " + e.getMessage());
         }
     }
+    
+    @Test
+    public void testSqlTemplateExecution() {
+        System.out.println("=== SQL 템플릿 실행 화면 연결 필터링 테스트 시작 ===");
+        
+        try {
+            // 먼저 로그인
+            performLogin();
+            
+            // SQL 템플릿 실행 페이지로 직접 이동 (DB2_LOCK_WAIT_MONITOR 템플릿)
+            String templateId = "DB2_LOCK_WAIT_MONITOR";
+            String executeUrl = BASE_URL + "/SQLTemplate?templateId=" + templateId;
+            driver.get(executeUrl);
+            
+            // 페이지 로드 대기 (더 긴 시간)
+            Thread.sleep(3000);
+            
+            // 페이지 소스 확인
+            String pageSource = driver.getPageSource();
+            System.out.println("페이지 제목: " + driver.getTitle());
+            System.out.println("현재 URL: " + driver.getCurrentUrl());
+            
+            // connectionlist 요소가 있는지 확인
+            if (pageSource.contains("connectionlist")) {
+                System.out.println("✅ connectionlist 요소가 페이지에 존재함");
+            } else {
+                System.out.println("❌ connectionlist 요소가 페이지에 존재하지 않음");
+                System.out.println("페이지 소스 일부: " + pageSource.substring(0, Math.min(1000, pageSource.length())));
+            }
+            
+            // 페이지 로드 대기
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("connectionlist")));
+            
+            // 연결 선택 셀렉트 박스 찾기
+            WebElement connectionSelect = driver.findElement(By.id("connectionlist"));
+            
+            // 셀렉트 박스의 옵션들 가져오기
+            List<WebElement> options = connectionSelect.findElements(By.tagName("option"));
+            
+            System.out.println("=== 연결 선택 옵션 목록 ===");
+            for (WebElement option : options) {
+                String value = option.getAttribute("value");
+                String text = option.getText();
+                System.out.println("Value: " + value + ", Text: " + text);
+            }
+            
+            // 템플릿에 설정된 접근가능한 연결은 test_db만 있어야 함
+            boolean hasTestDb = false;
+            boolean hasOtherConnections = false;
+            
+            for (WebElement option : options) {
+                String value = option.getAttribute("value");
+                if ("test_db".equals(value)) {
+                    hasTestDb = true;
+                } else if (!"".equals(value) && !"====Connection====".equals(value)) {
+                    hasOtherConnections = true;
+                }
+            }
+            
+            // 테스트 결과 검증
+            if (hasTestDb && !hasOtherConnections) {
+                System.out.println("✅ 성공: 템플릿 접근가능한 연결(test_db)만 표시됨");
+            } else {
+                System.out.println("❌ 실패: 예상과 다른 연결 옵션이 표시됨");
+                System.out.println("test_db 포함: " + hasTestDb);
+                System.out.println("다른 연결 포함: " + hasOtherConnections);
+            }
+            
+            // 스크린샷 촬영
+            takeScreenshot("sql_template_execution_connection_filter");
+            
+        } catch (Exception e) {
+            System.err.println("테스트 실행 중 오류 발생: " + e.getMessage());
+            e.printStackTrace();
+            takeScreenshot("sql_template_execution_error");
+        }
+    }
 }

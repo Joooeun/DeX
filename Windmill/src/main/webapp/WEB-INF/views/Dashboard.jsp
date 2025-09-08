@@ -681,47 +681,12 @@
                 }
             });
 
-            // LOCK_WAIT_COUNT 차트 (세로 막대그래프)
-            var lockWaitCountCtx = document.getElementById('lockWaitCountChart').getContext('2d');
-            lockWaitCountChart = new Chart(lockWaitCountCtx, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'LOCK_WAIT_COUNT',
-                        data: [],
-                        backgroundColor: 'rgba(140, 214, 16, 0.8)',
-                        borderColor: 'rgba(140, 214, 16, 1)',
-                        borderWidth: 1,
-                        datalabels: {
-                        	align: 'end',
-                            anchor: 'end',
-                          }
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    },
-                    plugins: {
-                    	legend: {
-                    		display: false,
-                        },
-                    },
-                    layout: {
-                        padding: 15
-                    },
-                    onClick: function(event, elements) {
-                        if (elements.length > 0) {
-                            handleChartElementClick('LOCK_WAIT_COUNT', elements[0]);
-                        }
-                    }
-                }
-            });
+            // LOCK_WAIT_COUNT 차트 초기화 (숫자만 표시)
+            lockWaitCountChart = {
+                currentValue: 0,
+                maxValue: 100,
+                previousValue: 0
+            };
 
             // ACTIVE_LOG 차트 (가로 막대그래프 - 사용량)
             var activeLogCtx = document.getElementById('activeLogChart').getContext('2d');
@@ -959,6 +924,60 @@
                             }
                         }
                     }
+                }
+            });
+        }
+
+        // LOCK_WAIT_COUNT 클릭 처리 함수
+        function handleLockWaitCountClick() {
+            logDebug('LOCK_WAIT_COUNT 클릭');
+            
+            // 저장된 템플릿 ID 사용
+            var templateId = chartTemplateIds['LOCK_WAIT_COUNT'];
+            if (!templateId) {
+                console.error('LOCK_WAIT_COUNT 템플릿 ID를 찾을 수 없습니다');
+                showToast('차트 정보를 찾을 수 없습니다. 페이지를 새로고침해주세요.', 'warning');
+                return;
+            }
+            
+            // LOCK_WAIT_COUNT는 단일 값이므로 빈 파라미터로 처리
+            var parameters = {};
+            
+            // 단축키 정보 조회
+            $.ajax({
+                type: 'POST',
+                url: '/SQLTemplate/shortcuts',
+                data: {
+                    templateId: templateId
+                },
+                success: function(result) {
+                    logDebug('LOCK_WAIT_COUNT 단축키 결과:', result);
+                    if (result.success && result.data && result.data.length > 0) {
+                        // 활성화된 첫 번째 단축키 찾기
+                        var firstActiveShortcut = null;
+                        for (var i = 0; i < result.data.length; i++) {
+                            var shortcut = result.data[i];
+                            if (shortcut.IS_ACTIVE === true) {
+                                firstActiveShortcut = shortcut;
+                                break;
+                            }
+                        }
+                        
+                        if (firstActiveShortcut) {
+                            // 단축키가 있으면 해당 템플릿으로 이동
+                            executeShortcut(firstActiveShortcut, parameters);
+                        } else {
+                            // 활성화된 단축키가 없으면 토스트 메시지 표시
+                            showToast('LOCK_WAIT_COUNT에 설정된 활성화된 단축키가 없습니다. 템플릿 관리에서 단축키를 설정해주세요.', 'warning');
+                        }
+                    } else {
+                        // 단축키가 없으면 토스트 메시지 표시
+                        showToast('LOCK_WAIT_COUNT에 설정된 단축키가 없습니다. 템플릿 관리에서 단축키를 설정해주세요.', 'warning');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('단축키 조회 실패:', error);
+                    showToast('단축키 정보를 가져오는 중 오류가 발생했습니다.', 'error');
                 }
             });
         }
@@ -1343,20 +1362,25 @@
                             var processedData = chartConfig.processData(data.result);
                             
                             // 데이터 유효성 검사
-                            if (processedData && processedData.labels && processedData.data) {
-                                chartConfig.chart.data.labels = processedData.labels;
-                                chartConfig.chart.data.datasets[0].data = processedData.data;
-                                
-                                // LOCK_WAIT_COUNT 차트의 경우 Y축 최대값 설정
-                                if (processedData.yAxisMax) {
-                                    chartConfig.chart.options.scales.y.max = processedData.yAxisMax;
+                            if (processedData) {
+                                if (chartType === 'LOCK_WAIT_COUNT') {
+                                    // LOCK_WAIT_COUNT는 게이지 차트로 처리
+                                    updateLockWaitCountDisplay(processedData);
+                                } else if (processedData.labels && processedData.data) {
+                                    chartConfig.chart.data.labels = processedData.labels;
+                                    chartConfig.chart.data.datasets[0].data = processedData.data;
+                                    
+                                    // LOCK_WAIT_COUNT 차트의 경우 Y축 최대값 설정
+                                    if (processedData.yAxisMax) {
+                                        chartConfig.chart.options.scales.y.max = processedData.yAxisMax;
+                                    }
+                                    
+                                    if(chartType=="ACTIVE_LOG"){
+                                        updateDoughnutChart('activeLogChart', processedData.data[0]); 
+                                    }
+                                    
+                                    chartConfig.chart.update();
                                 }
-                                
-                                if(chartType=="ACTIVE_LOG"){
-	                                updateDoughnutChart('activeLogChart', processedData.data[0]); 
-                                }
-                                
-                                chartConfig.chart.update();
                                 
                                 // 해시 업데이트
                                 if (data.hash) {
@@ -1447,18 +1471,31 @@
                 'LOCK_WAIT_COUNT': {
                     chart: lockWaitCountChart,
                     processData: function(result) {
-                        var labels = [];
-                        var data = [];
+                        var totalValue = 0;
+                        var maxValue = 100; // 기본 최대값
+                        
+                        // 모든 값의 합계 계산
                         for (var i = 0; i < result.length; i++) {
-                            if (result[i] && result[i].length >= 2) {
-                                labels.push(result[i][0]); // color
-                                data.push(result[i][1]);  // value
+                            if (result[i] && result[i].length >= 1) {
+                                // 단일 값인 경우 (예: [[25]])
+                                if (result[i].length === 1) {
+                                    totalValue += parseInt(result[i][0]) || 0;
+                                }
+                                // 두 개 이상의 값인 경우 (예: [["label", 25]])
+                                else if (result[i].length >= 2) {
+                                    totalValue += parseInt(result[i][1]) || 0;
+                                }
                             }
                         }
-                        // 최대값 계산하여 Y축 최대값 설정 (정수로)
-                        var maxValue = Math.max(...data);
-                        var yAxisMax = Math.ceil(maxValue * 1.1);
-                        return { labels: labels, data: data, yAxisMax: yAxisMax };
+                        
+                        // 최대값 동적 설정 (현재 값의 2배 또는 100 중 큰 값)
+                        maxValue = Math.max(totalValue * 2, 100);
+                        
+                        return { 
+                            totalValue: totalValue, 
+                            maxValue: maxValue,
+                            percentage: Math.min(totalValue / maxValue, 1)
+                        };
                     }
                 },
                 'ACTIVE_LOG': {
@@ -1536,6 +1573,31 @@
                 clearTimeout(window.chartUpdateTimer);
                 window.chartUpdateTimer = null;
             }
+        }
+
+        // LOCK_WAIT_COUNT 표시 업데이트 함수
+        function updateLockWaitCountDisplay(data) {
+            var totalValue = data.totalValue || 0;
+            var maxValue = data.maxValue || 100;
+            var percentage = data.percentage || 0;
+            
+            // 큰 숫자 업데이트
+            $('#lockWaitCountValue').text(totalValue);
+            
+            // 색상 업데이트 (값에 따라)
+            var valueColor;
+            if (percentage < 0.3) {
+                valueColor = '#28a745'; // 녹색 (정상)
+                $('#lockWaitCountStatusText').text('정상').css('color', '#28a745');
+            } else if (percentage < 0.7) {
+                valueColor = '#ffc107'; // 노란색 (주의)
+                $('#lockWaitCountStatusText').text('주의').css('color', '#ffc107');
+            } else {
+                valueColor = '#dc3545'; // 빨간색 (위험)
+                $('#lockWaitCountStatusText').text('위험').css('color', '#dc3545');
+            }
+            
+            $('#lockWaitCountValue').css('color', valueColor);
         }
 
         // 차트 모니터링 시작 함수
@@ -1687,16 +1749,24 @@
                     </div>
                 </div>
 
-                <!-- LOCK_WAIT_COUNT 차트 -->
+                <!-- LOCK_WAIT_COUNT 대시보드 -->
                 <div class="col-md-3">
                     <div class="box box-default">
                         <div class="box-header with-border">
                             <h3 class="box-title">
-                                <i class="fa fa-bar-chart"></i> LOCK_WAIT_COUNT
+                                <i class="fa fa-lock"></i> LOCK_WAIT_COUNT
                             </h3>
                         </div>
-                        <div class="box-body" style="height: 250px; display: flex; align-items: center; justify-content: center;">
-                            <canvas id="lockWaitCountChart" style="max-height: 200px; max-width: 100%;"></canvas>
+                        <div class="box-body lock-wait-count-container" style="height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; cursor: pointer; transition: all 0.3s ease;" onclick="handleLockWaitCountClick()">
+                            <!-- 큰 숫자 표시 -->
+                            <div id="lockWaitCountValue" style="font-size: 72px; font-weight: bold; color: #28a745; margin-bottom: 20px; text-align: center;">
+                                0
+                            </div>
+                            <!-- 상태 표시 -->
+                            <div id="lockWaitCountStatus" style="font-size: 14px; color: #666; text-align: center;">
+                                <span id="lockWaitCountStatusText">정상</span>
+                                <span id="lockWaitCountTrend" style="margin-left: 5px;"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1932,6 +2002,21 @@
             opacity: 1;
         }
     }
+        /* LOCK_WAIT_COUNT 컨테이너 호버 효과 */
+        .lock-wait-count-container:hover {
+            background-color: #f8f9fa !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .lock-wait-count-container:hover #lockWaitCountValue {
+            transform: scale(1.05);
+            transition: transform 0.3s ease;
+        }
+        
+        .lock-wait-count-container:hover #lockWaitCountStatus {
+            color: #007bff !important;
+        }
     </style>
     
     <!-- ParamForm 추가 (sendSql 방식 지원) -->
