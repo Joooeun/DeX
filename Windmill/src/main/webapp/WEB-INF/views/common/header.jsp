@@ -272,18 +272,24 @@ var changePW
 
 <body class="sidebar-mini skin-purple-light">
 
-<!-- 공지사항 표시 영역 -->
-<div id="noticeBanner" class="alert alert-info" style="margin: 0; border-radius: 0; display: none;">
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col-md-11">
-                <i class="fa fa-bullhorn"></i>
-                <span id="noticeContent"></span>
-            </div>
-            <div class="col-md-1 text-right">
-                <button type="button" class="close" onclick="hideNotice()" aria-label="Close">
+<!-- 공지사항 모달 -->
+<div class="modal fade" id="noticeModal" tabindex="-1" role="dialog" aria-labelledby="noticeModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="noticeModalLabel">
+                    <i class="fa fa-bullhorn"></i> 공지사항
+                </h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
+            </div>
+            <div class="modal-body">
+                <div id="noticeContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="modal-today-close">오늘 하루 열지 않기</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
             </div>
         </div>
     </div>
@@ -440,27 +446,6 @@ var changePW
 			</div>
 		</div>
 
-        <!-- ------------------------------공지사항 start------------------------------ -->
-		<div class="modal" id="NoticeModal" tabindex="-1" role="dialog">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<div class="modal-header">
-						<h5 class="modal-title">공지</h5>
-						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
-							<span aria-hidden="true">&times;</span>
-						</button>
-					</div>
-					<div class="modal-body">
-						<p>내용</p>
-					</div>
-					<div class="modal-footer">
-						<button type="button" class="btn btn-primary" id="modal-today-close">오늘 하루 열지 않기</button>
-						<button type="button" class="btn btn-secondary" data-dismiss="modal">닫기</button>
-					</div>
-				</div>
-			</div>
-		</div>
-		<!-- ------------------------------공지사항 end------------------------------ -->
 		
 		<script>
 		// 공지사항 관련 함수들
@@ -471,27 +456,35 @@ var changePW
 				success: function(response) {
 					if (response.success && response.noticeEnabled === 'true' && response.noticeContent) {
 						showNotice(response.noticeContent);
-					} else {
-						hideNotice();
 					}
 				},
 				error: function() {
-					hideNotice();
+					// 에러 시 아무것도 하지 않음
 				}
 			});
 		}
 		
 		function showNotice(content) {
-			$('#noticeContent').text(content);
-			$('#noticeBanner').show();
+			$('#noticeContent').html(content.replace(/\n/g, '<br>'));
+			$('#noticeModal').modal('show');
 		}
 		
-		function hideNotice() {
-			$('#noticeBanner').hide();
-		}
-		
-		// 페이지 로드 시 공지사항 확인
+		// 페이지 로드 시 공지사항 확인 및 이벤트 설정
 		$(document).ready(function() {
-			loadNotice();
+			// 오늘 하루 열지 않기 체크
+			var closedDate = localStorage.getItem('noticeClosedDate');
+			var today = new Date().toDateString();
+			if (closedDate !== today) {
+				// 오늘 아직 닫지 않았으면 공지사항 로드
+				loadNotice();
+			}
+			
+			// 오늘 하루 열지 않기 버튼 이벤트
+			$('#modal-today-close').click(function() {
+				// 오늘 날짜를 localStorage에 저장
+				var today = new Date().toDateString();
+				localStorage.setItem('noticeClosedDate', today);
+				$('#noticeModal').modal('hide');
+			});
 		});
 		</script>
