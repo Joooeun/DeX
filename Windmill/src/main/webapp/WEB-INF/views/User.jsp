@@ -1,16 +1,7 @@
 <%@include file="common/common.jsp"%>
 
-<!-- Toast 알림 시스템 -->
-<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1055;">
-    <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-        <div class="toast-header">
-            <strong class="me-auto" id="toastTitle">알림</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-        <div class="toast-body" id="toastMessage">
-        </div>
-    </div>
-</div>
+<!-- Toast 알림 컨테이너 -->
+<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999; width: 350px;"></div>
 
 <div class="content-wrapper" style="margin-left: 0">
     <section class="content-header">
@@ -128,7 +119,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
                 <h4 class="modal-title" id="userModalTitle">사용자 생성</h4>
             </div>
             <div class="modal-body">
@@ -164,7 +155,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
                 <button type="button" class="btn btn-primary" onclick="saveUser()">저장</button>
             </div>
         </div>
@@ -176,7 +167,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
                 <h4 class="modal-title">사용자 활동 로그</h4>
             </div>
             <div class="modal-body">
@@ -206,7 +197,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
             </div>
         </div>
     </div>
@@ -219,17 +210,17 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
                 <h4 class="modal-title" id="groupModalTitle">그룹 추가</h4>
             </div>
             <div class="modal-body">
                 <!-- 탭 네비게이션 -->
                 <ul class="nav nav-tabs" id="groupModalTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="groupInfoTab-tab" data-bs-toggle="tab" data-bs-target="#groupInfoTab" type="button" role="tab" aria-controls="groupInfoTab" aria-selected="true">그룹 정보</button>
+                    <li class="active" role="presentation">
+                        <a href="#groupInfoTab" id="groupInfoTab-tab" data-toggle="tab" role="tab" aria-controls="groupInfoTab" aria-selected="true">그룹 정보</a>
                     </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="groupPermissionsTab-tab" data-bs-toggle="tab" data-bs-target="#groupPermissionsTab" type="button" role="tab" aria-controls="groupPermissionsTab" aria-selected="false">권한 관리</button>
+                    <li role="presentation">
+                        <a href="#groupPermissionsTab" id="groupPermissionsTab-tab" data-toggle="tab" role="tab" aria-controls="groupPermissionsTab" aria-selected="false">권한 관리</a>
                     </li>
                 </ul>
                 
@@ -277,7 +268,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
                 <button type="button" class="btn btn-primary" onclick="saveGroup()">저장</button>
             </div>
         </div>
@@ -355,29 +346,35 @@ $(document).ready(function() {
 });
 
 // Toast 알림 시스템
-function showToast(message, type = 'info', title = '알림') {
-    const toast = document.getElementById('toast');
-    const toastTitle = document.getElementById('toastTitle');
-    const toastMessage = document.getElementById('toastMessage');
+function showToast(message, type = 'info', duration = 3000) {
+    var toastId = 'toast_' + Date.now();
+    var iconClass = {
+        'success': 'fa-check-circle',
+        'error': 'fa-exclamation-circle',
+        'warning': 'fa-exclamation-triangle',
+        'info': 'fa-info-circle'
+    }[type] || 'fa-info-circle';
     
-    // 타입에 따른 스타일 설정
-    toast.className = 'toast';
-    if (type === 'success') {
-        toast.classList.add('bg-success', 'text-white');
-    } else if (type === 'error') {
-        toast.classList.add('bg-danger', 'text-white');
-    } else if (type === 'warning') {
-        toast.classList.add('bg-warning', 'text-dark');
-    } else {
-        toast.classList.add('bg-info', 'text-white');
-    }
+    var bgClass = {
+        'success': 'alert-success',
+        'error': 'alert-danger',
+        'warning': 'alert-warning',
+        'info': 'alert-info'
+    }[type] || 'alert-info';
     
-    toastTitle.textContent = title;
-    toastMessage.textContent = message;
+    var toast = $('<div id="' + toastId + '" class="alert ' + bgClass + ' alert-dismissible" style="margin-bottom: 10px; animation: slideInRight 0.3s ease-out;">' +
+        '<button type="button" class="close" data-dismiss="alert">&times;</button>' +
+        '<i class="fa ' + iconClass + '"></i> ' + message +
+        '</div>');
     
-    // Bootstrap Toast 표시
-    const bsToast = new bootstrap.Toast(toast);
-    bsToast.show();
+    $('#toastContainer').append(toast);
+    
+    // 자동 제거
+    setTimeout(function() {
+        $('#' + toastId).fadeOut(300, function() {
+            $(this).remove();
+        });
+    }, duration);
 }
 
 // 전역 변수로 현재 페이지 관리
@@ -608,8 +605,7 @@ function editUser(userId) {
                 // 사용자의 현재 그룹 정보 로드
                 loadUserGroup(userId);
                 
-                var userModal = new bootstrap.Modal(document.getElementById('userModal'));
-                userModal.show();
+                $('#userModal').modal('show');
             } else {
                 showToast(response.message, 'error', '오류');
             }
@@ -662,8 +658,9 @@ function saveUser() {
         success: function(response) {
             if (response.success) {
                 showToast(response.message, 'success', '성공');
-                var userModal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
-                userModal.hide();
+                // Bootstrap 3에서는 getInstance가 없으므로 직접 숨김
+                // var userModal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
+                $('#userModal').modal('hide');
                 loadUserList(currentPage);
                 updateGroupLists(); // 그룹 목록과 필터 업데이트
             } else {
@@ -801,8 +798,9 @@ function savePermissions() {
         success: function(response) {
             if (response.success) {
                 showToast('권한이 저장되었습니다.', 'success', '성공');
-                var permissionModal = bootstrap.Modal.getInstance(document.getElementById('permissionModal'));
-                permissionModal.hide();
+                // Bootstrap 3에서는 getInstance가 없으므로 직접 숨김
+                // var permissionModal = bootstrap.Modal.getInstance(document.getElementById('permissionModal'));
+                $('#permissionModal').modal('hide');
             } else {
                 showToast(response.message, 'error', '오류');
             }
@@ -816,8 +814,7 @@ function savePermissions() {
 // 활동 로그 모달 표시
 function showActivityLogModal(userId) {
     $('#logUserId').val(userId);
-                    var activityLogModal = new bootstrap.Modal(document.getElementById('activityLogModal'));
-                activityLogModal.show();
+    $('#activityLogModal').modal('show');
     loadActivityLogs();
 }
 
@@ -930,8 +927,9 @@ function showGroupModal() {
     loadAllPermissions();
     
                     // 첫 번째 탭으로 이동
-                var firstTab = new bootstrap.Tab(document.querySelector('#groupInfoTab-tab'));
-                firstTab.show();
+                // Bootstrap 3 문법으로 변경
+                // var firstTab = new bootstrap.Tab(document.querySelector('#groupInfoTab-tab'));
+                $('#groupInfoTab-tab').tab('show');
     
     $('#groupModal').modal('show');
 }
@@ -954,8 +952,7 @@ function editGroup(groupId) {
                 // 권한 정보 로드
                 loadGroupPermissions(groupId);
                 
-                var groupModal = new bootstrap.Modal(document.getElementById('groupModal'));
-                groupModal.show();
+                $('#groupModal').modal('show');
             } else {
                 alert(response.message);
             }
@@ -989,8 +986,9 @@ function saveGroup() {
                     saveGroupPermissions(response.data.groupId);
                 }
                 showToast(response.message, 'success', '성공');
-                var groupModal = bootstrap.Modal.getInstance(document.getElementById('groupModal'));
-                groupModal.hide();
+                // Bootstrap 3에서는 getInstance가 없으므로 직접 숨김
+                // var groupModal = bootstrap.Modal.getInstance(document.getElementById('groupModal'));
+                $('#groupModal').modal('hide');
                 loadGroupTable();
                 updateGroupLists(); // 사용자 모달의 그룹 목록과 필터 업데이트
             } else {
@@ -1281,11 +1279,9 @@ function editGroupPermissions(groupId) {
                 loadGroupPermissions(groupId);
                 
                 // 권한 탭으로 바로 이동
-                var groupModal = new bootstrap.Modal(document.getElementById('groupModal'));
-                groupModal.show();
+                $('#groupModal').modal('show');
                 setTimeout(function() {
-                    var permissionsTab = new bootstrap.Tab(document.querySelector('#groupPermissionsTab-tab'));
-                    permissionsTab.show();
+                    $('#groupPermissionsTab-tab').tab('show');
                 }, 100);
             } else {
                 showToast(response.message, 'error', '오류');
@@ -1357,5 +1353,18 @@ function openUserGroupManagement() {
     window.open('/UserGroup', '_blank');
 }
 </script>
+
+<style>
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+</style>
 
 </body>

@@ -923,7 +923,7 @@ table th, td {
 					console.error('에디터 포커스 실패:', e);
 				}
 			}
-		}
+}
 
 // Textarea 기반 SQL 에디터 초기화
 function initTextareaEditor() {
@@ -978,16 +978,15 @@ function initTextareaEditor() {
 				trigger: 'hover'
 			});
 
-			// 파라미터 속성 변경 이벤트 리스너 추가
-			row.find('.parameter-hidden').on('change', function () {
-				var isHidden = $(this).is(':checked');
-				var requiredCheckbox = $(this).closest('tr').find('.parameter-required');
-
-				// 숨김 필드면 자동으로 필수로 설정
-				if (isHidden) {
-					requiredCheckbox.prop('checked', true);
-				}
-			});
+			// 파라미터 속성 변경 이벤트 리스너 추가 (자동 필수 체크 제거)
+			// row.find('.parameter-hidden').on('change', function () {
+			// 	var isHidden = $(this).is(':checked');
+			// 	var requiredCheckbox = $(this).closest('tr').find('.parameter-required');
+			// 	// 숨김 필드면 자동으로 필수로 설정
+			// 	if (isHidden) {
+			// 		requiredCheckbox.prop('checked', true);
+			// 	}
+			// });
 
 			// 순서 변경 버튼 이벤트 리스너 추가
 			row.find('.move-up').on('click', function () {
@@ -1112,16 +1111,16 @@ function initTextareaEditor() {
 						+ (param.DEFAULT_VALUE || '')
 						+ '" placeholder="기본값"></td>'
 						+ '<td><div><input type="checkbox" class="parameter-required"'
-						+ (param.IS_REQUIRED ? ' checked' : '')
+						+ (param.IS_REQUIRED === true || param.IS_REQUIRED === 'true' ? ' checked' : '')
 						+ '></div></td>'
 						+ '<td><div><input type="checkbox" class="parameter-readonly"'
-						+ (param.PARAMETER_READONLY ? ' checked' : '')
+						+ (param.IS_READONLY === true || param.IS_READONLY === 'true' ? ' checked' : '')
 						+ '></div></td>'
 						+ '<td><div><input type="checkbox" class="parameter-hidden"'
-						+ (param.IS_HIDDEN ? ' checked' : '')
+						+ (param.IS_HIDDEN === true || param.IS_HIDDEN === 'true' ? ' checked' : '')
 						+ '></div></td>'
 						+ '<td><div><input type="checkbox" class="parameter-disabled"'
-						+ (param.IS_DISABLED ? ' checked' : '')
+						+ (param.IS_DISABLED === true || param.IS_DISABLED === 'true' ? ' checked' : '')
 						+ '></div></td>'
 						+ '<td><button type="button" class="btn btn-danger btn-xs" onclick="removeParameter(this)"><i class="fa fa-minus"></i></button></td>'
 						+ '</tr>');
@@ -1134,16 +1133,15 @@ function initTextareaEditor() {
 						trigger: 'hover'
 					});
 
-					// 파라미터 속성 변경 이벤트 리스너 추가
-					row.find('.parameter-hidden').on('change', function () {
-						var isHidden = $(this).is(':checked');
-						var requiredCheckbox = $(this).closest('tr').find('.parameter-required');
-
-						// 숨김 필드면 자동으로 필수로 설정
-						if (isHidden) {
-							requiredCheckbox.prop('checked', true);
-						}
-					});
+					// 파라미터 속성 변경 이벤트 리스너 추가 (자동 필수 체크 제거)
+					// row.find('.parameter-hidden').on('change', function () {
+					// 	var isHidden = $(this).is(':checked');
+					// 	var requiredCheckbox = $(this).closest('tr').find('.parameter-required');
+					// 	// 숨김 필드면 자동으로 필수로 설정
+					// 	if (isHidden) {
+					// 		requiredCheckbox.prop('checked', true);
+					// 	}
+					// });
 
 					// 파라미터 이름 변경 시 자동완성 업데이트
 					row.find('.parameter-name').on('input', function() {
@@ -1456,11 +1454,17 @@ function initTextareaEditor() {
 
 			// 새로 추가된 행의 대상 템플릿 드롭다운에 옵션 로드 및 Select2 초기화
 			loadTemplateOptions(row.find('.target-template-select2'));
+			
+			// 변경사항 표시
+			markTemplateChanged();
 		}
 
 		// 단축키 삭제
 		function removeShortcut(button) {
 			$(button).closest('tr').remove();
+			
+			// 변경사항 표시
+			markTemplateChanged();
 		}
 
 		// 단축키 목록 로드
@@ -1501,6 +1505,7 @@ function initTextareaEditor() {
 			tbody.empty();
 
 			if (shortcuts && shortcuts.length > 0) {
+				
 				shortcuts.forEach(function (shortcut) {
 					var row = $('<tr class="shortcut-row">'
 						+ '<td><input type="text" class="form-control shortcut-key" value="'
@@ -1516,7 +1521,7 @@ function initTextareaEditor() {
 						+ (shortcut.SHORTCUT_DESCRIPTION || '')
 						+ '" placeholder="단축키 설명"></td>'
 						+ '<td><input type="text" class="form-control source-columns" value="'
-						+ (shortcut.SOURCE_COLUMNS || '')
+						+ (shortcut.SOURCE_COLUMN_INDEXES || '')
 						+ '" placeholder="1,2,3"></td>'
 						+ '<td><div><input type="checkbox" class="auto-execute"'
 						+ (shortcut.AUTO_EXECUTE ? ' checked' : '')
@@ -1828,12 +1833,13 @@ function saveSqlTemplate() {
 					DESCRIPTION: row.find('.parameter-description').val(),
 					PARAMETER_ORDER: row.find('.parameter-order').val(),
 					IS_REQUIRED: row.find('.parameter-required').is(':checked'),
-					PARAMETER_READONLY: row.find('.parameter-readonly').is(':checked'),
+					IS_READONLY: row.find('.parameter-readonly').is(':checked'),
 					IS_HIDDEN: row.find('.parameter-hidden').is(':checked'),
 					IS_DISABLED: row.find('.parameter-disabled').is(':checked')
 				};
 				if (param.PARAMETER_NAME && param.PARAMETER_NAME.trim()) {
 					window.currentTemplate.parameters.push(param);
+				} else {
 				}
 			});
 
@@ -1852,6 +1858,7 @@ function saveSqlTemplate() {
 				};
 				if (shortcut.SHORTCUT_KEY && shortcut.SHORTCUT_KEY.trim()) {
 					window.currentTemplate.shortcuts.push(shortcut);
+				} else {
 				}
 			});
 		}
@@ -1910,6 +1917,7 @@ function saveSqlTemplate() {
 				// 삭제된 SQL 내용을 명시적으로 알려주기 위한 플래그
 				replaceAllSqlContents: true
     };
+    
     
     $.ajax({
 				type: 'POST',
@@ -2367,7 +2375,7 @@ function saveSqlTemplate() {
 			
 			modalHtml += '</div></div></div>' +
 				'<div class="modal-footer">' +
-				'<button type="button" class="btn btn-secondary" onclick="cancelAddSqlContent()">취소</button>' +
+				'<button type="button" class="btn btn-default" onclick="cancelAddSqlContent()">취소</button>' +
 				'<button type="button" class="btn btn-primary" onclick="confirmAddSqlContent()">' + (isEditMode ? '적용' : '추가') + '</button>' +
 				'</div></div></div></div>';
 
@@ -2523,7 +2531,10 @@ function saveSqlTemplate() {
 			$(document).on('input change', '#parameterTableBody input, #parameterTableBody select', markTemplateChanged);
 
 			// 단축키 테이블 변경 추적
-			$(document).on('input change', '#shortcutTableBody input', markTemplateChanged);
+			$(document).on('input change', '#shortcutTableBody input, #shortcutTableBody select', markTemplateChanged);
+			
+			// Select2 변경 추적
+			$(document).on('change', '.target-template-select2', markTemplateChanged);
 		}
 
 		// 저장 버튼 상태 업데이트
@@ -3522,7 +3533,7 @@ function goToTemplate() {
 				</form>
 			</div>
 			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-dismiss="modal">취소</button>
+				<button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
 				<button type="button" class="btn btn-primary"
 					id="categoryModalSaveBtn" onclick="saveCategory()">저장</button>
 			</div>

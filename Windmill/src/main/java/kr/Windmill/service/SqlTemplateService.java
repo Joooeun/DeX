@@ -478,22 +478,37 @@ public class SqlTemplateService {
 
 		if (parametersJson != null && !parametersJson.trim().isEmpty()) {
 			try {
-
-				List<Map<String, Object>> parameters = com.getListFromString(parametersJson);
+			List<Map<String, Object>> parameters = com.getListFromString(parametersJson);
 
 				for (Map<String, Object> param : parameters) {
-
-					String name = (String) param.get("name");
-					String type = (String) param.get("type");
-					String defaultValue = (String) param.get("defaultValue");
-					Boolean required = (Boolean) param.get("required");
-					Integer order = (Integer) param.get("order");
+					try {
+						
+						String name = (String) param.get("PARAMETER_NAME");
+						String type = (String) param.get("PARAMETER_TYPE");
+						String defaultValue = (String) param.get("PARAMETER_DEFAULT");
+						Boolean required = (Boolean) param.get("IS_REQUIRED");
+						
+						// PARAMETER_ORDER는 문자열로 전송되므로 안전하게 변환
+						Integer order = null;
+						Object orderObj = param.get("PARAMETER_ORDER");
+						if (orderObj != null) {
+							if (orderObj instanceof Integer) {
+								order = (Integer) orderObj;
+							} else if (orderObj instanceof String) {
+								try {
+									order = Integer.parseInt((String) orderObj);
+								} catch (NumberFormatException e) {
+									order = 1; // 기본값
+								}
+							}
+						}
+						
 
 					if (name != null && !name.trim().isEmpty()) {
-						String description = (String) param.get("description");
-						Boolean readonly = (Boolean) param.get("readonly");
-						Boolean hidden = (Boolean) param.get("hidden");
-						Boolean disabled = (Boolean) param.get("disabled");
+						String description = (String) param.get("DESCRIPTION");
+						Boolean readonly = (Boolean) param.get("IS_READONLY");
+						Boolean hidden = (Boolean) param.get("IS_HIDDEN");
+						Boolean disabled = (Boolean) param.get("IS_DISABLED");
 
 						// 속성값들을 개별 필드로 저장
 						Boolean isReadonly = readonly != null ? readonly : false;
@@ -504,10 +519,14 @@ public class SqlTemplateService {
                             "INSERT INTO SQL_TEMPLATE_PARAMETER (TEMPLATE_ID, PARAMETER_NAME, PARAMETER_TYPE, DEFAULT_VALUE, IS_REQUIRED, PARAMETER_ORDER, IS_READONLY, IS_HIDDEN, IS_DISABLED, DESCRIPTION) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                             templateId, name.trim(), type != null ? type : "STRING", defaultValue, required != null ? required : false, order != null ? order : 1, 
                             isReadonly, isHidden, isDisabled, description);
+					} else {
+					}
+					} catch (Exception e) {
+						logger.error("개별 파라미터 처리 실패: " + e.getMessage(), e);
 					}
 				}
 			} catch (Exception e) {
-                // logger.warn("파라미터 JSON 파싱 실패: " + e.getMessage()); // Original code had this line commented out
+                logger.error("파라미터 JSON 파싱 실패: " + e.getMessage(), e);
 				// 기존 방식으로 fallback
 				if (configContent != null && !configContent.trim().isEmpty()) {
 					String[] lines = configContent.split("\n");
@@ -521,8 +540,8 @@ public class SqlTemplateService {
 								String paramDefaultValue = parts[1].trim();
 
                                 jdbcTemplate.update(
-                                    "INSERT INTO SQL_TEMPLATE_PARAMETER (TEMPLATE_ID, PARAMETER_NAME, DEFAULT_VALUE, PARAMETER_ORDER, IS_READONLY, IS_HIDDEN, IS_DISABLED, DESCRIPTION) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                                    templateId, paramName, paramDefaultValue, order++, false, false, false, null);
+                                    "INSERT INTO SQL_TEMPLATE_PARAMETER (TEMPLATE_ID, PARAMETER_NAME, PARAMETER_TYPE, DEFAULT_VALUE, PARAMETER_ORDER, IS_READONLY, IS_HIDDEN, IS_DISABLED, DESCRIPTION) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                    templateId, paramName, "STRING", paramDefaultValue, order++, false, false, false, null);
 							}
 						}
 					}
@@ -535,21 +554,25 @@ public class SqlTemplateService {
 
 		if (shortcutsJson != null && !shortcutsJson.trim().isEmpty()) {
 			try {
-				List<Map<String, Object>> shortcuts = parseShortcutsJson(shortcutsJson);
+			List<Map<String, Object>> shortcuts = parseShortcutsJson(shortcutsJson);
 				for (Map<String, Object> shortcut : shortcuts) {
-					String key = (String) shortcut.get("key");
-					String name = (String) shortcut.get("name");
-					String targetTemplateId = (String) shortcut.get("targetTemplateId");
-					Boolean autoExecute = (Boolean) shortcut.get("autoExecute");
-					Boolean isActive = (Boolean) shortcut.get("isActive");
+					String key = (String) shortcut.get("SHORTCUT_KEY");
+					String name = (String) shortcut.get("SHORTCUT_NAME");
+					String targetTemplateId = (String) shortcut.get("TARGET_TEMPLATE_ID");
+					Boolean autoExecute = (Boolean) shortcut.get("AUTO_EXECUTE");
+					Boolean isActive = (Boolean) shortcut.get("IS_ACTIVE");
 
-										if (key != null && !key.trim().isEmpty() && name != null && !name.trim().isEmpty() && targetTemplateId != null && !targetTemplateId.trim().isEmpty()) {
-						String description = (String) shortcut.get("description");
-						String sourceColumns = (String) shortcut.get("sourceColumns");
+										if (key != null && !key.trim().isEmpty() && targetTemplateId != null && !targetTemplateId.trim().isEmpty()) {
+						String description = (String) shortcut.get("SHORTCUT_DESCRIPTION");
+						String sourceColumns = (String) shortcut.get("SOURCE_COLUMNS");
+						
+						// 단축키명이 비어있으면 기본값 설정
+						String finalName = (name != null && !name.trim().isEmpty()) ? name.trim() : key;
 
                         jdbcTemplate.update(
                             "INSERT INTO SQL_TEMPLATE_SHORTCUT (SOURCE_TEMPLATE_ID, TARGET_TEMPLATE_ID, SHORTCUT_KEY, SHORTCUT_NAME, SHORTCUT_DESCRIPTION, SOURCE_COLUMN_INDEXES, AUTO_EXECUTE, IS_ACTIVE) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                            templateId, targetTemplateId.trim(), key.trim(), name.trim(), description, sourceColumns, autoExecute != null ? autoExecute : true, isActive != null ? isActive : true);
+                            templateId, targetTemplateId.trim(), key.trim(), finalName, description, sourceColumns, autoExecute != null ? autoExecute : true, isActive != null ? isActive : true);
+					} else {
 					}
 				}
 			} catch (Exception e) {
@@ -592,7 +615,6 @@ public class SqlTemplateService {
 						logger.warn("SQL 내용이 비어있거나 연결 ID가 지정되지 않음 - connectionId: {}, contentSql: {}", connectionId, contentSql != null ? "있음" : "없음");
 					}
 				}
-				logger.info("추가 SQL 내용 처리 완료 - templateId: {}, 처리된 항목 수: {}, replaceAllSqlContents: {}", templateId, additionalContents.size(), replaceAllSqlContents);
 			} catch (Exception e) {
 				logger.error("추가 SQL 내용 처리 실패 - templateId: {}, additionalSqlContents: {}", templateId, additionalSqlContents, e);
 				// 트랜잭션 롤백을 위해 예외를 다시 던짐
@@ -1044,11 +1066,11 @@ public class SqlTemplateService {
 					Map<String, Object> shortcut = (Map<String, Object>) obj;
 					
 					// 불린 값 변환
-					if (shortcut.containsKey("autoExecute")) {
-						shortcut.put("autoExecute", Boolean.valueOf(shortcut.get("autoExecute").toString()));
+					if (shortcut.containsKey("AUTO_EXECUTE")) {
+						shortcut.put("AUTO_EXECUTE", Boolean.valueOf(shortcut.get("AUTO_EXECUTE").toString()));
 					}
-					if (shortcut.containsKey("isActive")) {
-						shortcut.put("isActive", Boolean.valueOf(shortcut.get("isActive").toString()));
+					if (shortcut.containsKey("IS_ACTIVE")) {
+						shortcut.put("IS_ACTIVE", Boolean.valueOf(shortcut.get("IS_ACTIVE").toString()));
 					}
 					
 					shortcuts.add(shortcut);
