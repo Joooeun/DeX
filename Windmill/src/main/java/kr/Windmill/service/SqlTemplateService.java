@@ -167,8 +167,6 @@ public class SqlTemplateService {
 			// 카테고리 순서대로 정렬하여 트리 구성
 			tree.addAll(categoryMap.values());
 			
-			// 미분류 템플릿은 현재 권한 체계에서 제외 (필요시 별도 권한 체계 구현 필요)
-			// TODO: 미분류 템플릿에 대한 권한 체계 정의 필요
 
 		} catch (Exception e) {
 			logger.error("사용자 메뉴 트리 조회 실패: " + userId, e);
@@ -1045,7 +1043,7 @@ public class SqlTemplateService {
 				}
 			}
 		} catch (Exception e) {
-            // logger.error("JSON 파싱 실패: " + e.getMessage()); // Original code had this line commented out
+			// JSON 파싱 실패 시 빈 리스트 반환
 		}
 		return parameters;
 	}

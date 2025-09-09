@@ -36,10 +36,6 @@ public class Log {
 
 	public void log_start(LogInfoDto data, String msg) {
 
-		// 파일은 모두 저장으로 변경 20240619
-//		if (data.getConnection().equals(LogDB) || !(data.isAudit() || data.getId().equals("admin"))) {
-//			return;
-//		}
 
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
 		String strNowDate = simpleDateFormat.format(Date.from(data.getStart()));
