@@ -14,7 +14,6 @@
 			<div class="col-md-12">
 				<div class="box">
 					<div class="box-header with-border">
-						<h3 class="box-title">연결 목록</h3>
 						<div class="row">
 							<div class="col-sm-8">
 								<div class="row">
@@ -456,13 +455,12 @@
 		$('#editConnectionId').val('');
 		$('#dbFields').hide();
 		$('#sftpFields').hide();
+		$('#monitoringFields').hide(); // 모니터링 필드 숨김
 		$('#testResultArea').hide(); // 테스트 결과 영역 숨기기
 		$('#testSql').val(''); // 테스트 SQL 초기화
 		
 		// 기본값 설정
 		$('#connectionStatus').val('ACTIVE');
-		$('#monitoringEnabled').val('true');
-		$('#monitoringInterval').val('300');
 		
 		$('#connectionModal').modal('show');
 	}
@@ -484,14 +482,19 @@
 
 					// 폼 필드 설정
 					$('#connectionId').val(connection.CONNECTION_ID);
+					console.log(connection)
 					$('#connectionType').val(connectionType);
 					$('#connectionIP').val(connection.HOST_IP);
 					$('#connectionPort').val(connection.PORT);
 					
-					// 상태와 모니터링 필드 설정
+					// 상태 설정
 					$('#connectionStatus').val(connection.STATUS || 'ACTIVE');
-					$('#monitoringEnabled').val(connection.MONITORING_ENABLED !== false ? 'true' : 'false');
-					$('#monitoringInterval').val(connection.MONITORING_INTERVAL || 300);
+					
+					// 모니터링 필드는 DB 타입일 때만 설정
+					if (connectionType === 'DB') {
+						$('#monitoringEnabled').val(connection.MONITORING_ENABLED !== false ? 'true' : 'false');
+						$('#monitoringInterval').val(connection.MONITORING_INTERVAL || 300);
+					}
 
 					if (connectionType === 'DB') {
 						$('#databaseName').val(connection.DATABASE_NAME);
@@ -503,6 +506,8 @@
 						$('#dbFields').show();
 						$('#sftpFields').hide();
 					} else {
+						// SFTP 연결의 경우에도 connectionId 설정
+						$('#connectionId').val(connection.CONNECTION_ID);
 						$('#sftpUsername').val(connection.USERNAME);
 						$('#sftpPassword').val(connection.PASSWORD);
 						$('#dbFields').hide();
@@ -510,6 +515,10 @@
 					}
 
 					$('#testResultArea').hide(); // 테스트 결과 영역 숨기기
+					
+					// 타입에 따른 폼 업데이트 (모니터링 필드 표시/숨김)
+					updateFormByType(connectionType);
+					
 					$('#connectionModal').modal('show');
 				} else {
 					alert(response.message);
@@ -528,12 +537,13 @@
 			TYPE : connectionType,
 			HOST_IP : $('#connectionIP').val(),
 			PORT : $('#connectionPort').val(),
-			STATUS : $('#connectionStatus').val(),
-			MONITORING_ENABLED : $('#monitoringEnabled').val() === 'true',
-			MONITORING_INTERVAL : parseInt($('#monitoringInterval').val()) || 300
+			STATUS : $('#connectionStatus').val()
 		};
-
+		
+		// 모니터링 필드는 DB 타입일 때만 추가
 		if (connectionType === 'DB') {
+			connectionData.MONITORING_ENABLED = $('#monitoringEnabled').val() === 'true';
+			connectionData.MONITORING_INTERVAL = parseInt($('#monitoringInterval').val()) || 300;
 			connectionData.CONNECTION_ID = $('#connectionId').val();
 			connectionData.DATABASE_NAME = $('#databaseName').val();
 			connectionData.DB_TYPE = $('#dbType').val();

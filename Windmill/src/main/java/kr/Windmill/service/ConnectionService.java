@@ -964,7 +964,7 @@ public class ConnectionService {
 			List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, connectionId);
 			return result.isEmpty() ? null : result.get(0);
 		} else {
-			String sql = "SELECT * FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ?";
+			String sql = "SELECT SFTP_CONNECTION_ID AS CONNECTION_ID, HOST_IP, PORT, USERNAME, PASSWORD, STATUS, CREATED_BY, CREATED_TIMESTAMP, MODIFIED_BY, MODIFIED_TIMESTAMP FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ?";
 			List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, connectionId);
 			return result.isEmpty() ? null : result.get(0);
 		}
@@ -1191,17 +1191,17 @@ public class ConnectionService {
 			}
 			connectionData.put("CONNECTION_ID", connectionId); // ID를 connectionData에 설정
 			String sql = "INSERT INTO SFTP_CONNECTION (SFTP_CONNECTION_ID, HOST_IP, PORT, "
-					+ "USERNAME, PASSWORD, CREATED_BY) " + "VALUES (?, ?, ?, ?, ?, ?)";
+					+ "USERNAME, PASSWORD, STATUS, CREATED_BY) " + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
 			jdbcTemplate.update(sql, connectionId, connectionData.get("HOST_IP"), connectionData.get("PORT"), connectionData.get("USERNAME"),
-					connectionData.get("PASSWORD"), userId);
+					connectionData.get("PASSWORD"), connectionData.get("STATUS"), userId);
 		} else {
-			// 기존 연결 수정
-				String sql = "UPDATE SFTP_CONNECTION SET HOST_IP = ?, PORT = ?, " + "USERNAME = ?, PASSWORD = ?, "
-						+ "MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " + "WHERE SFTP_CONNECTION_ID = ?";
+			// 기존 연결 수정 - editConnectionId 사용
+			String sql = "UPDATE SFTP_CONNECTION SET SFTP_CONNECTION_ID = ?, HOST_IP = ?, PORT = ?, " + "USERNAME = ?, PASSWORD = ?, STATUS = ?, "
+					+ "MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " + "WHERE SFTP_CONNECTION_ID = ?";
 
-				jdbcTemplate.update(sql, connectionData.get("HOST_IP"), connectionData.get("PORT"), connectionData.get("USERNAME"),
-						connectionData.get("PASSWORD"), userId, connectionId);
+			jdbcTemplate.update(sql, connectionId, connectionData.get("HOST_IP"), connectionData.get("PORT"), connectionData.get("USERNAME"),
+					connectionData.get("PASSWORD"), connectionData.get("STATUS"), userId, editConnectionId);
 		}
 
 		return true;
@@ -1234,7 +1234,8 @@ public class ConnectionService {
 	 */
 	private boolean deleteSftpConnection(String connectionId) {
 		try {
-			String sql = "DELETE FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ?";
+			// 소프트 삭제: STATUS를 INACTIVE로 변경
+			String sql = "UPDATE SFTP_CONNECTION SET STATUS = 'INACTIVE', MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE SFTP_CONNECTION_ID = ?";
 			jdbcTemplate.update(sql, connectionId);
 			return true;
 		} catch (Exception e) {

@@ -20,18 +20,18 @@
 }
 
 .category-item {
-	cursor: pointer;
-	padding: 5px;
+    cursor: pointer;
+    padding: 5px;
 	border: 1px solid #ddd;
 	margin-bottom: 3px;
-	border-radius: 3px;
+    border-radius: 3px;
 	background-color: #f9f9f9;
 	word-wrap: break-word;
 	white-space: normal;
 }
 
 .category-item:hover {
-	background-color: #e9ecef;
+    background-color: #e9ecef;
 }
 
 .category-item.selected {
@@ -66,22 +66,22 @@
 }
 
 .modal-header {
-	background-color: #007bff;
-	color: white;
+    background-color: #007bff;
+    color: white;
 }
 
 .sql-preview {
-	background-color: #f8f9fa;
-	border: 1px solid #dee2e6;
-	border-radius: 5px;
-	padding: 10px;
-	max-height: 300px;
-	overflow-y: auto;
-	font-family: 'Courier New', monospace;
-	font-size: 12px;
-	white-space: pre-wrap;
-	word-wrap: break-word;
-	line-height: 1.4;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 10px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    line-height: 1.4;
 }
 
 .template-count {
@@ -897,10 +897,10 @@ table th, td {
 		
 
 		
-				// 기본 템플릿 탭 활성화
+		// 기본 템플릿 탭 활성화
 		function activateDefaultTab() {
 			$('#sqlContentTabs a:first').tab('show');
-		}
+}
 
 		// 에디터에 포커스 설정
 		function focusEditor(editorId) {
@@ -937,7 +937,7 @@ function initTextareaEditor() {
             document.getElementById("sqlTextarea").value = value || '';
         }
     };
-}
+		}
 
 		// 파라미터 추가
 		function addParameter() {
@@ -1202,21 +1202,21 @@ function initTextareaEditor() {
 			var hasValidSqlContent = false;
 			var emptySqlTabs = [];
 			
-						// 기본 템플릿 검증
+			// 기본 템플릿 검증
 			var defaultSqlContent = '';
 			if (typeof ace !== 'undefined') {
 				try {
 					var defaultEditorElement = document.getElementById('sqlEditor_default');
 					if (defaultEditorElement && defaultEditorElement.classList.contains('ace_editor')) {
-						var defaultEditor = ace.edit('sqlEditor_default');
-						defaultSqlContent = defaultEditor.getValue();
+					var defaultEditor = ace.edit('sqlEditor_default');
+					defaultSqlContent = defaultEditor.getValue();
 					} else {
 						defaultSqlContent = $('#sqlEditor_default .sql-textarea').val() || '';
 					}
 				} catch (e) {
 					defaultSqlContent = $('#sqlEditor_default .sql-textarea').val() || '';
 				}
-			} else {
+    } else {
 				defaultSqlContent = $('#sqlEditor_default .sql-textarea').val() || '';
 			}
 			
@@ -1233,19 +1233,19 @@ function initTextareaEditor() {
 				var editorId = 'sqlEditor_' + connectionId;
 			var sqlContent = '';
 				
-								if (typeof ace !== 'undefined') {
+				if (typeof ace !== 'undefined') {
 					try {
 						var editorElement = document.getElementById(editorId);
 						if (editorElement && editorElement.classList.contains('ace_editor')) {
-							var editor = ace.edit(editorId);
-							sqlContent = editor.getValue();
+						var editor = ace.edit(editorId);
+						sqlContent = editor.getValue();
 						} else {
 							sqlContent = $('#' + editorId + ' .sql-textarea').val() || '';
 						}
 					} catch (e) {
 						sqlContent = $('#' + editorId + ' .sql-textarea').val() || '';
 					}
-				} else {
+			} else {
 					sqlContent = $('#' + editorId + ' .sql-textarea').val() || '';
 				}
 				
@@ -1386,8 +1386,8 @@ function initTextareaEditor() {
 							
 							if (numericColumns.length > 0) {
 								var maxColumnIndex = Math.max.apply(null, numericColumns);
-								if (maxColumnIndex > parameterCount) {
-									errors.push('소스 컬럼 인덱스가 대상 템플릿의 파라미터 개수를 초과합니다. (순서: ' + (index + 1) + ', 최대: ' + parameterCount + ', 입력: ' + maxColumnIndex + ')');
+							if (maxColumnIndex > parameterCount) {
+								errors.push('소스 컬럼 인덱스가 대상 템플릿의 파라미터 개수를 초과합니다. (순서: ' + (index + 1) + ', 최대: ' + parameterCount + ', 입력: ' + maxColumnIndex + ')');
 								}
 							}
 						}
@@ -1711,9 +1711,9 @@ function initTextareaEditor() {
 								editor.resize();
 							}
 						});
-				} catch (e) {
+					} catch (e) {
 					console.error('개행 보기 변경 시 에디터 리사이즈 실패:', e);
-				}
+					}
 				});
 			}, 500);
 			// 현재 선택된 카테고리를 자동으로 설정
@@ -1721,7 +1721,7 @@ function initTextareaEditor() {
 			if (selectedCategory && selectedCategory !== 'UNCATEGORIZED') {
 				$('#sqlTemplateCategories').val([selectedCategory]).trigger('change');
 			} else {
-				$('#sqlTemplateCategories').val(null).trigger('change');
+			$('#sqlTemplateCategories').val(null).trigger('change');
 			}
 			$('#accessibleConnections').val(null).trigger('change');
 			$('#sqlContent').val('');
@@ -1754,7 +1754,7 @@ function initTextareaEditor() {
 			window.hasUnsavedChanges = false;
 			window.isLoading = false;
 			updateSaveButtonState();
-		}
+}
 
 		// SQL 템플릿 저장 (카테고리 포함)
 function saveSqlTemplate() {
@@ -1890,7 +1890,7 @@ function saveSqlTemplate() {
 		// 서버로 템플릿 저장
 		function saveTemplateToServer() {
 			// 기존 저장 형식으로 변환
-			var data = {
+    var data = {
 				templateId: window.currentTemplate.templateId,
 				sqlName: window.currentTemplate.templateName,
 				sqlDesc: window.currentTemplate.description,
@@ -1909,14 +1909,14 @@ function saveSqlTemplate() {
 				shortcuts: JSON.stringify(window.currentTemplate.shortcuts),
 				// 삭제된 SQL 내용을 명시적으로 알려주기 위한 플래그
 				replaceAllSqlContents: true
-			};
-			
-			$.ajax({
+    };
+    
+    $.ajax({
 				type: 'POST',
-				url: '/SQLTemplate/save',
-				data: data,
+        url: '/SQLTemplate/save',
+        data: data,
 				success: function(result) {
-					if (result.success) {
+            if (result.success) {
 						showToast('템플릿이 저장되었습니다.', 'success');
 						
 						// 변경사항 초기화
@@ -1931,9 +1931,9 @@ function saveSqlTemplate() {
 						}
 						// 카테고리별 템플릿 개수 업데이트
 						loadCategoryTemplateCounts();
-					} else {
+            } else {
 						showToast('저장 실패: ' + result.error, 'error');
-					}
+            }
 				},
 				error: function(xhr, status, error) {
 					console.error('저장 중 오류:', error);
@@ -1988,9 +1988,9 @@ function saveSqlTemplate() {
 											editor.resize();
 										}
 									});
-				} catch (e) {
+								} catch (e) {
 					console.error('개행 보기 변경 시 에디터 리사이즈 실패:', e);
-				}
+								}
 							});
 						}, 500);
 
@@ -2184,34 +2184,34 @@ function saveSqlTemplate() {
 				try {
 					var editorElement = document.getElementById(editorId);
 					if (editorElement) {
-						ace.require("ace/ext/language_tools");
+					ace.require("ace/ext/language_tools");
 						var editor = ace.edit(editorId);
-						editor.setTheme("ace/theme/chrome");
-						editor.session.setMode("ace/mode/sql");
-						editor.setOptions({
-							enableBasicAutocompletion: true,
-							enableSnippets: true,
+					editor.setTheme("ace/theme/chrome");
+					editor.session.setMode("ace/mode/sql");
+					editor.setOptions({
+						enableBasicAutocompletion: true,
+						enableSnippets: true,
 							enableLiveAutocompletion: true,
 							showPrintMargin: false,
 							showGutter: true,
 							showInvisibles: false
-						});
+					});
 
-						// 커스텀 자동완성 설정 추가
-						updateAllEditorsCompleters()
-						
+					// 커스텀 자동완성 설정 추가
+					updateAllEditorsCompleters()
+					
 
-						editor.setValue(sqlContent || '');
-						
+					editor.setValue(sqlContent || '');
+					
 						// 에디터를 전역 변수에 저장 (에디터 ID용)
-						window.sqlEditors = window.sqlEditors || {};
+					window.sqlEditors = window.sqlEditors || {};
 						window.sqlEditors[editorId] = editor;
-						
-						// 에디터 변경 이벤트
-						editor.on('change', function() {
+					
+					// 에디터 변경 이벤트
+					editor.on('change', function() {
 							// 변경사항 추적
 							markTemplateChanged();
-						});
+					});
 					} else {
 						initTextareaEditorForConnection(editorId, sqlContent);
 					}
@@ -2219,7 +2219,7 @@ function saveSqlTemplate() {
 					console.error("SQL 에디터 초기화 실패:", e);
 					initTextareaEditorForConnection(editorId, sqlContent);
 				}
-			} else {
+						} else {
 				initTextareaEditorForConnection(editorId, sqlContent);
 			}
 		}
@@ -2597,8 +2597,8 @@ function saveSqlTemplate() {
 			$('a[href="#' + tabId + '"]').tab('show');
 
 			// SQL 에디터 초기화
-			initSqlEditorForConnection(content.CONNECTION_ID || 'default', content.SQL_CONTENT || '');
-		}
+				initSqlEditorForConnection(content.CONNECTION_ID || 'default', content.SQL_CONTENT || '');
+			}
 
 		// 연결이 이미 사용 중인지 확인
 		function isConnectionAlreadyUsed(connectionId) {
@@ -2806,7 +2806,7 @@ function deleteSqlTemplate() {
 
 // 해당 메뉴로 이동 버튼 상태 업데이트
 function updateGoToTemplateButton() {
-	var templateId = $('#sqlTemplateId').val();
+			var templateId = $('#sqlTemplateId').val();
 	var button = $('#goToTemplateBtn');
 	
 	if (templateId && templateId.trim() !== '') {
@@ -2949,20 +2949,20 @@ function goToTemplate() {
 			var contentId = activeTab.closest('.sql-editor-container').data('content-id');
 			
 			// SQL 내용 가져오기
-			var sqlContent = '';
+    var sqlContent = '';
 			if (typeof ace !== 'undefined') {
 				try {
 					var editorElement = document.getElementById("sqlEditor_" + dbType);
 					if (editorElement && editorElement.classList.contains('ace_editor')) {
-						var editor = ace.edit("sqlEditor_" + dbType);
-						sqlContent = editor.getValue();
+					var editor = ace.edit("sqlEditor_" + dbType);
+					sqlContent = editor.getValue();
 					} else {
 						sqlContent = $('#sqlEditor_' + dbType + ' .sql-textarea').val();
 					}
 				} catch (e) {
 					sqlContent = $('#sqlEditor_' + dbType + ' .sql-textarea').val();
 				}
-			} else {
+    } else {
 				sqlContent = $('#sqlEditor_' + dbType + ' .sql-textarea').val();
 			}
 			
@@ -3006,7 +3006,7 @@ function goToTemplate() {
 		// 탭 변경 시 SQL 내용 저장
 		$(document).on('shown.bs.tab', '#sqlContentTabs .nav-link', function() {
 			// 탭 변경 시 처리 (미리보기 제거됨)
-		});
+});
 
 		// 기본 SQL 설정 변경 시 저장
 		$(document).on('change', 'input[name="defaultSql"]', function() {
@@ -3148,22 +3148,22 @@ function goToTemplate() {
 
 <!-- Content Wrapper -->
 <div class="content-wrapper" style="margin-left: 0">
-	<!-- Content Header -->
-	<section class="content-header">
-		<h1>SQL 템플릿 관리</h1>
-		<ol class="breadcrumb">
-			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
-			<li class="active">SQL 템플릿 관리</li>
-		</ol>
-	</section>
-
-	<!-- Main content -->
-	<section class="content">
-		<div class="row">
+    <!-- Content Header -->
+    <section class="content-header">
+        <h1>SQL 템플릿 관리</h1>
+        <ol class="breadcrumb">
+            <li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
+            <li class="active">SQL 템플릿 관리</li>
+        </ol>
+    </section>
+    
+    <!-- Main content -->
+    <section class="content">
+        <div class="row">
 			<!-- 카테고리 목록 패널 -->
-			<div class="col-md-3">
-				<div class="box box-primary">
-					<div class="box-header with-border">
+            <div class="col-md-3">
+                <div class="box box-primary">
+                    <div class="box-header with-border">
 						<h3 class="box-title">카테고리 목록</h3>
 						<div class="box-tools pull-right">
 							<button type="button" class="btn btn-box-tool"
@@ -3182,72 +3182,72 @@ function goToTemplate() {
 				<div class="box box-success">
 					<div class="box-header with-border">
 						<h3 class="box-title">템플릿 목록</h3>
-						<div class="box-tools pull-right">
+                        <div class="box-tools pull-right">
 							<button type="button" class="btn btn-box-tool"
 								onclick="createNewSqlTemplate()">
 								<i class="fa fa-plus"></i> 새 템플릿
-							</button>
-						</div>
-					</div>
-					<div class="box-body">
+                            </button>
+                        </div>
+                    </div>
+                    <div class="box-body">
 						<div id="templateList" class="template-list">
 							<!-- 템플릿이 여기에 로드됩니다 -->
-						</div>
-					</div>
-				</div>
-			</div>
-
-			<!-- SQL 편집 패널 -->
-			<div class="col-md-9">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SQL 편집 패널 -->
+            <div class="col-md-9">
 				<div class="box box-info">
-					<div class="box-header with-border">
-						<h3 class="box-title">SQL 템플릿 편집</h3>
-						<div class="box-tools pull-right">
+                    <div class="box-header with-border">
+                        <h3 class="box-title">SQL 템플릿 편집</h3>
+                        <div class="box-tools pull-right">
 							<button type="button" class="btn btn-primary btn-sm" id="goToTemplateBtn"
 								onclick="goToTemplate()" disabled>
 								<i class="fa fa-external-link"></i> 해당 메뉴로 이동
-							</button>
+                            </button>
 							<button type="button" class="btn btn-success btn-sm"
 								onclick="saveSqlTemplate()">
-								<i class="fa fa-save"></i> 저장
-							</button>
+                                <i class="fa fa-save"></i> 저장
+                            </button>
 							<button type="button" class="btn btn-danger btn-sm"
 								onclick="deleteSqlTemplate()">
-								<i class="fa fa-trash"></i> 삭제
-							</button>
-						</div>
-					</div>
-					<div class="box-body">
+                                <i class="fa fa-trash"></i> 삭제
+                            </button>
+                        </div>
+                    </div>
+                    <div class="box-body">
 						<!-- 숨겨진 ID 필드 -->
 						<input type="hidden" id="sqlTemplateId">
 
-						<!-- 기본 정보 -->
+                        <!-- 기본 정보 -->
 						<div class="row">
 
 							<div class="col-md-8">
 								<!-- 설정 정보 -->
-								<div class="row">
+                        <div class="row">
 									<div class="col-lg-3 col-md-6 col-sm-12">
-										<div class="form-group">
+                                <div class="form-group">
 											<label data-toggle="tooltip" data-placement="top"
 												title="SQL 템플릿의 고유 이름입니다. 대시보드와 메뉴에서 표시되며, 100자 이하로 입력해주세요.">SQL
 												이름</label> <input type="text" class="form-control"
 												id="sqlTemplateName" placeholder="SQL 이름">
-										</div>
-									</div>
+                                </div>
+                            </div>
 
 									<div class="col-lg-3 col-md-6 col-sm-12">
-										<div class="form-group">
+                                <div class="form-group">
 											<label data-toggle="tooltip" data-placement="top"
 												title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습니다.">실행
 												제한 (행)</label> <input type="number" class="form-control"
 												id="sqlExecutionLimit" value="0" min="0" max="20000"
 												placeholder="최대 반환 행 수">
-										</div>
-									</div>
+                                </div>
+                            </div>
 
 									<div class="col-lg-3 col-md-6 col-sm-12">
-										<div class="form-group">
+                                <div class="form-group">
 											<label data-toggle="tooltip" data-placement="top"
 												title="대시보드에서 자동으로 데이터를 새로고침하는 간격을 설정합니다. 0으로 설정하면 자동 새로고침을 사용하지 않습니다.">새로고침
 												간격 (초)</label> <input type="number" class="form-control"
@@ -3281,8 +3281,8 @@ function goToTemplate() {
 														style="display: block; margin-bottom: 5px;">개행 보기</label>
 													<label class="switch"> <input type="checkbox"
 														id="sqlNewline" checked> <span class="slider"></span>
-													</label>
-												</div>
+												</label>
+											</div>
 											</div>
 											<div class="col-lg-4 col-md-4 col-sm-4">
 												<!-- 비활성화 -->
@@ -3297,8 +3297,8 @@ function goToTemplate() {
 														<option value="ACTIVE">활성</option>
 														<option value="INACTIVE">비활성</option>
 													</select>
-												</div>
-											</div>
+										</div>
+									</div>
 											<div class="col-lg-4 col-md-4 col-sm-4">
 												<!-- 감사 로그 -->
 												<div class="form-group" style="margin-bottom: 15px;">
@@ -3307,40 +3307,40 @@ function goToTemplate() {
 														style="display: block; margin-bottom: 5px;">감사 로그</label>
 													<label class="switch"> <input type="checkbox"
 														id="sqlAudit"> <span class="slider"></span>
-													</label>
-												</div>
+												</label>
 											</div>
 										</div>
 									</div>
+										</div>
 
-								</div>
+									</div>
 
-								<div class="form-group">
+										<div class="form-group">
 									<label data-toggle="tooltip" data-placement="top"
 										title="SQL 템플릿에 대한 상세한 설명을 입력합니다.">설명</label>
 									<textarea class="form-control" id="sqlTemplateDesc" rows="2"
 										placeholder="SQL 템플릿에 대한 설명을 입력하세요"></textarea>
-								</div>
+                        </div>
 
 							</div>
 							<div class="col-lg-4 col-md-12">
 
 								<!-- 추가 정보 -->
-								<div class="form-group">
+                        <div class="form-group">
 									<label data-toggle="tooltip" data-placement="top"
 										title="SQL 템플릿을 분류하여 관리합니다. 카테고리별로 템플릿을 그룹화하여 찾기 쉽게 만들 수 있습니다.">카테고리</label>
 									<select class="form-control" id="sqlTemplateCategories"
 										multiple>
 										<!-- 카테고리 옵션들이 여기에 로드됩니다 -->
 									</select>
-								</div>
-								<div class="form-group">
+                        </div>
+                        <div class="form-group">
 									<label data-toggle="tooltip" data-placement="top"
 										title="이 SQL 템플릿을 사용할 수 있는 데이터베이스 연결을 선택합니다. 아무것도 선택하지 않으면 모든 DB 연결에서 사용 가능합니다.">접근
 										가능한 DB 연결</label> <select class="form-control"
 										id="accessibleConnections" multiple>
-										<!-- DB 연결 옵션들이 여기에 로드됩니다 -->
-									</select>
+												<!-- DB 연결 옵션들이 여기에 로드됩니다 -->
+											</select>
 								</div>
 							</div>
 						</div>
@@ -3480,14 +3480,14 @@ function goToTemplate() {
 									</button>
 								</div>
 							</div>
-						</div>
-
-						<!-- 테스트 결과 -->
-						<div id="testResult"></div>
-					</div>
-				</div>
-			</div>
-	</section>
+                        </div>
+                        
+                        <!-- 테스트 결과 -->
+                        <div id="testResult"></div>
+                </div>
+            </div>
+        </div>
+    </section>
 </div>
 
 <!-- 카테고리 모달 -->
@@ -3559,9 +3559,9 @@ $(document).ready(function() {
 						aceEditor.resize();
 					}
 				}
-				} catch (e) {
+			} catch (e) {
 					console.error('Ace editor resize failed:', e);
-				}
+			}
 		}
 	});
 });
