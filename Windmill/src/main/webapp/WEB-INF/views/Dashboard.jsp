@@ -281,10 +281,10 @@
                 clearTimeout(connectionStatusInterval);
             }
             
-            // 10초 후에 다음 연결 상태 확인 실행
+            // 3초 후에 다음 연결 상태 확인 실행
             connectionStatusInterval = setTimeout(function() {
                 refreshConnectionStatus();
-            }, 10000);
+            }, 3000);
         }
 
         // 자동 새로고침 중지 함수
@@ -1183,6 +1183,17 @@
             'ACTIVE_LOG': false,
             'FILESYSTEM': false
         };
+        
+        // 차트별 새로고침 간격 (밀리초) - 템플릿에서 동적으로 설정
+        var chartRefreshIntervals = {};
+        
+        // 차트별 타이머 ID 저장
+        var chartTimers = {
+            'APPL_COUNT': null,
+            'LOCK_WAIT_COUNT': null,
+            'ACTIVE_LOG': null,
+            'FILESYSTEM': null
+        };
 
         // 차트 데이터 업데이트 함수 (해시 비교 방식)
         function updateCharts() {
@@ -1604,6 +1615,193 @@
         function startChartMonitoring() {
             // 초기 데이터 로드
             updateCharts();
+            
+            // 차트별 개별 타이머 설정 (템플릿에서 간격 읽어와서)
+            scheduleChartUpdates();
+        }
+        
+        // 차트별 개별 타이머 설정 함수
+        function scheduleChartUpdates() {
+            var chartTypes = ['APPL_COUNT', 'LOCK_WAIT_COUNT', 'ACTIVE_LOG', 'FILESYSTEM'];
+            
+            chartTypes.forEach(function(chartType) {
+                if (!chartUpdateDisabled[chartType]) {
+                    // 먼저 템플릿 정보를 가져와서 새로고침 간격을 설정
+                    getTemplateInfoAndSchedule(chartType);
+                }
+            });
+        }
+        
+        // 템플릿 정보를 가져와서 새로고침 간격 설정 후 스케줄링
+        function getTemplateInfoAndSchedule(chartType) {
+            $.ajax({
+                type: 'GET',
+                url: '/Dashboard/' + chartType,
+                data: { checkTemplate: true },
+                success: function(result) {
+                    if (result.success && result.template && result.template.REFRESH_INTERVAL) {
+                        var interval = parseInt(result.template.REFRESH_INTERVAL);
+                        // 0이면 10초로 설정
+                        if (interval <= 0) {
+                            interval = 10;
+                        }
+                        // 템플릿에서 새로고침 간격 설정
+                        chartRefreshIntervals[chartType] = interval * 1000;
+                    } else {
+                        // 기본값 설정
+                        chartRefreshIntervals[chartType] = 10000; // 10초
+                    }
+                    // 스케줄링 시작
+                    scheduleSingleChartUpdate(chartType);
+                },
+                error: function() {
+                    // 기본값 설정
+                    chartRefreshIntervals[chartType] = 10000; // 10초
+                    // 스케줄링 시작
+                    scheduleSingleChartUpdate(chartType);
+                }
+            });
+        }
+        
+        // 단일 차트 업데이트 스케줄링
+        function scheduleSingleChartUpdate(chartType) {
+            // 기존 타이머 제거
+            if (chartTimers[chartType]) {
+                clearTimeout(chartTimers[chartType]);
+            }
+            
+            // 새로고침 간격이 설정되지 않은 경우 기본값 사용
+            var interval = chartRefreshIntervals[chartType] || 10000; // 기본 10초
+            
+            // 다음 업데이트 스케줄링
+            chartTimers[chartType] = setTimeout(function() {
+                if (!chartUpdateDisabled[chartType]) {
+                    updateSingleChart(chartType);
+                }
+                // 재귀적으로 다음 업데이트 스케줄링
+                scheduleSingleChartUpdate(chartType);
+            }, interval);
+        }
+        
+        // 단일 차트 업데이트 함수
+        function updateSingleChart(chartType) {
+            if (!selectedConnectionId) {
+                return;
+            }
+            
+            $.ajax({
+                type: 'post',
+                url: '/Dashboard/' + chartType,
+                data: {
+                    lastHash: chartHashes[chartType],
+                    connectionId: selectedConnectionId
+                },
+                timeout: 10000,
+                success: function(data) {
+                    processChartData(chartType, data);
+                },
+                error: function(xhr, status, error) {
+                    console.error(chartType + ' 데이터 조회 실패:', error);
+                    processChartData(chartType, {error: chartType + ' 조회 실패: ' + error});
+                }
+            });
+        }
+        
+        // 차트 데이터 처리 함수
+        function processChartData(chartType, data) {
+            var chartConfig = getChartConfig(chartType);
+            if (!chartConfig) {
+                return;
+            }
+            
+            try {
+                // 에러가 있는 경우 처리
+                if (data && data.error) {
+                    // 에러 타입에 따른 처리
+                    if (data.errorType === 'CHART_NOT_FOUND') {
+                        showChartTemplateWarning(chartType);
+                        chartUpdateDisabled[chartType] = true;
+                        return;
+                    } else if (data.errorType === 'MONITORING_DISABLED') {
+                        chartConfig.chart.data.labels = ['모니터링 비활성화'];
+                        chartConfig.chart.data.datasets[0].data = [1];
+                        chartConfig.chart.data.datasets[0].backgroundColor = ['#ffc107'];
+                        chartConfig.chart.update();
+                        return;
+                    } else {
+                        showChartErrorWithRefresh(chartType, data.error + ' (오류 발생으로 일시정지)');
+                        chartUpdateDisabled[chartType] = true;
+                        return;
+                    }
+                }
+                
+                // 정상 데이터 처리
+                if (data && data.result && Array.isArray(data.result)) {
+                    // 에러 상태 초기화
+                    chartErrorStates[chartType] = false;
+                    chartUpdateDisabled[chartType] = false;
+                    
+                    // 템플릿 정보에서 새로고침 간격 설정
+                    if (data.template && data.template.REFRESH_INTERVAL) {
+                        var interval = parseInt(data.template.REFRESH_INTERVAL);
+                        // 0이면 10초로 설정
+                        if (interval <= 0) {
+                            interval = 10;
+                        }
+                        chartRefreshIntervals[chartType] = interval * 1000;
+                    }
+                    
+                    var processedData = chartConfig.processData(data.result);
+                    
+                    if (processedData) {
+                        chartConfig.chart.data.labels = processedData.labels;
+                        chartConfig.chart.data.datasets[0].data = processedData.data;
+                        chartConfig.chart.update();
+                        
+                        // 해시 업데이트
+                        if (data.hash) {
+                            chartHashes[chartType] = data.hash;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('차트 데이터 처리 중 오류:', error);
+                showChartErrorWithRefresh(chartType, '데이터 처리 오류: ' + error.message);
+                chartUpdateDisabled[chartType] = true;
+            }
+        }
+        
+        // 차트 템플릿 경고 표시 함수
+        function showChartTemplateWarning(chartType) {
+            var chartId = getChartId(chartType);
+            var chartContainer = $('#' + chartId).closest('.box-body');
+            
+            if (chartContainer.length > 0) {
+                // 기존 경고 메시지 제거
+                chartContainer.find('.chart-template-warning').remove();
+                
+                // 새로운 경고 메시지 추가
+                var warningHtml = '<div class="chart-template-warning" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 10;">' +
+                    '<div class="alert alert-warning" style="margin: 0; padding: 10px;">' +
+                    '<i class="fa fa-exclamation-triangle"></i> ' + getChartDisplayName(chartType) + ' 템플릿이 설정되지 않았습니다.<br>' +
+                    '<small>템플릿 관리에서 해당 차트의 템플릿을 설정해주세요.</small>' +
+                    '</div></div>';
+                
+                chartContainer.css('position', 'relative').append(warningHtml);
+            }
+        }
+        
+        // 차트 표시명 반환 함수
+        function getChartDisplayName(chartType) {
+            var displayNames = {
+                'APPL_COUNT': '애플리케이션 수',
+                'LOCK_WAIT_COUNT': '락 대기 수',
+                'TABLESPACE_USAGE': '테이블스페이스 사용률',
+                'ACTIVE_SESSION_COUNT': '활성 세션 수',
+                'ACTIVE_LOG': '활성 로그',
+                'FILESYSTEM': '파일시스템'
+            };
+            return displayNames[chartType] || chartType;
         }
 
         // 차트 오류 표시 및 새로고침 버튼 추가 함수

@@ -141,6 +141,9 @@ public class DashboardController {
             // 템플릿 ID 추가
             result.put("templateId", templateId);
             
+            // 템플릿 정보 추가 (새로고침 간격 포함)
+            result.put("template", chartTemplate);
+            
             // 해시값 비교
             if (currentHash.equals(lastHash)) {
                 // 데이터가 변경되지 않음

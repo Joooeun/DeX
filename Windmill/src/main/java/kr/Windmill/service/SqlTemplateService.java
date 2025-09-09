@@ -597,7 +597,12 @@ public class SqlTemplateService {
 					
 					logger.debug("SQL 내용 처리 - connectionId: {}, sqlContent 길이: {}", connectionId, contentSql != null ? contentSql.length() : 0);
 					
-					if (connectionId != null && !connectionId.trim().isEmpty() && contentSql != null && !contentSql.trim().isEmpty()) {
+					if (connectionId != null && !connectionId.trim().isEmpty()) {
+						// SQL 내용이 null이면 빈 문자열로 처리 (연결 ID 변경 시 SQL 내용 보존)
+						if (contentSql == null) {
+							contentSql = "";
+						}
+						
 						// replaceAllSqlContents가 false이면 개별 삭제
 						if (replaceAllSqlContents == null || !replaceAllSqlContents) {
 							int deletedRows = jdbcTemplate.update("DELETE FROM SQL_CONTENT WHERE TEMPLATE_ID = ? AND CONNECTION_ID = ?", templateId, connectionId);
@@ -610,7 +615,7 @@ public class SqlTemplateService {
 							templateId, connectionId, contentSql, userId);
 						logger.debug("새 SQL_CONTENT 추가 완료 - 삽입된 행 수: {}, templateId: {}, connectionId: {}", insertedRows, templateId, connectionId);
 					} else {
-						logger.warn("SQL 내용이 비어있거나 연결 ID가 지정되지 않음 - connectionId: {}, contentSql: {}", connectionId, contentSql != null ? "있음" : "없음");
+						logger.warn("연결 ID가 지정되지 않음 - connectionId: {}", connectionId);
 					}
 				}
 			} catch (Exception e) {

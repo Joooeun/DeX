@@ -251,24 +251,40 @@ public class SqlContentService {
 
     
     /**
-     * 연결 ID가 존재하는지 확인
+     * 연결 ID가 존재하는지 확인 (쉼표로 구분된 연결 ID 지원)
      * 
-     * @param connectionId 연결 ID
+     * @param connectionId 연결 ID (예: "pg,pgmac")
      * @return 연결 존재 여부
      */
     public boolean isConnectionExists(String connectionId) {
         try {
-            // DB 연결 확인
-            String dbSql = "SELECT COUNT(*) FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
-            int dbCount = jdbcTemplate.queryForObject(dbSql, Integer.class, connectionId);
-            if (dbCount > 0) {
-                return true;
+            // 쉼표로 구분된 연결 ID들을 분리
+            String[] connectionIds = connectionId.split(",");
+            
+            // 모든 연결이 존재해야 true 반환
+            for (String connId : connectionIds) {
+                connId = connId.trim();
+                
+                // DB 연결 확인
+                String dbSql = "SELECT COUNT(*) FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
+                int dbCount = jdbcTemplate.queryForObject(dbSql, Integer.class, connId);
+                if (dbCount > 0) {
+                    continue; // 이 연결은 존재함
+                }
+                
+                // SFTP 연결 확인
+                String sftpSql = "SELECT COUNT(*) FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ?";
+                int sftpCount = jdbcTemplate.queryForObject(sftpSql, Integer.class, connId);
+                if (sftpCount > 0) {
+                    continue; // 이 연결은 존재함
+                }
+                
+                // 이 연결이 존재하지 않음
+                return false;
             }
             
-            // SFTP 연결 확인
-            String sftpSql = "SELECT COUNT(*) FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ?";
-            int sftpCount = jdbcTemplate.queryForObject(sftpSql, Integer.class, connectionId);
-            return sftpCount > 0;
+            // 모든 연결이 존재함
+            return true;
         } catch (Exception e) {
             logger.debug("연결 존재 여부 확인 실패: {} - {}", connectionId, e.getMessage());
             return false;
