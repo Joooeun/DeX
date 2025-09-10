@@ -896,7 +896,7 @@ table th, td {
 						}
 					}
 				} catch (e) {
-					console.error('에디터 포커스 실패:', e);
+					// 에디터 포커스 실패 시 무시
 				}
 			}
 		}
@@ -1242,13 +1242,13 @@ table th, td {
 			var duplicateShortcuts = [];
 
 			shortcuts.forEach(function (shortcut, index) {
-				if (!shortcut.key || !shortcut.key.trim()) {
+				if (!shortcut.shortcutKey || !shortcut.shortcutKey.trim()) {
 					errors.push('단축키를 입력해주세요. (순서: ' + (index + 1) + ')');
-				} else if (!/^F[1-9]|F1[0-2]$/.test(shortcut.key)) {
-					errors.push('단축키는 F1~F12 중 하나여야 합니다. (' + shortcut.key + ')');
+				} else if (!/^F[1-9]|F1[0-2]$/.test(shortcut.shortcutKey)) {
+					errors.push('단축키는 F1~F12 중 하나여야 합니다. (' + shortcut.shortcutKey + ')');
 				}
 
-				if (!shortcut.name || !shortcut.name.trim()) {
+				if (!shortcut.shortcutName || !shortcut.shortcutName.trim()) {
 					errors.push('단축키명을 입력해주세요. (순서: ' + (index + 1) + ')');
 				}
 
@@ -1257,8 +1257,8 @@ table th, td {
 				}
 
 				// 소스 컬럼 검증 (대상 템플릿의 파라미터 정보 기반)
-				if (shortcut.sourceColumns && shortcut.sourceColumns.trim()) {
-					var sourceColumns = shortcut.sourceColumns.split(',').map(function (col) {
+				if (shortcut.sourceColumnIndexes && shortcut.sourceColumnIndexes.trim()) {
+					var sourceColumns = shortcut.sourceColumnIndexes.split(',').map(function (col) {
 						return col.trim();
 					});
 
@@ -1293,11 +1293,11 @@ table th, td {
 				}
 
 				// 중복 단축키 체크
-				if (shortcut.key && shortcut.key.trim()) {
-					if (shortcutKeys.indexOf(shortcut.key) !== -1) {
-						duplicateShortcuts.push(shortcut.key);
+				if (shortcut.shortcutKey && shortcut.shortcutKey.trim()) {
+					if (shortcutKeys.indexOf(shortcut.shortcutKey) !== -1) {
+						duplicateShortcuts.push(shortcut.shortcutKey);
 					} else {
-						shortcutKeys.push(shortcut.key);
+						shortcutKeys.push(shortcut.shortcutKey);
 					}
 				}
 			});
@@ -1333,7 +1333,7 @@ table th, td {
 		// 단축키 추가
 		function addShortcut() {
 			var row = $('<tr class="shortcut-row">'
-				+ '<td><input type="text" class="form-control shortcut-key" placeholder="F1" readonly></td>'
+				+ '<td><input type="text" class="form-control shortcut-key" placeholder="F1"></td>'
 				+ '<td><input type="text" class="form-control shortcut-name" placeholder="단축키명"></td>'
 				+ '<td><select class="form-control target-template-select2">'
 				+ '<option value="">대상 템플릿 선택</option>'
@@ -1345,6 +1345,18 @@ table th, td {
 				+ '<td><button type="button" class="btn btn-danger btn-sm" onclick="removeShortcut(this)">삭제</button></td>'
 				+ '</tr>');
 			$('#shortcutTableBody').append(row);
+			
+			// 단축키 입력 필드에 키보드 이벤트 리스너 추가
+			row.find('.shortcut-key').on('keydown', function(e) {
+				// F1~F12 키 감지
+				if (e.keyCode >= 112 && e.keyCode <= 123) {
+					e.preventDefault();
+					var keyName = 'F' + (e.keyCode - 111);
+					$(this).val(keyName);
+					// 다음 필드로 포커스 이동
+					$(this).closest('tr').find('.shortcut-name').focus();
+				}
+			});
 
 			// 새로 추가된 행의 툴팁 초기화
 			row.find('[data-toggle="tooltip"]').tooltip({
@@ -1397,6 +1409,18 @@ table th, td {
 					var targetTemplateId = $select.closest('tr').find('.shortcut-key').attr('data-target-template-id');
 					loadTemplateOptions($select, targetTemplateId);
 				});
+				
+				// 단축키 입력 필드에 키보드 이벤트 리스너 추가
+				tbody.find('.shortcut-key').on('keydown', function(e) {
+					// F1~F12 키 감지
+					if (e.keyCode >= 112 && e.keyCode <= 123) {
+						e.preventDefault();
+						var keyName = 'F' + (e.keyCode - 111);
+						$(this).val(keyName);
+						// 다음 필드로 포커스 이동
+						$(this).closest('tr').find('.shortcut-name').focus();
+					}
+				});
 			}
 		}
 		
@@ -1404,7 +1428,7 @@ table th, td {
 		function createShortcutRow(shortcut) {
 			var rowHtml = '<tr class="shortcut-row">' +
 				'<td><input type="text" class="form-control shortcut-key" value="' + 
-				escapeHtml(shortcut.SHORTCUT_KEY || '') + '" placeholder="F1" readonly data-target-template-id="' + 
+				escapeHtml(shortcut.SHORTCUT_KEY || '') + '" placeholder="F1" data-target-template-id="' + 
 				escapeHtml(shortcut.TARGET_TEMPLATE_ID || '') + '"></td>' +
 				'<td><input type="text" class="form-control shortcut-name" value="' + 
 				escapeHtml(shortcut.SHORTCUT_NAME || '') + '" placeholder="단축키명"></td>' +
@@ -1564,7 +1588,7 @@ table th, td {
 							}
 						});
 					} catch (e) {
-						console.error('개행 보기 변경 시 에디터 리사이즈 실패:', e);
+						// 개행 보기 변경 시 에디터 리사이즈 실패 시 무시
 					}
 				});
 			}, 500);
@@ -1788,8 +1812,6 @@ table th, td {
 				shortcuts: getShortcutsFromUI(),
 				sqlContents: getSqlContentsFromUI()
 			};
-			
-			console.log(requestData)
 
 			$.ajax({
 				type: 'POST',
@@ -1815,7 +1837,6 @@ table th, td {
 					}
 				},
 				error: function (xhr, status, error) {
-					console.error('저장 중 오류:', error);
 					var errorMessage = '저장 중 오류가 발생했습니다.';
 					
 					// 서버에서 상세 에러 메시지를 받은 경우
@@ -2032,12 +2053,10 @@ table th, td {
 				// 커스텀 이벤트 트리거
 				$(document).trigger('templateDetailLoaded');
 						} else {
-						console.error('통합 템플릿 데이터 로드 실패:', result.error);
 						window.SqlTemplateState.isLoading = false;
 						}
 					},
 					error: function (xhr, status, error) {
-					console.error('통합 템플릿 데이터 로드 AJAX 오류:', error);
 					window.SqlTemplateState.isLoading = false;
 					}
 			});
@@ -2047,7 +2066,6 @@ table th, td {
 		// 모든 템플릿 데이터 렌더링
 		function renderAllTemplateData() {
 			if (!window.SqlTemplateState.currentTemplate) {
-				console.error('currentTemplate이 없습니다.');
 				return;
 			}
 
@@ -2209,7 +2227,6 @@ table th, td {
 						initTextareaEditorForConnection(editorId, sqlContent);
 					}
 				} catch (e) {
-					console.error("SQL 에디터 초기화 실패:", e);
 					initTextareaEditorForConnection(editorId, sqlContent);
 				}
 			} else {
@@ -2221,7 +2238,6 @@ table th, td {
 		function initTextareaEditorForConnection(editorId, sqlContent) {
 			var editorDiv = document.getElementById(editorId);
 			if (!editorDiv) {
-				console.error('에디터 요소를 찾을 수 없습니다:', editorId);
 				return;
 			}
 			editorDiv.innerHTML = '<textarea class="sql-textarea" style="width: 100%; height: 100%; font-family: monospace; font-size: 14px; border: none; resize: none; outline: none;">' + (sqlContent || '') + '</textarea>';
@@ -3455,7 +3471,7 @@ table th, td {
 							}
 						}
 					} catch (e) {
-						console.error('Ace editor resize failed:', e);
+						// Ace editor resize 실패 시 무시
 					}
 				}
 			});
