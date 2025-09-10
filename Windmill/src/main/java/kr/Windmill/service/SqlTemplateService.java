@@ -18,6 +18,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.DynamicJdbcManager;
 import kr.Windmill.util.Log;
+import kr.Windmill.dto.SqlTemplateSaveRequest;
+import kr.Windmill.dto.SqlTemplateInfo;
+import kr.Windmill.dto.SqlTemplateParameter;
+import kr.Windmill.dto.SqlTemplateShortcut;
+import kr.Windmill.dto.SqlContent;
+import org.springframework.util.StringUtils;
 
 @Service
 public class SqlTemplateService {
@@ -1083,6 +1089,261 @@ public class SqlTemplateService {
             logger.error("단축키 JSON 파싱 실패: " + e.getMessage(), e);
 		}
 		return shortcuts;
+	}
+
+	/**
+	 * 새로운 JSON 형식으로 템플릿과 관련 데이터를 한 번에 저장
+	 * 트랜잭션 기반으로 데이터 일관성 보장
+	 */
+	@Transactional
+	public Map<String, Object> saveTemplateWithRelatedData(SqlTemplateSaveRequest request, String userId) {
+		Map<String, Object> result = new HashMap<>();
+		
+		try {
+			String templateId = request.getTemplate().getTemplateId();
+			
+			// 1. 기존 데이터 삭제 (수정인 경우)
+			if (StringUtils.hasText(templateId)) {
+				deleteExistingRelatedData(templateId);
+			}
+			
+			// 2. 템플릿 기본 정보 저장
+			saveTemplateInfo(request.getTemplate(), userId);
+			
+			// 3. 카테고리 매핑 저장
+			saveCategoryMappings(templateId, request.getCategories(), userId);
+			
+			// 4. 파라미터 저장
+			saveParameters(templateId, request.getParameters());
+			
+			// 5. 단축키 저장
+			saveShortcuts(templateId, request.getShortcuts());
+			
+			// 6. SQL 내용 저장
+			saveSqlContents(templateId, request.getSqlContents(), userId);
+			
+			result.put("success", true);
+			result.put("templateId", templateId);
+			result.put("message", "SQL 템플릿이 성공적으로 저장되었습니다.");
+			
+		} catch (Exception e) {
+			logger.error("템플릿 저장 중 오류 발생", e);
+			result.put("success", false);
+			
+			// 구체적인 에러 메시지 생성
+			String errorMessage = createDetailedErrorMessage(e, request);
+			result.put("error", errorMessage);
+			throw new RuntimeException("템플릿 저장 실패", e);
+		}
+		
+		return result;
+	}
+
+	/**
+	 * 상세한 에러 메시지 생성
+	 */
+	private String createDetailedErrorMessage(Exception e, SqlTemplateSaveRequest request) {
+		String errorMessage = e.getMessage();
+		String templateName = request.getTemplate() != null ? request.getTemplate().getTemplateName() : "알 수 없음";
+		
+		// 데이터베이스 제약 조건 위반 에러 분석
+		if (errorMessage.contains("FOREIGN KEY")) {
+			if (errorMessage.contains("TARGET_TEMPLATE_ID")) {
+				return "단축키에서 참조하는 대상 템플릿이 존재하지 않습니다. " +
+					   "단축키의 '대상 템플릿 ID'를 확인하고, 존재하는 템플릿 ID를 입력해주세요. " +
+					   "(템플릿: " + templateName + ")";
+			} else if (errorMessage.contains("CATEGORY_ID")) {
+				return "지정된 카테고리가 존재하지 않습니다. " +
+					   "카테고리 목록을 확인하고, 유효한 카테고리 ID를 입력해주세요. " +
+					   "(템플릿: " + templateName + ")";
+			} else if (errorMessage.contains("CONNECTION_ID")) {
+				return "지정된 데이터베이스 연결이 존재하지 않습니다. " +
+					   "연결 설정을 확인하고, 유효한 연결 ID를 입력해주세요. " +
+					   "(템플릿: " + templateName + ")";
+			}
+		}
+		
+		// 중복 키 에러 분석
+		if (errorMessage.contains("UNIQUE") || errorMessage.contains("DUPLICATE")) {
+			if (errorMessage.contains("TEMPLATE_NAME")) {
+				return "템플릿 이름이 이미 존재합니다. " +
+					   "다른 이름을 사용하거나 기존 템플릿을 수정해주세요. " +
+					   "(템플릿: " + templateName + ")";
+			} else if (errorMessage.contains("SHORTCUT_KEY")) {
+				return "단축키가 이미 사용 중입니다. " +
+					   "다른 단축키를 사용하거나 기존 단축키를 수정해주세요. " +
+					   "(템플릿: " + templateName + ")";
+			} else if (errorMessage.contains("CONNECTION_ID")) {
+				return "동일한 연결 ID에 대한 SQL 내용이 중복됩니다. " +
+					   "각 연결 ID당 하나의 SQL 내용만 저장할 수 있습니다. " +
+					   "(템플릿: " + templateName + ")";
+			}
+		}
+		
+		// NULL 제약 조건 위반
+		if (errorMessage.contains("NOT NULL") || errorMessage.contains("NULL")) {
+			return "필수 필드가 누락되었습니다. " +
+				   "모든 필수 항목을 입력해주세요. " +
+				   "(템플릿: " + templateName + ", 상세: " + errorMessage + ")";
+		}
+		
+		// 길이 제한 초과
+		if (errorMessage.contains("TOO LONG") || errorMessage.contains("LENGTH")) {
+			return "입력된 데이터가 허용된 길이를 초과했습니다. " +
+				   "데이터 길이를 확인하고 다시 입력해주세요. " +
+				   "(템플릿: " + templateName + ", 상세: " + errorMessage + ")";
+		}
+		
+		// 일반적인 데이터베이스 에러
+		if (errorMessage.contains("SQL") || errorMessage.contains("DATABASE")) {
+			return "데이터베이스 저장 중 오류가 발생했습니다. " +
+				   "입력 데이터를 확인하고 다시 시도해주세요. " +
+				   "(템플릿: " + templateName + ", 상세: " + errorMessage + ")";
+		}
+		
+		// 기본 에러 메시지
+		return "템플릿 저장 중 오류가 발생했습니다. " +
+			   "입력 데이터를 확인하고 다시 시도해주세요. " +
+			   "(템플릿: " + templateName + ", 상세: " + errorMessage + ")";
+	}
+
+	/**
+	 * 템플릿 기본 정보 저장
+	 */
+	private void saveTemplateInfo(SqlTemplateInfo template, String userId) {
+		String sql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, " +
+		             "ACCESSIBLE_CONNECTION_IDS, CHART_MAPPING, VERSION, STATUS, EXECUTION_LIMIT, " +
+		             "REFRESH_TIMEOUT, NEWLINE, AUDIT, CREATED_BY, CREATED_TIMESTAMP) " +
+		             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT TIMESTAMP)";
+		
+		String accessibleConnectionIds = String.join(",", template.getAccessibleConnectionIds());
+		
+		jdbcTemplate.update(sql, 
+			template.getTemplateId(),
+			template.getTemplateName(),
+			template.getTemplateDesc(),
+			template.getSqlContent(),
+			accessibleConnectionIds,
+			template.getChartMapping(),
+			template.getVersion(),
+			template.getStatus(),
+			template.getExecutionLimit(),
+			template.getRefreshTimeout(),
+			template.getNewline(),
+			template.getAudit(),
+			userId);
+	}
+
+	/**
+	 * 카테고리 매핑 저장
+	 */
+	private void saveCategoryMappings(String templateId, List<String> categories, String userId) {
+		if (categories == null || categories.isEmpty()) {
+			return;
+		}
+		
+		String sql = "INSERT INTO SQL_TEMPLATE_CATEGORY_MAPPING (TEMPLATE_ID, CATEGORY_ID, MAPPING_ORDER, CREATED_BY, CREATED_TIMESTAMP) " +
+		             "VALUES (?, ?, ?, ?, CURRENT TIMESTAMP)";
+		
+		for (int i = 0; i < categories.size(); i++) {
+			jdbcTemplate.update(sql, templateId, categories.get(i), i + 1, userId);
+		}
+	}
+
+	/**
+	 * 파라미터 저장
+	 */
+	private void saveParameters(String templateId, List<SqlTemplateParameter> parameters) {
+		if (parameters == null || parameters.isEmpty()) {
+			return;
+		}
+		
+		String sql = "INSERT INTO SQL_TEMPLATE_PARAMETER (TEMPLATE_ID, PARAMETER_NAME, PARAMETER_TYPE, " +
+		             "PARAMETER_ORDER, IS_REQUIRED, DEFAULT_VALUE, IS_READONLY, IS_HIDDEN, IS_DISABLED, " +
+		             "DESCRIPTION, CREATED_TIMESTAMP) " +
+		             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT TIMESTAMP)";
+		
+		for (SqlTemplateParameter param : parameters) {
+			jdbcTemplate.update(sql,
+				templateId,
+				param.getParameterName(),
+				param.getParameterType(),
+				param.getParameterOrder(),
+				param.getIsRequired(),
+				param.getDefaultValue(),
+				param.getIsReadonly(),
+				param.getIsHidden(),
+				param.getIsDisabled(),
+				param.getDescription());
+		}
+	}
+
+	/**
+	 * 단축키 저장
+	 */
+	private void saveShortcuts(String templateId, List<SqlTemplateShortcut> shortcuts) {
+		if (shortcuts == null || shortcuts.isEmpty()) {
+			return;
+		}
+		
+		String sql = "INSERT INTO SQL_TEMPLATE_SHORTCUT (SOURCE_TEMPLATE_ID, TARGET_TEMPLATE_ID, " +
+		             "SHORTCUT_KEY, SHORTCUT_NAME, SHORTCUT_DESCRIPTION, SOURCE_COLUMN_INDEXES, " +
+		             "AUTO_EXECUTE, IS_ACTIVE, CREATED_TIMESTAMP) " +
+		             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT TIMESTAMP)";
+		
+		for (SqlTemplateShortcut shortcut : shortcuts) {
+			jdbcTemplate.update(sql,
+				templateId,
+				shortcut.getTargetTemplateId(),
+				shortcut.getShortcutKey(),
+				shortcut.getShortcutName(),
+				shortcut.getShortcutDescription(),
+				shortcut.getSourceColumnIndexes(),
+				shortcut.getAutoExecute(),
+				shortcut.getIsActive());
+		}
+	}
+
+	/**
+	 * SQL 내용 저장
+	 */
+	private void saveSqlContents(String templateId, List<SqlContent> sqlContents, String userId) {
+		if (sqlContents == null || sqlContents.isEmpty()) {
+			return;
+		}
+		
+		String sql = "INSERT INTO SQL_CONTENT (TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, VERSION, " +
+		             "CREATED_BY, CREATED_TIMESTAMP) " +
+		             "VALUES (?, ?, ?, ?, ?, CURRENT TIMESTAMP)";
+		
+		for (SqlContent content : sqlContents) {
+			jdbcTemplate.update(sql,
+				templateId,
+				content.getConnectionId(),
+				content.getSqlContent(),
+				content.getVersion(),
+				userId);
+		}
+	}
+
+	/**
+	 * 기존 관련 데이터 삭제
+	 */
+	private void deleteExistingRelatedData(String templateId) {
+		// 카테고리 매핑 삭제
+		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE TEMPLATE_ID = ?", templateId);
+		
+		// 파라미터 삭제
+		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_PARAMETER WHERE TEMPLATE_ID = ?", templateId);
+		
+		// 단축키 삭제
+		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_SHORTCUT WHERE SOURCE_TEMPLATE_ID = ?", templateId);
+		
+		// SQL 내용 삭제
+		jdbcTemplate.update("DELETE FROM SQL_CONTENT WHERE TEMPLATE_ID = ?", templateId);
+		
+		// 템플릿 기본 정보 삭제
+		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?", templateId);
 	}
 }
 

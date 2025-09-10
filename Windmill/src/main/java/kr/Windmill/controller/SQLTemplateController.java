@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
+import kr.Windmill.dto.SqlTemplateSaveRequest;
 import kr.Windmill.service.SqlTemplateService;
 import kr.Windmill.service.SystemConfigService;
 import kr.Windmill.service.SqlContentService;
@@ -23,8 +24,13 @@ import kr.Windmill.service.PermissionService;
 import kr.Windmill.service.SQLExecuteService;
 import kr.Windmill.util.Common;
 import kr.Windmill.dto.SqlTemplateExecuteDto;
+import kr.Windmill.dto.SqlTemplateSaveRequest;
+import kr.Windmill.dto.ValidationResult;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 
 @Controller
 public class SQLTemplateController {
@@ -207,78 +213,158 @@ public class SQLTemplateController {
 		}
 	}
 
+
+	/**
+	 * SQL 템플릿 저장 (새로운 JSON 형식)
+	 * 깔끔하고 타입 안전한 데이터 구조 사용
+	 */
 	@ResponseBody
-	@RequestMapping(path = "/SQLTemplate/save")
-	public Map<String, Object> saveSqlTemplate(HttpServletRequest request, HttpSession session) {
+	@RequestMapping(path = "/SQLTemplate/save", method = RequestMethod.POST, 
+	                consumes = "application/json", produces = "application/json")
+	public ResponseEntity<Map<String, Object>> saveSqlTemplate(
+			@RequestBody SqlTemplateSaveRequest request,
+			HttpSession session) {
+		
 		String userId = (String) session.getAttribute("memberId");
-
+		
 		try {
-			String templateId = request.getParameter("templateId");
-			String sqlName = request.getParameter("sqlName");
-			String sqlDesc = request.getParameter("sqlDesc");
-			String sqlVersionStr = request.getParameter("sqlVersion");
-			String sqlStatus = request.getParameter("sqlStatus");
-			String executionLimitStr = request.getParameter("executionLimit");
-			String refreshTimeoutStr = request.getParameter("refreshTimeout");
-			String sqlContent = request.getParameter("sqlContent");
-			String accessibleConnectionIds = request.getParameter("accessibleConnectionIds");
-			String categoryIds = request.getParameter("categoryIds"); // 화면에서 categoryIds로 전달되는 카테고리 ID들
-			String configContent = request.getParameter("configContent");
-			String parameters = request.getParameter("parameters");
-			String shortcuts = request.getParameter("shortcuts");
-			// 숫자 파라미터 변환
-			Integer sqlVersion = null;
-			Integer executionLimit = null;
-			Integer refreshTimeout = null;
-
-			if (sqlVersionStr != null && !sqlVersionStr.trim().isEmpty()) {
-				sqlVersion = Integer.parseInt(sqlVersionStr);
+			// 1. 데이터 검증
+			ValidationResult validation = validateSaveRequest(request);
+			if (!validation.isValid()) {
+				return ResponseEntity.badRequest()
+					.body(createErrorResponse(validation.getErrorMessage(), validation.getErrorCode()));
 			}
-			if (executionLimitStr != null && !executionLimitStr.trim().isEmpty()) {
-				executionLimit = Integer.parseInt(executionLimitStr);
-			}
-			if (refreshTimeoutStr != null && !refreshTimeoutStr.trim().isEmpty()) {
-				refreshTimeout = Integer.parseInt(refreshTimeoutStr);
-			}
-
-			// newline 파라미터 처리
-			Boolean newline = false;
-			String newlineStr = request.getParameter("newline");
-			if (newlineStr != null && !newlineStr.trim().isEmpty()) {
-				newline = Boolean.parseBoolean(newlineStr);
-			}
-
-			// audit 파라미터 처리
-			Boolean audit = false;
-			String auditStr = request.getParameter("audit");
-			if (auditStr != null && !auditStr.trim().isEmpty()) {
-				audit = Boolean.parseBoolean(auditStr);
-			}
-
-			// chartMapping 파라미터 처리
-			String chartMapping = request.getParameter("chartMapping");
-
-			// additionalSqlContents 파라미터 처리
-			String additionalSqlContents = request.getParameter("additionalSqlContents");
 			
-			// replaceAllSqlContents 파라미터 처리
-			Boolean replaceAllSqlContents = false;
-			String replaceAllSqlContentsStr = request.getParameter("replaceAllSqlContents");
-			if (replaceAllSqlContentsStr != null && !replaceAllSqlContentsStr.trim().isEmpty()) {
-				replaceAllSqlContents = Boolean.parseBoolean(replaceAllSqlContentsStr);
+			// 2. 템플릿 ID 생성 (신규인 경우)
+			if (StringUtils.isEmpty(request.getTemplate().getTemplateId())) {
+				String templateId = generateTemplateId(request.getTemplate().getTemplateName());
+				request.getTemplate().setTemplateId(templateId);
 			}
-
-			return sqlTemplateService.saveSqlTemplate(templateId, sqlName, sqlDesc, sqlVersion, sqlStatus, executionLimit, refreshTimeout, newline, audit,
-					categoryIds, accessibleConnectionIds, chartMapping, sqlContent, configContent, parameters, shortcuts, additionalSqlContents,
-					replaceAllSqlContents, userId);
-
+			
+			// 3. 서비스 호출
+			Map<String, Object> result = sqlTemplateService.saveTemplateWithRelatedData(request, userId);
+			
+			if ((Boolean) result.get("success")) {
+				return ResponseEntity.ok(result);
+			} else {
+				return ResponseEntity.status(500).body(result);
+			}
+			
 		} catch (Exception e) {
 			logger.error("SQL 템플릿 저장 실패", e);
-			Map<String, Object> result = new HashMap<>();
-			result.put("success", false);
-			result.put("error", "SQL 템플릿 저장 실패: " + e.getMessage());
-			return result;
+			return ResponseEntity.status(500)
+				.body(createErrorResponse("SQL 템플릿 저장 실패: " + e.getMessage(), "SAVE_ERROR"));
 		}
+	}
+
+	/**
+	 * 데이터 검증 메서드
+	 */
+	private ValidationResult validateSaveRequest(SqlTemplateSaveRequest request) {
+		ValidationResult result = new ValidationResult();
+		
+		// 템플릿 기본 정보 검증
+		if (request.getTemplate() == null) {
+			return result.addError("템플릿 정보가 누락되었습니다. 템플릿의 기본 정보(이름, 설명, SQL 내용 등)를 모두 입력해주세요.", "TEMPLATE_REQUIRED");
+		}
+		
+		if (StringUtils.isEmpty(request.getTemplate().getTemplateName())) {
+			return result.addError("템플릿 이름을 입력해주세요. 템플릿을 식별할 수 있는 고유한 이름이 필요합니다.", "TEMPLATE_NAME_REQUIRED");
+		}
+		
+		if (StringUtils.isEmpty(request.getTemplate().getSqlContent())) {
+			return result.addError("기본 SQL 내용을 입력해주세요. 템플릿의 기본 SQL 쿼리가 필요합니다.", "SQL_CONTENT_REQUIRED");
+		}
+		
+		// 템플릿 이름 길이 검증
+		if (request.getTemplate().getTemplateName().length() > 100) {
+			return result.addError("템플릿 이름이 너무 깁니다. 100자 이하로 입력해주세요. (현재: " + request.getTemplate().getTemplateName().length() + "자)", "TEMPLATE_NAME_TOO_LONG");
+		}
+		
+		// 파라미터 검증
+		if (request.getParameters() != null) {
+			for (int i = 0; i < request.getParameters().size(); i++) {
+				kr.Windmill.dto.SqlTemplateParameter param = request.getParameters().get(i);
+				if (StringUtils.isEmpty(param.getParameterName())) {
+					return result.addError("파라미터 " + (i + 1) + "번의 이름을 입력해주세요. 파라미터는 SQL 쿼리에서 사용할 변수명입니다.", "PARAMETER_NAME_REQUIRED");
+				}
+				if (param.getParameterOrder() == null || param.getParameterOrder() < 1) {
+					return result.addError("파라미터 " + (i + 1) + "번의 순서를 1 이상의 숫자로 입력해주세요. (현재: " + param.getParameterOrder() + ")", "PARAMETER_ORDER_INVALID");
+				}
+				if (param.getParameterName().length() > 50) {
+					return result.addError("파라미터 " + (i + 1) + "번의 이름이 너무 깁니다. 50자 이하로 입력해주세요. (현재: " + param.getParameterName().length() + "자)", "PARAMETER_NAME_TOO_LONG");
+				}
+				// 파라미터 타입 검증
+				if (StringUtils.isEmpty(param.getParameterType())) {
+					return result.addError("파라미터 " + (i + 1) + "번의 타입을 선택해주세요. (STRING, NUMBER, DATE, BOOLEAN 중 선택)", "PARAMETER_TYPE_REQUIRED");
+				}
+				if (!isValidParameterType(param.getParameterType())) {
+					return result.addError("파라미터 " + (i + 1) + "번의 타입이 올바르지 않습니다. STRING, NUMBER, DATE, BOOLEAN 중 하나를 선택해주세요. (현재: " + param.getParameterType() + ")", "PARAMETER_TYPE_INVALID");
+				}
+			}
+		}
+		
+		// 단축키 검증
+		if (request.getShortcuts() != null) {
+			for (int i = 0; i < request.getShortcuts().size(); i++) {
+				kr.Windmill.dto.SqlTemplateShortcut shortcut = request.getShortcuts().get(i);
+				if (StringUtils.isEmpty(shortcut.getShortcutKey())) {
+					return result.addError("단축키 " + (i + 1) + "번의 키를 입력해주세요. 단축키는 사용자가 빠르게 접근할 수 있는 키 조합입니다.", "SHORTCUT_KEY_REQUIRED");
+				}
+				if (StringUtils.isEmpty(shortcut.getTargetTemplateId())) {
+					return result.addError("단축키 " + (i + 1) + "번의 대상 템플릿 ID를 입력해주세요. 단축키가 실행할 템플릿을 지정해야 합니다.", "TARGET_TEMPLATE_ID_REQUIRED");
+				}
+				if (StringUtils.isEmpty(shortcut.getShortcutName())) {
+					return result.addError("단축키 " + (i + 1) + "번의 이름을 입력해주세요. 단축키를 식별할 수 있는 이름이 필요합니다.", "SHORTCUT_NAME_REQUIRED");
+				}
+			}
+		}
+		
+		// SQL 내용 검증
+		if (request.getSqlContents() != null) {
+			for (int i = 0; i < request.getSqlContents().size(); i++) {
+				kr.Windmill.dto.SqlContent sqlContent = request.getSqlContents().get(i);
+				if (StringUtils.isEmpty(sqlContent.getConnectionId())) {
+					return result.addError("SQL 내용 " + (i + 1) + "번의 연결 ID를 입력해주세요. 데이터베이스 연결을 식별하는 ID가 필요합니다.", "CONNECTION_ID_REQUIRED");
+				}
+				if (StringUtils.isEmpty(sqlContent.getSqlContent())) {
+					return result.addError("SQL 내용 " + (i + 1) + "번의 SQL 쿼리를 입력해주세요. 해당 연결에서 실행할 SQL 문이 필요합니다.", "SQL_CONTENT_REQUIRED");
+				}
+			}
+		}
+		
+		return result;
+	}
+	
+	/**
+	 * 파라미터 타입이 유효한지 검증
+	 */
+	private boolean isValidParameterType(String parameterType) {
+		if (StringUtils.isEmpty(parameterType)) {
+			return false;
+		}
+		return parameterType.equals("STRING") || parameterType.equals("NUMBER") || 
+			   parameterType.equals("DATE") || parameterType.equals("BOOLEAN");
+	}
+
+
+	/**
+	 * 에러 응답 생성
+	 */
+	private Map<String, Object> createErrorResponse(String message, String errorCode) {
+		Map<String, Object> response = new HashMap<>();
+		response.put("success", false);
+		response.put("error", message);
+		response.put("errorCode", errorCode);
+		return response;
+	}
+
+	/**
+	 * 템플릿 ID 생성
+	 */
+	private String generateTemplateId(String templateName) {
+		// 기존 로직과 동일하게 구현
+		return templateName + "_" + System.currentTimeMillis();
 	}
 
 	@ResponseBody

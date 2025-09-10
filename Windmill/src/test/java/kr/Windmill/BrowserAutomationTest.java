@@ -131,6 +131,9 @@ public class BrowserAutomationTest {
             WebElement templateList = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("templateList")));
             System.out.println("템플릿 목록 로드 확인");
             
+            // 성공적인 페이지 로드 스크린샷 촬영
+            takeScreenshot("sql_template_page_success");
+            
         } catch (Exception e) {
             System.err.println("SQL 템플릿 페이지 접근 테스트 실패: " + e.getMessage());
             takeScreenshot("sql_template_page_failure");

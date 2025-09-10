@@ -2,6 +2,8 @@ package kr.Windmill.controller;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -58,11 +60,23 @@ public class SQLController {
 		if (templateId != null && !templateId.trim().isEmpty()) {
 			mv.addObject("sendvalue", request.getParameter("sendvalue"));
 			String excuteParam = request.getParameter("Excute");
-			String redirectUrl = "/SQLTemplate?templateId=" + templateId;
-			if (excuteParam != null) {
-				redirectUrl += "&Excute=" + excuteParam;
+			try {
+				// 한글 templateId를 URL 인코딩하여 HTTP 헤더 오류 방지
+				String encodedTemplateId = URLEncoder.encode(templateId, StandardCharsets.UTF_8.toString());
+				String redirectUrl = "/SQLTemplate?templateId=" + encodedTemplateId;
+				if (excuteParam != null) {
+					redirectUrl += "&Excute=" + excuteParam;
+				}
+				mv.setViewName("redirect:" + redirectUrl);
+			} catch (Exception e) {
+				logger.error("URL 인코딩 중 오류 발생: " + e.getMessage(), e);
+				// 인코딩 실패 시 원본 templateId 사용 (fallback)
+				String redirectUrl = "/SQLTemplate?templateId=" + templateId;
+				if (excuteParam != null) {
+					redirectUrl += "&Excute=" + excuteParam;
+				}
+				mv.setViewName("redirect:" + redirectUrl);
 			}
-			mv.setViewName("redirect:" + redirectUrl);
 			mv.addObject("Excute", request.getParameter("Excute") == null ? false : request.getParameter("Excute"));
 			return mv;
 		}
