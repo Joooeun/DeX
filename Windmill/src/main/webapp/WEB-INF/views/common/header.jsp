@@ -36,6 +36,58 @@ body {
 	border-radius: 8px;
 	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .1)
 }
+
+/* 자동완성 드롭다운 스타일 */
+.search-autocomplete {
+	position: relative;
+	display: inline-block;
+	width: 100%;
+}
+
+.autocomplete-dropdown {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	background: white;
+	border: 1px solid #ddd;
+	border-top: none;
+	max-height: 200px;
+	overflow-y: auto;
+	z-index: 9999;
+	box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+	display: none;
+}
+
+.autocomplete-item {
+	padding: 8px 12px;
+	cursor: pointer;
+	border-bottom: 1px solid #f0f0f0;
+	font-size: 13px;
+}
+
+.autocomplete-item:hover {
+	background-color: #f5f5f5;
+}
+
+.autocomplete-item:last-child {
+	border-bottom: none;
+}
+
+.autocomplete-item .menu-icon {
+	margin-right: 8px;
+	color: #666;
+}
+
+.autocomplete-item .menu-text {
+	font-weight: normal;
+}
+
+.autocomplete-item .menu-path {
+	font-size: 11px;
+	color: #999;
+	margin-left: 5px;
+}
 </style>
 </head>
 
@@ -97,6 +149,46 @@ var changePW
 			$(this).tab('show');
 		});
 
+		// 자동완성 관련 이벤트 핸들러
+		$('#search').on('input', function() {
+			var searchTerm = $(this).val().trim();
+			if (searchTerm.length >= 1) {
+				collectMenuItems(); // 메뉴 아이템 수집
+				var filtered = filterMenus(searchTerm);
+				showAutocomplete(filtered);
+			} else {
+				hideAutocomplete();
+			}
+		});
+		
+		// 자동완성 아이템 클릭 이벤트
+		$(document).on('click', '.autocomplete-item', function() {
+			var href = $(this).data('href');
+			navigateToMenu(href);
+		});
+		
+		// 검색 버튼 클릭 이벤트
+		$('#search-btn').on('click', function() {
+			Search();
+		});
+		
+		// 검색 입력창에서 Enter 키 이벤트
+		$('#search').on('keydown', function(e) {
+			if (e.keyCode === 13) { // Enter 키
+				e.preventDefault();
+				Search();
+			} else if (e.keyCode === 27) { // Escape 키
+				hideAutocomplete();
+			}
+		});
+		
+		// 다른 곳 클릭 시 자동완성 숨기기
+		$(document).on('click', function(e) {
+			if (!$(e.target).closest('.search-autocomplete').length) {
+				hideAutocomplete();
+			}
+		});
+
 	});
 		
 	/* ------------------------------공지사항 start------------------------------ */
@@ -127,16 +219,130 @@ var changePW
 	}
 	/* ------------------------------공지사항 end------------------------------ */
 
+	// 메뉴 데이터를 저장할 변수
+	var allMenuItems = [];
+	
+	// 모든 메뉴 아이템을 수집하는 함수
+	function collectMenuItems() {
+		allMenuItems = [];
+		
+		// 고정 메뉴들 추가
+		var fixedMenus = [
+			{ text: 'Connection', href: '/Connection', icon: 'fa-database', type: 'admin' },
+			{ text: 'User', href: '/User', icon: 'fa-user', type: 'admin' },
+			{ text: 'SQL 템플릿 관리', href: '/SQLTemplate', icon: 'fa-code', type: 'admin' },
+			{ text: '환경설정', href: '/SystemConfig', icon: 'fa-cog', type: 'admin' },
+			{ text: 'FileRead', href: '/FileRead', icon: 'fa-file-text-o', type: 'all' },
+			{ text: 'FileUpload', href: '/FileUpload', icon: 'fa-file-text-o', type: 'all' }
+		];
+		
+		// 관리자 메뉴만 필터링
+		var isAdmin = '${isAdmin}' === 'true';
+		fixedMenus.forEach(function(menu) {
+			if (menu.type === 'all' || (menu.type === 'admin' && isAdmin)) {
+				allMenuItems.push(menu);
+			}
+		});
+		
+		// 동적으로 생성된 SQL 메뉴들 추가
+		$('#sidemenu a').each(function() {
+			var $this = $(this);
+			var href = $this.attr('href');
+			var text = $this.text().trim();
+			
+			if (href && text && href !== '#') {
+				allMenuItems.push({
+					text: text,
+					href: href,
+					icon: 'fa-code',
+					type: 'sql'
+				});
+			}
+		});
+	}
+	
+	// 검색어에 따라 메뉴를 필터링하는 함수
+	function filterMenus(searchTerm) {
+		if (!searchTerm || searchTerm.length < 1) {
+			return [];
+		}
+		
+		var filtered = allMenuItems.filter(function(menu) {
+			return menu.text.toLowerCase().includes(searchTerm.toLowerCase());
+		});
+		
+		// 최대 10개까지만 표시
+		return filtered.slice(0, 10);
+	}
+	
+	// 자동완성 드롭다운을 표시하는 함수
+	function showAutocomplete(items) {
+		var dropdown = $('#autocompleteDropdown');
+		dropdown.empty();
+		
+		if (items.length === 0) {
+			dropdown.hide();
+			return;
+		}
+		
+		items.forEach(function(item) {
+			var itemHtml = '<div class="autocomplete-item" data-href="' + item.href + '">' +
+				'<i class="fa ' + item.icon + ' menu-icon"></i>' +
+				'<span class="menu-text">' + item.text + '</span>' +
+				'</div>';
+			dropdown.append(itemHtml);
+		});
+		
+		// 검색 입력창의 위치를 기준으로 드롭다운 위치 설정
+		var searchInput = $('#search');
+		var inputOffset = searchInput.offset();
+		var inputHeight = searchInput.outerHeight();
+		
+		// 스타일을 직접 설정
+		dropdown[0].style.display = 'block';
+		dropdown[0].style.position = 'fixed';
+		dropdown[0].style.zIndex = '9999';
+		dropdown[0].style.background = 'white';
+		dropdown[0].style.border = '1px solid #ddd';
+		dropdown[0].style.borderTop = 'none';
+		dropdown[0].style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+		dropdown[0].style.top = (inputOffset.top + inputHeight) + 'px';
+		dropdown[0].style.left = inputOffset.left + 'px';
+		dropdown[0].style.width = searchInput.outerWidth() + 'px';
+		dropdown[0].style.maxHeight = '200px';
+		dropdown[0].style.overflowY = 'auto';
+	}
+	
+	// 자동완성 드롭다운을 숨기는 함수
+	function hideAutocomplete() {
+		$('#autocompleteDropdown').hide();
+	}
+	
+	// 메뉴로 이동하는 함수
+	function navigateToMenu(href) {
+		const iframe = document.querySelector('#pageTabContent > div:last-child > iframe');
+		if (iframe && iframe.contentWindow) {
+			iframe.contentWindow.location.href = href;
+		}
+		hideAutocomplete();
+		$('#search').val('');
+	}
+	
+	// 기존 Search 함수 (호환성을 위해 유지)
 	function Search() {
-
-		if ($('#' + $("#search").val()).length == 0) {
-			alert("메뉴가 없습니다.")
+		var searchTerm = $("#search").val().trim();
+		if (!searchTerm) {
 			return false;
 		}
 		
-		const iframe = document.querySelector('#pageTabContent > div:last-child > iframe');
-		iframe.contentWindow.location.href = $('#' + $("#search").val()).attr('href');
-
+		var filtered = filterMenus(searchTerm);
+		if (filtered.length === 0) {
+			alert("검색 결과가 없습니다.");
+			return false;
+		}
+		
+		// 첫 번째 결과로 이동
+		navigateToMenu(filtered[0].href);
 		return false;
 	}
 
@@ -321,13 +527,17 @@ var changePW
 			<!-- sidebar: style can be found in sidebar.less -->
 			<section class="sidebar" id="sidebar">
 				<!-- search form -->
-				<form class="sidebar-form" onsubmit="return Search()">
-					<div class="input-group">
-						<input type="text" name="q" class="form-control" placeholder="Search..." id="search" /> <span class="input-group-btn">
-							<button type="button" name='search' id='search-btn' class="btn btn-flat" onclick="Search()">
-								<i class="fa fa-search"></i>
-							</button>
-						</span>
+				<form class="sidebar-form" onsubmit="return false;">
+					<div class="search-autocomplete">
+						<div class="input-group">
+							<input type="text" name="q" class="form-control" placeholder="메뉴 검색..." id="search" autocomplete="off" /> 
+							<span class="input-group-btn">
+								<button type="button" name='search' id='search-btn' class="btn btn-flat">
+									<i class="fa fa-search"></i>
+								</button>
+							</span>
+						</div>
+						<div class="autocomplete-dropdown" id="autocompleteDropdown" style="display: none;"></div>
 					</div>
 				</form>
 				<!-- /.search form -->
