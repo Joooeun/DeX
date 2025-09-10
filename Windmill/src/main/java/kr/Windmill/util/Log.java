@@ -36,6 +36,10 @@ public class Log {
 
 	public void log_start(LogInfoDto data, String msg) {
 
+		// 사용자 ID가 null이거나 빈 문자열인 경우 로그를 남기지 않음
+		if (data.getId() == null || data.getId().trim().isEmpty()) {
+			return;
+		}
 
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
 		String strNowDate = simpleDateFormat.format(Date.from(data.getStart()));
@@ -80,6 +84,11 @@ public class Log {
 
 	public void log_end(LogInfoDto data, String msg) {
 
+		// 사용자 ID가 null이거나 빈 문자열인 경우 로그를 남기지 않음
+		if (data.getId() == null || data.getId().trim().isEmpty()) {
+			return;
+		}
+
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
 		String strNowDate = simpleDateFormat.format(Date.from(data.getStart()));
 
@@ -121,6 +130,11 @@ public class Log {
 	}
 
 	public void log_line(LogInfoDto data, String msg) {
+
+		// 사용자 ID가 null이거나 빈 문자열인 경우 로그를 남기지 않음
+		if (data.getId() == null || data.getId().trim().isEmpty()) {
+			return;
+		}
 
 		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy_MM_dd");
 		String strNowDate = simpleDateFormat.format(Date.from(data.getStart()));
@@ -329,27 +343,32 @@ public class Log {
 		}
 		
 		// DEXLOG 테이블에 삽입 (기존 순서 유지)
-		String sql = "INSERT INTO DEXLOG (" +
-			"USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, " +
-			"SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID" +
-			") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-		
-		jdbcTemplate.update(sql,
+		try {
+			String sql = "INSERT INTO DEXLOG (" +
+				"USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, " +
+				"SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID" +
+				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+			
+			jdbcTemplate.update(sql,
 			data.getId(),                                    // USER_ID
 			data.getIp(),                                    // IP
 			data.getConnectionId(),                           // CONN_DB
 			data.getTitle(),                                // MENU
 			getExecutionType(data.getLogsql()),             // SQL_TYPE
-			data.getRows(),                                 // RESULT_ROWS
+				data.getRows(),                                 // RESULT_ROWS
 			data.getLogsql(),                               // SQL_TEXT
 			data.getResult(),                               // RESULT_MSG
-			duration,                                       // DURATION
-			data.getStart() != null ? java.sql.Timestamp.from(data.getStart()) : null,  // EXECUTE_DATE
-			xmlLog,                                         // XML_LOG (파라미터 정보)
+				duration,                                       // DURATION
+				data.getStart() != null ? java.sql.Timestamp.from(data.getStart()) : null,  // EXECUTE_DATE
+				xmlLog,                                         // XML_LOG (파라미터 정보)
 			data.getLogId()                                 // LOG_ID
-		);
-		
-		logger.debug("DEXLOG 저장 완료: {} - {}", data.getId(), data.getConnectionId());
+			);
+			
+			logger.debug("DEXLOG 저장 완료: {} - {}", data.getId(), data.getConnectionId());
+		} catch (Exception e) {
+			logger.error("DEXLOG 저장 실패 (LogInfoDto): {} - {}", data.getId(), data.getConnectionId(), e);
+			// 오류가 발생해도 흐름을 중단하지 않음
+		}
 	}
 	
 
@@ -390,12 +409,203 @@ public class Log {
 		}
 	}
 
+	/**
+	 * 메뉴 실행 시작 로그를 EXECUTION_LOG 테이블에 INSERT합니다 (PENDING 상태).
+	 */
+	public void logMenuExecutionStart(LogInfoDto data) {
+		// 사용자 ID가 null이거나 빈 문자열인 경우 로그를 남기지 않음
+		if (data.getId() == null || data.getId().trim().isEmpty()) {
+			return;
+		}
+
+		try {
+			// EXECUTION_LOG 테이블에 PENDING 상태로 삽입
+			String sql = "INSERT INTO EXECUTION_LOG (" +
+				"LOG_ID, USER_ID, TEMPLATE_ID, CONNECTION_ID, SQL_TYPE, EXECUTION_STATUS, " +
+				"SQL_CONTENT, EXECUTION_START_TIME" +
+				") VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+			
+			jdbcTemplate.update(sql,
+				data.getLogId(),                                // LOG_ID
+				data.getId(),                                   // USER_ID
+				data.getTitle(),                                // TEMPLATE_ID
+				data.getConnectionId(),                         // CONNECTION_ID
+				getExecutionType(data.getLogsql()),            // SQL_TYPE
+				"PENDING",                                      // EXECUTION_STATUS
+				data.getLogsql(),                              // SQL_CONTENT
+				data.getStart() != null ? java.sql.Timestamp.from(data.getStart()) : null  // EXECUTION_START_TIME
+			);
+			
+			logger.debug("EXECUTION_LOG 시작 저장 완료: {} - {}", data.getId(), data.getTitle());
+			
+		} catch (Exception e) {
+			logger.error("EXECUTION_LOG 시작 저장 실패", e);
+		}
+	}
+
+	/**
+	 * 메뉴 실행 완료 로그를 EXECUTION_LOG 테이블에서 UPDATE합니다.
+	 */
+	public void logMenuExecutionEnd(LogInfoDto data) {
+		// 사용자 ID가 null이거나 빈 문자열인 경우 로그를 남기지 않음
+		if (data.getId() == null || data.getId().trim().isEmpty()) {
+			return;
+		}
+
+		try {
+			// 실행 시간 계산
+			long duration = 0;
+			if (data.getStart() != null && data.getEnd() != null) {
+				duration = java.time.Duration.between(data.getStart(), data.getEnd()).toMillis();
+			}
+			
+			// 실행 상태 판단
+			String executionStatus = "SUCCESS";
+			String errorMessage = null;
+			
+			if (data.getResult() != null) {
+				if ("Success".equals(data.getResult())) {
+					executionStatus = "SUCCESS";
+				} else {
+					executionStatus = "FAIL";
+					errorMessage = data.getResult();
+				}
+			}
+			
+			// PENDING 상태 판단 (30초 이상 걸린 경우)
+			if (duration > 30000 && "SUCCESS".equals(executionStatus)) {
+				executionStatus = "PENDING";
+			}
+			
+			// EXECUTION_LOG 테이블에서 업데이트
+			String sql = "UPDATE EXECUTION_LOG SET " +
+				"EXECUTION_STATUS = ?, DURATION = ?, AFFECTED_ROWS = ?, " +
+				"ERROR_MESSAGE = ?, EXECUTION_END_TIME = ? " +
+				"WHERE LOG_ID = ?";
+			
+			jdbcTemplate.update(sql,
+				executionStatus,                                // EXECUTION_STATUS
+				duration,                                       // DURATION
+				data.getRows(),                                 // AFFECTED_ROWS
+				errorMessage,                                   // ERROR_MESSAGE
+				data.getEnd() != null ? java.sql.Timestamp.from(data.getEnd()) : null,  // EXECUTION_END_TIME
+				data.getLogId()                                 // LOG_ID
+			);
+			
+			logger.debug("EXECUTION_LOG 완료 업데이트 완료: {} - {}", data.getId(), data.getTitle());
+			
+		} catch (Exception e) {
+			logger.error("EXECUTION_LOG 완료 업데이트 실패", e);
+		}
+	}
+
+	/**
+	 * SqlTemplateExecuteDto를 사용한 메뉴 실행 시작 로그를 EXECUTION_LOG 테이블에 INSERT합니다 (PENDING 상태).
+	 */
+	public void logMenuExecutionStart(SqlTemplateExecuteDto executeDto) {
+		// 사용자 ID가 null이거나 빈 문자열인 경우 로그를 남기지 않음
+		if (executeDto.getMemberId() == null || executeDto.getMemberId().trim().isEmpty()) {
+			return;
+		}
+
+		try {
+			// LOG_ID 생성 (템플릿 ID + 타임스탬프)
+			String logId = executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli();
+			
+			// EXECUTION_LOG 테이블에 PENDING 상태로 삽입
+			String sql = "INSERT INTO EXECUTION_LOG (" +
+				"LOG_ID, USER_ID, TEMPLATE_ID, CONNECTION_ID, SQL_TYPE, EXECUTION_STATUS, " +
+				"SQL_CONTENT, EXECUTION_START_TIME" +
+				") VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+			
+			jdbcTemplate.update(sql,
+				logId,                                           // LOG_ID
+				executeDto.getMemberId(),                        // USER_ID
+				executeDto.getTemplateId(),                      // TEMPLATE_ID
+				executeDto.getConnectionId(),                     // CONNECTION_ID
+				getExecutionType(executeDto.getSqlContent()),    // SQL_TYPE
+				"PENDING",                                       // EXECUTION_STATUS
+				executeDto.getSqlContent(),                      // SQL_CONTENT
+				java.sql.Timestamp.from(executeDto.getStartTime())  // EXECUTION_START_TIME
+			);
+			
+			logger.debug("EXECUTION_LOG 시작 저장 완료 (Template): {} - {}", executeDto.getMemberId(), executeDto.getTemplateId());
+			
+		} catch (Exception e) {
+			logger.error("EXECUTION_LOG 시작 저장 실패 (Template)", e);
+		}
+	}
+
+	/**
+	 * SqlTemplateExecuteDto를 사용한 메뉴 실행 완료 로그를 EXECUTION_LOG 테이블에서 UPDATE합니다.
+	 */
+	public void logMenuExecutionEnd(SqlTemplateExecuteDto executeDto) {
+		// 사용자 ID가 null이거나 빈 문자열인 경우 로그를 남기지 않음
+		if (executeDto.getMemberId() == null || executeDto.getMemberId().trim().isEmpty()) {
+			return;
+		}
+
+		try {
+			// LOG_ID 생성 (템플릿 ID + 타임스탬프)
+			String logId = executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli();
+			
+			// 실행 시간 계산
+			long duration = 0;
+			if (executeDto.getStartTime() != null && executeDto.getEndTime() != null) {
+				duration = java.time.Duration.between(executeDto.getStartTime(), executeDto.getEndTime()).toMillis();
+			}
+			
+			// 실행 상태 판단
+			String executionStatus = "SUCCESS";
+			String errorMessage = null;
+			
+			if (executeDto.getResult() != null) {
+				if ("Success".equals(executeDto.getResult())) {
+					executionStatus = "SUCCESS";
+				} else {
+					executionStatus = "FAIL";
+					errorMessage = executeDto.getResult();
+				}
+			}
+			
+			// PENDING 상태 판단 (30초 이상 걸린 경우)
+			if (duration > 30000 && "SUCCESS".equals(executionStatus)) {
+				executionStatus = "PENDING";
+			}
+			
+			// EXECUTION_LOG 테이블에서 업데이트
+			String sql = "UPDATE EXECUTION_LOG SET " +
+				"EXECUTION_STATUS = ?, DURATION = ?, AFFECTED_ROWS = ?, " +
+				"ERROR_MESSAGE = ?, EXECUTION_END_TIME = ? " +
+				"WHERE LOG_ID = ?";
+			
+			jdbcTemplate.update(sql,
+				executionStatus,                                 // EXECUTION_STATUS
+				duration,                                        // DURATION
+				executeDto.getRows(),                           // AFFECTED_ROWS
+				errorMessage,                                    // ERROR_MESSAGE
+				java.sql.Timestamp.from(executeDto.getEndTime()),  // EXECUTION_END_TIME
+				logId                                            // LOG_ID
+			);
+			
+			logger.debug("EXECUTION_LOG 완료 업데이트 완료 (Template): {} - {}", executeDto.getMemberId(), executeDto.getTemplateId());
+			
+		} catch (Exception e) {
+			logger.error("EXECUTION_LOG 완료 업데이트 실패 (Template)", e);
+		}
+	}
+
 	// ==================== SqlTemplateExecuteDto 로깅 메서드들 ====================
 	
 	/**
 	 * SqlTemplateExecuteDto를 사용한 로그 시작
 	 */
 	public void log_start(SqlTemplateExecuteDto executeDto, String msg) {
+		// 사용자 ID가 null이거나 빈 문자열인 경우 로그를 남기지 않음
+		if (executeDto.getMemberId() == null || executeDto.getMemberId().trim().isEmpty()) {
+			return;
+		}
+
 		// RootPath 유효성 확인
 		if (!Common.isRootPathValid()) {
 			logger.error("RootPath가 유효하지 않아 템플릿 로그를 기록할 수 없습니다: {}", com.RootPath);
@@ -442,6 +652,11 @@ public class Log {
 	 * SqlTemplateExecuteDto를 사용한 로그 종료
 	 */
 	public void log_end(SqlTemplateExecuteDto executeDto, String msg) {
+		// 사용자 ID가 null이거나 빈 문자열인 경우 로그를 남기지 않음
+		if (executeDto.getMemberId() == null || executeDto.getMemberId().trim().isEmpty()) {
+			return;
+		}
+
 		// RootPath 유효성 확인
 		if (!Common.isRootPathValid()) {
 			logger.error("RootPath가 유효하지 않아 템플릿 로그를 기록할 수 없습니다: {}", com.RootPath);
@@ -531,28 +746,35 @@ public class Log {
 			}
 		}
 		
-		// DEXLOG 테이블에 삽입 (기존 순서 유지)
-		String sql = "INSERT INTO DEXLOG (" +
-			"USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, " +
-			"SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID" +
-			") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 		
-		jdbcTemplate.update(sql,
+		// DEXLOG 테이블에 삽입 (기존 순서 유지)
+		try {
+			String sql = "INSERT INTO DEXLOG (" +
+				"USER_ID, IP, CONN_DB, MENU, SQL_TYPE, RESULT_ROWS, " +
+				"SQL_TEXT, RESULT_MSG, DURATION, EXECUTE_DATE, XML_LOG, LOG_ID" +
+				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+			
+			jdbcTemplate.update(sql,
 			executeDto.getMemberId(),                        // USER_ID
 			executeDto.getIp(),                              // IP
 			executeDto.getConnectionId(),                     // CONN_DB
 			executeDto.getTemplateId(),                      // MENU (템플릿 ID)
 			getExecutionType(executeDto.getSqlContent()),    // SQL_TYPE
-			executeDto.getRows(),                           // RESULT_ROWS
+				executeDto.getRows(),                           // RESULT_ROWS
 			executeDto.getSqlContent(),                     // SQL_TEXT
 			executeDto.getResult(),                         // RESULT_MSG
-			duration,                                       // DURATION
-			java.sql.Timestamp.from(executeDto.getStartTime()) ,  // EXECUTE_DATE
-			paramXml,                                       // XML_LOG (파라미터 정보)
+				duration,                                       // DURATION
+				java.sql.Timestamp.from(executeDto.getStartTime()) ,  // EXECUTE_DATE
+				paramXml,                                       // XML_LOG (파라미터 정보)
 			executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli()  // LOG_ID
-		);
-		
-		logger.debug("DEXLOG 저장 완료 (Template): {} - {}", executeDto.getMemberId(), executeDto.getConnectionId());
+			);
+			
+			logger.debug("DEXLOG 저장 완료 (Template): {} - {}", executeDto.getMemberId(), executeDto.getConnectionId());
+		} catch (Exception e) {
+			logger.error("DEXLOG 저장 실패 (SqlTemplateExecuteDto): {} - {}", executeDto.getMemberId(), executeDto.getConnectionId(), e);
+			// 오류가 발생해도 흐름을 중단하지 않음
+		}
 	}
+
 
 }

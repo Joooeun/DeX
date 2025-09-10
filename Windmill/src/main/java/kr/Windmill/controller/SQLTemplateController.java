@@ -255,10 +255,18 @@ public class SQLTemplateController {
 					.body(createErrorResponse(validation.getErrorMessage(), validation.getErrorCode()));
 			}
 			
-			// 2. 템플릿 ID 생성 (신규인 경우)
+			// 2. 템플릿 ID 설정 (신규인 경우)
 			if (StringUtils.isEmpty(request.getTemplate().getTemplateId())) {
-				String templateId = generateTemplateId(request.getTemplate().getTemplateName());
-				request.getTemplate().setTemplateId(templateId);
+				String templateName = request.getTemplate().getTemplateName();
+				
+				// 중복 체크
+				if (isTemplateIdExists(templateName)) {
+					return ResponseEntity.badRequest()
+						.body(createErrorResponse("이미 존재하는 템플릿 이름입니다: " + templateName, "DUPLICATE_TEMPLATE_NAME"));
+				}
+				
+				// 템플릿 이름을 그대로 템플릿 ID로 사용
+				request.getTemplate().setTemplateId(templateName);
 			}
 			
 			// 3. 서비스 호출
@@ -380,12 +388,19 @@ public class SQLTemplateController {
 		return response;
 	}
 
+	
 	/**
-	 * 템플릿 ID 생성
+	 * 템플릿 ID 중복 체크
 	 */
-	private String generateTemplateId(String templateName) {
-		// 기존 로직과 동일하게 구현
-		return templateName + "_" + System.currentTimeMillis();
+	private boolean isTemplateIdExists(String templateId) {
+		try {
+			String sql = "SELECT COUNT(*) FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
+			Integer count = jdbcTemplate.queryForObject(sql, Integer.class, templateId);
+			return count != null && count > 0;
+		} catch (Exception e) {
+			logger.warn("템플릿 ID 중복 체크 실패: {}", e.getMessage());
+			return false; // 오류 시 중복이 아닌 것으로 간주
+		}
 	}
 
 	@ResponseBody

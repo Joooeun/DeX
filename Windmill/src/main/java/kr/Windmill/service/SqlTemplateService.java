@@ -451,7 +451,11 @@ public class SqlTemplateService {
 
 		boolean isNew = (templateId == null || templateId.trim().isEmpty());
 		if (isNew) {
-			templateId = generateTemplateId(templateName);
+			// 중복 체크
+			if (isTemplateIdExists(templateName)) {
+				throw new RuntimeException("이미 존재하는 템플릿 이름입니다: " + templateName);
+			}
+			templateId = templateName; // 템플릿 이름을 그대로 템플릿 ID로 사용
 			String insertSql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, CHART_MAPPING, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, NEWLINE, AUDIT, CREATED_BY) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 			jdbcTemplate.update(insertSql, templateId, templateName, templateDesc, sqlContent, accessibleConnectionIds, chartMapping, version, status, executionLimit, refreshTimeout, newline, audit, userId);
 		} else {
@@ -1064,9 +1068,19 @@ public class SqlTemplateService {
 		return connectionIds;
 	}
 
-	private String generateTemplateId(String templateName) {
-		String clean = templateName.replaceAll("[^a-zA-Z0-9_]", "_");
-		return clean + "_" + System.currentTimeMillis();
+	
+	/**
+	 * 템플릿 ID 중복 체크
+	 */
+	private boolean isTemplateIdExists(String templateId) {
+		try {
+			String sql = "SELECT COUNT(*) FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
+			Integer count = jdbcTemplate.queryForObject(sql, Integer.class, templateId);
+			return count != null && count > 0;
+		} catch (Exception e) {
+			logger.warn("템플릿 ID 중복 체크 실패: {}", e.getMessage());
+			return false; // 오류 시 중복이 아닌 것으로 간주
+		}
 	}
 
 	private List<String[]> parseConfig(String configContent) {

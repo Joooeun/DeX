@@ -65,6 +65,7 @@ public class DashboardController {
             @PathVariable String chartName,
             @RequestParam(required = false) String lastHash,
             @RequestParam(required = false) String connectionId,
+            @RequestParam(required = false) String checkTemplate,
             HttpServletRequest request, 
             HttpSession session) {
         
@@ -72,17 +73,7 @@ public class DashboardController {
 
         try {
             // 모니터링 로그 기록
-            cLog.monitoringLog("DASHBOARD", "차트 데이터 요청: " + chartName + " (해시: " + lastHash + ", 커넥션: " + connectionId + ")");
-            
-            // 1. 모니터링 활성화 확인 (임시로 비활성화)
-            /*
-            if (!isAnyMonitoringEnabled()) {
-                cLog.monitoringLog("DASHBOARD_MONITORING_DISABLED", "모니터링이 활성화된 연결이 없어 차트 조회를 중단합니다.");
-                result.put("error", "모니터링이 활성화된 연결이 없습니다.");
-                result.put("errorType", "MONITORING_DISABLED");
-                return result;
-            }
-            */
+            cLog.monitoringLog("DASHBOARD", "차트 데이터 요청: " + chartName + " (해시: " + lastHash + ", 커넥션: " + connectionId + ", checkTemplate: " + checkTemplate + ")");
             
             // 2. DB 기반 차트 설정 확인
             Map<String, Object> chartTemplate = sqlTemplateService.getTemplateByChartMapping(chartName);
@@ -92,6 +83,14 @@ public class DashboardController {
                 cLog.monitoringLog("DASHBOARD_ERROR", "차트 설정을 찾을 수 없음: " + chartName);
                 result.put("error", "차트 설정을 찾을 수 없습니다: " + chartName);
                 result.put("errorType", "CHART_NOT_FOUND");
+                return result;
+            }
+            
+            // checkTemplate=true인 경우 템플릿 정보만 반환
+            if ("true".equals(checkTemplate)) {
+                cLog.monitoringLog("DASHBOARD_TEMPLATE_INFO", "템플릿 정보만 반환: " + chartName);
+                result.put("success", true);
+                result.put("template", chartTemplate);
                 return result;
             }
             
@@ -194,6 +193,86 @@ public class DashboardController {
             // 해시 생성 실패 시 데이터의 hashCode 사용
             return String.valueOf(data.hashCode());
         }
+    }
+
+    /**
+     * 최근 메뉴 실행 기록 조회 (최근 10개)
+     */
+    @RequestMapping(path = "/Dashboard/menuExecutionLog", method = RequestMethod.POST)
+    public @ResponseBody Map<String, Object> getMenuExecutionLog(HttpServletRequest request, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // 모니터링 로그 기록
+            cLog.monitoringLog("DASHBOARD", "메뉴 실행 기록 조회 요청");
+            
+            // 최근 10개 메뉴 실행 기록 조회
+            String sql = "SELECT " +
+                "LOG_ID, USER_ID, TEMPLATE_ID, CONNECTION_ID, SQL_TYPE, " +
+                "EXECUTION_STATUS, DURATION, AFFECTED_ROWS, ERROR_MESSAGE, " +
+                "EXECUTION_START_TIME, EXECUTION_END_TIME " +
+                "FROM EXECUTION_LOG " +
+                "ORDER BY EXECUTION_START_TIME DESC " +
+                "FETCH FIRST 10 ROWS ONLY";
+            
+            List<Map<String, Object>> executionLogs = jdbcTemplate.queryForList(sql);
+            
+            // 결과 포맷팅
+            List<Map<String, Object>> formattedLogs = new ArrayList<>();
+            for (Map<String, Object> log : executionLogs) {
+                Map<String, Object> formattedLog = new HashMap<>();
+                formattedLog.put("logId", log.get("LOG_ID"));
+                formattedLog.put("userId", log.get("USER_ID"));
+                formattedLog.put("templateId", log.get("TEMPLATE_ID"));
+                formattedLog.put("connectionId", log.get("CONNECTION_ID"));
+                formattedLog.put("sqlType", log.get("SQL_TYPE"));
+                formattedLog.put("executionStatus", log.get("EXECUTION_STATUS"));
+                formattedLog.put("duration", log.get("DURATION"));
+                formattedLog.put("affectedRows", log.get("AFFECTED_ROWS"));
+                formattedLog.put("errorMessage", log.get("ERROR_MESSAGE"));
+                formattedLog.put("executionStartTime", log.get("EXECUTION_START_TIME"));
+                formattedLog.put("executionEndTime", log.get("EXECUTION_END_TIME"));
+                
+                // 실행 상태에 따른 색상 설정
+                String status = (String) log.get("EXECUTION_STATUS");
+                String statusColor = "#666";
+                if ("SUCCESS".equals(status)) {
+                    statusColor = "#28a745";
+                } else if ("FAIL".equals(status)) {
+                    statusColor = "#dc3545";
+                } else if ("PENDING".equals(status)) {
+                    statusColor = "#ffc107";
+                }
+                formattedLog.put("statusColor", statusColor);
+                
+                // 실행 시간 포맷팅
+                Integer duration = (Integer) log.get("DURATION");
+                if (duration != null) {
+                    if (duration < 1000) {
+                        formattedLog.put("durationText", duration + "ms");
+                    } else {
+                        formattedLog.put("durationText", String.format("%.1fs", duration / 1000.0));
+                    }
+                } else {
+                    formattedLog.put("durationText", "-");
+                }
+                
+                formattedLogs.add(formattedLog);
+            }
+            
+            result.put("success", true);
+            result.put("data", formattedLogs);
+            result.put("count", formattedLogs.size());
+            
+            cLog.monitoringLog("DASHBOARD", "메뉴 실행 기록 조회 완료: " + formattedLogs.size() + "건");
+            
+        } catch (Exception e) {
+            cLog.monitoringLog("DASHBOARD_ERROR", "메뉴 실행 기록 조회 실패: " + e.getMessage());
+            result.put("success", false);
+            result.put("error", "메뉴 실행 기록 조회 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return result;
     }
 
     /**

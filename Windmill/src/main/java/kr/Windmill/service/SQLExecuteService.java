@@ -127,6 +127,7 @@ public class SQLExecuteService {
 
 		try {
 			cLog.log_start(data, log + "\nmenu 실행 시작\n");
+			cLog.logMenuExecutionStart(data);  // 메뉴 실행 시작 로그 저장
 
 			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
 
@@ -150,6 +151,7 @@ public class SQLExecuteService {
 				row = " / rows : " + data.getRows();
 				cLog.log_end(data, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 				cLog.log_DB(data);
+				cLog.logMenuExecutionEnd(data);  // 메뉴 실행 완료 로그 저장
 
 			} else if (detectSqlType(sql) == SqlType.EXECUTE) {
 				data.setLogNo(data.getLogNo() + 1);
@@ -161,6 +163,7 @@ public class SQLExecuteService {
 
 				cLog.log_end(data, " sql 실행 종료 : 성공 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 				cLog.log_DB(data);
+				cLog.logMenuExecutionEnd(data);  // 메뉴 실행 완료 로그 저장
 
 			} else {
 				// UPDATE 타입 처리
@@ -173,6 +176,7 @@ public class SQLExecuteService {
 
 				cLog.log_end(data, " sql 실행 종료 : 성공 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 				cLog.log_DB(data);
+				cLog.logMenuExecutionEnd(data);  // 메뉴 실행 완료 로그 저장
 			}
 
 		} catch (SQLException e1) {
@@ -218,6 +222,7 @@ public class SQLExecuteService {
 			data.setDuration(0);
 			cLog.log_end(data, " sql 실행 종료 : 실패 " + e1.getMessage() + "\n\n");
 			cLog.log_DB(data);
+			cLog.logMenuExecutionEnd(data);  // 메뉴 실행 완료 로그 저장
 
 			logger.error("SQL 실행 실패 - id: {} / sql: {}", data.getId(), data.getSql());
 			e1.printStackTrace();
@@ -229,6 +234,7 @@ public class SQLExecuteService {
 			Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
 			cLog.log_end(data, " sql 실행 종료 : 실패 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 			cLog.log_DB(data);
+			cLog.logMenuExecutionEnd(data);  // 메뉴 실행 완료 로그 저장
 			throw e;
 		}
 
@@ -839,6 +845,7 @@ public class SQLExecuteService {
 		try {
 			// 로깅 시작
 			cLog.log_start(executeDto, "템플릿 SQL 실행 시작\n");
+			cLog.logMenuExecutionStart(executeDto);  // 메뉴 실행 시작 로그 저장
 			
 			// SQL 타입 감지
 			SqlType sqlType = detectSqlType(sql);
@@ -867,6 +874,7 @@ public class SQLExecuteService {
 			String row = " / rows : " + executeDto.getRows();
 			cLog.log_end(executeDto, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 			cLog.log_DB(executeDto);
+			cLog.logMenuExecutionEnd(executeDto);  // 메뉴 실행 완료 로그 저장
 			
 		} catch (SQLException e1) {
 			// SQL 예외 처리
@@ -917,6 +925,7 @@ public class SQLExecuteService {
 			// 실패 로깅
 			cLog.log_end(executeDto, " sql 실행 종료 : 실패 " + e1.getMessage() + "\n\n");
 			cLog.log_DB(executeDto);
+			cLog.logMenuExecutionEnd(executeDto);  // 메뉴 실행 완료 로그 저장
 
 			logger.error("SQL 실행 실패 - templateId: {} / sql: {}", executeDto.getTemplateId(), sql);
 			e1.printStackTrace();
@@ -934,6 +943,7 @@ public class SQLExecuteService {
 			Duration timeElapsed = Duration.between(executeDto.getStartTime(), executeDto.getEndTime());
 			cLog.log_end(executeDto, " sql 실행 종료 : 실패 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 			cLog.log_DB(executeDto);
+			cLog.logMenuExecutionEnd(executeDto);  // 메뉴 실행 완료 로그 저장
 			
 			// 에러 결과 반환
 			result = createErrorResult(e.getMessage(), sql);
@@ -1396,7 +1406,6 @@ public class SQLExecuteService {
 				String sql = (String) defaultSqlContent.get("SQL_CONTENT");
 				connectionId = (String) defaultSqlContent.get("CONNECTION_ID");
 				executeDto.setConnectionId(connectionId);
-				logger.info("템플릿 기본 SQL 내용 사용: templateId={}, connectionId={}", templateId, connectionId);
 				return sql;
 			} else {
 				throw new Exception("템플릿의 기본 SQL 내용을 찾을 수 없습니다: " + templateId);
@@ -1407,8 +1416,7 @@ public class SQLExecuteService {
 			if (sqlContent != null) {
 				String sql = (String) sqlContent.get("SQL_CONTENT");
 				String contentConnectionId = (String) sqlContent.get("CONNECTION_ID");
-				logger.info("템플릿 SQL 내용 사용: templateId={}, requestedConnectionId={}, contentConnectionId={}", 
-					templateId, connectionId, contentConnectionId);
+				
 				return sql;
 			} else {
 				throw new Exception("템플릿 SQL 내용을 찾을 수 없습니다: templateId=" + templateId + ", connectionId=" + connectionId);

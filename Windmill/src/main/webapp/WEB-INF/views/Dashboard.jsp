@@ -9,11 +9,12 @@
         var filesystemChart;
         var dexStatusChart;
         var selectedConnectionId = null; // 선택된 커넥션 ID
+        var menuExecutionLogInterval = null; // 메뉴 실행 기록 새로고침 인터벌
 
         // 페이지 로드 시 연결 모니터링 시작
         $(document).ready(function() {
             startConnectionMonitoring();
-            startDexStatusMonitoring();
+            startMenuExecutionLogMonitoring();
             initializeCharts();
             // 차트 초기화 완료 후 차트 모니터링 시작
             setTimeout(function() {
@@ -295,21 +296,72 @@
             }
         }
 
-        // DEX 상태 새로고침 함수
-        function refreshDexStatus() {
+        // 메뉴 실행 기록 새로고침 함수
+        function refreshMenuExecutionLog() {
             $.ajax({
                 type: 'post',
-                url: '/DexStatus/status',
+                url: '/Dashboard/menuExecutionLog',
                 timeout: 10000,
                 success: function(result) {
-                    updateDexStatusDisplay(result);
-                    scheduleNextDexRefresh();
+                    if (result.success) {
+                        updateMenuExecutionLogDisplay(result.data);
+                    } else {
+                        console.error('메뉴 실행 기록 조회 실패:', result.error);
+                    }
                 },
                 error: function(xhr, status, error) {
-                    console.error('DEX 상태 조회 실패:', error);
-                    scheduleNextDexRefresh();
+                    console.error('메뉴 실행 기록 조회 실패:', error);
                 }
             });
+        }
+
+        // 메뉴 실행 기록 표시 업데이트 함수
+        function updateMenuExecutionLogDisplay(logs) {
+            var tbody = $('#menuExecutionLogTableBody');
+            tbody.empty();
+            
+            if (logs && logs.length > 0) {
+                logs.forEach(function(log) {
+                    var row = '<tr>' +
+                        '<td>' + formatDateTime(log.executionStartTime) + '</td>' +
+                        '<td>' + log.userId + '</td>' +
+                        '<td>' + log.templateId + '</td>' +
+                        '<td>' + log.connectionId + '</td>' +
+                        '<td>' + log.sqlType + '</td>' +
+                        '<td><span style="color: ' + log.statusColor + '; font-weight: bold;">' + log.executionStatus + '</span></td>' +
+                        '<td>' + log.durationText + '</td>' +
+                        '<td>' + (log.affectedRows || '-') + '</td>' +
+                        '</tr>';
+                    tbody.append(row);
+                });
+            } else {
+                tbody.append('<tr><td colspan="8" style="text-align: center; color: #999;">실행 기록이 없습니다.</td></tr>');
+            }
+        }
+
+        // 날짜/시간 포맷팅 함수
+        function formatDateTime(dateTimeStr) {
+            if (!dateTimeStr) return '-';
+            
+            var date = new Date(dateTimeStr);
+            var now = new Date();
+            var diffMs = now - date;
+            var diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) {
+                return '방금 전';
+            } else if (diffMins < 60) {
+                return diffMins + '분 전';
+            } else if (diffMins < 1440) {
+                return Math.floor(diffMins / 60) + '시간 전';
+            } else {
+                return date.toLocaleString('ko-KR', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
         }
 
         // DEX 상태 표시 업데이트 함수
@@ -448,26 +500,28 @@
             });
         }
 
-        // DEX 상태 모니터링 시작
-        function startDexStatusMonitoring() {
-            refreshDexStatus();
+        // 메뉴 실행 기록 모니터링 시작
+        function startMenuExecutionLogMonitoring() {
+            refreshMenuExecutionLog();
+            scheduleNextMenuExecutionLogRefresh();
         }
         
-        // DEX 상태 모니터링 중지
-        function stopDexStatusMonitoring() {
-            if (dexStatusInterval) {
-                clearTimeout(dexStatusInterval);
-                dexStatusInterval = null;
+        // 메뉴 실행 기록 모니터링 중지
+        function stopMenuExecutionLogMonitoring() {
+            if (menuExecutionLogInterval) {
+                clearTimeout(menuExecutionLogInterval);
+                menuExecutionLogInterval = null;
             }
         }
         
-        // 다음 DEX 상태 새로고침 스케줄링
-        function scheduleNextDexRefresh() {
-            if (dexStatusInterval) {
-                clearTimeout(dexStatusInterval);
+        // 다음 메뉴 실행 기록 새로고침 스케줄링
+        function scheduleNextMenuExecutionLogRefresh() {
+            if (menuExecutionLogInterval) {
+                clearTimeout(menuExecutionLogInterval);
             }
-            dexStatusInterval = setTimeout(function() {
-                refreshDexStatus();
+            menuExecutionLogInterval = setTimeout(function() {
+                refreshMenuExecutionLog();
+                scheduleNextMenuExecutionLogRefresh();
             }, 10000); // 10초마다 새로고침
         }
 
@@ -1635,7 +1689,7 @@
         // 템플릿 정보를 가져와서 새로고침 간격 설정 후 스케줄링
         function getTemplateInfoAndSchedule(chartType) {
             $.ajax({
-                type: 'GET',
+                type: 'POST',
                 url: '/Dashboard/' + chartType,
                 data: { checkTemplate: true },
                 success: function(result) {
@@ -1998,45 +2052,39 @@
                 </div>
             </div>
 
-            <!-- DEX 상태 모니터링 -->
+            <!-- 메뉴 실행 기록 -->
             <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-12">
                     <div class="box box-default">
                         <div class="box-header with-border">
                             <h3 class="box-title">
-                                <i class="fa fa-server"></i> DEX 상태 모니터링
+                                <i class="fa fa-list"></i> 최근 메뉴 실행 기록
                             </h3>
                             <div class="box-tools pull-right">
-                                <button type="button" class="btn btn-box-tool" onclick="refreshDexStatus()">
+                                <button type="button" class="btn btn-box-tool" onclick="refreshMenuExecutionLog()">
                                     <i class="fa fa-refresh"></i> 새로고침
                                 </button>
                             </div>
                         </div>
                         <div class="box-body">
-                            <div class="row">
-                                <!-- DEX 상태 카드들 (왼쪽 세로 배치) -->
-                                <div class="col-md-4">
-                                    <div id="dexStatusContainer">
-                                        <!-- DEX 상태가 여기에 동적으로 추가됩니다 -->
-                                    </div>
-                                </div>
-                                <!-- DEX 도넛 차트들 (오른쪽 가로 배치) -->
-                                <div class="col-md-8">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="doughnut-chart-item">
-                                                <div class="doughnut-label">CPU 사용률</div>
-                                                <canvas id="cpu-doughnut" width="1200" height="1200"></canvas>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="doughnut-chart-item">
-                                                <div class="doughnut-label">메모리 사용률</div>
-                                                <canvas id="memory-doughnut" width="1200" height="1200"></canvas>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="menuExecutionLogTable">
+                                    <thead>
+                                        <tr>
+                                            <th>실행 시간</th>
+                                            <th>사용자</th>
+                                            <th>템플릿</th>
+                                            <th>DB 연결</th>
+                                            <th>SQL 타입</th>
+                                            <th>상태</th>
+                                            <th>실행 시간</th>
+                                            <th>영향 행 수</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="menuExecutionLogTableBody">
+                                        <!-- 메뉴 실행 기록이 여기에 동적으로 추가됩니다 -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
