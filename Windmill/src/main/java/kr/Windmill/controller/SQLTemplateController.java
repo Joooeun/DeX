@@ -213,6 +213,26 @@ public class SQLTemplateController {
 		}
 	}
 
+	/**
+	 * 템플릿 전체 정보 통합 조회 (저장 구조와 동일)
+	 * 파라미터, 단축키, SQL 컨텐츠를 한번에 조회
+	 */
+	@ResponseBody
+	@RequestMapping(path = "/SQLTemplate/full-detail")
+	public Map<String, Object> getFullTemplateDetail(HttpServletRequest request, HttpSession session) {
+		String templateId = request.getParameter("templateId");
+
+		try {
+			return sqlTemplateService.getFullTemplateDetail(templateId);
+		} catch (Exception e) {
+			logger.error("SQL 템플릿 통합 조회 실패", e);
+			Map<String, Object> result = new HashMap<>();
+			result.put("success", false);
+			result.put("error", "SQL 템플릿 통합 조회 실패: " + e.getMessage());
+			return result;
+		}
+	}
+
 
 	/**
 	 * SQL 템플릿 저장 (새로운 JSON 형식)

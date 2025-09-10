@@ -36,6 +36,9 @@ public class SqlTemplateService {
 	@Autowired
 	private PermissionService permissionService;
 
+	@Autowired
+	private SqlContentService sqlContentService;
+
 	private final Common com;
 
 	@Autowired
@@ -921,6 +924,91 @@ public class SqlTemplateService {
 		}
 
 		return rows.get(0);
+	}
+
+	/**
+	 * 템플릿 전체 정보 통합 조회 (저장 구조와 동일)
+	 */
+	@Transactional(readOnly = true)
+	public Map<String, Object> getFullTemplateDetail(String templateId) {
+		Map<String, Object> result = new HashMap<>();
+		
+		if (templateId == null || templateId.trim().isEmpty()) {
+			result.put("success", false);
+			result.put("error", "템플릿 ID가 지정되지 않았습니다.");
+			return result;
+		}
+		
+		try {
+			// 1. 기본 템플릿 정보 조회
+			Map<String, Object> templateResult = getSqlTemplateDetail(templateId);
+			if (!(Boolean) templateResult.get("success")) {
+				result.put("success", false);
+				result.put("error", "템플릿 기본 정보 조회 실패: " + templateResult.get("error"));
+				return result;
+			}
+			
+			// 2. 파라미터 정보 조회
+			Map<String, Object> paramResult = getTemplateParameters(templateId);
+			if (!(Boolean) paramResult.get("success")) {
+				result.put("success", false);
+				result.put("error", "파라미터 정보 조회 실패: " + paramResult.get("error"));
+				return result;
+			}
+			
+			// 3. 단축키 정보 조회
+			Map<String, Object> shortcutResult = getTemplateShortcuts(templateId);
+			if (!(Boolean) shortcutResult.get("success")) {
+				result.put("success", false);
+				result.put("error", "단축키 정보 조회 실패: " + shortcutResult.get("error"));
+				return result;
+			}
+			
+			// 4. SQL 컨텐츠 정보 조회
+			List<Map<String, Object>> sqlContents = sqlContentService.getSqlContentsByTemplate(templateId);
+			
+			// 5. 카테고리 정보 조회
+			List<String> categories = getTemplateCategories(templateId);
+			
+			// 6. 통합 응답 구성 (저장 구조와 동일 - SqlTemplateSaveRequest 구조)
+			Map<String, Object> data = new HashMap<>();
+			data.put("template", templateResult.get("data"));
+			data.put("categories", categories);
+			data.put("parameters", paramResult.get("data"));
+			data.put("shortcuts", shortcutResult.get("data"));
+			data.put("sqlContents", sqlContents);
+			
+			result.put("success", true);
+			result.put("data", data);
+			
+		} catch (Exception e) {
+			logger.error("템플릿 통합 조회 실패: " + templateId, e);
+			result.put("success", false);
+			result.put("error", "템플릿 통합 조회 실패: " + e.getMessage());
+		}
+		
+		return result;
+	}
+
+	/**
+	 * 템플릿의 카테고리 목록 조회
+	 */
+	private List<String> getTemplateCategories(String templateId) {
+		List<String> categories = new ArrayList<>();
+		try {
+			String sql = "SELECT CATEGORY_ID FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE TEMPLATE_ID = ? ORDER BY MAPPING_ORDER";
+			List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, templateId);
+			
+			for (Map<String, Object> row : rows) {
+				String categoryId = (String) row.get("CATEGORY_ID");
+				if (categoryId != null && !categoryId.trim().isEmpty()) {
+					categories.add(categoryId);
+				}
+			}
+		} catch (Exception e) {
+			logger.warn("템플릿 카테고리 조회 실패: " + templateId, e);
+		}
+		return categories;
 	}
 
 	/**
