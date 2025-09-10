@@ -316,10 +316,10 @@ public class SQLTemplateController {
 				}
 				// 파라미터 타입 검증
 				if (StringUtils.isEmpty(param.getParameterType())) {
-					return result.addError("파라미터 " + (i + 1) + "번의 타입을 선택해주세요. (STRING, NUMBER, DATE, BOOLEAN 중 선택)", "PARAMETER_TYPE_REQUIRED");
+					return result.addError("파라미터 " + (i + 1) + "번의 타입을 선택해주세요. (STRING, NUMBER, TEXT, SQL, LOG 중 선택)", "PARAMETER_TYPE_REQUIRED");
 				}
 				if (!isValidParameterType(param.getParameterType())) {
-					return result.addError("파라미터 " + (i + 1) + "번의 타입이 올바르지 않습니다. STRING, NUMBER, DATE, BOOLEAN 중 하나를 선택해주세요. (현재: " + param.getParameterType() + ")", "PARAMETER_TYPE_INVALID");
+					return result.addError("파라미터 " + (i + 1) + "번의 타입이 올바르지 않습니다. STRING, NUMBER, TEXT, SQL, LOG 중 하나를 선택해주세요. (현재: " + param.getParameterType() + ")", "PARAMETER_TYPE_INVALID");
 				}
 			}
 		}
@@ -364,7 +364,8 @@ public class SQLTemplateController {
 			return false;
 		}
 		return parameterType.equals("STRING") || parameterType.equals("NUMBER") || 
-			   parameterType.equals("DATE") || parameterType.equals("BOOLEAN");
+			   parameterType.equals("TEXT") || parameterType.equals("SQL") || 
+			   parameterType.equals("LOG");
 	}
 
 

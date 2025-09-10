@@ -579,18 +579,26 @@ var changePW
 		</aside>
 		<div class="content-wrapper" id="framebox">
 			<ul id="pageTab" class="nav nav-tabs">
-				<li class="active"><a href="#page1" data-toggle="tab">전체메뉴</a></li>
 				<c:if test="${isAdmin}">
-					<li><a href="#dashboard" data-toggle="tab">대시보드</a></li>
+					<li><a href="#page1" data-toggle="tab"><i class="fa fa-home"></i></a></li>
+					<li class="active"><a href="#dashboard" data-toggle="tab">대시보드</a></li>
+				</c:if>
+				<c:if test="${!isAdmin}">
+					<li class="active"><a href="#page1" data-toggle="tab"><i class="fa fa-home"></i></a></li>
 				</c:if>
 			</ul>
 			<div id="pageTabContent" class="tab-content">
-				<div class="tab-pane active" id="page1">
-					<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" src="/index2"></iframe>
-				</div>
 				<c:if test="${isAdmin}">
-					<div class="tab-pane" id="dashboard">
+					<div class="tab-pane" id="page1">
+						<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" src="/index2"></iframe>
+					</div>
+					<div class="tab-pane active" id="dashboard">
 						<iframe name="iframe_dashboard" id="iframe_dashboard" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" src="/Dashboard"></iframe>
+					</div>
+				</c:if>
+				<c:if test="${!isAdmin}">
+					<div class="tab-pane active" id="page1">
+						<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" src="/index2"></iframe>
 					</div>
 				</c:if>
 				<div class="tab-pane" id="newpage">
