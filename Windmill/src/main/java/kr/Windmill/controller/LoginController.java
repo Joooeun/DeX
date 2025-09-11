@@ -76,9 +76,12 @@ public class LoginController {
 				// 로그인 성공
 				session.setAttribute("memberId", userId);
 				session.setAttribute("sessionId", loginResult.get("sessionId"));
-				session.setAttribute("changePW", false); // 임시 비밀번호 여부는 DB에서 확인 필요
 				
-				cLog.userLog(userId, ipAddress, " 로그인 성공");
+				// 임시 비밀번호 여부 확인 (로그인 결과에서 가져옴)
+				boolean isTempPassword = (Boolean) loginResult.get("isTempPassword");
+				session.setAttribute("changePW", isTempPassword);
+				
+				cLog.userLog(userId, ipAddress, " 로그인 성공" + (isTempPassword ? " (임시 비밀번호)" : ""));
 
 				response.setHeader("Cache-Control", "no-cache, no-store");
 				response.setHeader("Pragma", "no-cache");

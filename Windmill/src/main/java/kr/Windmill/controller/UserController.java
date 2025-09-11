@@ -643,4 +643,57 @@ public class UserController {
 
 		return result;
 	}
+	
+	// 현재 비밀번호 확인
+	@ResponseBody
+	@RequestMapping(value = "/checkPW", method = RequestMethod.POST)
+	public boolean checkPassword(@RequestParam String PW, HttpSession session) {
+		try {
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				return false;
+			}
+			
+			// UserService의 validateTemporaryPassword 메서드를 사용하여 비밀번호 확인
+			return userService.validateTemporaryPassword(userId, PW);
+		} catch (Exception e) {
+			logger.error("비밀번호 확인 중 오류 발생", e);
+			return false;
+		}
+	}
+	
+	// 비밀번호 변경 (임시 비밀번호에서 새 비밀번호로)
+	@ResponseBody
+	@RequestMapping(value = "/changePW", method = RequestMethod.POST)
+	public Map<String, Object> changePassword(@RequestParam String PW, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+		
+		try {
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+			
+			// 임시 비밀번호를 새 비밀번호로 변경하고 임시 비밀번호 플래그 해제
+			boolean success = userService.changePasswordFromTemp(userId, PW);
+			if (success) {
+				// 세션에서 changePW 플래그 제거
+				session.removeAttribute("changePW");
+				result.put("success", true);
+				result.put("message", "비밀번호가 성공적으로 변경되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "비밀번호 변경에 실패했습니다.");
+			}
+			
+		} catch (Exception e) {
+			logger.error("비밀번호 변경 중 오류 발생", e);
+			result.put("success", false);
+			result.put("message", "비밀번호 변경 중 오류가 발생했습니다.");
+		}
+		
+		return result;
+	}
 }

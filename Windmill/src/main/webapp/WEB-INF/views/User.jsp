@@ -136,7 +136,10 @@
                     <div class="form-group">
                         <label for="password" data-toggle="tooltip" data-placement="top" title="사용자의 로그인 비밀번호를 입력합니다. 수정 시 비워두면 기존 비밀번호가 유지되며, 보안을 위해 암호화되어 저장됩니다.">비밀번호</label>
                         <input type="password" class="form-control" id="password">
-                        <small class="text-muted">수정 시 비워두면 변경하지 않습니다.</small>
+                        <small class="text-muted">
+                            <strong>수정 시 비워두면 변경하지 않습니다.</strong><br>
+                            <span class="text-warning">⚠️ 비밀번호를 입력하면 해당 비밀번호가 임시 비밀번호로 설정되며, 해당 사용자는 다음 로그인 시 비밀번호 변경이 강제됩니다.</span>
+                        </small>
                     </div>
                     <div class="form-group">
                         <label for="status" data-toggle="tooltip" data-placement="top" title="사용자의 계정 상태를 설정합니다. 활성: 정상 사용 가능, 비활성: 로그인 불가, 잠금: 일시적 접근 제한">상태</label>

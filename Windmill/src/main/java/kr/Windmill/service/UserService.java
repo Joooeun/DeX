@@ -163,12 +163,20 @@ public class UserService {
             params.add(userData.get("ipRestriction"));
             params.add(userData.get("modifiedBy"));
             
-            // 비밀번호가 제공된 경우 암호화하여 업데이트
+            // 비밀번호가 제공된 경우 관리자가 입력한 비밀번호를 임시 비밀번호로 설정
             String password = (String) userData.get("password");
             if (password != null && !password.trim().isEmpty()) {
+                // 관리자가 입력한 비밀번호를 임시 비밀번호로 설정
                 String encryptedPassword = Crypto.crypt(password);
-                sqlBuilder.append(", PASSWORD = ?, PASSWORD_CHANGE_DATE = CURRENT DATE");
+                sqlBuilder.append(", PASSWORD = ?, TEMP_PASSWORD = ?, PASSWORD_CHANGE_DATE = CURRENT DATE");
                 params.add(encryptedPassword);
+                params.add(encryptedPassword); // TEMP_PASSWORD에도 동일한 값 저장
+                
+                // 감사 로그 기록 (비밀번호가 임시 비밀번호로 변경됨)
+                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, RESOURCE_ID, STATUS, ERROR_MESSAGE) " +
+                                "VALUES (?, 'CHANGE_PASSWORD', 'USER', ?, 'SUCCESS', ?)";
+                jdbcTemplate.update(auditSql, userId, userId, 
+                    "비밀번호가 임시 비밀번호로 변경됨 (관리자: " + userData.get("modifiedBy") + ")");
             }
             
             sqlBuilder.append(" WHERE USER_ID = ?");
@@ -219,8 +227,8 @@ public class UserService {
             String status = (String) user.get("STATUS");
             Integer failCount = (Integer) user.get("LOGIN_FAIL_COUNT");
             
-            // 비밀번호 확인 (암호화된 비밀번호 비교)
-            String passwordSql = "SELECT PASSWORD FROM USERS WHERE USER_ID = ?";
+            // 비밀번호 확인 (PASSWORD 또는 TEMP_PASSWORD와 비교)
+            String passwordSql = "SELECT PASSWORD, TEMP_PASSWORD FROM USERS WHERE USER_ID = ?";
             List<Map<String, Object>> passwordResult = jdbcTemplate.queryForList(passwordSql, userId);
             
             if (passwordResult.isEmpty()) {
@@ -230,10 +238,14 @@ public class UserService {
             }
             
             String storedPassword = (String) passwordResult.get(0).get("PASSWORD");
+            String tempPassword = (String) passwordResult.get(0).get("TEMP_PASSWORD");
             String encryptedPassword = Crypto.crypt(password);
             
-            // 비밀번호가 틀린 경우
-            if (!storedPassword.equals(encryptedPassword)) {
+            // 비밀번호가 틀린 경우 (PASSWORD 또는 TEMP_PASSWORD와 비교)
+            boolean passwordMatch = storedPassword.equals(encryptedPassword) || 
+                                  (tempPassword != null && tempPassword.equals(encryptedPassword));
+            
+            if (!passwordMatch) {
                 // 로그인 실패 횟수 증가
                 String failSql = "UPDATE USERS SET LOGIN_FAIL_COUNT = LOGIN_FAIL_COUNT + 1 WHERE USER_ID = ?";
                 jdbcTemplate.update(failSql, userId);
@@ -276,6 +288,9 @@ public class UserService {
             // 로그인 성공 처리
             String sessionId = "SESS_" + System.currentTimeMillis() + "_" + userId;
             
+            // 임시 비밀번호로 로그인했는지 확인
+            boolean isTempPasswordLogin = (tempPassword != null && tempPassword.equals(encryptedPassword));
+            
             // 로그인 실패 횟수 초기화 및 마지막 로그인 시간 업데이트
             String successSql = "UPDATE USERS SET LOGIN_FAIL_COUNT = 0, LAST_LOGIN_TIMESTAMP = CURRENT TIMESTAMP WHERE USER_ID = ?";
             jdbcTemplate.update(successSql, userId);
@@ -285,12 +300,14 @@ public class UserService {
             jdbcTemplate.update(sessionSql, sessionId, userId, ipAddress, userAgent);
             
             // 감사 로그 기록
-            String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, SESSION_ID, STATUS) VALUES (?, 'LOGIN', 'USER', ?, ?, ?, 'SUCCESS')";
-            jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, sessionId);
+            String auditMessage = isTempPasswordLogin ? "임시 비밀번호로 로그인 성공" : "로그인 성공";
+            String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, SESSION_ID, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, ?, 'SUCCESS', ?)";
+            jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, sessionId, auditMessage);
             
             result.put("success", true);
             result.put("sessionId", sessionId);
             result.put("message", "로그인 성공");
+            result.put("isTempPassword", isTempPasswordLogin);
             
         } catch (Exception e) {
             logger.error("로그인 처리 중 오류 발생", e);
@@ -481,6 +498,37 @@ public class UserService {
             return storedPassword.equals(Crypto.crypt(tempPassword));
         } catch (Exception e) {
             logger.error("임시 비밀번호 검증 중 오류 발생", e);
+            return false;
+        }
+    }
+    
+    // 임시 비밀번호 여부 확인 (TEMP_PASSWORD가 존재하고 PASSWORD와 동일한지 확인)
+    public boolean isTemporaryPassword(String userId) {
+        try {
+            String sql = "SELECT CASE WHEN TEMP_PASSWORD IS NOT NULL AND TEMP_PASSWORD = PASSWORD THEN 'Y' ELSE 'N' END FROM USERS WHERE USER_ID = ?";
+            String isTempPassword = jdbcTemplate.queryForObject(sql, String.class, userId);
+            return "Y".equals(isTempPassword);
+        } catch (Exception e) {
+            logger.error("임시 비밀번호 여부 확인 중 오류 발생", e);
+            return false;
+        }
+    }
+    
+    // 임시 비밀번호에서 새 비밀번호로 변경
+    @Transactional
+    public boolean changePasswordFromTemp(String userId, String newPassword) {
+        try {
+            String sql = "UPDATE USERS SET PASSWORD = ?, TEMP_PASSWORD = NULL, PASSWORD_CHANGE_DATE = CURRENT DATE WHERE USER_ID = ?";
+            jdbcTemplate.update(sql, Crypto.crypt(newPassword), userId);
+            
+            // 감사 로그 기록
+            String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, RESOURCE_ID, STATUS, ERROR_MESSAGE) " +
+                            "VALUES (?, 'CHANGE_PASSWORD', 'USER', ?, 'SUCCESS', ?)";
+            jdbcTemplate.update(auditSql, userId, userId, "임시 비밀번호에서 정상 비밀번호로 변경됨");
+            
+            return true;
+        } catch (Exception e) {
+            logger.error("임시 비밀번호에서 새 비밀번호로 변경 중 오류 발생", e);
             return false;
         }
     }
