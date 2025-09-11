@@ -16,6 +16,10 @@ import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.NoAlertPresentException;
 
+import kr.Windmill.pages.LoginPage;
+import kr.Windmill.pages.NavigationPage;
+import kr.Windmill.pages.SQLTemplatePage;
+
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -81,8 +85,8 @@ public class BrowserAutomationTest {
             System.out.println("로그인 페이지 로드 완료");
             
             // 로그인 폼 입력
-            WebElement idInput = wait.until(ExpectedConditions.presenceOfElementLocated(By.name("id")));
-            WebElement pwInput = driver.findElement(By.name("pw"));
+            WebElement idInput = wait.until(ExpectedConditions.presenceOfElementLocated(LoginPage.ID_INPUT));
+            WebElement pwInput = driver.findElement(LoginPage.PW_INPUT);
             
             idInput.clear();
             idInput.sendKeys(ADMIN_ID);
@@ -92,7 +96,7 @@ public class BrowserAutomationTest {
             System.out.println("로그인 정보 입력 완료");
             
             // 로그인 버튼 클릭
-            WebElement loginButton = driver.findElement(By.cssSelector("button[type='submit']"));
+            WebElement loginButton = driver.findElement(LoginPage.SUBMIT_BUTTON);
             loginButton.click();
             
             // 로그인 성공 확인 (대시보드 페이지로 리다이렉트되는지 확인)
@@ -121,19 +125,17 @@ public class BrowserAutomationTest {
             
             // 메인 페이지로 이동 (iframe 구조)
             driver.get(BASE_URL);
-            try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); } // 페이지 로드 대기
-            
+            wait.until(ExpectedConditions.elementToBeClickable(NavigationPage.SQL_TEMPLATE_MENU));
+
             // SQL 템플릿 관리 메뉴 클릭
-            WebElement sqlTemplateMenu = wait.until(
-                ExpectedConditions.elementToBeClickable(By.xpath("//a[contains(@href, '/SQLTemplate')]"))
-            );
+            WebElement sqlTemplateMenu = driver.findElement(NavigationPage.SQL_TEMPLATE_MENU);
             sqlTemplateMenu.click();
             System.out.println("SQL 템플릿 관리 메뉴 클릭 완료");
-            
+
             // iframe으로 전환
             WebElement iframe = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("iframe_1")));
             driver.switchTo().frame(iframe);
-            try { Thread.sleep(5000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); } // iframe 로드 대기 (5초로 증가)
+            wait.until(ExpectedConditions.presenceOfElementLocated(SQLTemplatePage.TEMPLATE_LIST));
             
             // 현재 활성화된 탭의 페이지 소스 확인
             String pageSource = driver.getPageSource();
@@ -172,7 +174,7 @@ public class BrowserAutomationTest {
             
             // 카테고리 목록이 로드되는지 확인 (여러 방법으로 시도)
             try {
-                WebElement categoryList = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("categoryList")));
+                WebElement categoryList = wait.until(ExpectedConditions.presenceOfElementLocated(SQLTemplatePage.CATEGORY_LIST));
                 System.out.println("카테고리 목록 로드 확인");
             } catch (Exception e) {
                 System.out.println("categoryList ID로 찾을 수 없음. 다른 방법으로 시도...");
@@ -187,7 +189,7 @@ public class BrowserAutomationTest {
             
             // 템플릿 목록이 로드되는지 확인 (여러 방법으로 시도)
             try {
-                WebElement templateList = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("templateList")));
+                WebElement templateList = wait.until(ExpectedConditions.presenceOfElementLocated(SQLTemplatePage.TEMPLATE_LIST));
                 System.out.println("템플릿 목록 로드 확인");
             } catch (Exception e) {
                 System.out.println("templateList ID로 찾을 수 없음. 다른 방법으로 시도...");
@@ -225,40 +227,35 @@ public class BrowserAutomationTest {
             
             // SQL 템플릿 관리 페이지로 이동
             driver.get(BASE_URL + "/SQLTemplate");
-            
+
             // 카테고리 목록이 로드될 때까지 대기
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("categoryList")));
-            
+            wait.until(ExpectedConditions.presenceOfElementLocated(SQLTemplatePage.CATEGORY_LIST));
+
             // 미분류 카테고리 클릭
             WebElement uncategorizedCategory = wait.until(
-                ExpectedConditions.elementToBeClickable(By.cssSelector("[data-id='UNCATEGORIZED']"))
+                ExpectedConditions.elementToBeClickable(SQLTemplatePage.UNCATEGORIZED_CATEGORY)
             );
             uncategorizedCategory.click();
             System.out.println("미분류 카테고리 클릭 완료");
-            
+
             // 템플릿 목록이 로드될 때까지 대기
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            
+            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(SQLTemplatePage.TEMPLATE_ITEMS));
+
             // 첫 번째 템플릿 클릭 (있는 경우)
-            List<WebElement> templateItems = driver.findElements(By.cssSelector(".template-item"));
+            List<WebElement> templateItems = driver.findElements(SQLTemplatePage.TEMPLATE_ITEMS);
             if (!templateItems.isEmpty()) {
                 WebElement firstTemplate = templateItems.get(0);
                 firstTemplate.click();
                 System.out.println("첫 번째 템플릿 클릭 완료");
-                
+
                 // 템플릿 상세 정보가 로드되는지 확인
-                try {
-                    Thread.sleep(2000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                
+                wait.until(driver -> {
+                    String value = driver.findElement(SQLTemplatePage.SQL_NAME_FIELD).getAttribute("value");
+                    return value != null && !value.trim().isEmpty();
+                });
+
                 // SQL 이름 필드가 채워지는지 확인
-                WebElement sqlNameField = driver.findElement(By.id("sqlTemplateName"));
+                WebElement sqlNameField = driver.findElement(SQLTemplatePage.SQL_NAME_FIELD);
                 String sqlName = sqlNameField.getAttribute("value");
                 System.out.println("SQL 이름: " + sqlName);
                 
@@ -296,13 +293,13 @@ public class BrowserAutomationTest {
             
             // 새 템플릿 버튼 클릭
             WebElement newTemplateButton = wait.until(
-                ExpectedConditions.elementToBeClickable(By.cssSelector("button[onclick='createNewSqlTemplate()']"))
+                ExpectedConditions.elementToBeClickable(SQLTemplatePage.NEW_TEMPLATE_BUTTON)
             );
             newTemplateButton.click();
             System.out.println("새 템플릿 버튼 클릭 완료");
             
             // 폼이 초기화되는지 확인
-            WebElement sqlNameField = driver.findElement(By.id("sqlTemplateName"));
+            WebElement sqlNameField = driver.findElement(SQLTemplatePage.SQL_NAME_FIELD);
             String sqlName = sqlNameField.getAttribute("value");
             
             if (sqlName == null || sqlName.trim().isEmpty()) {
@@ -315,7 +312,7 @@ public class BrowserAutomationTest {
             String testTemplateName = "자동테스트_템플릿_" + System.currentTimeMillis();
             sqlNameField.sendKeys(testTemplateName);
             
-            WebElement sqlDescField = driver.findElement(By.id("sqlTemplateDesc"));
+            WebElement sqlDescField = driver.findElement(SQLTemplatePage.SQL_DESC_FIELD);
             sqlDescField.sendKeys("자동 테스트로 생성된 템플릿입니다.");
             
             // SQL 내용 입력 (기본 템플릿 탭)
@@ -335,14 +332,14 @@ public class BrowserAutomationTest {
             System.out.println("새 템플릿 정보 입력 완료: " + testTemplateName);
             
             // 저장 버튼 클릭
-            WebElement saveButton = driver.findElement(By.cssSelector("button[onclick='saveSqlTemplate()']"));
+            WebElement saveButton = driver.findElement(SQLTemplatePage.SAVE_BUTTON);
             saveButton.click();
             System.out.println("저장 버튼 클릭 완료");
             
             // 저장 결과 확인 (알림창 처리)
             try {
-                Thread.sleep(2000);
-                
+                wait.until(ExpectedConditions.alertIsPresent());
+
                 // 알림창이 있는지 확인하고 처리
                 try {
                     Alert alert = driver.switchTo().alert();
@@ -353,30 +350,22 @@ public class BrowserAutomationTest {
                 } catch (NoAlertPresentException e) {
                     System.out.println("알림창 없음 - 정상 저장");
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                System.out.println("알림창 대기 중 오류: " + e.getMessage());
             }
             
             // 페이지 새로고침하여 템플릿이 생성되었는지 확인
             driver.navigate().refresh();
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            
+            wait.until(ExpectedConditions.elementToBeClickable(SQLTemplatePage.UNCATEGORIZED_CATEGORY));
+
             // 미분류 카테고리에서 새로 생성된 템플릿 확인
             WebElement uncategorizedCategory = wait.until(
-                ExpectedConditions.elementToBeClickable(By.cssSelector("[data-id='UNCATEGORIZED']"))
+                ExpectedConditions.elementToBeClickable(SQLTemplatePage.UNCATEGORIZED_CATEGORY)
             );
             uncategorizedCategory.click();
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            
-            List<WebElement> templateItems = driver.findElements(By.cssSelector(".template-item"));
+            wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(SQLTemplatePage.TEMPLATE_ITEMS));
+
+            List<WebElement> templateItems = driver.findElements(SQLTemplatePage.TEMPLATE_ITEMS);
             boolean templateFound = false;
             
             for (WebElement template : templateItems) {
@@ -413,19 +402,17 @@ public class BrowserAutomationTest {
             
             // 메인 페이지로 이동 (iframe 구조)
             driver.get(BASE_URL);
-            try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); } // 페이지 로드 대기
-            
+            wait.until(ExpectedConditions.elementToBeClickable(NavigationPage.DASHBOARD_TAB));
+
             // 대시보드 탭 클릭
-            WebElement dashboardTab = wait.until(
-                ExpectedConditions.elementToBeClickable(By.xpath("//a[contains(@href, '#dashboard')]"))
-            );
+            WebElement dashboardTab = driver.findElement(NavigationPage.DASHBOARD_TAB);
             dashboardTab.click();
             System.out.println("대시보드 탭 클릭 완료");
-            
+
             // iframe으로 전환
             WebElement iframe = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("iframe_dashboard")));
             driver.switchTo().frame(iframe);
-            try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); } // iframe 로드 대기
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")));
             
             // 페이지 제목 확인 (유연한 방법)
             String pageTitle = "대시보드";
@@ -478,19 +465,17 @@ public class BrowserAutomationTest {
             
             // 메인 페이지로 이동 (iframe 구조)
             driver.get(BASE_URL);
-            try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); } // 페이지 로드 대기
-            
+            wait.until(ExpectedConditions.elementToBeClickable(NavigationPage.CONNECTION_MENU));
+
             // Connection 메뉴 클릭
-            WebElement connectionMenu = wait.until(
-                ExpectedConditions.elementToBeClickable(By.xpath("//a[contains(@href, '/Connection')]"))
-            );
+            WebElement connectionMenu = driver.findElement(NavigationPage.CONNECTION_MENU);
             connectionMenu.click();
             System.out.println("Connection 메뉴 클릭 완료");
-            
+
             // iframe으로 전환
             WebElement iframe = wait.until(ExpectedConditions.presenceOfElementLocated(By.id("iframe_1")));
             driver.switchTo().frame(iframe);
-            try { Thread.sleep(2000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); } // iframe 로드 대기
+            wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("body")));
             
             // 페이지 제목 확인 (유연한 방법)
             String pageTitle = "연결 관리";
@@ -542,15 +527,15 @@ public class BrowserAutomationTest {
         // 로그인 시에만 30초 대기
         WebDriverWait loginWait = new WebDriverWait(driver, Duration.ofSeconds(30));
         
-        WebElement idInput = loginWait.until(ExpectedConditions.presenceOfElementLocated(By.name("id")));
-        WebElement pwInput = driver.findElement(By.name("pw"));
+        WebElement idInput = loginWait.until(ExpectedConditions.presenceOfElementLocated(LoginPage.ID_INPUT));
+        WebElement pwInput = driver.findElement(LoginPage.PW_INPUT);
         
         idInput.clear();
         idInput.sendKeys(ADMIN_ID);
         pwInput.clear();
         pwInput.sendKeys(ADMIN_PASSWORD);
         
-        WebElement loginButton = driver.findElement(By.cssSelector("button[type='submit']"));
+        WebElement loginButton = driver.findElement(LoginPage.SUBMIT_BUTTON);
         loginButton.click();
         
         loginWait.until(ExpectedConditions.urlContains("/index"));
@@ -592,8 +577,8 @@ public class BrowserAutomationTest {
             driver.get(executeUrl);
             
             // 페이지 로드 대기 (더 긴 시간)
-            try { Thread.sleep(3000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-            
+            wait.until(ExpectedConditions.presenceOfElementLocated(SQLTemplatePage.CONNECTION_SELECT));
+
             // 페이지 소스 확인
             String pageSource = driver.getPageSource();
             System.out.println("페이지 제목: " + driver.getTitle());
@@ -607,11 +592,8 @@ public class BrowserAutomationTest {
                 System.out.println("페이지 소스 일부: " + pageSource.substring(0, Math.min(1000, pageSource.length())));
             }
             
-            // 페이지 로드 대기
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.id("connectionlist")));
-            
             // 연결 선택 셀렉트 박스 찾기
-            WebElement connectionSelect = driver.findElement(By.id("connectionlist"));
+            WebElement connectionSelect = driver.findElement(SQLTemplatePage.CONNECTION_SELECT);
             
             // 셀렉트 박스의 옵션들 가져오기
             List<WebElement> options = connectionSelect.findElements(By.tagName("option"));

@@ -80,9 +80,9 @@ to {
 				<span>Data Explorer</span>
 			</div>
 			<div>
-				<input type="text" placeholder="id" name="id" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."><br>
-				<input type="password" placeholder="pw" name="pw" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."><br>
-				<button type="submit" class="btn bg-purple margin">Login</button>
+                               <input type="text" placeholder="id" name="id" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." data-testid="login-id"><br>
+                               <input type="password" placeholder="pw" name="pw" required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다." data-testid="login-password"><br>
+                               <button type="submit" class="btn bg-purple margin" data-testid="login-submit">Login</button>
 			</div>
 		</form>
 	</div>

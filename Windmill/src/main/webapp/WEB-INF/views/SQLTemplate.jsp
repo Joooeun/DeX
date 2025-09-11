@@ -3120,9 +3120,9 @@ table th, td {
 						<div class="box-header with-border">
 							<h3 class="box-title">템플릿 목록</h3>
 							<div class="box-tools pull-right">
-								<button type="button" class="btn btn-box-tool" onclick="createNewSqlTemplate()">
-									<i class="fa fa-plus"></i> 새 템플릿
-								</button>
+                                                                <button type="button" class="btn btn-box-tool" onclick="createNewSqlTemplate()" data-testid="new-template-button">
+                                                                        <i class="fa fa-plus"></i> 새 템플릿
+                                                                </button>
 							</div>
 						</div>
 						<div class="box-body">
@@ -3143,9 +3143,9 @@ table th, td {
 									onclick="goToTemplate()" disabled>
 									<i class="fa fa-external-link"></i> 해당 메뉴로 이동
 								</button>
-								<button type="button" class="btn btn-success btn-sm" onclick="saveSqlTemplate()">
-									<i class="fa fa-save"></i> 저장
-								</button>
+                                                                <button type="button" class="btn btn-success btn-sm" onclick="saveSqlTemplate()" data-testid="save-template-button">
+                                                                        <i class="fa fa-save"></i> 저장
+                                                                </button>
 								<button type="button" class="btn btn-danger btn-sm" onclick="deleteSqlTemplate()">
 									<i class="fa fa-trash"></i> 삭제
 								</button>

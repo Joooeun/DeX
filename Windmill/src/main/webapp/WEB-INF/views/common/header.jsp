@@ -549,7 +549,7 @@ var changePW
 
 					<c:if test="${isAdmin}">
 						<li class="treeview"><a><i class="fa fa-code-fork"></i><span>5e83eb5 / 46246f0</span></a></li>
-						<li class="treeview"><a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span>
+                                               <li class="treeview"><a href="/Connection" target="iframe" data-testid="menu-connection"> <i class="fa fa-database"></i> <span>Connection</span>
 
 						</a> <!-- <ul class="treeview-menu" id="ConnectionList">
 							<li><a href="/Connection?DB=2"><i class="fa fa-circle-o"></i> DB1</a></li>
@@ -560,7 +560,7 @@ var changePW
 
 						</a></li>
 						
-						<li class="treeview"><a href="/SQLTemplate" target="iframe"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span>
+                                               <li class="treeview"><a href="/SQLTemplate" target="iframe" data-testid="menu-sql-template"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span>
 						</a></li>
 						
 						<li class="treeview"><a href="/SystemConfig" target="iframe"> <i class="fa fa-cog"></i> <span>환경설정</span>
@@ -581,7 +581,7 @@ var changePW
 			<ul id="pageTab" class="nav nav-tabs">
 				<c:if test="${isAdmin}">
 					<li><a href="#page1" data-toggle="tab"><i class="fa fa-home"></i></a></li>
-					<li class="active"><a href="#dashboard" data-toggle="tab">대시보드</a></li>
+                                    <li class="active"><a href="#dashboard" data-toggle="tab" data-testid="tab-dashboard">대시보드</a></li>
 				</c:if>
 				<c:if test="${!isAdmin}">
 					<li class="active"><a href="#page1" data-toggle="tab"><i class="fa fa-home"></i></a></li>
