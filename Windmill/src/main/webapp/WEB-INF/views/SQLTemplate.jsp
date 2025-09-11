@@ -1825,11 +1825,30 @@ table th, td {
 						// 변경사항 초기화
 						window.SqlTemplateState.resetChanges();
 
-						// 템플릿 목록 새로고침
+						// 저장된 정보 추출
+						var savedTemplateId = result.templateId;
+						var savedCategoryId = result.categoryId || $('.category-item.selected').data('id');
+						
+						// 1단계: 카테고리 선택 (필요한 경우)
+						if (savedCategoryId && $('.category-item.selected').data('id') !== savedCategoryId) {
+							selectCategory(savedCategoryId);
+						}
+						
+						// 2단계: 템플릿 목록 로드 후 템플릿 선택
 						var selectedCategory = $('.category-item.selected').data('id');
 						if (selectedCategory) {
 							loadTemplatesByCategory(selectedCategory);
+							
+							// 목록 로드 완료 후 템플릿 선택
+							if (savedTemplateId) {
+								setTimeout(function() {
+									if ($('[data-id="' + savedTemplateId + '"]').length > 0) {
+										selectTemplate(savedTemplateId);
+									}
+								}, 500);
+							}
 						}
+						
 						// 카테고리별 템플릿 개수 업데이트
 						loadCategoryTemplateCounts();
 					} else {

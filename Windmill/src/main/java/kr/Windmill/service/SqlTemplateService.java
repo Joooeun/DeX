@@ -1226,6 +1226,7 @@ public class SqlTemplateService {
 			
 			result.put("success", true);
 			result.put("templateId", templateId);
+			result.put("categoryId", request.getCategories() != null && !request.getCategories().isEmpty() ? request.getCategories().get(0) : null);
 			result.put("message", "SQL 템플릿이 성공적으로 저장되었습니다.");
 			
 		} catch (Exception e) {
