@@ -203,38 +203,60 @@ public class SqlTemplateService {
 			return result;
 		}
 
-		Map<String, Object> row = rows.get(0);
-		Map<String, Object> data = new HashMap<>();
-		data.put("templateId", row.get("TEMPLATE_ID"));
-		data.put("sqlName", row.get("TEMPLATE_NAME"));
-		data.put("sqlDesc", row.get("TEMPLATE_DESC"));
-		data.put("sqlContent", row.get("SQL_CONTENT"));
-		data.put("accessibleConnectionIds", row.get("ACCESSIBLE_CONNECTION_IDS"));
-		data.put("chartMapping", row.get("CHART_MAPPING"));
-		data.put("sqlVersion", row.get("VERSION"));
-		data.put("sqlStatus", row.get("STATUS"));
-		data.put("executionLimit", row.get("EXECUTION_LIMIT"));
-		data.put("refreshTimeout", row.get("REFRESH_TIMEOUT"));
-		data.put("newline", row.get("NEWLINE"));
-		data.put("audit", row.get("AUDIT"));
+                Map<String, Object> row = rows.get(0);
+                Map<String, Object> data = new HashMap<>();
+                data.put("templateId", row.get("TEMPLATE_ID"));
+                data.put("sqlName", row.get("TEMPLATE_NAME"));
+                data.put("sqlDesc", row.get("TEMPLATE_DESC"));
+                data.put("sqlContent", row.get("SQL_CONTENT"));
 
-		// 파라미터를 config 형태로 변환
-		String paramSql = "SELECT PARAMETER_NAME, DEFAULT_VALUE FROM SQL_TEMPLATE_PARAMETER WHERE TEMPLATE_ID = ? ORDER BY PARAMETER_ORDER";
-		List<Map<String, Object>> params = jdbcTemplate.queryForList(paramSql, templateId);
-		Map<String, Object> config = new HashMap<>();
-		for (Map<String, Object> p : params) {
-			String name = (String) p.get("PARAMETER_NAME");
-			Object defVal = p.get("DEFAULT_VALUE");
-			if (name != null) {
-				config.put(name, defVal == null ? "" : defVal.toString());
-			}
-		}
-		data.put("configContent", configToString(config));
+                // 접근 가능한 DB 연결 ID 파싱
+                String accessibleConnectionIds = (String) row.get("ACCESSIBLE_CONNECTION_IDS");
+                List<String> connections = new ArrayList<>();
+                if (accessibleConnectionIds != null && !accessibleConnectionIds.trim().isEmpty()) {
+                        String[] ids = accessibleConnectionIds.split(",");
+                        for (String id : ids) {
+                                String trimmed = id.trim();
+                                if (!trimmed.isEmpty()) {
+                                        connections.add(trimmed);
+                                }
+                        }
+                }
+                data.put("accessibleConnectionIds", connections);
 
-		result.put("success", true);
-		result.put("data", data);
-		return result;
-	}
+                data.put("chartMapping", row.get("CHART_MAPPING"));
+                data.put("sqlVersion", row.get("VERSION"));
+                data.put("sqlStatus", row.get("STATUS"));
+                data.put("executionLimit", row.get("EXECUTION_LIMIT"));
+                data.put("refreshTimeout", row.get("REFRESH_TIMEOUT"));
+                data.put("newline", row.get("NEWLINE"));
+                data.put("audit", row.get("AUDIT"));
+
+                // 파라미터 조회
+                Map<String, Object> paramResult = getTemplateParameters(templateId);
+                data.put("parameters", paramResult.get("success") ? paramResult.get("data") : new ArrayList<>());
+
+                // 단축키 조회
+                Map<String, Object> shortcutResult = getTemplateShortcuts(templateId);
+                data.put("shortcuts", shortcutResult.get("success") ? shortcutResult.get("data") : new ArrayList<>());
+
+                // 파라미터를 config 형태로 변환
+                String paramSql = "SELECT PARAMETER_NAME, DEFAULT_VALUE FROM SQL_TEMPLATE_PARAMETER WHERE TEMPLATE_ID = ? ORDER BY PARAMETER_ORDER";
+                List<Map<String, Object>> params = jdbcTemplate.queryForList(paramSql, templateId);
+                Map<String, Object> config = new HashMap<>();
+                for (Map<String, Object> p : params) {
+                        String name = (String) p.get("PARAMETER_NAME");
+                        Object defVal = p.get("DEFAULT_VALUE");
+                        if (name != null) {
+                                config.put(name, defVal == null ? "" : defVal.toString());
+                        }
+                }
+                data.put("configContent", configToString(config));
+
+                result.put("success", true);
+                result.put("data", data);
+                return result;
+        }
 
 	/**
 	 * 템플릿 파라미터 조회
