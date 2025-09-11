@@ -36,7 +36,7 @@ echo "✅ 톰캣 서버 실행 중 확인"
 
 # 브라우저 자동화 테스트 실행
 echo "브라우저 자동화 테스트 실행 중..."
-mvn test -Dtest=BrowserAutomationTest
+mvn test -Dtest=LoginTests,SqlTemplateTests,ConnectionTests
 
 # 테스트 결과 확인
 TEST_RESULT=$?
@@ -54,10 +54,7 @@ if [ $TEST_RESULT -eq 0 ]; then
     echo ""
     echo "실행된 테스트:"
     echo "- 로그인 테스트"
-    echo "- SQL 템플릿 관리 페이지 접근 테스트"
-    echo "- SQL 템플릿 상세 조회 테스트"
-    echo "- 새 템플릿 생성 테스트"
-    echo "- 대시보드 페이지 접근 테스트"
+    echo "- SQL 템플릿 페이지 접근 테스트"
     echo "- 연결 관리 페이지 접근 테스트"
 else
     echo "❌ 일부 테스트가 실패했습니다."
