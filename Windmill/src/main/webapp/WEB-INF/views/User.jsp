@@ -14,31 +14,29 @@
                 <div class="box">
                     <div class="box-header with-border">
                         <h3 class="box-title">사용자 목록</h3>
-                        <div class="row">
-                            <div class="col-sm-8">
-                                <div class="row">
-                                    <div class="col-sm-6">
-                                        <div class="input-group" style="width: 150px; margin-right: 10px;">
-                                            <input type="text" class="form-control" id="searchKeyword" placeholder="ID/이름">
-                                            <button type="button" class="btn btn-outline-secondary" onclick="searchUsers()">
-                                                <i class="fa fa-search"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="col-sm-6">
-                                        <div class="input-group" style="width: 200px;">
-                                            <span class="input-group-text">그룹</span>
-                                            <select class="form-control" id="groupFilter" onchange="filterByGroup()">
-                                                <option value="">전체 그룹</option>
-                                            </select>
-                                        </div>
-                                    </div>
+                        <div class="box-tools pull-right">
+                            <button type="button" class="btn btn-primary btn-sm" onclick="showCreateUserModal()">
+                                <i class="fa fa-plus"></i> 새 사용자
+                            </button>
+                        </div>
+                        <div class="row" style="margin-top: 10px;">
+                            <div class="col-sm-3">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="searchKeyword" placeholder="ID/이름">
+                                    <span class="input-group-btn">
+                                        <button type="button" class="btn btn-default" onclick="searchUsers()">
+                                            <i class="fa fa-search"></i>
+                                        </button>
+                                    </span>
                                 </div>
                             </div>
-                            <div class="col-sm-4">
-                                <button type="button" class="btn float-end btn-primary btn-sm" onclick="showCreateUserModal()">
-                                    <i class="fa fa-plus"></i> 새 사용자
-                                </button>
+                            <div class="col-sm-3">
+                                <div class="input-group">
+                                    <span class="input-group-addon">그룹</span>
+                                    <select class="form-control" id="groupFilter" onchange="filterByGroup()">
+                                        <option value="">전체 그룹</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -50,6 +48,7 @@
                                     <th><div data-toggle="tooltip" data-placement="top" title="사용자의 실제 이름입니다. 화면에 표시되는 이름으로 사용됩니다.">이름</div></th>
                                     <th><div data-toggle="tooltip" data-placement="top" title="사용자 계정의 현재 상태입니다. 활성: 정상 사용, 비활성: 로그인 불가, 잠금: 일시 제한">상태</div></th>
                                     <th><div data-toggle="tooltip" data-placement="top" title="사용자가 속한 그룹입니다. 그룹별로 접근 권한이 설정됩니다.">그룹</div></th>
+                                    <th><div data-toggle="tooltip" data-placement="top" title="사용자의 로그인 허용 IP 주소입니다. 비워두면 모든 IP에서 로그인 가능합니다.">IP 제한</div></th>
                                     <th><div data-toggle="tooltip" data-placement="top" title="사용자가 마지막으로 로그인한 시간입니다. 보안 모니터링에 활용됩니다.">마지막 로그인</div></th>
                                     <th><div data-toggle="tooltip" data-placement="top" title="연속 로그인 실패 횟수입니다. 일정 횟수 초과 시 계정이 잠길 수 있습니다.">로그인 실패</div></th>
                                     <th><div data-toggle="tooltip" data-placement="top" title="사용자 계정이 생성된 날짜와 시간입니다.">생성일</div></th>
@@ -154,6 +153,14 @@
                         <select class="form-control" id="groupId">
                             <option value="">그룹을 선택하세요</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="ipRestriction" data-toggle="tooltip" data-placement="top" title="사용자의 로그인을 허용할 IP 주소를 설정합니다. 여러 IP는 쉼표로 구분하고, 와일드카드(*) 사용 가능합니다. 비워두면 모든 IP에서 로그인 가능합니다.">IP 제한</label>
+                        <input type="text" class="form-control" id="ipRestriction" placeholder="예: 192.168.1.*, 10.0.0.100">
+                        <small class="text-muted">
+                            <strong>예시:</strong> 192.168.1.* (192.168.1.x 대역), 10.0.0.100 (특정 IP), 192.168.1.*,10.0.0.100 (여러 IP)<br>
+                            <span class="text-info">💡 비워두면 모든 IP에서 로그인 가능합니다.</span>
+                        </small>
                     </div>
                 </form>
             </div>
@@ -486,6 +493,7 @@ function displayUserList(userList) {
             '<td>' + user.USER_NAME + '</td>' +
             '<td>' + getStatusBadge(user.STATUS) + '</td>' +
             '<td>' + (user.GROUP_NAME || '-') + '</td>' +
+            '<td>' + (user.IP_RESTRICTION || '-') + '</td>' +
             '<td>' + formatDate(user.LAST_LOGIN_TIMESTAMP) + '</td>' +
             '<td>' + (user.LOGIN_FAIL_COUNT || 0) + '</td>' +
             '<td>' + formatDate(user.CREATED_TIMESTAMP) + '</td>' +
@@ -603,6 +611,7 @@ function editUser(userId) {
                 $('#userId').val(user.USER_ID).prop('readonly', true);
                 $('#userName').val(user.USER_NAME);
                 $('#status').val(user.STATUS);
+                $('#ipRestriction').val(user.IP_RESTRICTION || '');
                 $('#password').attr('required', false);
                 
                 // 사용자의 현재 그룹 정보 로드
@@ -642,7 +651,8 @@ function saveUser() {
         userId: $('#userId').val(),
         userName: $('#userName').val(),
         status: $('#status').val(),
-        groupId: $('#groupId').val()
+        groupId: $('#groupId').val(),
+        ipRestriction: $('#ipRestriction').val()
     };
     
     var password = $('#password').val();

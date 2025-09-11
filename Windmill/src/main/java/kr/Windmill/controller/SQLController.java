@@ -9,7 +9,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -20,34 +19,25 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
-import kr.Windmill.dto.log.LogInfoDto;
 import kr.Windmill.service.SqlTemplateService;
-import kr.Windmill.service.SQLExecuteService;
 import kr.Windmill.service.SystemConfigService;
 import kr.Windmill.util.Common;
-import kr.Windmill.util.Log;
 
 @Controller
 public class SQLController {
 
 	private static final Logger logger = LoggerFactory.getLogger(SQLController.class);
 	private final Common com;
-	private final Log cLog;
-	private final SQLExecuteService sqlExecuteService;
 	private final SqlTemplateService sqlTemplateService;
 	private final SystemConfigService systemConfigService;
 	
 	@Autowired
-	public SQLController(Common common, Log log, SQLExecuteService sqlExecuteService, SqlTemplateService sqlTemplateService, SystemConfigService systemConfigService) {
+	public SQLController(Common common, SqlTemplateService sqlTemplateService, SystemConfigService systemConfigService) {
 		this.com = common;
-		this.cLog = log;
-		this.sqlExecuteService = sqlExecuteService;
 		this.sqlTemplateService = sqlTemplateService;
 		this.systemConfigService = systemConfigService;
 	}
@@ -209,13 +199,6 @@ public class SQLController {
 
 	}
 
-	@RequestMapping(path = "/search_all_data", method = RequestMethod.GET)
-	public ModelAndView test(HttpServletRequest request, ModelAndView mv, HttpSession session) {
-
-		mv.addObject("connectionId", session.getAttribute("connectionId"));
-
-		return mv;
-	}
 
 	@ResponseBody
 	@RequestMapping(path = "/SQL/list")
@@ -235,29 +218,6 @@ public class SQLController {
 	
 
 
-	@ResponseBody
-	@RequestMapping(path = "/SQL/excute")
-	public Map<String, List> excute(HttpServletRequest request, Model model, HttpSession session, @ModelAttribute LogInfoDto data) throws ClassNotFoundException, IOException, Exception {
-
-		data.setId(session.getAttribute("memberId").toString());
-		data.setIp(com.getIp(request));
-
-		// properties 파일에서 audit 설정 조회
-		String auditStr = request.getParameter("audit");
-		if (auditStr != null && !auditStr.trim().isEmpty()) {
-			data.setAudit(Boolean.parseBoolean(auditStr));
-		} else {
-			data.setAudit(false); // 기본값
-		}
-
-		try {
-			// 공통 SQL 실행 서비스 사용
-			return sqlExecuteService.executeSQL(data);
-		} catch (Exception e) {
-			logger.error("SQL 실행 오류", e);
-			throw e;
-		}
-	}
 
 	public enum SqlType {
 		CALL, EXECUTE, UPDATE

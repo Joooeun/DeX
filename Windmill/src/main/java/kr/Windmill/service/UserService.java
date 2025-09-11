@@ -214,9 +214,9 @@ public class UserService {
             List<Map<String, Object>> userInfo = jdbcTemplate.queryForList(checkSql, userId);
             
             if (userInfo.isEmpty()) {
-                // 존재하지 않는 사용자 로그인 시도 로그
-                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', '계정정보가 일치하지 않습니다')";
-                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent);
+                // 존재하지 않는 사용자 로그인 시도 로그 (상세 정보 기록)
+                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', ?)";
+                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, "존재하지 않는 사용자 ID");
                 
                 result.put("success", false);
                 result.put("message", "계정정보가 일치하지 않습니다.");
@@ -254,34 +254,62 @@ public class UserService {
                 String currentFailSql = "SELECT LOGIN_FAIL_COUNT FROM USERS WHERE USER_ID = ?";
                 Integer currentFailCount = jdbcTemplate.queryForObject(currentFailSql, Integer.class, userId);
                 
-                String errorMessage = "계정정보가 일치하지 않습니다.";
+                String userMessage = "계정정보가 일치하지 않습니다."; // 사용자에게 보여줄 메시지
+                String logMessage = "비밀번호 불일치"; // 로그에 기록할 상세 메시지
                 
                 // 5번 이상 실패하면 계정 잠금
                 if (currentFailCount != null && currentFailCount >= 5) {
                     String lockSql = "UPDATE USERS SET STATUS = 'LOCKED' WHERE USER_ID = ?";
                     jdbcTemplate.update(lockSql, userId);
-                    errorMessage = "로그인 실패 횟수 초과로 계정이 잠겼습니다. 관리자에게 문의하세요.";
+                    userMessage = "로그인 실패 횟수 초과로 계정이 잠겼습니다. 관리자에게 문의하세요.";
+                    logMessage = "비밀번호 불일치 - 계정 잠금 (실패 횟수: " + currentFailCount + ")";
+                } else {
+                    logMessage = "비밀번호 불일치 (실패 횟수: " + currentFailCount + ")";
                 }
                 
-                // 비밀번호 불일치 로그인 시도 로그
+                // 비밀번호 불일치 로그인 시도 로그 (상세 정보 기록)
                 String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', ?)";
-                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, errorMessage);
+                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, logMessage);
                 
                 result.put("success", false);
-                result.put("message", errorMessage);
+                result.put("message", userMessage);
                 return result;
             }
             
-            // 비밀번호가 맞은 경우 - 계정 상태 확인
-            if (!"ACTIVE".equals(status)) {
-                String statusMessage = "LOCKED".equals(status) ? "계정이 잠겨있습니다. 관리자에게 문의하세요." : "비활성화된 계정입니다.";
+            // 비밀번호가 맞은 경우 - IP 제한 확인
+            if (!isIpAllowed(userId, ipAddress)) {
+                String userMessage = "계정정보가 일치하지 않습니다."; // 사용자에게 보여줄 메시지
+                String logMessage = "IP 제한 위반 (접속 IP: " + ipAddress + ")"; // 로그에 기록할 상세 메시지
                 
-                // 계정 상태 문제 로그인 시도 로그
+                // IP 제한 위반 로그인 시도 로그 (상세 정보 기록)
                 String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', ?)";
-                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, statusMessage);
+                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, logMessage);
                 
                 result.put("success", false);
-                result.put("message", statusMessage);
+                result.put("message", userMessage);
+                return result;
+            }
+            
+            // IP 제한 통과 후 - 계정 상태 확인
+            if (!"ACTIVE".equals(status)) {
+                String userMessage = "LOCKED".equals(status) ? "계정이 잠겨있습니다. 관리자에게 문의하세요." : "비활성화된 계정입니다.";
+                String logMessage = ""; // 로그에 기록할 상세 메시지
+                
+                if ("LOCKED".equals(status)) {
+                    userMessage = "로그인 실패 횟수 초과로 계정이 잠겼습니다. 관리자에게 문의하세요.";
+                    logMessage = "계정 잠금 상태";
+                } else if ("INACTIVE".equals(status)) {
+                    logMessage = "계정 비활성화 상태";
+                } else {
+                    logMessage = "계정 상태 이상 (상태: " + status + ")";
+                }
+                
+                // 계정 상태 문제 로그인 시도 로그 (상세 정보 기록)
+                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', ?)";
+                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, logMessage);
+                
+                result.put("success", false);
+                result.put("message", userMessage);
                 return result;
             }
             
@@ -640,6 +668,56 @@ public class UserService {
         } catch (Exception e) {
             logger.error("사용자 현재 그룹 조회 중 오류 발생", e);
             return null;
+        }
+    }
+    
+    // IP 제한 검증
+    public boolean isIpAllowed(String userId, String clientIp) {
+        try {
+            // 사용자의 IP 제한 정보 조회
+            String sql = "SELECT IP_RESTRICTION FROM USERS WHERE USER_ID = ?";
+            String ipRestriction = jdbcTemplate.queryForObject(sql, String.class, userId);
+            
+            // IP 제한이 설정되지 않은 경우 모든 IP 허용
+            if (ipRestriction == null || ipRestriction.trim().isEmpty()) {
+                return true;
+            }
+            
+            // IP 제한 목록을 쉼표로 분리
+            String[] allowedIps = ipRestriction.split(",");
+            
+            for (String allowedIp : allowedIps) {
+                allowedIp = allowedIp.trim();
+                
+                // 와일드카드가 있는 경우 패턴 매칭
+                if (allowedIp.contains("*")) {
+                    if (matchesWildcardPattern(clientIp, allowedIp)) {
+                        return true;
+                    }
+                } else {
+                    // 정확한 IP 매칭
+                    if (clientIp.equals(allowedIp)) {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        } catch (Exception e) {
+            logger.error("IP 제한 검증 중 오류 발생", e);
+            return false; // 오류 시 보안을 위해 접근 차단
+        }
+    }
+    
+    // 와일드카드 패턴 매칭 (예: 192.168.1.*)
+    private boolean matchesWildcardPattern(String clientIp, String pattern) {
+        try {
+            // 패턴을 정규식으로 변환 (* -> .*)
+            String regex = pattern.replace(".", "\\.").replace("*", ".*");
+            return clientIp.matches(regex);
+        } catch (Exception e) {
+            logger.error("와일드카드 패턴 매칭 중 오류 발생", e);
+            return false;
         }
     }
 }
