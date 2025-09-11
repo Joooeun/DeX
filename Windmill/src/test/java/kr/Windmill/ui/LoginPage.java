@@ -3,6 +3,8 @@ package kr.Windmill.ui;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.Alert;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -35,5 +37,20 @@ public class LoginPage {
         pwInput.sendKeys(password);
 
         driver.findElement(loginButton).click();
+    }
+
+    public boolean isAt() {
+        return driver.getCurrentUrl().contains("/Login");
+    }
+
+    public String getErrorMessage() {
+        try {
+            Alert alert = wait.until(ExpectedConditions.alertIsPresent());
+            String text = alert.getText();
+            alert.accept();
+            return text;
+        } catch (TimeoutException e) {
+            return null;
+        }
     }
 }

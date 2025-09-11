@@ -1,5 +1,6 @@
 package kr.Windmill.util;
 
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.junit.After;
 import org.junit.Before;
 import org.openqa.selenium.JavascriptExecutor;
@@ -24,9 +25,13 @@ public abstract class BaseUITest {
 
     @Before
     public void setUp() {
-        System.setProperty("webdriver.chrome.driver", "/opt/homebrew/bin/chromedriver");
+        WebDriverManager.chromedriver().setup();
+
         ChromeOptions options = new ChromeOptions();
-        options.addArguments("--headless");
+        boolean headless = Boolean.parseBoolean(System.getenv().getOrDefault("HEADLESS", "true"));
+        if (headless) {
+            options.addArguments("--headless");
+        }
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--disable-gpu");

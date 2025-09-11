@@ -135,13 +135,13 @@
 			<scope>test</scope>
 		</dependency>
 		
-		<!-- WebDriverManager for automatic driver management - removed due to version conflicts -->
-		<!-- <dependency>
-			<groupId>io.github.bonigarcia</groupId>
-			<artifactId>webdrivermanager</artifactId>
-			<version>4.4.3</version>
-			<scope>test</scope>
-		</dependency> -->
+                <!-- WebDriverManager for automatic driver management -->
+                <dependency>
+                        <groupId>io.github.bonigarcia</groupId>
+                        <artifactId>webdrivermanager</artifactId>
+                        <version>5.5.3</version>
+                        <scope>test</scope>
+                </dependency>
 		<dependency>
 			<groupId>commons-fileupload</groupId>
 			<artifactId>commons-fileupload</artifactId>
