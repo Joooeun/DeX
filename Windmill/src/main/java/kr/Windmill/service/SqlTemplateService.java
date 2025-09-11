@@ -211,18 +211,19 @@ public class SqlTemplateService {
                 data.put("sqlContent", row.get("SQL_CONTENT"));
 
                 // 접근 가능한 DB 연결 ID 파싱
-                String accessibleConnectionIds = (String) row.get("ACCESSIBLE_CONNECTION_IDS");
-                List<String> connections = new ArrayList<>();
-                if (accessibleConnectionIds != null && !accessibleConnectionIds.trim().isEmpty()) {
-                        String[] ids = accessibleConnectionIds.split(",");
-                        for (String id : ids) {
-                                String trimmed = id.trim();
-                                if (!trimmed.isEmpty()) {
-                                        connections.add(trimmed);
-                                }
-                        }
-                }
-                data.put("accessibleConnectionIds", connections);
+               String accessibleConnectionIds = (String) row.get("ACCESSIBLE_CONNECTION_IDS");
+               List<String> connectionIdList = new ArrayList<>();
+               if (accessibleConnectionIds != null && !accessibleConnectionIds.trim().isEmpty()) {
+                       String[] ids = accessibleConnectionIds.split(",");
+                       for (String id : ids) {
+                               String trimmed = id.trim();
+                               if (!trimmed.isEmpty()) {
+                                       connectionIdList.add(trimmed);
+                               }
+                       }
+               }
+               data.put("accessibleConnectionIds", accessibleConnectionIds);
+               data.put("accessibleConnectionIdList", connectionIdList);
 
                 data.put("chartMapping", row.get("CHART_MAPPING"));
                 data.put("sqlVersion", row.get("VERSION"));

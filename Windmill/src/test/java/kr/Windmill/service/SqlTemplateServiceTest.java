@@ -71,9 +71,10 @@ public class SqlTemplateServiceTest {
         Map<String, Object> result = service.getSqlTemplateDetail(templateId);
         assertTrue((Boolean) result.get("success"));
         Map<String, Object> data = (Map<String, Object>) result.get("data");
-        assertEquals(Arrays.asList("DB1", "DB2"), data.get("accessibleConnectionIds"));
-        assertEquals(true, data.get("audit"));
-        assertEquals(1, ((List<?>) data.get("parameters")).size());
-        assertEquals(1, ((List<?>) data.get("shortcuts")).size());
+       assertEquals("DB1,DB2", data.get("accessibleConnectionIds"));
+       assertEquals(Arrays.asList("DB1", "DB2"), data.get("accessibleConnectionIdList"));
+       assertEquals(true, data.get("audit"));
+       assertEquals(1, ((List<?>) data.get("parameters")).size());
+       assertEquals(1, ((List<?>) data.get("shortcuts")).size());
     }
 }
