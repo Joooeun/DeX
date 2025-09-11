@@ -325,7 +325,7 @@
                     var row = '<tr>' +
                         '<td>' + formatDateTime(log.executionStartTime) + '</td>' +
                         '<td>' + log.userId + '</td>' +
-                        '<td>' + log.templateId + '</td>' +
+                        '<td>' + (log.templateName || log.templateId || '-') + '</td>' +
                         '<td>' + log.connectionId + '</td>' +
                         '<td>' + log.sqlType + '</td>' +
                         '<td><span style="color: ' + log.statusColor + '; font-weight: bold;">' + log.executionStatus + '</span></td>' +

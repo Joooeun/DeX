@@ -1,6 +1,5 @@
 package kr.Windmill.controller;
 
-import java.io.File;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,7 +9,10 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,15 +22,12 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import kr.Windmill.dto.log.LogInfoDto;
 import kr.Windmill.dto.SqlTemplateExecuteDto;
+import kr.Windmill.dto.log.LogInfoDto;
 import kr.Windmill.service.SQLExecuteService;
 import kr.Windmill.service.SqlTemplateService;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 @Controller
 public class DashboardController {
@@ -206,13 +205,14 @@ public class DashboardController {
             // 모니터링 로그 기록
             cLog.monitoringLog("DASHBOARD", "메뉴 실행 기록 조회 요청");
             
-            // 최근 10개 메뉴 실행 기록 조회
+            // 최근 10개 메뉴 실행 기록 조회 (템플릿 이름 포함)
             String sql = "SELECT " +
-                "LOG_ID, USER_ID, TEMPLATE_ID, CONNECTION_ID, SQL_TYPE, " +
-                "EXECUTION_STATUS, DURATION, AFFECTED_ROWS, ERROR_MESSAGE, " +
-                "EXECUTION_START_TIME, EXECUTION_END_TIME " +
-                "FROM EXECUTION_LOG " +
-                "ORDER BY EXECUTION_START_TIME DESC " +
+                "e.LOG_ID, e.USER_ID, e.TEMPLATE_ID, t.TEMPLATE_NAME, e.CONNECTION_ID, e.SQL_TYPE, " +
+                "e.EXECUTION_STATUS, e.DURATION, e.AFFECTED_ROWS, e.ERROR_MESSAGE, " +
+                "e.EXECUTION_START_TIME, e.EXECUTION_END_TIME " +
+                "FROM EXECUTION_LOG e " +
+                "LEFT JOIN SQL_TEMPLATE t ON e.TEMPLATE_ID = t.TEMPLATE_ID " +
+                "ORDER BY e.EXECUTION_START_TIME DESC " +
                 "FETCH FIRST 10 ROWS ONLY";
             
             List<Map<String, Object>> executionLogs = jdbcTemplate.queryForList(sql);
@@ -224,6 +224,7 @@ public class DashboardController {
                 formattedLog.put("logId", log.get("LOG_ID"));
                 formattedLog.put("userId", log.get("USER_ID"));
                 formattedLog.put("templateId", log.get("TEMPLATE_ID"));
+                formattedLog.put("templateName", log.get("TEMPLATE_NAME"));
                 formattedLog.put("connectionId", log.get("CONNECTION_ID"));
                 formattedLog.put("sqlType", log.get("SQL_TYPE"));
                 formattedLog.put("executionStatus", log.get("EXECUTION_STATUS"));

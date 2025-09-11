@@ -472,11 +472,6 @@ public class Log {
 				}
 			}
 			
-			// PENDING 상태 판단 (30초 이상 걸린 경우)
-			if (duration > 30000 && "SUCCESS".equals(executionStatus)) {
-				executionStatus = "PENDING";
-			}
-			
 			// EXECUTION_LOG 테이블에서 업데이트
 			String sql = "UPDATE EXECUTION_LOG SET " +
 				"EXECUTION_STATUS = ?, DURATION = ?, AFFECTED_ROWS = ?, " +
@@ -568,10 +563,6 @@ public class Log {
 				}
 			}
 			
-			// PENDING 상태 판단 (30초 이상 걸린 경우)
-			if (duration > 30000 && "SUCCESS".equals(executionStatus)) {
-				executionStatus = "PENDING";
-			}
 			
 			// EXECUTION_LOG 테이블에서 업데이트
 			String sql = "UPDATE EXECUTION_LOG SET " +
