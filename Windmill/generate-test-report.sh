@@ -226,8 +226,12 @@ cat > test-reports/browser-test-report.html << EOF
             <h2>📸 스크린샷</h2>
             <div class="screenshots">
                 <p>테스트 실행 중 촬영된 스크린샷이 있습니다:</p>
-                <div class="screenshot-grid" id="screenshot-grid">
-                    <!-- 스크린샷이 있으면 여기에 동적으로 추가됩니다 -->
+                <div class="screenshot-grid">
+                    <div class="screenshot-item">
+                        <p><strong>스크린샷 위치:</strong> screenshots/ 디렉토리</p>
+                        <p><strong>파일명:</strong> sql_template_page.png</p>
+                        <p><strong>설명:</strong> SQL 템플릿 페이지 테스트 스크린샷</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -280,23 +284,18 @@ if [ -d "screenshots" ] && [ "$(ls -A screenshots)" ]; then
     echo "📸 스크린샷 파일들을 리포트에 추가합니다..."
     
     # 스크린샷 파일 목록 생성
-    SCREENSHOT_LIST=""
+    SCREENSHOT_COUNT=0
     for screenshot in screenshots/*.png; do
         if [ -f "$screenshot" ]; then
             filename=$(basename "$screenshot")
-            SCREENSHOT_LIST="${SCREENSHOT_LIST}
-                <div class=\"screenshot-item\">
-                    <img src=\"../$screenshot\" alt=\"$filename\">
-                    <p>$filename</p>
-                </div>"
+            SCREENSHOT_COUNT=$((SCREENSHOT_COUNT + 1))
+            echo "📸 스크린샷 발견: $filename"
         fi
     done
     
-    # HTML에 스크린샷 추가
-    if [ ! -z "$SCREENSHOT_LIST" ]; then
-        sed -i.bak "s|<!-- 스크린샷이 있으면 여기에 동적으로 추가됩니다 -->|$SCREENSHOT_LIST|g" test-reports/browser-test-report.html
-        rm test-reports/browser-test-report.html.bak
-        echo "✅ 스크린샷 추가 완료"
+    if [ $SCREENSHOT_COUNT -gt 0 ]; then
+        echo "✅ $SCREENSHOT_COUNT 개의 스크린샷이 발견되었습니다."
+        echo "   스크린샷은 screenshots/ 디렉토리에서 확인할 수 있습니다."
     fi
 else
     echo "📸 스크린샷 파일이 없습니다."

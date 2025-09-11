@@ -1674,8 +1674,8 @@ table th, td {
 			window.SqlTemplateState.currentTemplate.accessibleConnectionIds = $('#accessibleConnections').val();
 
 			// 기본 SQL 내용 업데이트
-			if (window.SqlTemplateState.sqlEditors && window.SqlTemplateState.sqlEditors['sqlEditor_default']) {
-				window.SqlTemplateState.currentTemplate.sqlContent = window.SqlTemplateState.sqlEditors['sqlEditor_default'].getValue();
+			if (window.sqlEditors && window.sqlEditors['sqlEditor_default']) {
+				window.SqlTemplateState.currentTemplate.sqlContent = window.sqlEditors['sqlEditor_default'].getValue();
 			} else {
 				// Ace Editor가 없는 경우 textarea에서 가져오기
 				window.SqlTemplateState.currentTemplate.sqlContent = $('#sqlEditor_default .sql-textarea').val() || '';
@@ -1683,9 +1683,10 @@ table th, td {
 
 			// 추가 SQL 내용 업데이트
 			window.SqlTemplateState.currentTemplate.sqlContents.forEach(function (content) {
-				var editorId = 'sqlEditor_' + content.CONNECTION_ID.replace(/,/g, '_');
-				if (window.SqlTemplateState.sqlEditors && window.SqlTemplateState.sqlEditors[editorId]) {
-					content.SQL_CONTENT = window.SqlTemplateState.sqlEditors[editorId].getValue();
+				var editorId = connectionIdToEditorId(content.CONNECTION_ID);
+				// 먼저 window.sqlEditors에서 찾기 (실제 저장 위치)
+				if (window.sqlEditors && window.sqlEditors[editorId]) {
+					content.SQL_CONTENT = window.sqlEditors[editorId].getValue();
 				} else {
 					content.SQL_CONTENT = $('#' + editorId + ' .sql-textarea').val() || '';
 				}
@@ -1760,6 +1761,24 @@ table th, td {
 				return 'default';
 			}
 			return editorId.replace('sqlEditor-', '').replace(/-/g, ',');
+		}
+
+		// 현재 에디터들의 내용을 메모리 객체에 저장
+		function saveCurrentEditorContentsToMemory() {
+			if (!window.SqlTemplateState.currentTemplate || !window.SqlTemplateState.currentTemplate.sqlContents) {
+				return;
+			}
+			
+			// 기존 에디터들의 내용을 메모리 객체에 저장
+			window.SqlTemplateState.currentTemplate.sqlContents.forEach(function (content) {
+				var editorId = connectionIdToEditorId(content.CONNECTION_ID);
+				// 먼저 window.sqlEditors에서 찾기 (실제 저장 위치)
+				if (window.sqlEditors && window.sqlEditors[editorId]) {
+					content.SQL_CONTENT = window.sqlEditors[editorId].getValue();
+				} else {
+					content.SQL_CONTENT = $('#' + editorId + ' .sql-textarea').val() || '';
+				}
+			});
 		}
 
 		// SQL 내용을 서버 형식으로 변환
@@ -2452,6 +2471,7 @@ table th, td {
 						return content.CONNECTION_ID !== currentEditingConnectionId;
 					});
 					// 전체 재렌더링 (탭 제거)
+					saveCurrentEditorContentsToMemory();
 					renderSqlContentTabs(null, true);
 				} else {
 					// 현재 연결을 선택된 연결들로 교체
@@ -2490,6 +2510,7 @@ table th, td {
 				}
 
 				// 전체 재렌더링 (마지막 탭 활성화)
+				saveCurrentEditorContentsToMemory();
 				renderSqlContentTabs(null, true);
 				markTemplateChanged();
 			}
@@ -2714,7 +2735,13 @@ table th, td {
 				});
 			}
 
-			// 전체 재렌더링
+			// 에디터 인스턴스도 메모리에서 정리
+			var editorId = connectionIdToEditorId(connectionId);
+			if (window.sqlEditors && window.sqlEditors[editorId]) {
+				delete window.sqlEditors[editorId];
+			}
+
+			// 전체 재렌더링 (삭제된 탭은 이미 메모리에서 제거되었으므로 저장 불필요)
 			renderSqlContentTabs();
 
 			// 변경사항 표시
@@ -2733,7 +2760,13 @@ table th, td {
 				return content.CONNECTION_ID !== connectionId;
 			});
 
-			// 화면 리렌더링
+			// 에디터 인스턴스도 메모리에서 정리
+			var editorId = connectionIdToEditorId(connectionId);
+			if (window.sqlEditors && window.sqlEditors[editorId]) {
+				delete window.sqlEditors[editorId];
+			}
+
+			// 화면 리렌더링 (삭제된 탭은 이미 메모리에서 제거되었으므로 저장 불필요)
 			renderSqlContentTabs();
 
 			// 변경사항 표시
@@ -2774,6 +2807,7 @@ table th, td {
 			window.SqlTemplateState.currentTemplate.sqlContents.push(newContent);
 
 			// 화면 리렌더링
+			saveCurrentEditorContentsToMemory();
 			renderSqlContentTabs();
 
 			// 변경사항 표시
