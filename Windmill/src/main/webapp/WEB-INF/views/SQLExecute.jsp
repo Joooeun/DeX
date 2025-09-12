@@ -1076,7 +1076,7 @@ var tableHeight=0;
 	<!-- ======================================== -->
 	<section class="content-header">
 		<h1>${templateName}</h1>
-		<span>${templateDescription}</span>
+		<span style="white-space: pre-line;">${templateDescription}</span>
 
 		<ol class="breadcrumb">
 			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
