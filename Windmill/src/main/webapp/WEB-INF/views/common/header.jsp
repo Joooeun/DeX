@@ -308,7 +308,7 @@ var changePW
 		dropdown[0].style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
 		dropdown[0].style.top = (inputOffset.top + inputHeight) + 'px';
 		dropdown[0].style.left = inputOffset.left + 'px';
-		dropdown[0].style.width = searchInput.outerWidth() + 'px';
+		dropdown[0].style.width = searchInput.outerWidth()+40 + 'px';
 		dropdown[0].style.maxHeight = '200px';
 		dropdown[0].style.overflowY = 'auto';
 	}
