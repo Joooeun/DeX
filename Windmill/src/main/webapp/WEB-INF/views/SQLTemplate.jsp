@@ -2740,11 +2740,14 @@ table th, td {
 		function updateGoToTemplateButton() {
 			var templateId = $('#sqlTemplateId').val();
 			var button = $('#goToTemplateBtn');
+			var buttonBottom = $('#goToTemplateBtnBottom');
 
 			if (templateId && templateId.trim() !== '') {
 				button.prop('disabled', false);
+				buttonBottom.prop('disabled', false);
 			} else {
 				button.prop('disabled', true);
+				buttonBottom.prop('disabled', true);
 			}
 		}
 
@@ -2929,6 +2932,7 @@ table th, td {
 			return parameters;
 		}
 
+
 		$(function () {
 			$('#sqlInactive').on('change', function () {
 				if ($(this).is(':checked')) {
@@ -2937,6 +2941,11 @@ table th, td {
 					$('#sqlTemplateStatus').val('ACTIVE');
 				}
 			});
+
+			$('#sqlAudit').on('change', function () {
+				// 감사 로그 토글 이벤트
+			});
+
 			// 템플릿 상세 로드 시 상태에 따라 체크박스 동기화
 			function syncInactiveCheckbox() {
 				if ($('#sqlTemplateStatus').val() === 'INACTIVE') {
@@ -2969,6 +2978,138 @@ table th, td {
 				transform: translateY(0);
 				opacity: 1;
 			}
+		}
+
+		/* 토글 스위치 스타일 */
+		.switch {
+			position: relative;
+			display: inline-block;
+			width: 60px;
+			height: 34px;
+		}
+
+		.switch input {
+			opacity: 0;
+			width: 0;
+			height: 0;
+		}
+
+		.slider {
+			position: absolute;
+			cursor: pointer;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background-color: #ccc;
+			transition: .4s;
+		}
+
+		.slider:before {
+			position: absolute;
+			content: "";
+			height: 26px;
+			width: 26px;
+			left: 4px;
+			bottom: 4px;
+			background-color: white;
+			transition: .4s;
+		}
+
+		input:checked + .slider {
+			background-color: #2196F3;
+		}
+
+		input:focus + .slider {
+			box-shadow: 0 0 1px #2196F3;
+		}
+
+		input:checked + .slider:before {
+			transform: translateX(26px);
+		}
+
+		.slider.round {
+			border-radius: 34px;
+		}
+
+		.slider.round:before {
+			border-radius: 50%;
+		}
+
+		/* 패널 헤더 아이콘 스타일 */
+		.panel-title i {
+			margin-right: 8px;
+			color: #337ab7;
+		}
+
+		/* 폼 라벨 스타일 (아이콘 제거됨) */
+		label {
+			font-weight: 500;
+		}
+
+		/* 필수 필드 표시 */
+		.text-danger {
+			color: #d9534f !important;
+		}
+
+		/* 개선된 플레이스홀더 */
+		.form-control::placeholder {
+			color: #999;
+			font-style: italic;
+		}
+
+		/* 카드 간격 조정 */
+		.panel {
+			border: 1px solid #ddd;
+			border-radius: 4px;
+			box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+		}
+
+		.panel-heading {
+			background-color: #f5f5f5;
+			border-bottom: 1px solid #ddd;
+		}
+
+		.panel-title {
+			font-size: 16px;
+			font-weight: 600;
+		}
+
+		/* 컴팩트 테이블 스타일 */
+		.table-condensed th,
+		.table-condensed td {
+			padding: 4px 8px;
+			font-size: 12px;
+		}
+
+		/* 작은 입력 필드 */
+		.input-sm {
+			height: 28px;
+			padding: 4px 8px;
+			font-size: 12px;
+		}
+
+		/* 컴팩트 폼 그룹 */
+		.form-group {
+			margin-bottom: 8px;
+		}
+
+
+		/* 테이블 헤더 스타일 (아이콘 제거됨) */
+		th {
+			font-weight: 600;
+			background-color: #f8f9fa;
+		}
+
+		/* 버튼 개선 */
+		.btn {
+			border-radius: 4px;
+			font-weight: 500;
+		}
+
+		.btn-sm {
+			padding: 5px 10px;
+			font-size: 12px;
 		}
 	</style>
 
@@ -3027,14 +3168,14 @@ table th, td {
 						<div class="box-header with-border">
 							<h3 class="box-title">SQL 템플릿 편집</h3>
 							<div class="box-tools pull-right">
-								<button type="button" class="btn btn-primary btn-sm" id="goToTemplateBtn"
+								<button type="button" class="btn btn-default btn-sm" id="goToTemplateBtn"
 									onclick="goToTemplate()" disabled>
 									<i class="fa fa-external-link"></i> 해당 메뉴로 이동
 								</button>
 								<button type="button" class="btn btn-success btn-sm" onclick="saveSqlTemplate()">
 									<i class="fa fa-save"></i> 저장
 								</button>
-								<button type="button" class="btn btn-danger btn-sm" onclick="deleteSqlTemplate()">
+								<button type="button" class="btn btn-danger btn-sm" onclick="deleteSqlTemplate()" style="margin-left: 5px;">
 									<i class="fa fa-trash"></i> 삭제
 								</button>
 							</div>
@@ -3045,46 +3186,102 @@ table th, td {
 							<!-- 숨겨진 ID 필드 -->
 							<input type="hidden" id="sqlTemplateId">
 
-							<!-- 기본 정보 -->
-							<div class="row">
-
-								<div class="col-md-8">
-									<!-- 설정 정보 -->
+							<!-- 기본 정보 및 설정 (통합) -->
+							<div class="panel panel-default" style="margin-bottom: 15px;">
+								<div class="panel-heading" style="padding: 8px 15px;">
+									<h4 class="panel-title" style="font-size: 14px; margin: 0;">
+										<i class="fa fa-info-circle"></i> 기본 정보 및 설정
+									</h4>
+								</div>
+								<div class="panel-body" style="padding: 15px;">
+									<!-- 기본 정보 -->
 									<div class="row">
-										<div class="col-lg-3 col-md-6 col-sm-12">
-											<div class="form-group">
+										<div class="col-md-6">
+											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
-													title="SQL 템플릿의 고유 이름입니다. 대시보드와 메뉴에서 표시되며, 100자 이하로 입력해주세요.">SQL
-													이름</label> <input type="text" class="form-control"
-													id="sqlTemplateName" placeholder="SQL 이름">
+													title="SQL 템플릿의 고유 이름입니다. 대시보드와 메뉴에서 표시되며, 100자 이하로 입력해주세요."
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													SQL 이름 <span class="text-danger">*</span>
+												</label>
+												<input type="text" class="form-control"
+													id="sqlTemplateName" placeholder="예: 사용자 활동 조회">
 											</div>
 										</div>
-
-										<div class="col-lg-3 col-md-6 col-sm-12">
-											<div class="form-group">
+										<div class="col-md-6">
+											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
-													title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습니다.">실행
-													제한 (행)</label> <input type="number" class="form-control"
+													title="이 템플릿의 용도와 사용법을 설명하세요"
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													설명
+												</label>
+												<textarea class="form-control" id="sqlTemplateDesc" rows="2"
+													placeholder="이 템플릿의 용도와 사용법을 설명하세요"></textarea>
+											</div>
+										</div>
+									</div>
+									
+									<!-- 카테고리와 접근 가능한 DB 연결 -->
+									<div class="row">
+										<div class="col-md-6">
+											<div class="form-group" style="margin-bottom: 15px;">
+												<label data-toggle="tooltip" data-placement="top"
+													title="SQL 템플릿을 분류하여 관리합니다. 카테고리별로 템플릿을 그룹화하여 찾기 쉽게 만들 수 있습니다."
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													카테고리
+												</label>
+												<select class="form-control" id="sqlTemplateCategories" multiple>
+													<!-- 카테고리 옵션들이 여기에 로드됩니다 -->
+												</select>
+											</div>
+										</div>
+										<div class="col-md-6">
+											<div class="form-group" style="margin-bottom: 15px;">
+												<label data-toggle="tooltip" data-placement="top"
+													title="이 SQL 템플릿을 사용할 수 있는 데이터베이스 연결을 선택합니다. 아무것도 선택하지 않으면 모든 DB 연결에서 사용 가능합니다."
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													접근 가능한 DB 연결
+												</label>
+												<select class="form-control" id="accessibleConnections" multiple>
+													<!-- DB 연결 옵션들이 여기에 로드됩니다 -->
+												</select>
+											</div>
+										</div>
+									</div>
+									
+									<!-- 실행 설정 -->
+									<div class="row">
+										<div class="col-md-4">
+											<div class="form-group" style="margin-bottom: 15px;">
+												<label data-toggle="tooltip" data-placement="top"
+													title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습니다."
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													실행 제한 (행)
+												</label>
+												<input type="number" class="form-control"
 													id="sqlExecutionLimit" value="0" min="0" max="20000"
-													placeholder="최대 반환 행 수">
+													placeholder="0 = 제한 없음">
 											</div>
 										</div>
-
-										<div class="col-lg-3 col-md-6 col-sm-12">
-											<div class="form-group">
+										<div class="col-md-4">
+											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
-													title="대시보드에서 자동으로 데이터를 새로고침하는 간격을 설정합니다. 0으로 설정하면 자동 새로고침을 사용하지 않습니다.">새로고침
-													간격 (초)</label> <input type="number" class="form-control"
+													title="대시보드에서 자동으로 데이터를 새로고침하는 간격을 설정합니다. 0으로 설정하면 자동 새로고침을 사용하지 않습니다."
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													새로고침 간격 (초)
+												</label>
+												<input type="number" class="form-control"
 													id="sqlRefreshTimeout" value="0" min="0" max="3600"
-													placeholder="새로고침 대기 시간">
+													placeholder="0 = 자동 새로고침 안함">
 											</div>
 										</div>
-
-										<div class="col-lg-3 col-md-6 col-sm-12">
-											<div class="form-group">
+										<div class="col-md-4">
+											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
-													title="대시보드에서 차트로 표시할 컬럼을 선택합니다">차트 매핑</label> <select
-													class="form-control" id="sqlChartMapping">
+													title="대시보드에서 차트로 표시할 컬럼을 선택합니다"
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													차트 매핑
+												</label>
+												<select class="form-control" id="sqlChartMapping">
 													<option value="">차트 매핑 없음</option>
 													<option value="APPL_COUNT">애플리케이션 수</option>
 													<option value="LOCK_WAIT_COUNT">락 대기 수</option>
@@ -3093,152 +3290,142 @@ table th, td {
 												</select>
 											</div>
 										</div>
-
-										<!-- 옵션 박스 -->
-										<div class="col-lg-9 col-md-12">
-											<div class="row">
-												<div class="col-lg-4 col-md-4 col-sm-4">
-													<!-- 개행 보기 -->
-													<div class="form-group" style="margin-bottom: 15px;">
-														<label data-toggle="tooltip" data-placement="top"
-															title="개행 문자 표시"
-															style="display: block; margin-bottom: 5px;">개행 보기</label>
-														<label class="switch"> <input type="checkbox" id="sqlNewline"
-																checked> <span class="slider"></span>
-														</label>
-													</div>
-												</div>
-												<div class="col-lg-4 col-md-4 col-sm-4">
-													<!-- 비활성화 -->
-													<div class="form-group" style="margin-bottom: 15px;">
-														<label data-toggle="tooltip" data-placement="top"
-															title="템플릿 사용 상태 토글 (활성/비활성)"
-															style="display: block; margin-bottom: 5px;">비활성화</label>
-														<label class="switch"> <input type="checkbox" id="sqlInactive">
-															<span class="slider"></span>
-														</label> <select class="form-control" id="sqlTemplateStatus"
-															style="display: none;">
-															<option value="ACTIVE">활성</option>
-															<option value="INACTIVE">비활성</option>
-														</select>
-													</div>
-												</div>
-												<div class="col-lg-4 col-md-4 col-sm-4">
-													<!-- 감사 로그 -->
-													<div class="form-group" style="margin-bottom: 15px;">
-														<label data-toggle="tooltip" data-placement="top"
-															title="감사 로그 저장"
-															style="display: block; margin-bottom: 5px;">감사 로그</label>
-														<label class="switch"> <input type="checkbox" id="sqlAudit">
-															<span class="slider"></span>
-														</label>
-													</div>
+									</div>
+									
+									<!-- 표시 설정 -->
+									<div class="row">
+										<div class="col-md-4">
+											<div class="form-group" style="margin-bottom: 15px;">
+												<label data-toggle="tooltip" data-placement="top"
+													title="개행 문자 표시"
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													개행 보기
+												</label>
+												<div style="margin-top: 5px;">
+													<label class="switch">
+														<input type="checkbox" id="sqlNewline" checked>
+														<span class="slider"></span>
+													</label>
 												</div>
 											</div>
 										</div>
-
-									</div>
-
-									<div class="form-group">
-										<label data-toggle="tooltip" data-placement="top"
-											title="SQL 템플릿에 대한 상세한 설명을 입력합니다.">설명</label>
-										<textarea class="form-control" id="sqlTemplateDesc" rows="2"
-											placeholder="SQL 템플릿에 대한 설명을 입력하세요"></textarea>
-									</div>
-
-								</div>
-								<div class="col-lg-4 col-md-12">
-
-									<!-- 추가 정보 -->
-									<div class="form-group">
-										<label data-toggle="tooltip" data-placement="top"
-											title="SQL 템플릿을 분류하여 관리합니다. 카테고리별로 템플릿을 그룹화하여 찾기 쉽게 만들 수 있습니다.">카테고리</label>
-										<select class="form-control" id="sqlTemplateCategories" multiple>
-											<!-- 카테고리 옵션들이 여기에 로드됩니다 -->
-										</select>
-									</div>
-									<div class="form-group">
-										<label data-toggle="tooltip" data-placement="top"
-											title="이 SQL 템플릿을 사용할 수 있는 데이터베이스 연결을 선택합니다. 아무것도 선택하지 않으면 모든 DB 연결에서 사용 가능합니다.">접근
-											가능한 DB 연결</label> <select class="form-control" id="accessibleConnections"
-											multiple>
-											<!-- DB 연결 옵션들이 여기에 로드됩니다 -->
-										</select>
-									</div>
-								</div>
-							</div>
-
-							<!-- 파라미터 관리 패널 -->
-							<div class="form-group">
-								<label>파라미터 관리</label>
-								<div class="row">
-									<div class="col-md-12">
-										<div class="table-responsive parameter-table-container">
-											<table class="table table-bordered table-striped align-middle"
-												id="parameterTable">
-												<thead>
-													<tr>
-													<th style="width: 60px;"><div data-toggle="tooltip" data-placement="top" title="파라미터의 입력 순서를 설정합니다. 숫자가 작을수록 먼저 입력받으며, 사용자 입력 화면에서도 이 순서대로 표시됩니다.">순서</div></th>
-													<th style="width: 120px;"><div data-toggle="tooltip" data-placement="top" title="SQL 내에서 사용할 파라미터 이름입니다. SQL 문에서 \${파라미터명} 형태로 사용되며, 실행 시 실제 값으로 치환됩니다.">파라미터명</div></th>
-													<th style="width: 150px;"><div data-toggle="tooltip" data-placement="top" title="파라미터에 대한 설명을 입력합니다. 사용자가 입력할 때 도움말로 표시되며, 올바른 값을 입력할 수 있도록 안내합니다.">설명</div></th>
-													<th style="width: 80px;"><div data-toggle="tooltip" data-placement="top" title="파라미터의 데이터 타입을 설정합니다. 문자열: 문자열 바인딩, 숫자: 숫자 바인딩, 텍스트: 긴 문자열용, SQL: SQL 코드 조각, 로그: 로깅용(바인딩 안됨)">타입</div></th>
-													<th style="width: 100px;"><div data-toggle="tooltip" data-placement="top" title="파라미터의 기본값을 설정합니다.">기본값</div></th>
-													<th style="width: 50px;"><div data-toggle="tooltip" data-placement="top" title="파라미터가 반드시 입력되어야 하는지 설정합니다. 체크하면 사용자가 값을 입력하지 않으면 SQL 실행이 차단됩니다.">필수</div></th>
-													<th style="width: 50px;"><div data-toggle="tooltip" data-placement="top" title="파라미터를 읽기 전용으로 설정합니다. 체크하면 사용자가 값을 수정할 수 없으며, 기본값이나 시스템에서 설정된 값만 사용됩니다.">읽기전용</div></th>
-													<th style="width: 50px;"><div data-toggle="tooltip" data-placement="top" title="파라미터 입력 필드를 화면에서 숨깁니다. 체크하면 사용자에게 표시되지 않지만, 기본값이나 시스템 값이 SQL에 전달됩니다.">숨김</div></th>
-													<th style="width: 50px;"><div data-toggle="tooltip" data-placement="top" title="파라미터를 비활성화합니다. 체크하면 입력 필드가 비활성화되어 사용자가 값을 입력할 수 없으며, SQL 실행에서도 제외됩니다.">비활성화</div></th>
-													<th style="width: 50px;"></th>
-												</tr>
-												</thead>
-												<tbody id="parameterTableBody">
-													<!-- 파라미터들이 여기에 동적으로 추가됩니다 -->
-												</tbody>
-											</table>
+										<div class="col-md-4">
+											<div class="form-group" style="margin-bottom: 15px;">
+												<label data-toggle="tooltip" data-placement="top"
+													title="템플릿 사용 상태 토글 (활성/비활성)"
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													비활성화
+												</label>
+												<div style="margin-top: 5px;">
+													<label class="switch">
+														<input type="checkbox" id="sqlInactive">
+														<span class="slider"></span>
+													</label>
+												</div>
+												<select class="form-control" id="sqlTemplateStatus" style="display: none;">
+													<option value="ACTIVE">활성</option>
+													<option value="INACTIVE">비활성</option>
+												</select>
+											</div>
 										</div>
-										<button type="button" class="btn btn-primary btn-sm" onclick="addParameter()">
-											<i class="fa fa-plus"></i> 파라미터 추가
-										</button>
-									</div>
-								</div>
-							</div>
-
-							<!-- 단축키 관리 패널 -->
-							<div class="form-group">
-								<label>단축키 관리</label>
-								<div class="row">
-									<div class="col-md-12">
-										<div class="table-responsive">
-										<table class="table table-bordered table-striped"
-											id="shortcutTable">
-												<thead>
-													<tr>
-													<th style="width: 60px;"><div data-toggle="tooltip" data-placement="top" title="키보드 단축키를 설정합니다. F1~F12 키 중에서 선택하여 빠른 SQL 실행이 가능합니다.">단축키</div></th>	
-													<th style="width: 120px;"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 설명적인 이름을 입력합니다.">단축키명</div></th>
-													<th style="width: 150px;"><div data-toggle="tooltip" data-placement="top" title="단축키를 눌렀을 때 실행할 SQL 템플릿을 선택합니다.">대상 템플릿</div></th>
-													<th style="width: 220px;"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 상세한 설명을 입력합니다.">설명</div></th>
-													<th style="width: 60px;"><div data-toggle="tooltip" data-placement="top" title="단축키 실행 시 파라미터로 전달할 컬럼의 인덱스를 설정합니다. 1,2,3 형태로 여러 컬럼을 지정할 수 있습니다.">소스 컬럼</div></th>
-													<th style="width: 50px;"><div data-toggle="tooltip" data-placement="top" title="단축키를 자동으로 실행할지 설정합니다. 체크하면 조건이 만족될 때 자동으로 SQL이 실행됩니다다.">자동실행</div></th>
-													<th style="width: 50px;"><div data-toggle="tooltip" data-placement="top" title="단축키의 활성화 상태를 설정합니다. 활성으로 설정하면 단축키가 사용 가능하며, 비활성으로 설정하면 사용할 수 없습니다.">상태</div></th>
-													<th style="width: 50px;"><div data-toggle="tooltip" data-placement="top" title="삭제"></div></th>
-												</tr>
-												</thead>
-												<tbody id="shortcutTableBody">
-													<!-- 단축키들이 여기에 동적으로 추가됩니다 -->
-												</tbody>
-											</table>
+										<div class="col-md-4">
+											<div class="form-group" style="margin-bottom: 15px;">
+												<label data-toggle="tooltip" data-placement="top"
+													title="감사 로그 저장"
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													감사 로그
+												</label>
+												<div style="margin-top: 5px;">
+													<label class="switch">
+														<input type="checkbox" id="sqlAudit">
+														<span class="slider"></span>
+													</label>
+												</div>
+											</div>
 										</div>
-										<button type="button" class="btn btn-success btn-sm" onclick="addShortcut()">
-											<i class="fa fa-plus"></i> 단축키 추가
-										</button>
 									</div>
 								</div>
 							</div>
 
-							<!-- DB별 SQL 내용 관리 -->
-							<div class="form-group">
-								<label data-toggle="tooltip" data-placement="top"
-									title="DB 연결별로 SQL 내용을 관리합니다. 각 DB의 문법에 맞게 SQL을 작성할 수 있습니다.">DB별
-									SQL 내용</label>
+
+							<!-- 파라미터 관리 카드 (컴팩트) -->
+							<div class="panel panel-default" style="margin-bottom: 15px;">
+								<div class="panel-heading" style="padding: 8px 15px;">
+									<h4 class="panel-title" style="font-size: 14px; margin: 0;">
+										<i class="fa fa-sliders"></i> 파라미터 관리
+									</h4>
+								</div>
+								<div class="panel-body" style="padding: 10px 15px;">
+									<div class="table-responsive parameter-table-container">
+										<table class="table table-bordered table-striped align-middle table-condensed"
+											id="parameterTable">
+											<thead>
+												<tr>
+												<th style="width: 50px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="파라미터의 입력 순서를 설정합니다. 숫자가 작을수록 먼저 입력받으며, 사용자 입력 화면에서도 이 순서대로 표시됩니다.">순서</div></th>
+												<th style="width: 100px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="SQL 내에서 사용할 파라미터 이름입니다. SQL 문에서 \${파라미터명} 형태로 사용되며, 실행 시 실제 값으로 치환됩니다.">파라미터명</div></th>
+												<th style="width: 120px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="파라미터에 대한 설명을 입력합니다. 사용자가 입력할 때 도움말로 표시되며, 올바른 값을 입력할 수 있도록 안내합니다.">설명</div></th>
+												<th style="width: 70px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="파라미터의 데이터 타입을 설정합니다. 문자열: 문자열 바인딩, 숫자: 숫자 바인딩, 텍스트: 긴 문자열용, SQL: SQL 코드 조각, 로그: 로깅용(바인딩 안됨)">타입</div></th>
+												<th style="width: 80px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="파라미터의 기본값을 설정합니다.">기본값</div></th>
+												<th style="width: 40px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="파라미터가 반드시 입력되어야 하는지 설정합니다. 체크하면 사용자가 값을 입력하지 않으면 SQL 실행이 차단됩니다.">필수</div></th>
+												<th style="width: 40px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="파라미터를 읽기 전용으로 설정합니다. 체크하면 사용자가 값을 수정할 수 없으며, 기본값이나 시스템에서 설정된 값만 사용됩니다.">읽기전용</div></th>
+												<th style="width: 40px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="파라미터 입력 필드를 화면에서 숨깁니다. 체크하면 사용자에게 표시되지 않지만, 기본값이나 시스템 값이 SQL에 전달됩니다.">숨김</div></th>
+												<th style="width: 40px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="파라미터를 비활성화합니다. 체크하면 입력 필드가 비활성화되어 사용자가 값을 입력할 수 없으며, SQL 실행에서도 제외됩니다.">비활성화</div></th>
+												<th style="width: 40px; font-size: 11px;">작업</th>
+											</tr>
+											</thead>
+											<tbody id="parameterTableBody">
+												<!-- 파라미터들이 여기에 동적으로 추가됩니다 -->
+											</tbody>
+										</table>
+									</div>
+									<button type="button" class="btn btn-primary btn-sm" onclick="addParameter()">
+										<i class="fa fa-plus"></i> 파라미터 추가
+									</button>
+								</div>
+							</div>
+
+							<!-- 단축키 관리 카드 (컴팩트) -->
+							<div class="panel panel-default" style="margin-bottom: 15px;">
+								<div class="panel-heading" style="padding: 8px 15px;">
+									<h4 class="panel-title" style="font-size: 14px; margin: 0;">
+										<i class="fa fa-keyboard-o"></i> 단축키 관리
+									</h4>
+								</div>
+								<div class="panel-body" style="padding: 10px 15px;">
+									<div class="table-responsive">
+									<table class="table table-bordered table-striped table-condensed"
+										id="shortcutTable">
+										<thead>
+											<tr>
+											<th style="width: 50px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="키보드 단축키를 설정합니다. F1~F12 키 중에서 선택하여 빠른 SQL 실행이 가능합니다.">단축키</div></th>	
+											<th style="width: 100px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 설명적인 이름을 입력합니다.">단축키명</div></th>
+											<th style="width: 120px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키를 눌렀을 때 실행할 SQL 템플릿을 선택합니다.">대상 템플릿</div></th>
+											<th style="width: 180px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 상세한 설명을 입력합니다.">설명</div></th>
+											<th style="width: 50px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키 실행 시 파라미터로 전달할 컬럼의 인덱스를 설정합니다. 1,2,3 형태로 여러 컬럼을 지정할 수 있습니다.">소스 컬럼</div></th>
+											<th style="width: 40px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키를 자동으로 실행할지 설정합니다. 체크하면 조건이 만족될 때 자동으로 SQL이 실행됩니다다.">자동실행</div></th>
+											<th style="width: 40px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키의 활성화 상태를 설정합니다. 활성으로 설정하면 단축키가 사용 가능하며, 비활성으로 설정하면 사용할 수 없습니다.">상태</div></th>
+											<th style="width: 40px; font-size: 11px;">삭제</th>
+										</tr>
+										</thead>
+										<tbody id="shortcutTableBody">
+											<!-- 단축키들이 여기에 동적으로 추가됩니다 -->
+										</tbody>
+									</table>
+								</div>
+								<button type="button" class="btn btn-success btn-sm" onclick="addShortcut()">
+									<i class="fa fa-plus"></i> 단축키 추가
+								</button>
+							</div>
+						</div>
+
+							<!-- DB별 SQL 내용 관리 카드 (컴팩트) -->
+							<div class="panel panel-default" style="margin-bottom: 15px;">
+								<div class="panel-heading" style="padding: 8px 15px;">
+									<h4 class="panel-title" style="font-size: 14px; margin: 0;">
+										<i class="fa fa-database"></i> DB별 SQL 내용
+									</h4>
+								</div>
+								<div class="panel-body" style="padding: 10px 15px;">
 
 								<!-- DB 연결 탭 -->
 								<ul class="nav nav-tabs" id="sqlContentTabs">
@@ -3265,11 +3452,24 @@ table th, td {
 									</div>
 									<!-- 추가 DB 연결 SQL 에디터가 여기에 동적으로 생성됩니다 -->
 								</div>
-
+								</div>
 							</div>
 
-
-
+							<!-- 하단 액션 버튼들 -->
+							<div class="panel-default" style="margin-bottom: 15px;">
+								<div class="panel-body" style="padding: 15px; text-align: right;">
+									<button type="button" class="btn btn-default" id="goToTemplateBtnBottom"
+										onclick="goToTemplate()" disabled>
+										<i class="fa fa-external-link"></i> 해당 메뉴로 이동
+									</button>
+									<button type="button" class="btn btn-success" onclick="saveSqlTemplate()" style="margin-left: 10px;">
+										<i class="fa fa-save"></i> 저장
+									</button>
+									<button type="button" class="btn btn-danger" onclick="deleteSqlTemplate()" style="margin-left: 10px;">
+										<i class="fa fa-trash"></i> 삭제
+									</button>
+								</div>
+							</div>
 
 							<!-- 테스트 결과 -->
 							<div id="testResult"></div>
