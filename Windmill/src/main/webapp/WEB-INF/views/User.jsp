@@ -372,7 +372,7 @@ function showToast(message, type = 'info', duration = 3000) {
         'info': 'alert-info'
     }[type] || 'alert-info';
     
-    var toast = $('<div id="' + toastId + '" class="alert ' + bgClass + ' alert-dismissible" style="margin-bottom: 10px; animation: slideInRight 0.3s ease-out;">' +
+    var toast = $('<div id="' + toastId + '" class="alert ' + bgClass + ' alert-dismissible" style="margin-bottom: 10px; animation: slideInDown 0.3s ease-out;">' +
         '<button type="button" class="close" data-dismiss="alert">&times;</button>' +
         '<i class="fa ' + iconClass + '"></i> ' + message +
         '</div>');
@@ -1368,13 +1368,13 @@ function openUserGroupManagement() {
 </script>
 
 <style>
-@keyframes slideInRight {
+@keyframes slideInDown {
     from {
-        transform: translateX(100%);
+        transform: translateY(-100%);
         opacity: 0;
     }
     to {
-        transform: translateX(0);
+        transform: translateY(0);
         opacity: 1;
     }
 }

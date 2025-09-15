@@ -619,11 +619,7 @@
         // 도넛 차트 업데이트 함수
         function updateDoughnutChart(canvasId, value) {
             var chart;
-            if (canvasId === 'cpu-doughnut') {
-                chart = window['cpu-doughnut_chart'];
-            } else if (canvasId === 'memory-doughnut') {
-                chart = window['memory-doughnut_chart'];
-            } else if (canvasId === 'activeLogChart') {
+            if (canvasId === 'activeLogChart') {
                 chart = window['activeLogChart'];
             }
             
@@ -645,18 +641,7 @@
 
         // 도넛 차트 업데이트 함수 (DEX 상태 업데이트 시)
         function updateDoughnutCharts(status) {
-            if (status.statusName === 'dex_process') {
-                if (status.cpuUsage !== undefined) {
-                    updateDoughnutChart('cpu-doughnut', status.cpuUsage);
-                    const cpuValue = typeof status.cpuUsage === 'number' ? status.cpuUsage : parseFloat(status.cpuUsage) || 0;
-                    $('#cpu-value').text(cpuValue.toFixed(1) + '%');
-                }
-                if (status.memoryUsage !== undefined) {
-                    updateDoughnutChart('memory-doughnut', status.memoryUsage);
-                    const memoryValue = typeof status.memoryUsage === 'number' ? status.memoryUsage : parseFloat(status.memoryUsage) || 0;
-                    $('#memory-value').text(memoryValue.toFixed(1) + '%');
-                }
-            }
+            // CPU/메모리 도넛 차트가 제거되어 빈 함수로 유지
         }
 
 
@@ -858,124 +843,6 @@
                     onClick: function(event, elements) {
                         if (elements.length > 0) {
                             handleChartElementClick('FILESYSTEM', elements[0]);
-                        }
-                    }
-                }
-            });
-
-            // DEX CPU 사용률 도넛 차트
-            var cpuDoughnutCtx = document.getElementById('cpu-doughnut').getContext('2d');
-            window['cpu-doughnut_chart'] = new Chart(cpuDoughnutCtx, {
-                type: 'doughnut',
-                data: {
-                    datasets: [{
-                        data: [0, 100],
-                        backgroundColor(ctx) {
-                            if (ctx.type !== 'data') {
-                                return;
-                            }
-                            if (ctx.index === 1) {
-                                return 'rgb(234, 234, 234)';
-                            }
-                            const numericValue = typeof ctx.raw === 'number' ? ctx.raw : parseFloat(ctx.raw) || 0;
-                            return COLORS[index(numericValue)];
-                        }
-                    }]
-                },
-                options: {
-                    aspectRatio: 2,
-                    circumference: 180,
-                    rotation: -90,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            enabled: false
-                        },
-                        annotation: {
-                            annotations: {
-                                cpuLabel: {
-                                    type: 'doughnutLabel',
-                                    content: ({chart}) => {
-                                        const value = chart.data.datasets[0].data[0] || 0;
-                                        const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
-                                        return [
-                                            numericValue.toFixed(1) + '%',
-                                            'CPU 사용률'
-                                        ];
-                                    },
-                                    drawTime: 'beforeDraw',
-                                    position: {
-                                        y: '-50%'
-                                    },
-                                    font: [{size: 24, weight: 'bold'}, {size: 12}],
-                                    color: ({chart}) => {
-                                        const value = chart.data.datasets[0].data[0] || 0;
-                                        const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
-                                        return [COLORS[index(numericValue)], 'grey'];
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-                        // DEX 메모리 사용률 도넛 차트
-            var memoryDoughnutCtx = document.getElementById('memory-doughnut').getContext('2d');
-            window['memory-doughnut_chart'] = new Chart(memoryDoughnutCtx, {
-                type: 'doughnut',
-                data: {
-                    datasets: [{
-                        data: [0, 100],
-                        backgroundColor(ctx) {
-                            if (ctx.type !== 'data') {
-                                return;
-                            }
-                            if (ctx.index === 1) {
-                                return 'rgb(234, 234, 234)';
-                            }
-                            const numericValue = typeof ctx.raw === 'number' ? ctx.raw : parseFloat(ctx.raw) || 0;
-                            return COLORS[index(numericValue)];
-                        }
-                    }]
-                },
-                options: {
-                    aspectRatio: 2,
-                    circumference: 180,
-                    rotation: -90,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            enabled: false
-                        },
-                        annotation: {
-                            annotations: {
-                                memoryLabel: {
-                                    type: 'doughnutLabel',
-                                    content: ({chart}) => {
-                                        const value = chart.data.datasets[0].data[0] || 0;
-                                        const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
-                                        return [
-                                            numericValue.toFixed(1) + '%',
-                                            '메모리 사용률'
-                                        ];
-                                    },
-                                    drawTime: 'beforeDraw',
-                                    position: {
-                                        y: '-50%'
-                                    },
-                                    font: [{size: 24, weight: 'bold'}, {size: 12}],
-                                    color: ({chart}) => {
-                                        const value = chart.data.datasets[0].data[0] || 0;
-                                        const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
-                                        return [COLORS[index(numericValue)], 'grey'];
-                                    }
-                                }
-                            }
                         }
                     }
                 }
@@ -1483,7 +1350,6 @@
                             chartConfig.chart.update();
                         }
                     } catch (error) {
-                        console.error('차트 업데이트 중 오류 발생:', chartType, error);
                         // 에러 발생 시 기본 데이터로 설정
                         try {
                             chartConfig.chart.data.labels = ['오류'];
@@ -1622,7 +1488,6 @@
             
             // 모든 차트가 에러 상태이면 자동 업데이트 중단
             if (hasErrorCharts) {
-                logError('차트 에러 발생으로 자동 업데이트 중단됨');
                 return;
             }
             

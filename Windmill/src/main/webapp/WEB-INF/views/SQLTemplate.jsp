@@ -715,7 +715,7 @@ table th, td {
 						$('#categoryDescription').val(category.CATEGORY_DESCRIPTION);
 						$('#categoryModalSaveBtn').text('수정');
 					} else {
-						alert('카테고리 정보 로드 실패: ' + result.message);
+						showToast('카테고리 정보를 불러오는데 실패했습니다.', 'error');
 					}
 				}
 			});
@@ -727,10 +727,10 @@ table th, td {
 			var categoryName = $('#categoryName').val();
 			var description = $('#categoryDescription').val();
 
-			if (!categoryName.trim()) {
-				alert('카테고리명을 입력해주세요.');
-				return;
-			}
+		if (!categoryName.trim()) {
+			showToast('카테고리명을 입력해주세요.', 'warning');
+			return;
+		}
 
 			var url = categoryId ? '/SQLTemplate/category/update'
 				: '/SQLTemplate/category/create';
@@ -749,11 +749,11 @@ table th, td {
 				data: data,
 				success: function (result) {
 					if (result.success) {
-						alert(result.message);
+						showToast(result.message, 'success');
 						$('#categoryModal').modal('hide');
 						loadCategories();
 					} else {
-						alert('저장 실패: ' + result.error);
+						showToast('저장에 실패했습니다.', 'error');
 					}
 				}
 			});
@@ -773,10 +773,10 @@ table th, td {
 				},
 				success: function (result) {
 					if (result.success) {
-						alert(result.message);
+						showToast(result.message, 'success');
 						loadCategories();
 					} else {
-						alert('삭제 실패: ' + result.error);
+						showToast('삭제에 실패했습니다.', 'error');
 					}
 				}
 			});
@@ -796,11 +796,11 @@ table th, td {
 						// 카테고리 목록 새로고침
 						loadCategories();
 					} else {
-						alert('순서 변경 실패: ' + result.error);
+						showToast('순서 변경에 실패했습니다.', 'error');
 					}
 				},
 				error: function () {
-					alert('순서 변경 중 오류가 발생했습니다.');
+					showToast('순서 변경 중 오류가 발생했습니다.', 'error');
 				}
 			});
 		}
@@ -831,7 +831,7 @@ table th, td {
 					}
 				},
 				error: function() {
-					alert('연결 목록을 가져오는 중 오류가 발생했습니다.');
+					showToast('연결 목록을 불러오는데 실패했습니다.', 'error');
 				}
 			});
 		}
@@ -1139,8 +1139,22 @@ table th, td {
 			// 추가 SQL 탭들 검증
 			$('#sqlContentTabs .nav-item:not(:first)').each(function () {
 				var tabLink = $(this).find('.nav-link');
-				var connectionId = tabLink.attr('href').replace('#tab-', '');
-				var editorId = 'sqlEditor_' + connectionId;
+				var href = tabLink.attr('href');
+				
+				// href가 없거나 예상 형식이 아니면 건너뛰기
+				if (!href || !href.startsWith('#tab-')) {
+					return;
+				}
+				
+				// 탭 ID에서 연결 ID 추출 (하이픈을 콤마로 복원)
+				var connectionId = tabIdToConnectionId(href.replace('#', ''));
+				
+				// connectionId가 유효하지 않으면 건너뛰기
+				if (!connectionId || connectionId === 'default') {
+					return;
+				}
+				
+				var editorId = connectionIdToEditorId(connectionId);
 				var sqlContent = '';
 
 				if (typeof ace !== 'undefined') {
@@ -1312,11 +1326,12 @@ table th, td {
 				errors.push('중복된 단축키가 있습니다: ' + duplicateShortcuts.join(', '));
 			}
 
-			// 에러가 있으면 알림
-			if (errors.length > 0) {
-				alert('다음 오류를 수정해주세요:\n\n' + errors.join('\n'));
-				return false;
-			}
+		// 에러가 있으면 알림
+		if (errors.length > 0) {
+			// 첫 번째 에러 메시지를 표시
+			showToast(errors[0], 'error');
+			return false;
+		}
 
 			return true;
 		}
@@ -1648,17 +1663,17 @@ table th, td {
 				return;
 			}
 
-			// 템플릿 이름이 없으면 에러
-			if (!$('#sqlTemplateName').val() || !$('#sqlTemplateName').val().trim()) {
-				alert('템플릿 이름을 입력해주세요.');
-				return;
-			}
+		// 템플릿 이름이 없으면 에러
+		if (!$('#sqlTemplateName').val() || !$('#sqlTemplateName').val().trim()) {
+			showToast('템플릿 이름을 입력해주세요.', 'warning');
+			return;
+		}
 
-			// 변경사항이 없으면 저장하지 않음 (선택사항)
-			if (!window.SqlTemplateState.hasUnsavedChanges) {
-				alert('변경된 내용이 없습니다.');
-				return;
-			}
+		// 변경사항이 없으면 저장하지 않음 (선택사항)
+		if (!window.SqlTemplateState.hasUnsavedChanges) {
+			showToast('변경된 내용이 없습니다.', 'info');
+			return;
+		}
 
 			// UI에서 직접 값을 읽어서 서버로 전송
 			saveTemplateToServer();
@@ -1931,7 +1946,7 @@ table th, td {
 						// 추가 데이터 로드 (파라미터, 단축키, SQL 내용)
 						loadAdditionalTemplateData(templateId);
 					} else {
-						alert('템플릿 정보 로드 실패: ' + result.error);
+						showToast('템플릿 정보를 불러오는데 실패했습니다.', 'error');
 					}
 				}
 			});
@@ -1990,11 +2005,11 @@ table th, td {
 			// 탭 ID 생성
 			var tabId = connectionIdToTabId(content.CONNECTION_ID);
 			
-			// 중복 탭 체크
-			if ($('#' + tabId).length > 0) {
-				alert('이미 해당 연결의 SQL 내용이 존재합니다.');
-				return;
-			}
+		// 중복 탭 체크
+		if ($('#' + tabId).length > 0) {
+			showToast('이미 해당 연결의 SQL 내용이 존재합니다.', 'warning');
+			return;
+		}
 			var connectionExists = content.CONNECTION_EXISTS !== false;
 			var tabText = content.CONNECTION_ID;
 			var tabClass = 'nav-link';
@@ -2267,10 +2282,10 @@ table th, td {
 					});
 				}
 
-				if (connections.length === 0) {
-					alert('접근 가능한 연결이 없습니다.');
-					return;
-				}
+			if (connections.length === 0) {
+				showToast('접근 가능한 연결이 없습니다.', 'warning');
+				return;
+			}
 
 				// 연결 선택 모달 표시
 				showConnectionSelectionModal(connections, isEditMode, currentEditingConnectionId);
@@ -2380,10 +2395,10 @@ table th, td {
 			var isEditMode = window.SqlTemplateState.editMode || false;
 			var currentEditingConnectionId = window.SqlTemplateState.currentEditingConnectionId || null;
 
-			if (!templateId) {
-				alert('먼저 템플릿을 선택해주세요.');
-				return;
-			}
+		if (!templateId) {
+			showToast('먼저 템플릿을 선택해주세요.', 'warning');
+			return;
+		}
 
 			// 선택된 연결들에 대해 SQL 내용 생성
 			var selectedConnections = [];
@@ -2391,11 +2406,11 @@ table th, td {
 				selectedConnections.push($(this).val());
 			});
 
-			// 편집 모드가 아닌 경우에만 연결 선택 체크
-			if (!isEditMode && selectedConnections.length === 0) {
-				alert('하나 이상의 연결을 선택해주세요.');
-				return;
-			}
+		// 편집 모드가 아닌 경우에만 연결 선택 체크
+		if (!isEditMode && selectedConnections.length === 0) {
+			showToast('하나 이상의 연결을 선택해주세요.', 'warning');
+			return;
+		}
 
 			// 편집 모드에서 아무것도 선택하지 않은 경우 (현재 연결 제거 모드)
 			if (isEditMode && selectedConnections.length === 0) {
@@ -2687,11 +2702,11 @@ table th, td {
 
 		// SQL 템플릿 삭제
 		function deleteSqlTemplate() {
-			var templateId = $('#sqlTemplateId').val();
-			if (!templateId) {
-				alert('삭제할 템플릿을 선택해주세요.');
-				return;
-			}
+		var templateId = $('#sqlTemplateId').val();
+		if (!templateId) {
+			showToast('삭제할 템플릿을 선택해주세요.', 'warning');
+			return;
+		}
 
 			if (!confirm('정말로 이 SQL 템플릿을 삭제하시겠습니까?')) {
 				return;
@@ -2705,7 +2720,7 @@ table th, td {
 				},
 				success: function (result) {
 					if (result.success) {
-						alert('SQL 템플릿이 삭제되었습니다.');
+						showToast('SQL 템플릿이 삭제되었습니다.', 'success');
 						createNewSqlTemplate();
 						var selectedCategory = $('.category-item.selected').data(
 							'id');
@@ -2715,7 +2730,7 @@ table th, td {
 						// 카테고리별 템플릿 개수 업데이트
 						loadCategoryTemplateCounts();
 					} else {
-						alert('삭제 실패: ' + result.error);
+						showToast('삭제에 실패했습니다.', 'error');
 					}
 				}
 			});
@@ -2798,7 +2813,7 @@ table th, td {
 					activeShortcutField.blur(); // 포커스 해제
 				} else {
 					// F1~F12가 아닌 키를 누른 경우 경고
-					alert('F1~F12 키만 사용 가능합니다.');
+					showToast('F1~F12 키만 사용 가능합니다.', 'warning');
 				}
 			}
 		});
@@ -2841,7 +2856,7 @@ table th, td {
 				'info': 'alert-info'
 			}[type] || 'alert-info';
 
-			var toast = $('<div id="' + toastId + '" class="alert ' + bgClass + ' alert-dismissible" style="margin-bottom: 10px; animation: slideInRight 0.3s ease-out;">' +
+			var toast = $('<div id="' + toastId + '" class="alert ' + bgClass + ' alert-dismissible" style="margin-bottom: 10px; animation: slideInDown 0.3s ease-out;">' +
 				'<button type="button" class="close" data-dismiss="alert">&times;</button>' +
 				'<i class="fa ' + iconClass + '"></i> ' + message +
 				'</div>');
@@ -2941,17 +2956,17 @@ table th, td {
 	</script>
 
 	<!-- Toast 알림 컨테이너 -->
-	<div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999; width: 350px;"></div>
+	<div id="toastContainer" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 350px; font-size: 15px;"></div>
 
 	<style>
-		@keyframes slideInRight {
+		@keyframes slideInDown {
 			from {
-				transform: translateX(100%);
+				transform: translateY(-100%);
 				opacity: 0;
 			}
 
 			to {
-				transform: translateX(0);
+				transform: translateY(0);
 				opacity: 1;
 			}
 		}
