@@ -71,6 +71,7 @@
 
 #result_table {
 	font-family: D2Coding !important;
+	transition: height 0.3s ease;
 }
 </style>
 
@@ -337,7 +338,7 @@ var tableHeight=0;
 					data: data,
 					columns: column,
 					...tableoption,
-					height: $('#result_table').hasClass( "in" )?"85vh":(tableoption && tableoption.height ? tableoption.height : "400px"),
+					height: $('#expenda i').hasClass('fa-chevron-up') ? "85vh" : (tableHeight > 0 ? tableHeight + "px" : "400px"),
 				});
 				
 				setTimeout(() => {
@@ -360,7 +361,7 @@ var tableHeight=0;
 					data: data,
 					columns: column,
 					...tableoption,
-					height: $('#result_table').hasClass( "in" )?"85vh":(tableoption && tableoption.height ? tableoption.height : "400px"),
+					height: $('#expenda i').hasClass('fa-chevron-up') ? "85vh" : (tableHeight > 0 ? tableHeight + "px" : "400px"),
 				});
 			}
 		});
@@ -389,22 +390,37 @@ var tableHeight=0;
 		// 결과 테이블 확장/축소 버튼 이벤트
 		// ========================================
 		$("#expenda").click(function() {
+		    var resultTable = $('#result_table');
+		    var button = $(this);
+		    var icon = button.find('i');
+		    
+		    if (icon.hasClass('fa-chevron-down')) {
+		        // 펼치기
+		        resultTable.css('height', '85vh');
+		        icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+		        
+		        // 테이블 높이 조정 및 다시 그리기
+		        if (table) {
+		            table.setHeight("85vh");
+		            table.redraw();
+		        }
+		    } else {
+		        // 접기
+		        var originalHeight = tableHeight > 0 ? tableHeight + "px" : "400px";
+		        resultTable.css('height', originalHeight);
+		        icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+		        
+		        // 테이블 높이 조정 및 다시 그리기
+		        if (table) {
+		            table.setHeight(originalHeight);
+		            table.redraw();
+		        }
+		    }
+		    
+		    // 스크롤 애니메이션
 		    $([document.documentElement, document.body]).animate({
 		        scrollTop: $("#result_table").offset().top-50
 		    }, 700);
-		});
-		
-		// Bootstrap collapse 이벤트로 아이콘 변경
-		$('#result_table').on('show.bs.collapse', function () {
-		    var button = $('#expenda');
-		    var icon = button.find('i');
-		    icon.removeClass('fa-chevron-down').addClass('fa-chevron-up');
-		});
-		
-		$('#result_table').on('hide.bs.collapse', function () {
-		    var button = $('#expenda');
-		    var icon = button.find('i');
-		    icon.removeClass('fa-chevron-up').addClass('fa-chevron-down');
 		});
 
 		// 탭 전환 시 Result 탭으로 이동할 때 저장된 데이터로 테이블 다시 그리기
@@ -422,7 +438,7 @@ var tableHeight=0;
 						return {...item, width:undefined}
 					}):lastExecutionColumns,
 					...lastExecutionTableOption,
-					height: $('#result_table').hasClass( "in" )?"85vh":lastExecutionTableOption.height,
+					height: $('#expenda i').hasClass('fa-chevron-up') ? "85vh" : (tableHeight > 0 ? tableHeight + "px" : "400px"),
 				});
 				
 				// 컬럼 크기 조정 이벤트 처리
@@ -751,7 +767,7 @@ var tableHeight=0;
 						return {...item, width:undefined}
 					}):column,
 					...tableoption,
-					height: $('#result_table').hasClass( "in" )?"85vh":(tableoption && tableoption.height ? tableoption.height : "400px"),
+					height: $('#expenda i').hasClass('fa-chevron-up') ? "85vh" : (tableHeight > 0 ? tableHeight + "px" : "400px"),
 				});
 				
 				// 컬럼 크기 조정 이벤트 처리
@@ -767,14 +783,9 @@ var tableHeight=0;
 				});
 				
 					
-				// 결과 테이블 축소 상태 설정
-				if(!$('#result_table').hasClass( "collapse" )){
-					$('#result_table').addClass('collapse');
-					$('#result_table').attr('aria-expanded', 'false');
-					$('#result_table').css('min-height', tableHeight + "px");
-//	 				$('#result_table').css('height', tableHeight + "px");
-					$('#expenda').parent().addClass('expenda');
-				}
+				// 결과 테이블 초기 높이 설정
+				var initialHeight = tableHeight > 0 ? tableHeight + "px" : "400px";
+				$('#result_table').css('height', initialHeight);
 					
 
 				// 테이블 다시 그리기
@@ -1219,7 +1230,7 @@ var tableHeight=0;
 								</div>
 								<div id="result_table" class="tabulator-placeholder table-striped table-bordered" style="display: block"></div>
 								<div style="text-align: center; margin-top: 5px;">
-									<button type="button" id="expenda" class="btn btn-sm btn-default collapsed" data-toggle="collapse" href="#result_table" aria-expanded="false" aria-controls="result_table" style="border-radius: 50%; width: 30px; height: 30px; padding: 0;">
+									<button type="button" id="expenda" class="btn btn-sm btn-default" style="border-radius: 50%; width: 30px; height: 30px; padding: 0;">
 										<i class="fa fa-chevron-down"></i>
 									</button>
 								</div>
