@@ -1377,6 +1377,46 @@
 			return connectionId;
 		}
 
+		// 연결 목록을 축약된 형태로 표시 (탭 제목용)
+		function getShortConnectionTitle(connectionId) {
+			if (!connectionId) return '';
+			
+			// 쉼표로 구분된 연결 ID들 분리
+			var connectionIds = connectionId.split(',').map(function(id) {
+				return id.trim();
+			}).filter(function(id) {
+				return id.length > 0;
+			});
+			
+			// 연결이 1개인 경우 그대로 반환
+			if (connectionIds.length <= 1) {
+				return connectionId;
+			}
+			
+			// 연결이 2개 이상인 경우 "첫번째 외 N개" 형식으로 축약
+			var firstConnection = connectionIds[0];
+			var remainingCount = connectionIds.length - 1;
+			
+			return firstConnection + ' 외 ' + remainingCount + '개';
+		}
+
+		// 전체 연결 목록을 툴팁용으로 포맷팅
+		function getFullConnectionTooltip(connectionId) {
+			if (!connectionId) return '';
+			
+			var connectionIds = connectionId.split(',').map(function(id) {
+				return id.trim();
+			}).filter(function(id) {
+				return id.length > 0;
+			});
+			
+			if (connectionIds.length <= 1) {
+				return connectionId;
+			}
+			
+			return '전체 연결: ' + connectionIds.join(', ');
+		}
+
 		// 서버로 템플릿 저장 (UI에서 직접 값을 읽어서 API로 전송)
 		function saveTemplateToServer() {
 			// UI에서 직접 값을 읽어서 새로운 JSON API 스펙에 맞게 데이터 구성
@@ -1651,7 +1691,8 @@
 			return;
 		}
 			var connectionExists = content.CONNECTION_EXISTS !== false;
-			var tabText = content.CONNECTION_ID;
+			var tabText = getShortConnectionTitle(content.CONNECTION_ID); // 축약된 제목 사용
+			var tabTooltip = getFullConnectionTooltip(content.CONNECTION_ID); // 툴팁용 전체 연결 목록
 			var tabClass = 'nav-link';
 
 			// 연결이 삭제된 경우 빨간색으로 표시
@@ -1661,7 +1702,7 @@
 			}
 
 			// 탭 생성 (편집 버튼 포함)
-			var tabElement = createSqlContentTab(content, tabId, tabClass, tabText);
+			var tabElement = createSqlContentTab(content, tabId, tabClass, tabText, tabTooltip);
 			// "+" 탭 앞에 새 탭 삽입
 			if ($('#sqlContentTabs .add-tab').length > 0) {
 				$('#sqlContentTabs .add-tab').before(tabElement);
@@ -1729,7 +1770,8 @@
 					// 탭 ID 생성 (하이픈 기반)
 					var tabId = connectionIdToTabId(content.CONNECTION_ID);
 					var connectionExists = content.CONNECTION_EXISTS !== false; // 기본값은 true
-					var tabText = content.CONNECTION_ID; // 사용자에게는 콤마로 표시
+					var tabText = getShortConnectionTitle(content.CONNECTION_ID); // 축약된 제목 사용
+					var tabTooltip = getFullConnectionTooltip(content.CONNECTION_ID); // 툴팁용 전체 연결 목록
 					var tabClass = 'nav-link';
 
 					// 연결이 삭제된 경우 빨간색으로 표시
@@ -1739,7 +1781,7 @@
 					}
 
 					// 탭 생성 (편집 버튼 포함)
-					var tabElement = createSqlContentTab(content, tabId, tabClass, tabText);
+					var tabElement = createSqlContentTab(content, tabId, tabClass, tabText, tabTooltip);
 					tabsFragment.appendChild(tabElement);
 
 					// 탭 컨텐츠 생성
@@ -1781,9 +1823,12 @@
 		}
 		
 		// SQL 내용 탭 생성 함수 (HTML 문자열로 최적화)
-		function createSqlContentTab(content, tabId, tabClass, tabText) {
+		function createSqlContentTab(content, tabId, tabClass, tabText, tabTooltip) {
+			// 툴팁이 있는 경우 title 속성 추가
+			var titleAttr = tabTooltip ? ' title="' + escapeHtml(tabTooltip) + '"' : '';
+			
 			var tabHtml = '<li class="nav-item" style="display: inline-flex; align-items: center;">' +
-						'<a class="' + tabClass + '" data-toggle="tab" href="#' + tabId + '" style="display: inline-flex; align-items: center; gap: 10px; ">' +
+						'<a class="' + tabClass + '" data-toggle="tab" href="#' + tabId + '" style="display: inline-flex; align-items: center; gap: 10px; "' + titleAttr + '>' +
 						// 편집 아이콘 (왼쪽)
 						'<button type="button" class="btn btn-sm" ' +
 						'onclick="editSqlConnections(\'' + escapeHtml(content.CONNECTION_ID) + '\'); event.stopPropagation();" ' +
@@ -2057,8 +2102,18 @@
 
 			// 편집 모드에서 아무것도 선택하지 않은 경우 (현재 연결 제거 모드)
 			if (isEditMode && selectedConnections.length === 0) {
-				// 현재 연결이 체크 해제된 경우 제거 모드로 진행
-				// 추가 검증 없이 진행
+				// 현재 연결이 체크 해제된 경우 삭제 확인
+				var shortTitle = getShortConnectionTitle(currentEditingConnectionId);
+				var fullConnections = currentEditingConnectionId;
+				
+				var confirmMessage = '모든 연결을 해제하면 해당 SQL 탭이 삭제됩니다.\n\n' +
+					'탭 제목: ' + shortTitle + '\n' +
+					'전체 연결: ' + fullConnections + '\n\n' +
+					'정말 삭제하시겠습니까?';
+				
+				if (!confirm(confirmMessage)) {
+					return; // 사용자가 취소를 선택한 경우 함수 종료
+				}
 			}
 
 
@@ -2067,11 +2122,16 @@
 				if (selectedConnections.length === 0) {
 					// 현재 연결 제거 - DOM에서 직접 탭 제거
 					var oldTabId = connectionIdToTabId(currentEditingConnectionId);
+					var deletedTabTitle = getShortConnectionTitle(currentEditingConnectionId);
+					
 					$('#' + oldTabId).remove();
 					$('a[href="#' + oldTabId + '"]').closest('.nav-item').remove();
 					
 					// 기본 탭 활성화
 					$('a[href="#tab-default"]').tab('show');
+					
+					// 삭제 완료 메시지
+					showToast('SQL 탭이 삭제되었습니다: ' + deletedTabTitle, 'success');
 				} else {
 					// 현재 연결을 선택된 연결들로 교체
 					var newConnectionId = selectedConnections.join(',');
@@ -2294,8 +2354,9 @@
 				}
 			}
 			
-			// 탭 텍스트와 클래스 설정
-			var tabText = newConnectionId;
+			// 탭 텍스트와 클래스 설정 (축약된 제목 사용)
+			var tabText = getShortConnectionTitle(newConnectionId);
+			var tabTooltip = getFullConnectionTooltip(newConnectionId);
 			var tabClass = 'nav-link';
 			
 			if (!allConnectionsExist) {
@@ -2311,6 +2372,13 @@
 				
 				// 탭 클래스 업데이트 (색상 반영)
 				tabLink.attr('class', tabClass);
+				
+				// 툴팁 추가/업데이트
+				if (tabTooltip) {
+					tabLink.attr('title', tabTooltip);
+				} else {
+					tabLink.removeAttr('title');
+				}
 				
 				// 탭 텍스트 업데이트 - span 요소 찾아서 업데이트
 				var spanElement = tabLink.find('span');
