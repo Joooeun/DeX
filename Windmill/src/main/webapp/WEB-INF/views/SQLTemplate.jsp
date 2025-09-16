@@ -1891,13 +1891,12 @@ table th, td {
 				if (connectionId && connectionId !== 'default') {
 					var editorId = connectionIdToEditorId(connectionId);
 					var sqlContent = getSqlContentFromEditor(editorId);
-					if (sqlContent && sqlContent.trim()) {
-						sqlContents.push({
-							connectionId: connectionId,
-							sqlContent: sqlContent,
-							version: 1
-						});
-					}
+					
+					sqlContents.push({
+						connectionId: connectionId,
+						sqlContent: sqlContent || '', 
+						version: 1
+					});
 				}
 			});
 			
