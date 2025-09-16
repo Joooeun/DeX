@@ -1586,8 +1586,9 @@ table th, td {
 			$('#sqlExecutionLimit').val('0');
 			$('#sqlRefreshTimeout').val('0');
 			$('#sqlChartMapping').val('');
-			// 개행 보기 설정 (이벤트 트리거 방지)
-			$('#sqlNewline').off('change').prop('checked', true);
+			// 체크박스 설정 (이벤트 트리거 방지)
+			$('#sqlNewline').off('change').prop('checked', false);
+			$('#sqlInactive').prop('checked', false);
 			$('#sqlAudit').prop('checked', false);
 
 			// 해당 메뉴로 이동 버튼 비활성화
@@ -1926,8 +1927,9 @@ table th, td {
 						$('#sqlRefreshTimeout').val(
 							template.refreshTimeout || 0);
 						$('#sqlChartMapping').val(template.chartMapping || '');
-						// 개행 보기 설정 (이벤트 트리거 방지)
-						$('#sqlNewline').off('change').prop('checked', template.newline !== false);
+						// 체크박스 설정 (이벤트 트리거 방지)
+						$('#sqlNewline').off('change').prop('checked', template.newline === true);
+						$('#sqlInactive').prop('checked', template.sqlStatus === 'INACTIVE');
 						$('#sqlAudit').prop('checked', template.audit === true);
 
 						// 해당 메뉴로 이동 버튼 활성화
@@ -3194,9 +3196,9 @@ table th, td {
 									</h4>
 								</div>
 								<div class="panel-body" style="padding: 15px;">
-									<!-- 기본 정보 -->
+									<!-- 첫 번째 행: 이름(1) + 실행제한(1) + 카테고리(2) -->
 									<div class="row">
-										<div class="col-md-6">
+										<div class="col-md-3">
 											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
 													title="SQL 템플릿의 고유 이름입니다. 대시보드와 메뉴에서 표시되며, 100자 이하로 입력해주세요."
@@ -3207,21 +3209,18 @@ table th, td {
 													id="sqlTemplateName" placeholder="예: 사용자 활동 조회">
 											</div>
 										</div>
-										<div class="col-md-6">
+										<div class="col-md-3">
 											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
-													title="이 템플릿의 용도와 사용법을 설명하세요"
+													title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습니다."
 													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													설명
+													실행 제한 (행)
 												</label>
-												<textarea class="form-control" id="sqlTemplateDesc" rows="2"
-													placeholder="이 템플릿의 용도와 사용법을 설명하세요"></textarea>
+												<input type="number" class="form-control"
+													id="sqlExecutionLimit" value="0" min="0" max="20000"
+													placeholder="0 = 제한 없음">
 											</div>
 										</div>
-									</div>
-									
-									<!-- 카테고리와 접근 가능한 DB 연결 -->
-									<div class="row">
 										<div class="col-md-6">
 											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
@@ -3231,6 +3230,38 @@ table th, td {
 												</label>
 												<select class="form-control" id="sqlTemplateCategories" multiple>
 													<!-- 카테고리 옵션들이 여기에 로드됩니다 -->
+												</select>
+											</div>
+										</div>
+									</div>
+									
+									<!-- 두 번째 행: 새로고침간격(1) + 차트매핑(1) + 연결가능DB(2) -->
+									<div class="row">
+										<div class="col-md-3">
+											<div class="form-group" style="margin-bottom: 15px;">
+												<label data-toggle="tooltip" data-placement="top"
+													title="대시보드에서 자동으로 데이터를 새로고침하는 간격을 설정합니다. 0으로 설정하면 자동 새로고침을 사용하지 않습니다."
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													새로고침 간격 (초)
+												</label>
+												<input type="number" class="form-control"
+													id="sqlRefreshTimeout" value="0" min="0" max="3600"
+													placeholder="0 = 자동 새로고침 안함">
+											</div>
+										</div>
+										<div class="col-md-3">
+											<div class="form-group" style="margin-bottom: 15px;">
+												<label data-toggle="tooltip" data-placement="top"
+													title="대시보드에서 차트로 표시할 컬럼을 선택합니다"
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													차트 매핑
+												</label>
+												<select class="form-control" id="sqlChartMapping">
+													<option value="">차트 매핑 없음</option>
+													<option value="APPL_COUNT">애플리케이션 수</option>
+													<option value="LOCK_WAIT_COUNT">락 대기 수</option>
+													<option value="ACTIVE_LOG">활성 로그</option>
+													<option value="FILESYSTEM">파일시스템</option>
 												</select>
 											</div>
 										</div>
@@ -3248,102 +3279,74 @@ table th, td {
 										</div>
 									</div>
 									
-									<!-- 실행 설정 -->
+									<!-- 세 번째 행: 설명(2) + 옵션설정(2) -->
 									<div class="row">
-										<div class="col-md-4">
+										<div class="col-md-6">
 											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
-													title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습니다."
+													title="이 템플릿의 용도와 사용법을 설명하세요"
 													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													실행 제한 (행)
+													설명
 												</label>
-												<input type="number" class="form-control"
-													id="sqlExecutionLimit" value="0" min="0" max="20000"
-													placeholder="0 = 제한 없음">
+												<textarea class="form-control" id="sqlTemplateDesc" rows="3"
+													placeholder="이 템플릿의 용도와 사용법을 설명하세요"></textarea>
 											</div>
 										</div>
-										<div class="col-md-4">
+										<div class="col-md-6">
 											<div class="form-group" style="margin-bottom: 15px;">
-												<label data-toggle="tooltip" data-placement="top"
-													title="대시보드에서 자동으로 데이터를 새로고침하는 간격을 설정합니다. 0으로 설정하면 자동 새로고침을 사용하지 않습니다."
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													새로고침 간격 (초)
+												<label style="font-size: 12px; margin-bottom: 10px; font-weight: 500; display: block;">
+													옵션 설정
 												</label>
-												<input type="number" class="form-control"
-													id="sqlRefreshTimeout" value="0" min="0" max="3600"
-													placeholder="0 = 자동 새로고침 안함">
-											</div>
-										</div>
-										<div class="col-md-4">
-											<div class="form-group" style="margin-bottom: 15px;">
-												<label data-toggle="tooltip" data-placement="top"
-													title="대시보드에서 차트로 표시할 컬럼을 선택합니다"
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													차트 매핑
-												</label>
-												<select class="form-control" id="sqlChartMapping">
-													<option value="">차트 매핑 없음</option>
-													<option value="APPL_COUNT">애플리케이션 수</option>
-													<option value="LOCK_WAIT_COUNT">락 대기 수</option>
-													<option value="ACTIVE_LOG">활성 로그</option>
-													<option value="FILESYSTEM">파일시스템</option>
-												</select>
+												<div class="row">
+													<div class="col-md-4">
+														<div class="form-group" style="margin-bottom: 10px;">
+															<label data-toggle="tooltip" data-placement="top"
+																title="결과 테이블에서 긴 텍스트를 여러 줄로 표시합니다"
+																style="font-size: 11px; margin-bottom: 5px; font-weight: 500; display: block;">
+																개행보기
+															</label>
+															<label class="switch">
+																<input type="checkbox" id="sqlNewline">
+																<span class="slider round"></span>
+															</label>
+														</div>
+													</div>
+													<div class="col-md-4">
+														<div class="form-group" style="margin-bottom: 10px;">
+															<label data-toggle="tooltip" data-placement="top"
+																title="SQL 실행 기록을 감사 로그에 남깁니다"
+																style="font-size: 11px; margin-bottom: 5px; font-weight: 500; display: block;">
+																감사로그
+															</label>
+															<label class="switch">
+																<input type="checkbox" id="sqlAudit">
+																<span class="slider round"></span>
+															</label>
+														</div>
+													</div>
+													<div class="col-md-4">
+														<div class="form-group" style="margin-bottom: 10px;">
+															<label data-toggle="tooltip" data-placement="top"
+																title="템플릿을 비활성화하면 메뉴에서 숨겨집니다"
+																style="font-size: 11px; margin-bottom: 5px; font-weight: 500; display: block;">
+																비활성화
+															</label>
+															<label class="switch">
+																<input type="checkbox" id="sqlInactive">
+																<span class="slider round"></span>
+															</label>
+														</div>
+													</div>
+												</div>
 											</div>
 										</div>
 									</div>
 									
-									<!-- 표시 설정 -->
-									<div class="row">
-										<div class="col-md-4">
-											<div class="form-group" style="margin-bottom: 15px;">
-												<label data-toggle="tooltip" data-placement="top"
-													title="개행 문자 표시"
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													개행 보기
-												</label>
-												<div style="margin-top: 5px;">
-													<label class="switch">
-														<input type="checkbox" id="sqlNewline" checked>
-														<span class="slider"></span>
-													</label>
-												</div>
-											</div>
-										</div>
-										<div class="col-md-4">
-											<div class="form-group" style="margin-bottom: 15px;">
-												<label data-toggle="tooltip" data-placement="top"
-													title="템플릿 사용 상태 토글 (활성/비활성)"
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													비활성화
-												</label>
-												<div style="margin-top: 5px;">
-													<label class="switch">
-														<input type="checkbox" id="sqlInactive">
-														<span class="slider"></span>
-													</label>
-												</div>
-												<select class="form-control" id="sqlTemplateStatus" style="display: none;">
-													<option value="ACTIVE">활성</option>
-													<option value="INACTIVE">비활성</option>
-												</select>
-											</div>
-										</div>
-										<div class="col-md-4">
-											<div class="form-group" style="margin-bottom: 15px;">
-												<label data-toggle="tooltip" data-placement="top"
-													title="감사 로그 저장"
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													감사 로그
-												</label>
-												<div style="margin-top: 5px;">
-													<label class="switch">
-														<input type="checkbox" id="sqlAudit">
-														<span class="slider"></span>
-													</label>
-												</div>
-											</div>
-										</div>
-									</div>
+									<!-- 숨겨진 상태 필드 (JavaScript에서 체크박스와 동기화) -->
+									<select class="form-control" id="sqlTemplateStatus" style="display: none;">
+										<option value="ACTIVE">활성</option>
+										<option value="INACTIVE">비활성</option>
+									</select>
 								</div>
 							</div>
 
