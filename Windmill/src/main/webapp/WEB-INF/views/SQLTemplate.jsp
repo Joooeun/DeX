@@ -2609,21 +2609,80 @@ table th, td {
 			var oldTabId = connectionIdToTabId(oldConnectionId);
 			var newTabId = connectionIdToTabId(newConnectionId);
 			
+			// 새로운 연결들의 존재 여부 확인 (편집에서는 존재하는 연결들만 선택되므로 모두 존재)
+			var newConnectionIds = newConnectionId.split(',');
+			var allConnectionsExist = true;
+			
+			// 편집 모드에서는 이미 존재하는 연결들만 선택할 수 있으므로 
+			// 새로 선택된 연결들은 모두 존재한다고 가정
+			// (삭제된 연결은 체크박스에서 해제되어 newConnectionId에 포함되지 않음)
+			if (window.SqlTemplateState.dbConnections && newConnectionIds.length > 0) {
+				for (var i = 0; i < newConnectionIds.length; i++) {
+					var connId = newConnectionIds[i].trim();
+					var connectionExists = window.SqlTemplateState.dbConnections.some(function(conn) {
+						return conn.CONNECTION_ID === connId;
+					});
+					if (!connectionExists) {
+						allConnectionsExist = false;
+						break;
+					}
+				}
+			}
+			
+			// 탭 텍스트와 클래스 설정
+			var tabText = newConnectionId;
+			var tabClass = 'nav-link';
+			
+			if (!allConnectionsExist) {
+				tabText += ' <span class="text-danger">(연결 삭제됨)</span>';
+				tabClass += ' text-danger';
+			}
+			
 			// 탭 링크 업데이트
 			var tabLink = $('a[href="#' + oldTabId + '"]');
 			if (tabLink.length > 0) {
 				// 탭 ID 변경
 				tabLink.attr('href', '#' + newTabId);
-				// 탭 텍스트 업데이트 (연결명만)
-				tabLink.contents().filter(function() {
-					return this.nodeType === 3; // 텍스트 노드만
-				}).first().replaceWith(newConnectionId);
+				
+				// 탭 클래스 업데이트 (색상 반영)
+				tabLink.attr('class', tabClass);
+				
+				// 탭 텍스트 업데이트 - span 요소 찾아서 업데이트
+				var spanElement = tabLink.find('span');
+				if (spanElement.length > 0) {
+					spanElement.html(tabText); // HTML로 변경하여 <span class="text-danger"> 태그 지원
+				}
+				
+				// 편집 버튼의 onclick 속성도 업데이트
+				var editButton = tabLink.find('button[title="연결 편집"]');
+				if (editButton.length > 0) {
+					editButton.attr('onclick', 'editSqlConnections(\'' + newConnectionId.replace(/'/g, "\\'") + '\'); event.stopPropagation();');
+				}
+				
+				// 삭제 버튼의 onclick 속성도 업데이트
+				var deleteButton = tabLink.find('button[title="탭 삭제"]');
+				if (deleteButton.length > 0) {
+					deleteButton.attr('onclick', 'deleteSqlContentTab(\'' + newConnectionId.replace(/'/g, "\\'") + '\'); event.stopPropagation();');
+				}
 			}
 			
 			// 탭 패널 ID 변경
 			var tabPanel = $('#' + oldTabId);
 			if (tabPanel.length > 0) {
 				tabPanel.attr('id', newTabId);
+				
+				// 기존 경고 메시지 제거
+				tabPanel.find('.alert-warning').remove();
+				
+				// 연결이 삭제된 경우 새로운 경고 메시지 추가
+				if (!allConnectionsExist) {
+					var alertHtml = '<div class="alert alert-warning" role="alert">' +
+						'<i class="fa fa-exclamation-triangle"></i> ' +
+						'<strong>경고:</strong> 해당 연결(' + newConnectionId + ')이 삭제되었습니다. ' +
+						'다른 연결을 선택하거나 이 SQL 내용을 삭제하세요.' +
+						'</div>';
+					tabPanel.find('.sql-editor-container').prepend(alertHtml);
+				}
 			}
 			
 			// 에디터 컨테이너의 data-connection-id 업데이트
@@ -2640,10 +2699,14 @@ table th, td {
 			if (oldEditorElement.length > 0) {
 				oldEditorElement.attr('id', newEditorId);
 				
-				// ACE 에디터 인스턴스도 업데이트
+				// ACE 에디터 인스턴스도 업데이트 (여러 위치 확인)
 				if (window.sqlEditors && window.sqlEditors[oldEditorId]) {
 					window.sqlEditors[newEditorId] = window.sqlEditors[oldEditorId];
 					delete window.sqlEditors[oldEditorId];
+				}
+				if (window.SqlTemplateState.sqlEditors && window.SqlTemplateState.sqlEditors[oldEditorId]) {
+					window.SqlTemplateState.sqlEditors[newEditorId] = window.SqlTemplateState.sqlEditors[oldEditorId];
+					delete window.SqlTemplateState.sqlEditors[oldEditorId];
 				}
 			}
 		}
@@ -2982,61 +3045,6 @@ table th, td {
 			}
 		}
 
-		/* 토글 스위치 스타일 */
-		.switch {
-			position: relative;
-			display: inline-block;
-			width: 60px;
-			height: 34px;
-		}
-
-		.switch input {
-			opacity: 0;
-			width: 0;
-			height: 0;
-		}
-
-		.slider {
-			position: absolute;
-			cursor: pointer;
-			top: 0;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			background-color: #ccc;
-			transition: .4s;
-		}
-
-		.slider:before {
-			position: absolute;
-			content: "";
-			height: 26px;
-			width: 26px;
-			left: 4px;
-			bottom: 4px;
-			background-color: white;
-			transition: .4s;
-		}
-
-		input:checked + .slider {
-			background-color: #2196F3;
-		}
-
-		input:focus + .slider {
-			box-shadow: 0 0 1px #2196F3;
-		}
-
-		input:checked + .slider:before {
-			transform: translateX(26px);
-		}
-
-		.slider.round {
-			border-radius: 34px;
-		}
-
-		.slider.round:before {
-			border-radius: 50%;
-		}
 
 		/* 패널 헤더 아이콘 스타일 */
 		.panel-title i {
