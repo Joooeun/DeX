@@ -559,7 +559,7 @@ public class SqlTemplateService {
 				}
 			}
 		}
-
+		
 		// 단축키 처리
 		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_SHORTCUT WHERE SOURCE_TEMPLATE_ID = ?", templateId);
 
@@ -1203,26 +1203,29 @@ public class SqlTemplateService {
 		
 		try {
 			String templateId = request.getTemplate().getTemplateId();
+			boolean isUpdate = StringUtils.hasText(templateId) && templateExists(templateId);
 			
-			// 1. 기존 데이터 삭제 (수정인 경우)
-			if (StringUtils.hasText(templateId)) {
-				deleteExistingRelatedData(templateId);
+			if (isUpdate) {
+				// UPDATE 방식 - 기존 템플릿 업데이트
+				// 1. 템플릿 기본 정보 업데이트
+				updateTemplateInfo(request.getTemplate(), userId);
+				
+				// 2. 관련 데이터 개별 업데이트 (삭제 후 재생성)
+				updateCategoryMappings(templateId, request.getCategories(), userId);
+				updateParameters(templateId, request.getParameters());
+				updateShortcuts(templateId, request.getShortcuts());
+				updateSqlContents(templateId, request.getSqlContents(), userId);
+			} else {
+				// INSERT 방식 - 새 템플릿 생성
+				// 1. 템플릿 기본 정보 저장
+				saveTemplateInfo(request.getTemplate(), userId);
+				
+				// 2. 관련 데이터 저장
+				saveCategoryMappings(templateId, request.getCategories(), userId);
+				saveParameters(templateId, request.getParameters());
+				saveShortcuts(templateId, request.getShortcuts());
+				saveSqlContents(templateId, request.getSqlContents(), userId);
 			}
-			
-			// 2. 템플릿 기본 정보 저장
-			saveTemplateInfo(request.getTemplate(), userId);
-			
-			// 3. 카테고리 매핑 저장
-			saveCategoryMappings(templateId, request.getCategories(), userId);
-			
-			// 4. 파라미터 저장
-			saveParameters(templateId, request.getParameters());
-			
-			// 5. 단축키 저장
-			saveShortcuts(templateId, request.getShortcuts());
-			
-			// 6. SQL 내용 저장
-			saveSqlContents(templateId, request.getSqlContents(), userId);
 			
 			result.put("success", true);
 			result.put("templateId", templateId);
@@ -1430,7 +1433,88 @@ public class SqlTemplateService {
 	}
 
 	/**
-	 * 기존 관련 데이터 삭제
+	 * 템플릿 존재 여부 확인
+	 */
+	private boolean templateExists(String templateId) {
+		String sql = "SELECT COUNT(*) FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
+		Integer count = jdbcTemplate.queryForObject(sql, Integer.class, templateId);
+		return count != null && count > 0;
+	}
+
+	/**
+	 * 템플릿 기본 정보 업데이트
+	 */
+	private void updateTemplateInfo(SqlTemplateInfo template, String userId) {
+		String sql = "UPDATE SQL_TEMPLATE SET " +
+		             "TEMPLATE_NAME = ?, TEMPLATE_DESC = ?, SQL_CONTENT = ?, " +
+		             "ACCESSIBLE_CONNECTION_IDS = ?, CHART_MAPPING = ?, VERSION = ?, " +
+		             "STATUS = ?, EXECUTION_LIMIT = ?, REFRESH_TIMEOUT = ?, " +
+		             "NEWLINE = ?, AUDIT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " +
+		             "WHERE TEMPLATE_ID = ?";
+		
+		jdbcTemplate.update(sql,
+			template.getTemplateName(),
+			template.getTemplateDesc(),
+			template.getSqlContent(),
+			template.getAccessibleConnectionIds() != null ? String.join(",", template.getAccessibleConnectionIds()) : null,
+			template.getChartMapping(),
+			template.getVersion() != null ? template.getVersion() : 1,
+			template.getStatus() != null ? template.getStatus() : "ACTIVE",
+			template.getExecutionLimit() != null ? template.getExecutionLimit() : 0,
+			template.getRefreshTimeout() != null ? template.getRefreshTimeout() : 0,
+			template.getNewline() != null ? template.getNewline() : true,
+			template.getAudit() != null ? template.getAudit() : false,
+			userId,
+			template.getTemplateId()
+		);
+	}
+
+	/**
+	 * 카테고리 매핑 업데이트
+	 */
+	private void updateCategoryMappings(String templateId, List<String> categories, String userId) {
+		// 기존 카테고리 매핑 삭제
+		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE TEMPLATE_ID = ?", templateId);
+		
+		// 새 카테고리 매핑 저장
+		saveCategoryMappings(templateId, categories, userId);
+	}
+
+	/**
+	 * 파라미터 업데이트
+	 */
+	private void updateParameters(String templateId, List<SqlTemplateParameter> parameters) {
+		// 기존 파라미터 삭제
+		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_PARAMETER WHERE TEMPLATE_ID = ?", templateId);
+		
+		// 새 파라미터 저장
+		saveParameters(templateId, parameters);
+	}
+
+	/**
+	 * 단축키 업데이트
+	 */
+	private void updateShortcuts(String templateId, List<SqlTemplateShortcut> shortcuts) {
+		// 기존 단축키 삭제 (SOURCE_TEMPLATE_ID만 - 이 템플릿에서 나가는 단축키만)
+		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_SHORTCUT WHERE SOURCE_TEMPLATE_ID = ?", templateId);
+		
+		// 새 단축키 저장
+		saveShortcuts(templateId, shortcuts);
+	}
+
+	/**
+	 * SQL 내용 업데이트
+	 */
+	private void updateSqlContents(String templateId, List<SqlContent> sqlContents, String userId) {
+		// 기존 SQL 내용 삭제
+		jdbcTemplate.update("DELETE FROM SQL_CONTENT WHERE TEMPLATE_ID = ?", templateId);
+		
+		// 새 SQL 내용 저장
+		saveSqlContents(templateId, sqlContents, userId);
+	}
+
+	/**
+	 * 기존 관련 데이터 삭제 (레거시 - 더 이상 사용하지 않음)
 	 */
 	private void deleteExistingRelatedData(String templateId) {
 		// 카테고리 매핑 삭제

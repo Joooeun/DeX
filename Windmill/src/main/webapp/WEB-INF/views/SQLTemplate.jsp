@@ -232,10 +232,11 @@
 		}
 
 		// 카테고리 선택
-		function selectCategory(categoryId) {
+		async function selectCategory(categoryId) {
 			// 변경사항 확인 (초기 로드 시에는 확인하지 않음)
 			if ($('.category-item.selected').length > 0) {
-				if (!confirmUnsavedChanges('현재 템플릿에 저장되지 않은 변경사항이 있습니다.\n다른 카테고리로 이동하시겠습니까?')) {
+				const canProceed = await confirmUnsavedChanges('현재 템플릿에 저장되지 않은 변경사항이 있습니다.\n다른 카테고리로 이동하시겠습니까?');
+				if (!canProceed) {
 					return;
 				}
 				
@@ -287,9 +288,10 @@
 		}
 
 		// 템플릿 선택
-		function selectTemplate(templateId) {
+		async function selectTemplate(templateId) {
 			// 변경사항 확인
-			if (!confirmUnsavedChanges('현재 템플릿에 저장되지 않은 변경사항이 있습니다.\n다른 템플릿으로 이동하시겠습니까?')) {
+			const canProceed = await confirmUnsavedChanges('현재 템플릿에 저장되지 않은 변경사항이 있습니다.\n다른 템플릿으로 이동하시겠습니까?');
+			if (!canProceed) {
 				return;
 			}
 
@@ -1280,9 +1282,10 @@
 		}
 
 		// 새 SQL 템플릿 생성
-		function createNewSqlTemplate() {
+		async function createNewSqlTemplate() {
 			// 변경사항 확인
-			if (!confirmUnsavedChanges('현재 템플릿에 저장되지 않은 변경사항이 있습니다.\n새 템플릿을 생성하시겠습니까?')) {
+			const canProceed = await confirmUnsavedChanges('현재 템플릿에 저장되지 않은 변경사항이 있습니다.\n새 템플릿을 생성하시겠습니까?');
+			if (!canProceed) {
 				return;
 			}
 
@@ -1297,27 +1300,55 @@
 			}
 		}
 
-		// SQL 템플릿 저장 (UI에서 직접 값을 읽어서 저장)
-		function saveSqlTemplate() {
+		// SQL 템플릿 저장 (UI에서 직접 값을 읽어서 저장) - 저장 버튼용
+		function saveSqlTemplate(callback) {
 			// 벨리데이션 체크
 			if (!validateSqlTemplate()) {
+				if (callback) callback(false);
 				return;
 			}
 
 		// 템플릿 이름이 없으면 에러
 		if (!$('#sqlTemplateName').val() || !$('#sqlTemplateName').val().trim()) {
 			showToast('템플릿 이름을 입력해주세요.', 'warning');
+			if (callback) callback(false);
 			return;
 		}
 
 		// 변경사항이 없으면 저장하지 않음 (선택사항)
 		if (!window.SqlTemplateState.hasUnsavedChanges) {
 			showToast('변경된 내용이 없습니다.', 'info');
+			if (callback) callback(true); // 저장할 내용이 없어도 성공으로 간주
 			return;
 		}
 
-			// UI에서 직접 값을 읽어서 서버로 전송
-			saveTemplateToServer();
+			// UI에서 직접 값을 읽어서 서버로 전송 (새로고침 포함)
+			saveTemplateToServer(callback);
+		}
+
+		// SQL 템플릿 저장 (네비게이션용 - 새로고침 없음)
+		function saveSqlTemplateForNavigation(callback) {
+			// 벨리데이션 체크
+			if (!validateSqlTemplate()) {
+				if (callback) callback(false);
+				return;
+			}
+
+		// 템플릿 이름이 없으면 에러
+		if (!$('#sqlTemplateName').val() || !$('#sqlTemplateName').val().trim()) {
+			showToast('템플릿 이름을 입력해주세요.', 'warning');
+			if (callback) callback(false);
+			return;
+		}
+
+		// 변경사항이 없으면 저장하지 않음 (선택사항)
+		if (!window.SqlTemplateState.hasUnsavedChanges) {
+			if (callback) callback(true); // 저장할 내용이 없어도 성공으로 간주
+			return;
+		}
+
+			// UI에서 직접 값을 읽어서 서버로 전송 (새로고침 없음)
+			saveTemplateToServerForNavigation(callback);
 		}
 
 
@@ -1418,8 +1449,8 @@
 			return '전체 연결: ' + connectionIds.join(', ');
 		}
 
-		// 서버로 템플릿 저장 (UI에서 직접 값을 읽어서 API로 전송)
-		function saveTemplateToServer() {
+		// 서버로 템플릿 저장 (UI에서 직접 값을 읽어서 API로 전송) - 저장 버튼용
+		function saveTemplateToServer(callback) {
 			// UI에서 직접 값을 읽어서 새로운 JSON API 스펙에 맞게 데이터 구성
 			var requestData = {
 				template: {
@@ -1480,8 +1511,12 @@
 						
 						// 카테고리별 템플릿 개수 업데이트
 						loadCategoryTemplateCounts();
+						
+						// 콜백 호출 (성공)
+						if (callback) callback(true);
 					} else {
 						showToast('저장 실패: ' + result.error, 'error');
+						if (callback) callback(false);
 					}
 				},
 				error: function (xhr, status, error) {
@@ -1493,6 +1528,81 @@
 					}
 					
 					showToast(errorMessage, 'error');
+					if (callback) callback(false);
+				}
+			});
+		}
+
+		// 서버로 템플릿 저장 (네비게이션용 - 새로고침 없음)
+		function saveTemplateToServerForNavigation(callback) {
+			// UI에서 직접 값을 읽어서 새로운 JSON API 스펙에 맞게 데이터 구성
+			var requestData = {
+				template: {
+					templateId: $('#sqlTemplateId').val() || '',
+					templateName: $('#sqlTemplateName').val() || '',
+					templateDesc: $('#sqlTemplateDesc').val() || '',
+					sqlContent: getSqlContentFromEditor('sqlEditor_default'),
+					accessibleConnectionIds: $('#accessibleConnections').val() || [],
+					chartMapping: $('#sqlChartMapping').val() || '',
+					version: 1,
+					status: $('#sqlTemplateStatus').val() || 'ACTIVE',
+					executionLimit: parseInt($('#sqlExecutionLimit').val()) || 0,
+					refreshTimeout: parseInt($('#sqlRefreshTimeout').val()) || 0,
+					newline: $('#sqlNewline').is(':checked'),
+					audit: $('#sqlAudit').is(':checked')
+				},
+				categories: $('#sqlTemplateCategories').val() || [],
+				parameters: getParametersFromUI(),
+				shortcuts: getShortcutsFromUI(),
+				sqlContents: getSqlContentsFromUI()
+			};
+
+			$.ajax({
+				type: 'POST',
+				url: '/SQLTemplate/save',
+				contentType: 'application/json',
+				data: JSON.stringify(requestData),
+				success: function (result) {
+					if (result.success) {
+						showToast('템플릿이 저장되었습니다.', 'success');
+
+						// 변경사항 초기화
+						window.SqlTemplateState.resetChanges();
+
+						// 저장된 정보 추출
+						var savedCategoryId = result.categoryId || $('.category-item.selected').data('id');
+						
+						// 카테고리 선택 (필요한 경우)
+						if (savedCategoryId && $('.category-item.selected').data('id') !== savedCategoryId) {
+							selectCategory(savedCategoryId);
+						}
+						
+						// 템플릿 목록만 새로고침 (템플릿 재선택은 안함)
+						var selectedCategory = $('.category-item.selected').data('id');
+						if (selectedCategory) {
+							loadTemplatesByCategory(selectedCategory);
+						}
+						
+						// 카테고리별 템플릿 개수 업데이트
+						loadCategoryTemplateCounts();
+						
+						// 콜백 호출 (성공)
+						if (callback) callback(true);
+					} else {
+						showToast('저장 실패: ' + result.error, 'error');
+						if (callback) callback(false);
+					}
+				},
+				error: function (xhr, status, error) {
+					var errorMessage = '저장 중 오류가 발생했습니다.';
+					
+					// 서버에서 상세 에러 메시지를 받은 경우
+					if (xhr.responseJSON && xhr.responseJSON.error) {
+						errorMessage = xhr.responseJSON.error;
+					}
+					
+					showToast(errorMessage, 'error');
+					if (callback) callback(false);
 				}
 			});
 		}
@@ -2234,14 +2344,94 @@
 			window.SqlTemplateState.markAsChanged();
 		}
 
-		// 변경사항 저장 확인
-		function confirmUnsavedChanges(message) {
-			if (window.SqlTemplateState.hasUnsavedChanges) {
-				var defaultMessage = '변경된 내용이 저장되지 않았습니다.\n저장하지 않고 계속하시겠습니까?';
-				return confirm(message || defaultMessage);
+		// 변경사항 저장 확인 (노트패드 스타일)
+		function confirmUnsavedChanges(actionMessage) {
+			if (!window.SqlTemplateState.hasUnsavedChanges) {
+				return Promise.resolve(true); // 변경사항이 없으면 바로 진행
 			}
-			return true; // 변경사항이 없으면 바로 진행
+			
+			return new Promise(function(resolve) {
+				var templateName = $('#sqlTemplateName').val() || '제목 없음';
+				var message = templateName + '의 변경 내용을 저장하시겠습니까?';
+				
+				showSaveConfirmDialog(message, function(result) {
+					if (result === 'save') {
+						// 저장 후 진행 (네비게이션용은 새로고침 없음)
+						saveSqlTemplateForNavigation(function(success) {
+							resolve(success);
+						});
+					} else if (result === 'no') {
+						// 저장하지 않고 진행
+						resolve(true);
+					} else {
+						// 취소
+						resolve(false);
+					}
+				});
+			});
 		}
+
+		// 저장 확인 다이얼로그 표시 (노트패드 스타일)
+		function showSaveConfirmDialog(message, callback) {
+			// 기존 다이얼로그가 있으면 제거
+			$('#saveConfirmModal').remove();
+			
+			var modalHtml = '<div class="modal fade" id="saveConfirmModal" tabindex="-1" role="dialog">' +
+				'<div class="modal-dialog modal-dialog-centered" role="document" style="max-width: 400px;">' +
+				'<div class="modal-content">' +
+				'<div class="modal-header" style="border-bottom: 1px solid #dee2e6; padding: 15px 20px;">' +
+				'<h5 class="modal-title" style="margin: 0; font-weight: 500;">Windmill</h5>' +
+				'</div>' +
+				'<div class="modal-body" style="padding: 20px; text-align: center;">' +
+				'<p style="margin: 0; font-size: 14px; line-height: 1.5;">' + escapeHtml(message) + '</p>' +
+				'</div>' +
+				'<div class="modal-footer" style="border-top: 1px solid #dee2e6; padding: 15px 20px; justify-content: center;">' +
+				'<button type="button" class="btn btn-primary" id="saveYesBtn" style="min-width: 70px; margin-right: 10px;">예</button>' +
+				'<button type="button" class="btn btn-secondary" id="saveNoBtn" style="min-width: 70px; margin-right: 10px;">아니오</button>' +
+				'<button type="button" class="btn btn-default" id="saveCancelBtn" style="min-width: 70px;">취소</button>' +
+				'</div>' +
+				'</div>' +
+				'</div>' +
+				'</div>';
+			
+			$('body').append(modalHtml);
+			
+			// 버튼 이벤트 설정
+			$('#saveYesBtn').on('click', function() {
+				$('#saveConfirmModal').modal('hide');
+				callback('save');
+			});
+			
+			$('#saveNoBtn').on('click', function() {
+				$('#saveConfirmModal').modal('hide');
+				callback('no');
+			});
+			
+			$('#saveCancelBtn').on('click', function() {
+				$('#saveConfirmModal').modal('hide');
+				callback('cancel');
+			});
+			
+			// ESC 키로 취소
+			$('#saveConfirmModal').on('keydown', function(e) {
+				if (e.keyCode === 27) { // ESC
+					$('#saveConfirmModal').modal('hide');
+					callback('cancel');
+				}
+			});
+			
+			// 모달 표시
+			$('#saveConfirmModal').modal({
+				backdrop: 'static',
+				keyboard: false
+			});
+			
+			// 모달이 완전히 숨겨진 후 DOM에서 제거
+			$('#saveConfirmModal').on('hidden.bs.modal', function() {
+				$(this).remove();
+			});
+		}
+
 
 		// 브라우저 이탈 시 변경사항 경고 설정
 		function setupBeforeUnloadWarning() {
