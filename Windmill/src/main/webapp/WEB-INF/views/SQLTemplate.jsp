@@ -1275,6 +1275,7 @@
 			// 변경사항 초기화 및 로딩 상태 해제
 			window.SqlTemplateState.hasUnsavedChanges = false;
 			window.SqlTemplateState.isLoading = false;
+			window.SqlTemplateState.lastLoadTime = Date.now();
 			updateSaveButtonState();
 		}
 
@@ -1634,8 +1635,9 @@
 
 		// 추가 템플릿 데이터 로드 (단순화된 로드 로직)
 		function loadAdditionalTemplateData(templateId) {
-			// 변경사항 추적 일시 중단
+			// 변경사항 추적 일시 중단 및 로드 시간 기록
 			window.SqlTemplateState.isLoading = true;
+			window.SqlTemplateState.lastLoadTime = Date.now();
 
 			$.ajax({
 				type: 'GET',
@@ -1652,15 +1654,17 @@
 							$('#sqlTemplateCategories').val(data.categories).trigger('change');
 						}
 						
-						// 데이터를 바로 UI에 렌더링
+						// 데이터를 바로 UI에 렌더링 (로딩 상태 유지)
 						if (data.sqlContents) renderSqlContentTabs(data.sqlContents);
 						if (data.parameters) renderParameters(data.parameters);
 						if (data.shortcuts) renderShortcuts(data.shortcuts);
 
-						// 변경사항 초기화 및 추적 재개
-						window.SqlTemplateState.hasUnsavedChanges = false;
-						window.SqlTemplateState.isLoading = false;
-						updateSaveButtonState();
+						// 렌더링 완료 후 변경사항 초기화 및 추적 재개
+						setTimeout(function() {
+							window.SqlTemplateState.hasUnsavedChanges = false;
+							window.SqlTemplateState.isLoading = false;
+							updateSaveButtonState();
+						}, 100);
 
 						// 커스텀 이벤트 트리거
 						$(document).trigger('templateDetailLoaded');
@@ -2216,10 +2220,17 @@
 
 		// 템플릿 변경사항 추적
 		function markTemplateChanged() {
-			// 로딩 중에는 변경사항으로 간주하지 않음
+			// 로딩 중이거나 초기화 중에는 변경사항으로 간주하지 않음
 			if (window.SqlTemplateState.isLoading) {
 				return;
 			}
+			
+			// 추가 안전장치: 템플릿 로드 후 짧은 시간 내 변경은 무시
+			var now = Date.now();
+			if (window.SqlTemplateState.lastLoadTime && (now - window.SqlTemplateState.lastLoadTime < 200)) {
+				return;
+			}
+			
 			window.SqlTemplateState.markAsChanged();
 		}
 
