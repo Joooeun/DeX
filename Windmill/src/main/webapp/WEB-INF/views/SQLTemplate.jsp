@@ -8,8 +8,55 @@
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 
-	<!-- SQL Template 전용 스타일 -->
-	<link href="/resources/css/sql-template.css" rel="stylesheet" />
+		<!-- SQL Template 전용 스타일 -->
+		<link href="/resources/css/sql-template.css" rel="stylesheet" />
+		
+		<style>
+		/* 로딩 오버레이 스타일 */
+		.loading-overlay {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 0, 0, 0.5);
+			z-index: 9999;
+			display: none;
+		}
+		
+		.loading-spinner {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%);
+			background-color: white;
+			padding: 30px;
+			border-radius: 8px;
+			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+			text-align: center;
+		}
+		
+		.spinner {
+			border: 4px solid #f3f3f3;
+			border-top: 4px solid #007bff;
+			border-radius: 50%;
+			width: 40px;
+			height: 40px;
+			animation: spin 1s linear infinite;
+			margin: 0 auto 15px;
+		}
+		
+		@keyframes spin {
+			0% { transform: rotate(0deg); }
+			100% { transform: rotate(360deg); }
+		}
+		
+		.loading-text {
+			color: #333;
+			font-size: 14px;
+			font-weight: 500;
+		}
+		</style>
 
 
 
@@ -47,16 +94,368 @@
 			});
 		});
 
+		// ===== 유틸리티 함수들 =====
+		
+		// HTML 이스케이프 함수
+		function escapeHtml(text) {
+			if (!text) return '';
+			return text.toString()
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#39;');
+		}
+
+		// 날짜 포맷팅
+		function formatDate(timestamp) {
+			if (!timestamp)
+				return '';
+			var date = new Date(timestamp);
+			return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+		}
+
+		// 로딩 오버레이 제어 함수들
+		function showLoading(message = '로딩 중...') {
+			$('#loadingOverlay .loading-text').text(message);
+			$('#loadingOverlay').show();
+		}
+		
+		function hideLoading() {
+			$('#loadingOverlay').hide();
+		}
+
+		// 토스트 메시지 표시 함수
+		function showToast(message, type = 'info', duration = 3000) {
+			var toastId = 'toast_' + Date.now();
+			var iconClass = {
+				'success': 'fa-check-circle',
+				'error': 'fa-exclamation-circle',
+				'warning': 'fa-exclamation-triangle',
+				'info': 'fa-info-circle'
+			}[type] || 'fa-info-circle';
+
+			var bgClass = {
+				'success': 'alert-success',
+				'error': 'alert-danger',
+				'warning': 'alert-warning',
+				'info': 'alert-info'
+			}[type] || 'alert-info';
+
+			var toast = $('<div id="' + toastId + '" class="alert ' + bgClass + ' alert-dismissible" style="margin-bottom: 10px; animation: slideInDown 0.3s ease-out;">' +
+				'<button type="button" class="close" data-dismiss="alert">&times;</button>' +
+				'<i class="fa ' + iconClass + '"></i> ' + message +
+				'</div>');
+
+			$('#toastContainer').append(toast);
+
+			// 자동 제거
+			setTimeout(function () {
+				$('#' + toastId).fadeOut(300, function () {
+					$(this).remove();
+				});
+			}, duration);
+		}
+
+		// 공통 AJAX 요청 함수
+		function makeAjaxRequest(config) {
+			// 기본 설정
+			var defaults = {
+				method: 'GET',
+				contentType: 'application/x-www-form-urlencoded',
+				showLoading: false,
+				loadingMessage: '로딩 중...',
+				onSuccess: function(result) { /* 기본 성공 처리 */ },
+				onError: function(xhr, status, error) { /* 기본 에러 처리 */ }
+			};
+			
+			// 설정 병합
+			var options = Object.assign({}, defaults, config);
+			
+			// 로딩 표시
+			if (options.showLoading) {
+				showLoading(options.loadingMessage);
+			}
+			
+			// AJAX 요청
+			$.ajax({
+				type: options.method,
+				url: options.url,
+				data: options.data,
+				contentType: options.contentType,
+				success: function(result) {
+					if (options.showLoading) {
+						hideLoading();
+					}
+					
+					if (result.success) {
+						// 성공 콜백 호출
+						if (options.onSuccess && typeof options.onSuccess === 'function') {
+							options.onSuccess(result);
+						}
+					} else {
+						// 실패 처리
+						var errorMessage = result.error || '요청 처리에 실패했습니다.';
+						showToast(errorMessage, 'error');
+						if (options.onError && typeof options.onError === 'function') {
+							options.onError(null, null, errorMessage);
+						}
+					}
+				},
+				error: function(xhr, status, error) {
+					if (options.showLoading) {
+						hideLoading();
+					}
+					
+					// 에러 메시지 추출
+					var errorMessage = options.errorMessage || '요청 중 오류가 발생했습니다.';
+					if (xhr.responseJSON && xhr.responseJSON.error) {
+						errorMessage = xhr.responseJSON.error;
+					}
+					
+					showToast(errorMessage, 'error');
+					if (options.onError && typeof options.onError === 'function') {
+						options.onError(xhr, status, error);
+					}
+				}
+			});
+		}
+
+		// 공통 AJAX 에러 처리 함수 (하위 호환성 유지)
+		function handleAjaxError(xhr, status, error, defaultMessage, callback) {
+			hideLoading();
+			var errorMessage = defaultMessage;
+			
+			// 서버에서 상세 에러 메시지를 받은 경우
+			if (xhr.responseJSON && xhr.responseJSON.error) {
+				errorMessage = xhr.responseJSON.error;
+			}
+			
+			showToast(errorMessage, 'error');
+			if (callback) callback(false);
+		}
+
+		// 공통 목록 렌더링 함수
+		function renderList(config) {
+			// 기본 설정
+			var defaults = {
+				useFragment: true,
+				emptyMessage: '데이터가 없습니다.',
+				emptyMessageClass: 'text-muted text-center',
+				emptyMessageStyle: 'padding: 20px;',
+				onComplete: null
+			};
+			
+			// 설정 병합
+			var options = Object.assign({}, defaults, config);
+			
+			// 컨테이너 비우기
+			options.container.empty();
+			
+			// 데이터가 있는 경우
+			if (options.data && options.data.length > 0) {
+				if (options.useFragment) {
+					// DocumentFragment를 사용한 배치 업데이트
+					var fragment = document.createDocumentFragment();
+					
+					options.data.forEach(function(item, index) {
+						var element = options.itemRenderer(item, index);
+						if (element) {
+							fragment.appendChild(element);
+						}
+					});
+					
+					// 한 번의 DOM 조작으로 모든 요소 추가
+					options.container.append(fragment);
+				} else {
+					// 일반적인 방식
+					options.data.forEach(function(item, index) {
+						var element = options.itemRenderer(item, index);
+						if (element) {
+							options.container.append(element);
+						}
+					});
+				}
+			} else {
+				// 데이터가 없는 경우
+				var emptyHtml = '<div class="' + options.emptyMessageClass + '" style="' + options.emptyMessageStyle + '">' + 
+					options.emptyMessage + '</div>';
+				options.container.html(emptyHtml);
+			}
+			
+			// 완료 콜백 호출
+			if (options.onComplete && typeof options.onComplete === 'function') {
+				options.onComplete();
+			}
+		}
+
+		// 공통 Select 옵션 렌더링 함수
+		function renderSelectOptions(config) {
+			// 기본 설정
+			var defaults = {
+				valueField: 'id',
+				textField: 'name',
+				placeholder: '선택하세요',
+				allowClear: true,
+				width: '100%',
+				initSelect2: true
+			};
+			
+			// 설정 병합
+			var options = Object.assign({}, defaults, config);
+			
+			// Select 요소 비우기
+			options.select.empty();
+			
+			// 데이터가 있는 경우 옵션 추가
+			if (options.data && options.data.length > 0) {
+				options.data.forEach(function(item) {
+					var value = item[options.valueField];
+					var text = item[options.textField];
+					var option = $('<option value="' + value + '">' + text + '</option>');
+					options.select.append(option);
+				});
+			}
+			
+			// Select2 초기화
+			if (options.initSelect2) {
+				options.select.select2({
+					placeholder: options.placeholder,
+					allowClear: options.allowClear,
+					width: options.width
+				});
+			}
+		}
+
+		// ===== ID 변환 유틸리티 함수들 =====
+		
+		// 연결 ID를 탭 ID로 변환 (콤마 → 하이픈)
+		function connectionIdToTabId(connectionId) {
+			return 'tab-' + connectionId.replace(/,/g, '-');
+		}
+		
+		// 탭 ID를 연결 ID로 변환 (하이픈 → 콤마)
+		function tabIdToConnectionId(tabId) {
+			return tabId.replace('tab-', '').replace(/-/g, ',');
+		}
+		
+		// 연결 ID를 에디터 ID로 변환 (콤마 → 하이픈)
+		function connectionIdToEditorId(connectionId) {
+			// default 연결 ID는 특별히 처리 (HTML에서 sqlEditor_default 사용)
+			if (connectionId === 'default') {
+				return 'sqlEditor_default';
+			}
+			return 'sqlEditor-' + connectionId.replace(/,/g, '-');
+		}
+
+		// ===== SQL 에디터 관련 함수들 =====
+
+		// 모든 SQL 에디터의 자동완성 업데이트
+		function updateAllEditorsCompleters() {
+			if (window.SqlTemplateState.sqlEditors) {
+				Object.keys(window.SqlTemplateState.sqlEditors).forEach(function (dbType) {
+					var editor = window.SqlTemplateState.sqlEditors[dbType];
+					if (editor && typeof ace !== 'undefined') {
+						// 자동완성 업데이트
+						var langTools = ace.require("ace/ext/language_tools");
+						langTools.setCompleters([]);
+						setupCustomCompleter(editor);
+					}
+				});
+			}
+		}
+
+		// 커스텀 자동완성 설정 (하이라이팅 제거)
+		function setupCustomCompleter(editor) {
+			// 기존 자동완성 기능 유지하면서 커스텀 추가
+			var langTools = ace.require("ace/ext/language_tools");
+
+			// 커스텀 자동완성 제공자 생성
+			var customCompleter = {
+				getCompletions: function (editor, session, pos, prefix, callback) {
+					var completions = [];
+
+					// 파라미터 목록 가져오기
+					var parameters = getParameterNames();
+
+					// 파라미터만 자동완성에 추가
+					parameters.forEach(function (paramName) {
+						completions.push({
+							caption: paramName,
+							value: paramName,
+							meta: "파라미터",
+							docText: "템플릿 파라미터: " + paramName
+						});
+					});
+
+					callback(null, completions);
+				}
+			};
+
+			// 기존 자동완성 제공자들에 커스텀 제공자 추가
+			langTools.addCompleter(customCompleter);
+		}
+
+		// 현재 파라미터 이름 목록 가져오기
+		function getParameterNames() {
+			var parameters = [];
+			$('#parameterTableBody .parameter-name').each(function () {
+				var paramName = $(this).val().trim();
+				if (paramName) {
+					parameters.push(paramName);
+				}
+			});
+			return parameters;
+		}
+
+		// ===== 전역 상태 관리 객체 =====
+
+		// 로딩 메시지 상수
+		var LOADING_MESSAGES = {
+			SAVING: '템플릿을 저장하는 중...',
+			LOADING_TEMPLATE: '템플릿 정보를 불러오는 중...',
+			LOADING_LIST: '템플릿 목록을 불러오는 중...'
+		};
+
+		// 전역 상태 관리 객체 (단순화)
+		window.SqlTemplateState = {
+			// 상태 관리
+			hasUnsavedChanges: false,
+			isLoading: false,
+			
+			// 에디터 관리
+			sqlEditors: {},
+			
+			// 모달 상태
+			editMode: false,
+			currentEditingConnectionId: null,
+			
+			// DB 연결 정보
+			dbConnections: [],
+			
+			// 상태 변경 함수들
+			markAsChanged: function() {
+				if (!this.isLoading) {
+					this.hasUnsavedChanges = true;
+					updateSaveButtonState();
+				}
+			},
+			
+			resetChanges: function() {
+				this.hasUnsavedChanges = false;
+				updateSaveButtonState();
+			}
+		};
+
+		// ===== 카테고리 관련 함수들 =====
+
 		// 카테고리 목록 로드
 		function loadCategories() {
-			$.ajax({
-				type: 'GET',
+			makeAjaxRequest({
 				url: '/SQLTemplate/category/list',
-				success: function (result) {
-					if (result.success) {
-						renderCategoryOptions(result.data);
-						renderCategoryList(result.data);
-					}
+				onSuccess: function(result) {
+					renderCategoryOptions(result.data);
+					renderCategoryList(result.data);
 				}
 			});
 		}
@@ -73,6 +472,7 @@
 			var uncategorizedElement = createUncategorizedItem();
 			fragment.appendChild(uncategorizedElement);
 
+			// 카테고리 목록 렌더링
 			if (categories && categories.length > 0) {
 				categories.forEach(function (category) {
 					var itemElement = createCategoryItem(category);
@@ -135,15 +535,12 @@
 
 		// 차트 매핑 중복 체크 함수
 		function checkChartMappingDuplicate(chartId, excludeTemplateId) {
-			$.ajax({
-				type: 'POST',
+			makeAjaxRequest({
+				method: 'POST',
 				url: '/SQLTemplate/chart-mapping/check',
-				data: {
-					chartId: chartId,
-					excludeTemplateId: excludeTemplateId
-				},
-				success: function (result) {
-					if (result.success && result.exists) {
+				data: { chartId: chartId, excludeTemplateId: excludeTemplateId },
+				onSuccess: function(result) {
+					if (result.exists) {
 						var existingTemplate = result.existingTemplate;
 						var confirmMessage = '이미 "' + existingTemplate.TEMPLATE_NAME + '" 템플릿이 "' + chartId + '" 차트에 매핑되어 있습니다.\n\n기존 매핑을 해제하고 이 템플릿으로 변경하시겠습니까?';
 
@@ -156,8 +553,7 @@
 						}
 					}
 				},
-				error: function () {
-					showToast('차트 매핑 중복 체크 중 오류가 발생했습니다.', 'error');
+				onError: function() {
 					$('#sqlChartMapping').val('');
 				}
 			});
@@ -165,23 +561,14 @@
 
 		// 차트 매핑 업데이트 함수
 		function updateChartMapping(chartId, templateId) {
-			$.ajax({
-				type: 'POST',
+			makeAjaxRequest({
+				method: 'POST',
 				url: '/SQLTemplate/chart-mapping/update',
-				data: {
-					chartId: chartId,
-					templateId: templateId
+				data: { chartId: chartId, templateId: templateId },
+				onSuccess: function(result) {
+					showToast('차트 매핑이 업데이트되었습니다.', 'success');
 				},
-				success: function (result) {
-					if (result.success) {
-						showToast('차트 매핑이 업데이트되었습니다.', 'success');
-					} else {
-						showToast('차트 매핑 업데이트 실패: ' + result.error, 'error');
-						$('#sqlChartMapping').val('');
-					}
-				},
-				error: function () {
-					showToast('차트 매핑 업데이트 중 오류가 발생했습니다.', 'error');
+				onError: function() {
 					$('#sqlChartMapping').val('');
 				}
 			});
@@ -190,39 +577,27 @@
 		// 카테고리별 템플릿 개수 로드
 		function loadCategoryTemplateCounts() {
 			// 미분류 템플릿 개수 로드
-			$.ajax({
-				type: 'GET',
+			makeAjaxRequest({
 				url: '/SQLTemplate/category/templates',
-				data: {
-					categoryId: 'UNCATEGORIZED'
-				},
-				success: function (result) {
-					if (result.success) {
-						var count = result.data ? result.data.length : 0;
-						$('#count-UNCATEGORIZED').text(count);
-					}
+				data: { categoryId: 'UNCATEGORIZED' },
+				onSuccess: function(result) {
+					var count = result.data ? result.data.length : 0;
+					$('#count-UNCATEGORIZED').text(count);
 				}
 			});
 
 			// 각 카테고리별 템플릿 개수 로드
-			$.ajax({
-				type: 'GET',
+			makeAjaxRequest({
 				url: '/SQLTemplate/category/list',
-				success: function (result) {
-					if (result.success && result.data) {
+				onSuccess: function(result) {
+					if (result.data) {
 						result.data.forEach(function (category) {
-							$.ajax({
-								type: 'GET',
+							makeAjaxRequest({
 								url: '/SQLTemplate/category/templates',
-								data: {
-									categoryId: category.CATEGORY_ID
-								},
-								success: function (
-									templateResult) {
-									if (templateResult.success) {
-										var count = templateResult.data ? templateResult.data.length : 0;
-										$('#count-' + category.CATEGORY_ID).text(count);
-									}
+								data: { categoryId: category.CATEGORY_ID },
+								onSuccess: function(templateResult) {
+									var count = templateResult.data ? templateResult.data.length : 0;
+									$('#count-' + category.CATEGORY_ID).text(count);
 								}
 							});
 						});
@@ -235,43 +610,58 @@
 		async function selectCategory(categoryId) {
 			// 변경사항 확인 (초기 로드 시에는 확인하지 않음)
 			if ($('.category-item.selected').length > 0) {
-				const canProceed = await confirmUnsavedChanges('현재 템플릿에 저장되지 않은 변경사항이 있습니다.\n다른 카테고리로 이동하시겠습니까?');
+				const canProceed = await confirmUnsavedChanges(function() {
+					// 저장 완료 후 실행될 로직
+					$('.category-item').removeClass('selected');
+					loadTemplatesByCategory(categoryId);
+				});
 				if (!canProceed) {
 					return;
 				}
 				
 				// 사용자가 확인을 선택한 경우 변경사항 초기화
 				resetCurrentTemplate();
-			}
+			} 
 
-			$('.category-item').removeClass('selected');
-			$('[data-id="' + categoryId + '"]').addClass('selected');
-			loadTemplatesByCategory(categoryId);
+				$('.category-item').removeClass('selected');
+				$('[data-id="' + categoryId + '"]').addClass('selected');
+				loadTemplatesByCategory(categoryId);
 		}
 
 		// 카테고리별 템플릿 로드
-		function loadTemplatesByCategory(categoryId) {
-			$.ajax({
-				type: 'GET',
+		function loadTemplatesByCategory(categoryId, preserveSelection = false) {
+			// 현재 선택된 템플릿 ID 저장 (선택 유지가 필요한 경우)
+			var currentSelectedId = null;
+			if (preserveSelection) {
+				currentSelectedId = $('.template-item.selected').data('id');
+			}
+			
+			makeAjaxRequest({
 				url: '/SQLTemplate/category/templates',
-				data: {
-					categoryId: categoryId
-				},
-				success: function (result) {
-					if (result.success) {
-						renderTemplates(result.data);
+				data: { categoryId: categoryId },
+				onSuccess: function(result) {
+					renderTemplates(result.data);
+					
+					// 선택 유지가 필요한 경우 이전 선택 복원
+					if (preserveSelection && currentSelectedId) {
+						setTimeout(function() {
+							$('[data-id="' + currentSelectedId + '"]').addClass('selected');
+						}, 100);
 					}
+				},
+				onError: function() {
+					showToast('템플릿 목록을 불러오는 중 오류가 발생했습니다.', 'error');
 				}
 			});
 		}
 
 		// 템플릿 렌더링
 		function renderTemplates(templates) {
-			var container = $('#templateList');
-			container.empty();
-
-			if (templates && templates.length > 0) {
-				templates.forEach(function (template) {
+			renderList({
+				container: $('#templateList'),
+				data: templates,
+				emptyMessage: '템플릿이 없습니다.',
+				itemRenderer: function(template) {
 					var item = $('<div class="template-item" data-id="'
 						+ template.TEMPLATE_ID + '" onclick="selectTemplate(\''
 						+ template.TEMPLATE_ID + '\')">' + '<div class="row">'
@@ -280,51 +670,31 @@
 						+ '<small style="float:right;">생성일: '
 						+ formatDate(template.CREATED_TIMESTAMP) + '</small>'
 						+ '</div>' + '</div>' + '</div>');
-					container.append(item);
-				});
-			} else {
-				container.html('<div class="text-muted text-center" style="padding: 20px;">템플릿이 없습니다.</div>');
-			}
+					return item[0]; // jQuery 객체를 DOM 요소로 변환
+				}
+			});
 		}
 
 		// 템플릿 선택
 		async function selectTemplate(templateId) {
-			// 변경사항 확인
-			const canProceed = await confirmUnsavedChanges('현재 템플릿에 저장되지 않은 변경사항이 있습니다.\n다른 템플릿으로 이동하시겠습니까?');
-			if (!canProceed) {
-				return;
-			}
-
-			$('.template-item').removeClass('selected');
-			$('[data-id="' + templateId + '"]').addClass('selected');
-			loadSqlTemplateDetail(templateId);
+			// 변경사항 확인 + 콜백으로 템플릿 선택 로직 전달
+			const canProceed = await confirmUnsavedChanges(function() {
+				
+				loadSqlTemplateDetail(templateId);
+			});
 		}
 
 
 
-		// 선택된 카테고리 ID들 가져오기
-		function getSelectedCategoryIds() {
-			return $('#sqlTemplateCategories').val() || [];
-		}
 
 		// 카테고리 옵션 렌더링
 		function renderCategoryOptions(categories) {
-			var select = $('#sqlTemplateCategories');
-			select.empty();
-
-			if (categories && categories.length > 0) {
-				categories.forEach(function (category) {
-					var option = $('<option value="' + category.CATEGORY_ID + '">' +
-						category.CATEGORY_NAME + '</option>');
-					select.append(option);
-				});
-			}
-
-			// Select2 초기화
-			select.select2({
-				placeholder: '카테고리를 선택하세요',
-				allowClear: true,
-				width: '100%'
+			renderSelectOptions({
+				select: $('#sqlTemplateCategories'),
+				data: categories,
+				valueField: 'CATEGORY_ID',
+				textField: 'CATEGORY_NAME',
+				placeholder: '카테고리를 선택하세요'
 			});
 		}
 
@@ -340,24 +710,20 @@
 
 		// 카테고리 수정
 		function editCategory(categoryId) {
-			$.ajax({
-				type: 'GET',
+			makeAjaxRequest({
 				url: '/SQLTemplate/category/detail',
-				data: {
-					categoryId: categoryId
+				data: { categoryId: categoryId },
+				onSuccess: function(result) {
+					var category = result.data;
+					$('#categoryModal').modal('show');
+					$('#categoryModalTitle').text('카테고리 수정');
+					$('#categoryId').val(category.CATEGORY_ID);
+					$('#categoryName').val(category.CATEGORY_NAME);
+					$('#categoryDescription').val(category.CATEGORY_DESCRIPTION);
+					$('#categoryModalSaveBtn').text('수정');
 				},
-				success: function (result) {
-					if (result.success) {
-						var category = result.data;
-						$('#categoryModal').modal('show');
-						$('#categoryModalTitle').text('카테고리 수정');
-						$('#categoryId').val(category.CATEGORY_ID);
-						$('#categoryName').val(category.CATEGORY_NAME);
-						$('#categoryDescription').val(category.CATEGORY_DESCRIPTION);
-						$('#categoryModalSaveBtn').text('수정');
-					} else {
-						showToast('카테고리 정보를 불러오는데 실패했습니다.', 'error');
-					}
+				onError: function() {
+					showToast('카테고리 정보를 불러오는데 실패했습니다.', 'error');
 				}
 			});
 		}
@@ -368,13 +734,12 @@
 			var categoryName = $('#categoryName').val();
 			var description = $('#categoryDescription').val();
 
-		if (!categoryName.trim()) {
-			showToast('카테고리명을 입력해주세요.', 'warning');
-			return;
-		}
+			if (!categoryName.trim()) {
+				showToast('카테고리명을 입력해주세요.', 'warning');
+				return;
+			}
 
-			var url = categoryId ? '/SQLTemplate/category/update'
-				: '/SQLTemplate/category/create';
+			var url = categoryId ? '/SQLTemplate/category/update' : '/SQLTemplate/category/create';
 			var data = categoryId ? {
 				categoryId: categoryId,
 				categoryName: categoryName,
@@ -384,18 +749,17 @@
 				description: description
 			};
 
-			$.ajax({
-				type: 'POST',
+			makeAjaxRequest({
+				method: 'POST',
 				url: url,
 				data: data,
-				success: function (result) {
-					if (result.success) {
-						showToast(result.message, 'success');
-						$('#categoryModal').modal('hide');
-						loadCategories();
-					} else {
-						showToast('저장에 실패했습니다.', 'error');
-					}
+				onSuccess: function(result) {
+					showToast(result.message, 'success');
+					$('#categoryModal').modal('hide');
+					loadCategories();
+				},
+				onError: function() {
+					showToast('저장에 실패했습니다.', 'error');
 				}
 			});
 		}
@@ -406,72 +770,51 @@
 				return;
 			}
 
-			$.ajax({
-				type: 'POST',
+			makeAjaxRequest({
+				method: 'POST',
 				url: '/SQLTemplate/category/delete',
-				data: {
-					categoryId: categoryId
+				data: { categoryId: categoryId },
+				onSuccess: function(result) {
+					showToast(result.message, 'success');
+					loadCategories();
 				},
-				success: function (result) {
-					if (result.success) {
-						showToast(result.message, 'success');
-						loadCategories();
-					} else {
-						showToast('삭제에 실패했습니다.', 'error');
-					}
+				onError: function() {
+					showToast('삭제에 실패했습니다.', 'error');
 				}
 			});
 		}
 
 		// 카테고리 순서 변경
 		function reorderCategory(categoryId, direction) {
-			$.ajax({
-				type: 'POST',
+			makeAjaxRequest({
+				method: 'POST',
 				url: '/SQLTemplate/category/reorder',
-				data: {
-					categoryId: categoryId,
-					direction: direction
+				data: { categoryId: categoryId, direction: direction },
+				onSuccess: function(result) {
+					// 카테고리 목록 새로고침
+					loadCategories();
 				},
-				success: function (result) {
-					if (result.success) {
-						// 카테고리 목록 새로고침
-						loadCategories();
-					} else {
-						showToast('순서 변경에 실패했습니다.', 'error');
-					}
-				},
-				error: function () {
+				onError: function() {
 					showToast('순서 변경 중 오류가 발생했습니다.', 'error');
 				}
 			});
 		}
 
-		// 날짜 포맷팅
-		function formatDate(timestamp) {
-			if (!timestamp)
-				return '';
-			var date = new Date(timestamp);
-			return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-		}
-
 		// DB 연결 목록 로드
 		function loadDbConnections(callback) {
-			$.ajax({
-				type: 'GET',
+			makeAjaxRequest({
 				url: '/SQLTemplate/db-connections',
-				success: function (result) {
-					if (result.success) {
-						// 전역 변수에 저장
-						window.SqlTemplateState.dbConnections = result.data;
-						renderDbConnections(result.data);
-						
-						// 콜백 함수가 있으면 실행
-						if (callback && typeof callback === 'function') {
-							callback();
-						}
+				onSuccess: function(result) {
+					// 전역 변수에 저장
+					window.SqlTemplateState.dbConnections = result.data;
+					renderDbConnections(result.data);
+					
+					// 콜백 함수가 있으면 실행
+					if (callback && typeof callback === 'function') {
+						callback();
 					}
 				},
-				error: function() {
+				onError: function() {
 					showToast('연결 목록을 불러오는데 실패했습니다.', 'error');
 				}
 			});
@@ -479,22 +822,14 @@
 
 		// DB 연결 옵션 렌더링
 		function renderDbConnections(connections) {
-			var select = $('#accessibleConnections');
-			select.empty();
-
-			if (connections && connections.length > 0) {
-				connections.forEach(function (connection) {
-					var option = $('<option value="' + connection.CONNECTION_ID + '">' +
-						connection.CONNECTION_ID + ' (' + connection.DB_TYPE + ')</option>');
-					select.append(option);
-				});
-			}
-
-			// Select2 초기화
-			select.select2({
-				placeholder: 'DB 연결을 선택하세요',
-				allowClear: true,
-				width: '100%'
+			renderSelectOptions({
+				select: $('#accessibleConnections'),
+				data: connections,
+				valueField: 'CONNECTION_ID',
+				textField: function(connection) {
+					return connection.CONNECTION_ID + ' (' + connection.DB_TYPE + ')';
+				},
+				placeholder: 'DB 연결을 선택하세요'
 			});
 		}
 
@@ -646,28 +981,22 @@
 
 		// 파라미터 렌더링 (DOM 조작 최적화 - 배치 업데이트)
 		function renderParameters(parameters) {
-			var tbody = $('#parameterTableBody');
-			tbody.empty();
-
-			if (parameters && parameters.length > 0) {
-				// DocumentFragment를 사용한 배치 업데이트
-				var fragment = document.createDocumentFragment();
-				
-				parameters.forEach(function (param, index) {
+			renderList({
+				container: $('#parameterTableBody'),
+				data: parameters,
+				emptyMessage: '',
+				itemRenderer: function(param, index) {
 					var order = param.PARAMETER_ORDER || (index + 1);
-					var rowElement = createParameterRow(param, order);
-					fragment.appendChild(rowElement);
-				});
-				
-				// 한 번의 DOM 조작으로 모든 행 추가
-				tbody.append(fragment);
-				
-				// 툴팁 초기화 (배치 처리)
-				tbody.find('[data-toggle="tooltip"]').tooltip({
+					return createParameterRow(param, order);
+				},
+				onComplete: function() {
+					// 툴팁 초기화 (배치 처리)
+					$('#parameterTableBody').find('[data-toggle="tooltip"]').tooltip({
 						placement: 'top',
 						trigger: 'hover'
 					});
-			}
+				}
+			});
 		}
 		
 		// 파라미터 행 생성 함수 (HTML 문자열로 최적화)
@@ -705,17 +1034,6 @@
 			return $(rowHtml)[0]; // jQuery 객체를 DOM 요소로 변환
 		}
 		
-		// HTML 이스케이프 함수
-		function escapeHtml(text) {
-			if (!text) return '';
-			return text.toString()
-				.replace(/&/g, '&amp;')
-				.replace(/</g, '&lt;')
-				.replace(/>/g, '&gt;')
-				.replace(/"/g, '&quot;')
-				.replace(/'/g, '&#39;');
-		}
-
 		// 파라미터 데이터 수집
 		function collectParameters() {
 			var parameters = [];
@@ -879,7 +1197,10 @@
 							}
 							break;
 						case 'DATE':
-							if (!isValidDate(param.defaultValue)) {
+							if (!(function(dateString) {
+								var date = new Date(dateString);
+								return date instanceof Date && !isNaN(date);
+							})(param.defaultValue)) {
 								errors.push('날짜 타입 파라미터의 기본값은 유효한 날짜여야 합니다. (' + param.name + ')');
 							}
 							break;
@@ -978,19 +1299,7 @@
 		}
 
 		// 날짜 유효성 검사
-		function isValidDate(dateString) {
-			var date = new Date(dateString);
-			return date instanceof Date && !isNaN(date);
-		}
 
-		// 파라미터를 설정 문자열로 변환 (기존 호환성)
-		function parametersToConfigString(parameters) {
-			var configLines = [];
-			parameters.forEach(function (param) {
-				configLines.push(param.PARAMETER_NAME + '=' + (param.PARAMETER_DEFAULT || ''));
-			});
-			return configLines.join('\n');
-		}
 
 		// 단축키 추가
 		function addShortcut() {
@@ -1284,43 +1593,59 @@
 		// 새 SQL 템플릿 생성
 		async function createNewSqlTemplate() {
 			// 변경사항 확인
-			const canProceed = await confirmUnsavedChanges('현재 템플릿에 저장되지 않은 변경사항이 있습니다.\n새 템플릿을 생성하시겠습니까?');
+			const canProceed = await confirmUnsavedChanges(function() {
+				// 저장 완료 후 실행될 로직
+				// 공통 초기화 함수 호출
+				resetCurrentTemplate();
+
+				// 새 템플릿 생성 시에만 필요한 추가 작업
+				// 현재 선택된 카테고리를 자동으로 설정
+				var selectedCategory = $('.category-item.selected').data('id');
+				if (selectedCategory && selectedCategory !== 'UNCATEGORIZED') {
+					$('#sqlTemplateCategories').val([selectedCategory]).trigger('change');
+				}
+			});
 			if (!canProceed) {
 				return;
 			}
+		}
 
-			// 공통 초기화 함수 호출
-			resetCurrentTemplate();
-
-			// 새 템플릿 생성 시에만 필요한 추가 작업
-			// 현재 선택된 카테고리를 자동으로 설정
-			var selectedCategory = $('.category-item.selected').data('id');
-			if (selectedCategory && selectedCategory !== 'UNCATEGORIZED') {
-				$('#sqlTemplateCategories').val([selectedCategory]).trigger('change');
+		// 공통 벨리데이션 함수
+		function validateTemplateForSave(callback, showNoChangesMessage = true) {
+			// 벨리데이션 체크
+			if (!validateSqlTemplate()) {
+				if (callback) callback(false);
+				return false;
 			}
+
+			// 템플릿 이름이 없으면 에러
+			if (!$('#sqlTemplateName').val() || !$('#sqlTemplateName').val().trim()) {
+				showToast('템플릿 이름을 입력해주세요.', 'warning');
+				if (callback) callback(false);
+				return false;
+			}
+
+			// 변경사항이 없으면 저장하지 않음 (선택사항)
+			if (!window.SqlTemplateState.hasUnsavedChanges) {
+				if (showNoChangesMessage) {
+					showToast('변경된 내용이 없습니다.', 'info');
+				}
+				if (callback) callback(true); // 저장할 내용이 없어도 성공으로 간주
+				return false;
+			}
+
+			return true;
 		}
 
 		// SQL 템플릿 저장 (UI에서 직접 값을 읽어서 저장) - 저장 버튼용
 		function saveSqlTemplate(callback) {
-			// 벨리데이션 체크
-			if (!validateSqlTemplate()) {
-				if (callback) callback(false);
+			// 공통 벨리데이션 체크
+			if (!validateTemplateForSave(callback, true)) {
 				return;
 			}
 
-		// 템플릿 이름이 없으면 에러
-		if (!$('#sqlTemplateName').val() || !$('#sqlTemplateName').val().trim()) {
-			showToast('템플릿 이름을 입력해주세요.', 'warning');
-			if (callback) callback(false);
-			return;
-		}
-
-		// 변경사항이 없으면 저장하지 않음 (선택사항)
-		if (!window.SqlTemplateState.hasUnsavedChanges) {
-			showToast('변경된 내용이 없습니다.', 'info');
-			if (callback) callback(true); // 저장할 내용이 없어도 성공으로 간주
-			return;
-		}
+			// 로딩 화면 표시
+			showLoading(LOADING_MESSAGES.SAVING);
 
 			// UI에서 직접 값을 읽어서 서버로 전송 (새로고침 포함)
 			saveTemplateToServer(callback);
@@ -1328,24 +1653,14 @@
 
 		// SQL 템플릿 저장 (네비게이션용 - 새로고침 없음)
 		function saveSqlTemplateForNavigation(callback) {
-			// 벨리데이션 체크
-			if (!validateSqlTemplate()) {
-				if (callback) callback(false);
+			// 로딩 화면 표시
+			showLoading(LOADING_MESSAGES.SAVING);
+
+			// 공통 벨리데이션 체크
+			if (!validateTemplateForSave(callback, false)) {
+				hideLoading();
 				return;
 			}
-
-		// 템플릿 이름이 없으면 에러
-		if (!$('#sqlTemplateName').val() || !$('#sqlTemplateName').val().trim()) {
-			showToast('템플릿 이름을 입력해주세요.', 'warning');
-			if (callback) callback(false);
-			return;
-		}
-
-		// 변경사항이 없으면 저장하지 않음 (선택사항)
-		if (!window.SqlTemplateState.hasUnsavedChanges) {
-			if (callback) callback(true); // 저장할 내용이 없어도 성공으로 간주
-			return;
-		}
 
 			// UI에서 직접 값을 읽어서 서버로 전송 (새로고침 없음)
 			saveTemplateToServerForNavigation(callback);
@@ -1373,14 +1688,6 @@
 			return 'sqlEditor-' + connectionId.replace(/,/g, '-');
 		}
 		
-		// 에디터 ID를 연결 ID로 변환 (하이픈 → 콤마)
-		function editorIdToConnectionId(editorId) {
-			// default 에디터 ID는 특별히 처리
-			if (editorId === 'sqlEditor_default') {
-				return 'default';
-			}
-			return editorId.replace('sqlEditor-', '').replace(/-/g, ',');
-		}
 
 		// SQL 내용을 서버 형식으로 변환
 		function convertSqlContentsForServer(sqlContents) {
@@ -1449,8 +1756,12 @@
 			return '전체 연결: ' + connectionIds.join(', ');
 		}
 
-		// 서버로 템플릿 저장 (UI에서 직접 값을 읽어서 API로 전송) - 저장 버튼용
-		function saveTemplateToServer(callback) {
+		// 통합된 템플릿 저장 함수
+		// options.refreshTemplate: true면 템플릿 재선택, false면 목록만 새로고침 (기본값: true)
+		function saveTemplateToServer(callback, options = {}) {
+			// 기본 옵션 설정
+			var refreshTemplate = options.refreshTemplate !== false; // 기본값 true
+			
 			// UI에서 직접 값을 읽어서 새로운 JSON API 스펙에 맞게 데이터 구성
 			var requestData = {
 				template: {
@@ -1494,19 +1805,36 @@
 							selectCategory(savedCategoryId);
 						}
 						
-						// 2단계: 템플릿 목록 로드 후 템플릿 선택
+						// 2단계: 템플릿 목록 처리
 						var selectedCategory = $('.category-item.selected').data('id');
 						if (selectedCategory) {
-							loadTemplatesByCategory(selectedCategory);
-							
-							// 목록 로드 완료 후 템플릿 선택
-							if (savedTemplateId) {
-								setTimeout(function() {
-									if ($('[data-id="' + savedTemplateId + '"]').length > 0) {
-										selectTemplate(savedTemplateId);
-									}
-								}, 500);
+							if (refreshTemplate) {
+								// 템플릿 재선택 모드: 선택 유지하면서 템플릿 목록 새로고침
+								loadTemplatesByCategory(selectedCategory, true);
+								
+								// 목록 로드 완료 후 템플릿 선택
+								if (savedTemplateId) {
+									setTimeout(function() {
+										if ($('[data-id="' + savedTemplateId + '"]').length > 0) {
+											selectTemplate(savedTemplateId);
+										}
+										// 모든 작업 완료 후 로딩 종료
+										hideLoading();
+									}, 500);
+								} else {
+									// 템플릿 선택이 없는 경우 바로 로딩 종료
+									setTimeout(function() {
+										hideLoading();
+									}, 100);
+								}
+							} else {
+								// 네비게이션 모드: 템플릿 목록만 새로고침 (템플릿 재선택 없음)
+								loadTemplatesByCategory(selectedCategory);
+								hideLoading();
 							}
+						} else {
+							// 카테고리가 없는 경우 바로 로딩 종료
+							hideLoading();
 						}
 						
 						// 카테고리별 템플릿 개수 업데이트
@@ -1515,96 +1843,20 @@
 						// 콜백 호출 (성공)
 						if (callback) callback(true);
 					} else {
+						hideLoading();
 						showToast('저장 실패: ' + result.error, 'error');
 						if (callback) callback(false);
 					}
 				},
 				error: function (xhr, status, error) {
-					var errorMessage = '저장 중 오류가 발생했습니다.';
-					
-					// 서버에서 상세 에러 메시지를 받은 경우
-					if (xhr.responseJSON && xhr.responseJSON.error) {
-						errorMessage = xhr.responseJSON.error;
-					}
-					
-					showToast(errorMessage, 'error');
-					if (callback) callback(false);
+					handleAjaxError(xhr, status, error, '저장 중 오류가 발생했습니다.', callback);
 				}
 			});
 		}
 
-		// 서버로 템플릿 저장 (네비게이션용 - 새로고침 없음)
+		// 네비게이션용 템플릿 저장 함수 (하위 호환성을 위한 래퍼)
 		function saveTemplateToServerForNavigation(callback) {
-			// UI에서 직접 값을 읽어서 새로운 JSON API 스펙에 맞게 데이터 구성
-			var requestData = {
-				template: {
-					templateId: $('#sqlTemplateId').val() || '',
-					templateName: $('#sqlTemplateName').val() || '',
-					templateDesc: $('#sqlTemplateDesc').val() || '',
-					sqlContent: getSqlContentFromEditor('sqlEditor_default'),
-					accessibleConnectionIds: $('#accessibleConnections').val() || [],
-					chartMapping: $('#sqlChartMapping').val() || '',
-					version: 1,
-					status: $('#sqlTemplateStatus').val() || 'ACTIVE',
-					executionLimit: parseInt($('#sqlExecutionLimit').val()) || 0,
-					refreshTimeout: parseInt($('#sqlRefreshTimeout').val()) || 0,
-					newline: $('#sqlNewline').is(':checked'),
-					audit: $('#sqlAudit').is(':checked')
-				},
-				categories: $('#sqlTemplateCategories').val() || [],
-				parameters: getParametersFromUI(),
-				shortcuts: getShortcutsFromUI(),
-				sqlContents: getSqlContentsFromUI()
-			};
-
-			$.ajax({
-				type: 'POST',
-				url: '/SQLTemplate/save',
-				contentType: 'application/json',
-				data: JSON.stringify(requestData),
-				success: function (result) {
-					if (result.success) {
-						showToast('템플릿이 저장되었습니다.', 'success');
-
-						// 변경사항 초기화
-						window.SqlTemplateState.resetChanges();
-
-						// 저장된 정보 추출
-						var savedCategoryId = result.categoryId || $('.category-item.selected').data('id');
-						
-						// 카테고리 선택 (필요한 경우)
-						if (savedCategoryId && $('.category-item.selected').data('id') !== savedCategoryId) {
-							selectCategory(savedCategoryId);
-						}
-						
-						// 템플릿 목록만 새로고침 (템플릿 재선택은 안함)
-						var selectedCategory = $('.category-item.selected').data('id');
-						if (selectedCategory) {
-							loadTemplatesByCategory(selectedCategory);
-						}
-						
-						// 카테고리별 템플릿 개수 업데이트
-						loadCategoryTemplateCounts();
-						
-						// 콜백 호출 (성공)
-						if (callback) callback(true);
-					} else {
-						showToast('저장 실패: ' + result.error, 'error');
-						if (callback) callback(false);
-					}
-				},
-				error: function (xhr, status, error) {
-					var errorMessage = '저장 중 오류가 발생했습니다.';
-					
-					// 서버에서 상세 에러 메시지를 받은 경우
-					if (xhr.responseJSON && xhr.responseJSON.error) {
-						errorMessage = xhr.responseJSON.error;
-					}
-					
-					showToast(errorMessage, 'error');
-					if (callback) callback(false);
-				}
-			});
+			saveTemplateToServer(callback, { refreshTemplate: false });
 		}
 
 		// UI에서 SQL 에디터 내용을 가져오는 함수
@@ -1696,6 +1948,8 @@
 
 		// SQL 템플릿 상세 정보 로드
 		function loadSqlTemplateDetail(templateId) {
+			showLoading(LOADING_MESSAGES.LOADING_TEMPLATE);
+			
 			$.ajax({
 				type: 'GET',
 				url: '/SQLTemplate/detail',
@@ -1736,9 +1990,18 @@
 
 						// 추가 데이터 로드 (파라미터, 단축키, SQL 내용)
 						loadAdditionalTemplateData(templateId);
+
+						// 저장 완료 후 실행될 로직
+						$('.template-item').removeClass('selected');
+						$('[data-id="' + templateId + '"]').addClass('selected');
 					} else {
+						hideLoading();
 						showToast('템플릿 정보를 불러오는데 실패했습니다.', 'error');
 					}
+				},
+				error: function() {
+					hideLoading();
+					showToast('템플릿 정보를 불러오는 중 오류가 발생했습니다.', 'error');
 				}
 			});
 		}
@@ -1778,12 +2041,17 @@
 
 						// 커스텀 이벤트 트리거
 						$(document).trigger('templateDetailLoaded');
+						
+						// 로딩 완료
+						hideLoading();
 					} else {
 						window.SqlTemplateState.isLoading = false;
+						hideLoading();
 					}
 				},
 				error: function (xhr, status, error) {
 					window.SqlTemplateState.isLoading = false;
+					handleAjaxError(xhr, status, error, '추가 데이터를 불러오는 중 오류가 발생했습니다.');
 				}
 			});
 		}
@@ -2345,9 +2613,13 @@
 		}
 
 		// 변경사항 저장 확인 (노트패드 스타일)
-		function confirmUnsavedChanges(actionMessage) {
+		function confirmUnsavedChanges(callback) {
 			if (!window.SqlTemplateState.hasUnsavedChanges) {
-				return Promise.resolve(true); // 변경사항이 없으면 바로 진행
+				// 변경사항이 없으면 바로 콜백 실행
+				if (callback && typeof callback === 'function') {
+					callback();
+				}
+				return Promise.resolve(true);
 			}
 			
 			return new Promise(function(resolve) {
@@ -2356,12 +2628,19 @@
 				
 				showSaveConfirmDialog(message, function(result) {
 					if (result === 'save') {
-						// 저장 후 진행 (네비게이션용은 새로고침 없음)
+						// 저장 후 진행
 						saveSqlTemplateForNavigation(function(success) {
+							if (success && callback && typeof callback === 'function') {
+								// 저장 성공 시 콜백 실행
+								callback();
+							}
 							resolve(success);
 						});
 					} else if (result === 'no') {
 						// 저장하지 않고 진행
+						if (callback && typeof callback === 'function') {
+							callback();
+						}
 						resolve(true);
 					} else {
 						// 취소
@@ -2691,7 +2970,7 @@
 						}
 					},
 					error: function (xhr, status, error) {
-						showToast('삭제 중 오류가 발생했습니다.', 'error');
+						handleAjaxError(xhr, status, error, '삭제 중 오류가 발생했습니다.');
 					}
 				});
 			}
@@ -2841,126 +3120,6 @@
 		//	markTemplateChanged();
 		// });
 
-		// 토스트 메시지 표시 함수
-		function showToast(message, type = 'info', duration = 3000) {
-			var toastId = 'toast_' + Date.now();
-			var iconClass = {
-				'success': 'fa-check-circle',
-				'error': 'fa-exclamation-circle',
-				'warning': 'fa-exclamation-triangle',
-				'info': 'fa-info-circle'
-			}[type] || 'fa-info-circle';
-
-			var bgClass = {
-				'success': 'alert-success',
-				'error': 'alert-danger',
-				'warning': 'alert-warning',
-				'info': 'alert-info'
-			}[type] || 'alert-info';
-
-			var toast = $('<div id="' + toastId + '" class="alert ' + bgClass + ' alert-dismissible" style="margin-bottom: 10px; animation: slideInDown 0.3s ease-out;">' +
-				'<button type="button" class="close" data-dismiss="alert">&times;</button>' +
-				'<i class="fa ' + iconClass + '"></i> ' + message +
-				'</div>');
-
-			$('#toastContainer').append(toast);
-
-			// 자동 제거
-			setTimeout(function () {
-				$('#' + toastId).fadeOut(300, function () {
-					$(this).remove();
-				});
-			}, duration);
-		}
-
-		// 모든 SQL 에디터의 자동완성 업데이트
-		function updateAllEditorsCompleters() {
-			if (window.SqlTemplateState.sqlEditors) {
-				Object.keys(window.SqlTemplateState.sqlEditors).forEach(function (dbType) {
-					var editor = window.SqlTemplateState.sqlEditors[dbType];
-					if (editor && typeof ace !== 'undefined') {
-						// 자동완성 업데이트
-						var langTools = ace.require("ace/ext/language_tools");
-						langTools.setCompleters([]);
-						setupCustomCompleter(editor);
-					}
-				});
-			}
-		}
-
-		// 커스텀 자동완성 설정 (하이라이팅 제거)
-		function setupCustomCompleter(editor) {
-			// 기존 자동완성 기능 유지하면서 커스텀 추가
-			var langTools = ace.require("ace/ext/language_tools");
-
-			// 커스텀 자동완성 제공자 생성
-			var customCompleter = {
-				getCompletions: function (editor, session, pos, prefix, callback) {
-					var completions = [];
-
-					// 파라미터 목록 가져오기
-					var parameters = getParameterNames();
-
-					// 파라미터만 자동완성에 추가
-					parameters.forEach(function (paramName) {
-						completions.push({
-							caption: paramName,
-							value: paramName,
-							meta: "파라미터",
-							docText: "템플릿 파라미터: " + paramName
-						});
-					});
-
-					callback(null, completions);
-				}
-			};
-
-			// 기존 자동완성 제공자들에 커스텀 제공자 추가
-			langTools.addCompleter(customCompleter);
-		}
-
-		// 현재 파라미터 이름 목록 가져오기
-		function getParameterNames() {
-			var parameters = [];
-			$('#parameterTableBody .parameter-name').each(function () {
-				var paramName = $(this).val().trim();
-				if (paramName) {
-					parameters.push(paramName);
-				}
-			});
-			return parameters;
-		}
-
-
-		$(function () {
-			$('#sqlInactive').on('change', function () {
-				if ($(this).is(':checked')) {
-					$('#sqlTemplateStatus').val('INACTIVE');
-				} else {
-					$('#sqlTemplateStatus').val('ACTIVE');
-				}
-			});
-
-			$('#sqlAudit').on('change', function () {
-				// 감사 로그 토글 이벤트
-			});
-
-			// 템플릿 상세 로드 시 상태에 따라 체크박스 동기화
-			function syncInactiveCheckbox() {
-				if ($('#sqlTemplateStatus').val() === 'INACTIVE') {
-					$('#sqlInactive').prop('checked', true);
-				} else {
-					$('#sqlInactive').prop('checked', false);
-				}
-			}
-			// sqlTemplateStatus 변경 이벤트는 이벤트 위임으로 처리됨 (setupChangeTracking에서)
-			// 단, syncInactiveCheckbox는 특별한 동기화 로직이므로 별도 처리
-			$('#sqlTemplateStatus').on('change', syncInactiveCheckbox);
-			// 상세 정보 로드 후에도 동기화
-			$(document).on('templateDetailLoaded', function () {
-				setTimeout(syncInactiveCheckbox, 100);
-			});
-		});
 	</script>
 
 	<!-- Toast 알림 컨테이너 -->
@@ -3334,6 +3493,14 @@
 					</div>
 				</div>
 		</section>
+	</div>
+
+	<!-- 로딩 오버레이 -->
+	<div id="loadingOverlay" class="loading-overlay">
+		<div class="loading-spinner">
+			<div class="spinner"></div>
+			<div class="loading-text">로딩 중...</div>
+		</div>
 	</div>
 
 	<!-- 카테고리 모달 -->
