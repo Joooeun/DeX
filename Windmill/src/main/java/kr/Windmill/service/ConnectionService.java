@@ -876,7 +876,7 @@ public class ConnectionService {
 	 * @return DB 연결 목록
 	 */
 	public List<Map<String, Object>> getDatabaseConnections(String userId) {
-		String sql = "SELECT * FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_ID";
+		String sql = "SELECT * FROM DATABASE_CONNECTION ORDER BY CONNECTION_ID";
 		List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql);
 
 		// 권한 필터링 적용
@@ -939,7 +939,7 @@ public class ConnectionService {
 	 * @return SFTP 연결 목록
 	 */
 	public List<Map<String, Object>> getSftpConnections(String userId) {
-		String sql = "SELECT * FROM SFTP_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY SFTP_CONNECTION_ID";
+		String sql = "SELECT * FROM SFTP_CONNECTION ORDER BY SFTP_CONNECTION_ID";
 		List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql);
 
 		// SFTP_CONNECTION_ID를 CONNECTION_ID로 매핑

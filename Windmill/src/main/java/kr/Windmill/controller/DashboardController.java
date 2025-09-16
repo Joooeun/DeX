@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import kr.Windmill.dto.SqlTemplateExecuteDto;
-import kr.Windmill.dto.log.LogInfoDto;
 import kr.Windmill.service.SQLExecuteService;
 import kr.Windmill.service.SqlTemplateService;
 import kr.Windmill.util.Common;
@@ -281,35 +280,16 @@ public class DashboardController {
      */
     private boolean isAnyMonitoringEnabled() {
         try {
-            // 로컬 DB에서 모니터링이 활성화된 연결 정보 조회
-            String sql = "SELECT CONNECTION_ID, STATUS, MONITORING_ENABLED FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE'";
+            // 로컬 DB에서 직접 모니터링이 활성화된 연결 정보 조회
+            String sql = "SELECT CONNECTION_ID, MONITORING_ENABLED FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' AND MONITORING_ENABLED = true";
+            List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql);
             
-            // 로컬 DB 연결을 위한 LogInfoDto 설정
-            LogInfoDto logInfo = new LogInfoDto();
-            logInfo.setConnectionId("local"); // 로컬 DB 연결 ID
-            logInfo.setPath("MONITORING_CHECK");
-            logInfo.setSql(sql);
-            logInfo.setParamList(new ArrayList<>());
-            logInfo.setLimit(1000);
-            
-            Map<String, List> result = sqlExecuteService.executeSQL(logInfo);
-            List<Map<String, String>> rowbody = result.get("rowbody");
-            
-            if (rowbody != null && !rowbody.isEmpty()) {
-                // 활성 상태인 연결 중에서 모니터링이 활성화된 연결 확인
-                for (Map<String, String> row : rowbody) {
-                    String connectionId = row.get("CONNECTION_ID");
-                    String monitoringEnabled = row.get("MONITORING_ENABLED");
-                    
-                    if (connectionId != null && !connectionId.equals("local") && 
-                        "TRUE".equalsIgnoreCase(monitoringEnabled)) {
-                        cLog.monitoringLog("DASHBOARD_MONITORING_FOUND", "모니터링 활성화된 연결 발견: " + connectionId);
-                        return true;
-                    }
-                }
+            if (connections != null && !connections.isEmpty()) {
+                cLog.monitoringLog("DASHBOARD_MONITORING_FOUND", "모니터링 활성화된 연결 발견: 총 " + connections.size() + "개");
+                return true;
             }
             
-            cLog.monitoringLog("DASHBOARD_MONITORING_NONE", "모니터링 활성화된 연결이 없습니다. 활성 연결 수: " + (rowbody != null ? rowbody.size() : 0));
+            cLog.monitoringLog("DASHBOARD_MONITORING_NONE", "모니터링 활성화된 연결이 없습니다.");
             return false;
         } catch (Exception e) {
             cLog.monitoringLog("DASHBOARD_MONITORING_CHECK_ERROR", "모니터링 활성화 확인 중 오류: " + e.getMessage());
