@@ -8,372 +8,11 @@
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 
-	<style>
-		.category-list {
-			max-height: 40vh;
-			overflow-y: auto;
-			overflow-x: hidden;
-		}
-
-		.category-item {
-			cursor: pointer;
-			padding: 5px;
-			border: 1px solid #ddd;
-			margin-bottom: 3px;
-			border-radius: 3px;
-			background-color: #f9f9f9;
-			word-wrap: break-word;
-			white-space: normal;
-		}
-
-		.category-item:hover {
-			background-color: #e9ecef;
-		}
-
-		.category-item.selected {
-			background-color: #007bff;
-			color: white;
-		}
-
-		.template-list {
-			max-height: 40vh;
-			overflow-y: auto;
-			overflow-x: hidden;
-		}
-
-		.template-item {
-			cursor: pointer;
-			padding: 8px;
-			border: 1px solid #ddd;
-			margin-bottom: 3px;
-			border-radius: 3px;
-			background-color: #fff;
-			word-wrap: break-word;
-			white-space: normal;
-		}
-
-		.template-item:hover {
-			background-color: #f8f9fa;
-		}
-
-		.template-item.selected {
-			background-color: #28a745;
-			color: white;
-		}
-
-		.modal-header {
-			background-color: #007bff;
-			color: white;
-		}
-
-		.sql-preview {
-			background-color: #f8f9fa;
-			border: 1px solid #dee2e6;
-			border-radius: 5px;
-			padding: 10px;
-			max-height: 300px;
-			overflow-y: auto;
-			font-family: 'Courier New', monospace;
-			font-size: 12px;
-			white-space: pre-wrap;
-			word-wrap: break-word;
-			line-height: 1.4;
-		}
-
-		.template-count {
-			font-size: 11px;
-			margin-bottom: 5px;
-			display: inline-block;
-			vertical-align: middle;
-		}
-
-		.category-checkboxes .checkbox {
-			margin-bottom: 3px;
-		}
-
-		.category-checkboxes .checkbox label {
-			font-size: 12px;
-			line-height: 1.2;
-		}
-
-		.category-icon {
-			cursor: pointer;
-			margin: 0 2px;
-			padding: 2px;
-			border-radius: 2px;
-			transition: all 0.2s ease;
-		}
-
-		.category-icon:hover {
-			background-color: rgba(0, 0, 0, 0.1);
-		}
-
-		.order-icon {
-			color: #666;
-			font-size: 12px;
-		}
-
-		.order-icon:hover {
-			color: #007bff;
-			background-color: rgba(0, 123, 255, 0.1);
-		}
-
-		.edit-icon {
-			color: #28a745;
-		}
-
-		.edit-icon:hover {
-			color: #1e7e34;
-			background-color: rgba(40, 167, 69, 0.1);
-		}
-
-		.delete-icon {
-			color: #dc3545;
-		}
-
-		.delete-icon:hover {
-			color: #c82333;
-			background-color: rgba(220, 53, 69, 0.1);
-		}
-
-		/* 파라미터 테이블 반응형 개선 */
-		.parameter-table-container {
-			overflow-x: auto;
-			-webkit-overflow-scrolling: touch;
-		}
-
-		#parameterTable {
-	min-width: 1000px; /* 최소 너비 보장 */
-			table-layout: fixed;
-		}
-
-		#parameterTable th,
-		#parameterTable td,
-		#shortcutTable th,
-		#shortcutTable td {
-			white-space: nowrap;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			padding: 8px 4px;
-			font-size: 12px;
-		}
+	<!-- SQL Template 전용 스타일 -->
+	<link href="/resources/css/sql-template.css" rel="stylesheet" />
 
 
-		/* 파라미터 입력 필드 개선 */
-.form-control {
-			padding: 4px 6px;
-		}
 
-		/* 체크박스 중앙 정렬 */
-		#parameterTable td div {
-			text-align: center;
-		}
-
-		#parameterTable td div input[type="checkbox"] {
-			margin: 0;
-		}
-
-		/* 순서 버튼 개선 */
-.move-up, .move-down {
-			padding: 1px 3px;
-			margin: 1px;
-			font-size: 10px;
-			line-height: 1;
-		}
-
-		/* 모바일에서 파라미터 테이블 스크롤 힌트 */
-		@media (max-width: 768px) {
-			.parameter-table-container::after {
-				content: "← 좌우로 스크롤하여 더 많은 컬럼을 확인하세요";
-				display: block;
-				text-align: center;
-				font-size: 11px;
-				color: #666;
-				margin-top: 5px;
-				padding: 5px;
-				background-color: #f8f9fa;
-				border-radius: 3px;
-			}
-		}
-
-		/* 기본 정보 섹션 반응형 개선 */
-		@media (max-width: 1200px) {
-			.col-lg-3 {
-				margin-bottom: 15px;
-			}
-		}
-
-		@media (max-width: 992px) {
-			.col-md-6 {
-				margin-bottom: 15px;
-			}
-		}
-
-		@media (max-width: 768px) {
-			.col-sm-12 {
-				margin-bottom: 15px;
-			}
-
-			/* 모바일에서 레이블 텍스트 줄바꿈 방지 */
-			.form-group label {
-				white-space: nowrap;
-				overflow: hidden;
-				text-overflow: ellipsis;
-				font-size: 12px;
-			}
-
-			/* 모바일에서 스위치 버튼 크기 조정 */
-			.switch {
-				width: 40px;
-				height: 20px;
-			}
-
-			.slider:before {
-				height: 16px;
-				width: 16px;
-			}
-
-			.switch input:checked+.slider:before {
-				transform: translateX(20px);
-			}
-		}
-
-		.bg-gray {
-			background-color: #6c757d !important;
-			color: white;
-		}
-
-		.bg-blue {
-			background-color: #007bff !important;
-			color: white;
-		}
-
-		/* 파라미터 순서 변경 버튼 스타일 */
-.move-up, .move-down {
-			padding: 2px 4px;
-			margin: 0 2px;
-			font-size: 10px;
-		}
-
-		/* 부트스트랩 툴팁 커스터마이징 */
-		.tooltip-inner {
-			max-width: 300px;
-			text-align: left;
-			font-size: 12px;
-			line-height: 1.4;
-		}
-
-		/* 툴팁이 있는 요소들의 커서 스타일 */
-		[data-toggle="tooltip"] {
-			cursor: help;
-		}
-
-		.category-icon {
-			cursor: pointer;
-			font-size: 14px;
-			padding: 3px;
-			border-radius: 3px;
-			transition: all 0.2s ease;
-			vertical-align: middle;
-			display: inline-block;
-		}
-
-		.edit-icon {
-			color: #007bff;
-		}
-
-		.delete-icon {
-			color: #dc3545;
-		}
-
-table th, td {
-			text-align: center;
-			vertical-align: middle !important;
-			padding: 4px !important;
-			font-size: 14px !important;
-		}
-	</style>
-
-	<style>
-		/* Switch (iOS-like) */
-		.switch {
-			display: inline-block;
-			position: relative;
-			width: 44px;
-			height: 22px;
-		}
-
-		.switch input {
-			opacity: 0;
-			width: 0;
-			height: 0;
-		}
-
-		.slider {
-			position: absolute;
-			cursor: pointer;
-			top: 0;
-			left: 0;
-			right: 0;
-			bottom: 0;
-			background-color: #ccc;
-			transition: .2s;
-			border-radius: 22px;
-		}
-
-		.slider:before {
-			position: absolute;
-			content: "";
-			height: 18px;
-			width: 18px;
-			left: 2px;
-			bottom: 2px;
-			background-color: white;
-			transition: .2s;
-			border-radius: 50%;
-		}
-
-		.switch input:checked+.slider {
-			background-color: #28a745;
-		}
-
-		.switch input:checked+.slider:before {
-			transform: translateX(22px);
-		}
-	</style>
-
-	<style>
-		.control-bar {
-			display: flex;
-			flex-wrap: wrap;
-			gap: 12px;
-			align-items: center
-		}
-
-		.control-item {
-			display: flex;
-			align-items: center;
-			gap: 6px
-		}
-
-		.control-item .form-control {
-			height: 28px;
-			padding: 2px 6px
-		}
-
-		.options-row {
-			display: flex;
-			flex-wrap: wrap;
-			gap: 16px;
-			align-items: center
-		}
-
-		.option-item {
-			display: flex;
-			align-items: center;
-			gap: 8px
-		}
-	</style>
 
 	<script>
 		$(document).ready(function () {
@@ -2212,12 +1851,15 @@ table th, td {
 
 						editor.setValue(sqlContent || '');
 
-					// 에디터를 전역 변수에 저장 (에디터 ID용)
+					// 에디터를 전역 변수에 저장 (두 곳에 모두 저장)
 					window.sqlEditors = window.sqlEditors || {};
-						window.sqlEditors[editorId] = editor;
+					window.sqlEditors[editorId] = editor;
 					
-						// ACE 에디터 변경 이벤트 리스너 설정
-						setupAceEditorChangeTracking(editorId);
+					window.SqlTemplateState.sqlEditors = window.SqlTemplateState.sqlEditors || {};
+					window.SqlTemplateState.sqlEditors[editorId] = editor;
+					
+					// ACE 에디터 변경 이벤트 리스너 설정
+					setupAceEditorChangeTracking(editorId);
 					} else {
 						initTextareaEditorForConnection(editorId, sqlContent);
 					}
@@ -2569,12 +2211,36 @@ table th, td {
 			$(document).off('change', '.target-template-select2');
 		}
 
-		// ACE 에디터 변경 이벤트 리스너 설정 (단순화)
+		// ACE 에디터 변경 이벤트 리스너 설정 (포괄적 이벤트 처리)
 		function setupAceEditorChangeTracking(editorId) {
-			if (typeof ace !== 'undefined' && window.SqlTemplateState.sqlEditors && window.SqlTemplateState.sqlEditors[editorId]) {
-				var editor = window.SqlTemplateState.sqlEditors[editorId];
+			if (typeof ace !== 'undefined') {
+				var editor = null;
+				
+				// window.sqlEditors에서 먼저 찾기
+				if (window.sqlEditors && window.sqlEditors[editorId]) {
+					editor = window.sqlEditors[editorId];
+				}
+				// window.SqlTemplateState.sqlEditors에서도 찾기
+				else if (window.SqlTemplateState.sqlEditors && window.SqlTemplateState.sqlEditors[editorId]) {
+					editor = window.SqlTemplateState.sqlEditors[editorId];
+				}
+				
 				if (editor && typeof editor.on === 'function') {
+					// 기존 이벤트 제거 (중복 방지)
+					editor.off('change', markTemplateChanged);
+					editor.off('input', markTemplateChanged);
+					editor.off('paste', markTemplateChanged);
+					
+					// 다양한 변경 이벤트 등록
 					editor.on('change', markTemplateChanged);
+					editor.on('input', markTemplateChanged);
+					editor.on('paste', markTemplateChanged);
+					
+					// 세션 이벤트도 등록 (백스페이스, 삭제 등)
+					if (editor.session && typeof editor.session.on === 'function') {
+						editor.session.off('change', markTemplateChanged);
+						editor.session.on('change', markTemplateChanged);
+					}
 				}
 			}
 		}
@@ -3031,96 +2697,6 @@ table th, td {
 	<!-- Toast 알림 컨테이너 -->
 	<div id="toastContainer" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 9999; width: 350px; font-size: 15px;"></div>
 
-	<style>
-		@keyframes slideInDown {
-			from {
-				transform: translateY(-100%);
-				opacity: 0;
-			}
-
-			to {
-				transform: translateY(0);
-				opacity: 1;
-			}
-		}
-
-
-		/* 패널 헤더 아이콘 스타일 */
-		.panel-title i {
-			margin-right: 8px;
-			color: #337ab7;
-		}
-
-		/* 폼 라벨 스타일 (아이콘 제거됨) */
-		label {
-			font-weight: 500;
-		}
-
-		/* 필수 필드 표시 */
-		.text-danger {
-			color: #d9534f !important;
-		}
-
-		/* 개선된 플레이스홀더 */
-		.form-control::placeholder {
-			color: #999;
-			font-style: italic;
-		}
-
-		/* 카드 간격 조정 */
-		.panel {
-			border: 1px solid #ddd;
-			border-radius: 4px;
-			box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-		}
-
-		.panel-heading {
-			background-color: #f5f5f5;
-			border-bottom: 1px solid #ddd;
-		}
-
-		.panel-title {
-			font-size: 16px;
-			font-weight: 600;
-		}
-
-		/* 컴팩트 테이블 스타일 */
-		.table-condensed th,
-		.table-condensed td {
-			padding: 4px 8px;
-			font-size: 12px;
-		}
-
-		/* 작은 입력 필드 */
-		.input-sm {
-			height: 28px;
-			padding: 4px 8px;
-			font-size: 12px;
-		}
-
-		/* 컴팩트 폼 그룹 */
-		.form-group {
-			margin-bottom: 8px;
-		}
-
-
-		/* 테이블 헤더 스타일 (아이콘 제거됨) */
-		th {
-			font-weight: 600;
-			background-color: #f8f9fa;
-		}
-
-		/* 버튼 개선 */
-		.btn {
-			border-radius: 4px;
-			font-weight: 500;
-		}
-
-		.btn-sm {
-			padding: 5px 10px;
-			font-size: 12px;
-		}
-	</style>
 
 	<!-- Content Wrapper -->
 	<div class="content-wrapper" style="margin-left: 0">
