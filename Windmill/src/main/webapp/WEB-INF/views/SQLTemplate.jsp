@@ -2265,7 +2265,12 @@
 						var editor = ace.edit(editorId);
 						editor.setTheme("ace/theme/chrome");
 						editor.session.setMode("ace/mode/sql");
+						
+						// localStorage에서 저장된 폰트 가져오기
+						var selectedFont = localStorage.getItem('selectedFont') || 'D2Coding';
+						
 						editor.setOptions({
+							fontFamily: selectedFont,
 							enableBasicAutocompletion: true,
 							enableSnippets: true,
 							enableLiveAutocompletion: true,
@@ -2306,10 +2311,51 @@
 			if (!editorDiv) {
 				return;
 			}
-			editorDiv.innerHTML = '<textarea class="sql-textarea" style="width: 100%; height: 100%; font-family: monospace; font-size: 14px; border: none; resize: none; outline: none;">' + (sqlContent || '') + '</textarea>';
+			
+			// localStorage에서 저장된 폰트 가져오기
+			var selectedFont = localStorage.getItem('selectedFont') || 'D2Coding';
+			
+			editorDiv.innerHTML = '<textarea class="sql-textarea" style="width: 100%; height: 100%; font-family: ' + selectedFont + '; font-size: 14px; border: none; resize: none; outline: none;">' + (sqlContent || '') + '</textarea>';
 
 			// textarea 변경 이벤트는 setupChangeTracking에서 전역으로 처리됨
 		}
+		
+		// iframe에서 호출할 수 있도록 전역 함수로 노출
+		window.changeFont = function(fontFamily) {
+			// localStorage에 선택한 글꼴 저장
+			localStorage.setItem('selectedFont', fontFamily);
+			
+			// 현재 페이지의 모든 요소에 글꼴 적용
+			document.documentElement.style.setProperty('--selected-font', fontFamily);
+			
+			// 현재 페이지의 Ace Editor들에 폰트 적용
+			if (typeof ace !== 'undefined') {
+				// 전역 에디터들에 폰트 적용
+				if (window.sqlEditors) {
+					Object.values(window.sqlEditors).forEach(function(editor) {
+						if (editor && typeof editor.setOptions === 'function') {
+							editor.setOptions({
+								fontFamily: fontFamily
+							});
+						}
+					});
+				}
+				
+				// SqlTemplateState 에디터들에 폰트 적용
+				if (window.SqlTemplateState && window.SqlTemplateState.sqlEditors) {
+					Object.values(window.SqlTemplateState.sqlEditors).forEach(function(editor) {
+						if (editor && typeof editor.setOptions === 'function') {
+							editor.setOptions({
+								fontFamily: fontFamily
+							});
+						}
+					});
+				}
+			}
+			
+			// textarea 에디터들에도 폰트 적용
+			$('.sql-textarea').css('font-family', fontFamily);
+		};
 
 
 		// SQL 내용 추가 (기본 템플릿은 이미 존재하므로 추가 SQL만 생성)

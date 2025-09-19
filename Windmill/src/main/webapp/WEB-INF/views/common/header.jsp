@@ -497,12 +497,45 @@ var changePW
 			// 현재 페이지의 모든 요소에 글꼴 적용
 			document.documentElement.style.setProperty('--selected-font', fontFamily);
 			
+			// 드롭다운 버튼 텍스트 업데이트
+			updateFontDropdownText(fontFamily);
+			
+			// 현재 페이지의 Ace Editor들에 폰트 적용
+			if (typeof ace !== 'undefined') {
+				// 전역 에디터들에 폰트 적용
+				if (window.sqlEditors) {
+					Object.values(window.sqlEditors).forEach(function(editor) {
+						if (editor && typeof editor.setOptions === 'function') {
+							editor.setOptions({
+								fontFamily: fontFamily
+							});
+						}
+					});
+				}
+				
+				// SqlTemplateState 에디터들에 폰트 적용
+				if (window.SqlTemplateState && window.SqlTemplateState.sqlEditors) {
+					Object.values(window.SqlTemplateState.sqlEditors).forEach(function(editor) {
+						if (editor && typeof editor.setOptions === 'function') {
+							editor.setOptions({
+								fontFamily: fontFamily
+							});
+						}
+					});
+				}
+			}
+			
 			// 모든 iframe에도 글꼴 적용
 			var iframes = document.querySelectorAll('iframe');
 			iframes.forEach(function(iframe) {
 				try {
 					if (iframe.contentDocument) {
 						iframe.contentDocument.documentElement.style.setProperty('--selected-font', fontFamily);
+						
+						// iframe 내부의 에디터들에도 폰트 적용
+						if (iframe.contentWindow && iframe.contentWindow.changeFont) {
+							iframe.contentWindow.changeFont(fontFamily);
+						}
 					}
 				} catch (e) {
 					// Cross-origin 에러 무시
@@ -513,11 +546,23 @@ var changePW
 			$('.dropdown-toggle').dropdown('toggle');
 		}
 		
+		// 드롭다운 버튼 텍스트 업데이트 함수
+		function updateFontDropdownText(fontFamily) {
+			var dropdownToggle = $('.dropdown-toggle');
+			var currentText = dropdownToggle.html();
+			
+			// 기존 아이콘과 caret은 유지하고 텍스트만 변경
+			var newText = '<i class="fa fa-font"></i> ' + fontFamily + ' <span class="caret"></span>';
+			dropdownToggle.html(newText);
+		}
+		
 		// 페이지 로드 시 저장된 글꼴 복원
 		$(document).ready(function() {
 			var savedFont = localStorage.getItem('selectedFont');
 			if (savedFont) {
-				changeFont(savedFont);
+				// CSS 변수만 설정하고 드롭다운 텍스트 업데이트
+				document.documentElement.style.setProperty('--selected-font', savedFont);
+				updateFontDropdownText(savedFont);
 			}
 		});
 		</script>
