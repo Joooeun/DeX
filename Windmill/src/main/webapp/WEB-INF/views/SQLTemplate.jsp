@@ -4,12 +4,10 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ace.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ext-language_tools.js"></script>
 
-
-
-		<!-- SQL Template 전용 스타일 -->
-		<link href="/resources/css/sql-template.css" rel="stylesheet" />
-		
-		<style>
+	<!-- SQL Template 전용 스타일 -->
+	<link href="/resources/css/sql-template.css" rel="stylesheet" />
+	
+	<style>
 		/* 로딩 오버레이 스타일 */
 		.loading-overlay {
 			position: fixed;
@@ -54,7 +52,7 @@
 			font-size: 14px;
 			font-weight: 500;
 		}
-		</style>
+	</style>
 
 
 
@@ -497,7 +495,7 @@
 		// 미분류 카테고리 아이템 생성 함수
 		function createUncategorizedItem() {
 			var itemHtml = '<div class="category-item" data-id="UNCATEGORIZED" onclick="selectCategory(\'UNCATEGORIZED\')">' +
-				'<div class="row">' +
+				'<div class="row align-middle">' +
 				'<div class="col-md-8">' +
 				'<strong>📁 미분류</strong><br>' +
 				'<small>카테고리가 지정되지 않은 템플릿</small>' +
@@ -516,17 +514,17 @@
 			var itemHtml = '<div class="category-item" data-id="' + escapeHtml(category.CATEGORY_ID) + 
 				'" onclick="selectCategory(\'' + escapeHtml(category.CATEGORY_ID) + '\')">' +
 				'<div class="row">' +
-				'<div class="col-md-1" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0px 0px 0px 5px;">' +
+				'<div class="col-md-1 col-sm-2" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0px 0px 0px 15px;">' +
 				'<i class="fa fa-chevron-up category-icon order-icon" onclick="event.stopPropagation(); reorderCategory(\'' + 
 				escapeHtml(category.CATEGORY_ID) + '\', \'up\')" title="위로 이동" style="margin: 1px 0;"></i>' +
 				'<i class="fa fa-chevron-down category-icon order-icon" onclick="event.stopPropagation(); reorderCategory(\'' + 
 				escapeHtml(category.CATEGORY_ID) + '\', \'down\')" title="아래로 이동" style="margin: 1px 0;"></i>' +
 				'</div>' +
-				'<div class="col-md-7">' +
+				'<div class="col-md-7 col-sm-7">' +
 				'<strong>' + escapeHtml(category.CATEGORY_NAME) + '</strong><br>' +
 				'<small>' + escapeHtml(category.CATEGORY_DESCRIPTION || '설명 없음') + '</small>' +
 				'</div>' +
-				'<div class="col-md-4 text-right" style="display: flex; align-items: center; justify-content: flex-end;">' +
+				'<div class="col-md-4 col-sm-3 text-right" style="display: flex; align-items: center; justify-content: flex-end;">' +
 				'<span class="badge bg-blue template-count" id="count-' + escapeHtml(category.CATEGORY_ID) + '">0</span>&nbsp;' +
 				'<i class="fa fa-edit category-icon edit-icon" onclick="event.stopPropagation(); editCategory(\'' + 
 				escapeHtml(category.CATEGORY_ID) + '\')" title="수정"></i>&nbsp;' +
@@ -1963,18 +1961,15 @@
 					templateId: templateId
 				},
 				success: function (result) {
-
+					
 					if (result.success) {
 						var template = result.data;
 						$('#sqlTemplateId').val(template.templateId);
 						$('#sqlTemplateName').val(template.sqlName);
 						$('#sqlTemplateDesc').val(template.sqlDesc || '');
-						$('#sqlTemplateStatus').val(
-							template.sqlStatus || 'ACTIVE');
-						$('#sqlExecutionLimit').val(
-							template.executionLimit || 0);
-						$('#sqlRefreshTimeout').val(
-							template.refreshTimeout || 0);
+						$('#sqlTemplateStatus').val(template.sqlStatus || 'ACTIVE');
+						$('#sqlExecutionLimit').val(template.executionLimit || 0);
+						$('#sqlRefreshTimeout').val(template.refreshTimeout || 0);
 						$('#sqlChartMapping').val(template.chartMapping || '');
 						// 체크박스 설정 (이벤트 트리거 방지)
 						$('#sqlNewline').off('change').prop('checked', template.newline === true);
@@ -2034,9 +2029,9 @@
 						}
 						
 						// 데이터를 바로 UI에 렌더링 (로딩 상태 유지)
-						if (data.sqlContents) renderSqlContentTabs(data.sqlContents);
-						if (data.parameters) renderParameters(data.parameters);
-						if (data.shortcuts) renderShortcuts(data.shortcuts);
+						if (data.sqlContents&&data.sqlContents.length>0) renderSqlContentTabs(data.sqlContents);
+						if (data.parameters&&data.parameters.length>0) renderParameters(data.parameters);
+						if (data.shortcuts&&data.shortcuts.length>0) renderShortcuts(data.shortcuts);
 
 						// 렌더링 완료 후 변경사항 초기화 및 추적 재개
 						setTimeout(function() {
@@ -3147,7 +3142,7 @@
 		<section class="content">
 			<div class="row">
 				<!-- 카테고리 목록 패널 -->
-				<div class="col-md-3">
+				<div class="col-md-4 col-sm-5">
 					<div class="box box-primary">
 						<div class="box-header with-border">
 							<h3 class="box-title">카테고리 목록</h3>
@@ -3182,7 +3177,7 @@
 				</div>
 
 				<!-- SQL 편집 패널 -->
-				<div class="col-md-9">
+				<div class="col-md-8 col-sm-7">
 					<div class="box box-info">
 						<div class="box-header with-border">
 							<h3 class="box-title">SQL 템플릿 편집</h3>

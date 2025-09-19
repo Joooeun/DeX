@@ -28,7 +28,7 @@
 }
 
 .template-list {
-	max-height: 40vh;
+	max-height: 60vh;
 	overflow-y: auto;
 	overflow-x: hidden;
 }
@@ -75,8 +75,7 @@
 
 /* 템플릿 카운트 및 체크박스 */
 .template-count {
-	font-size: 11px;
-	margin-bottom: 5px;
+	font-size: 10px;
 	display: inline-block;
 	vertical-align: middle;
 }
