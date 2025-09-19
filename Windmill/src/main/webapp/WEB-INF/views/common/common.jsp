@@ -4,7 +4,7 @@
 
 
 <link href="/resources/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
-<link href="/resources/dist/css/AdminLTE.min.css" rel="stylesheet" type="text/css" />
+<link href="/resources/dist/css/AdminLTE.css" rel="stylesheet" type="text/css" />
 <link href="/resources/dist/css/skins/_all-skins.min.css" rel="stylesheet" type="text/css" />
 
 <link href="/resources/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" type="text/css" />
@@ -30,6 +30,10 @@
 
 <link href="/resources/dist/css/tabulator/tabulator_bootstrap3.css" rel="stylesheet">
 
+
+<script src="/resources/dist/js/adminlte.min.js"></script>
+<script src='/resources/plugins/fastclick/fastclick.min.js'></script>
+<script src="/resources/dist/js/demo.js"></script>
 
 <!-- Select2 로컬 파일 -->
 <link href="/resources/plugins/select2/select2.min.css" rel="stylesheet" />

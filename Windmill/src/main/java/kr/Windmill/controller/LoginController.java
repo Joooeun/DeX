@@ -34,7 +34,7 @@ public class LoginController {
 	private final UserService userService;
 	private final PermissionService permissionService;
 	private final SystemConfigService systemConfigService;
-	
+
 	@Autowired
 	public LoginController(Common common, Log log, UserService userService, PermissionService permissionService, SystemConfigService systemConfigService) {
 		this.com = common;
@@ -71,16 +71,16 @@ public class LoginController {
 		try {
 			// 데이터베이스 기반 로그인 처리
 			Map<String, Object> loginResult = userService.login(userId, password, ipAddress, userAgent);
-			
+
 			if ((Boolean) loginResult.get("success")) {
 				// 로그인 성공
 				session.setAttribute("memberId", userId);
 				session.setAttribute("sessionId", loginResult.get("sessionId"));
-				
+
 				// 임시 비밀번호 여부 확인 (로그인 결과에서 가져옴)
 				boolean isTempPassword = (Boolean) loginResult.get("isTempPassword");
 				session.setAttribute("changePW", isTempPassword);
-				
+
 				cLog.userLog(userId, ipAddress, " 로그인 성공" + (isTempPassword ? " (임시 비밀번호)" : ""));
 
 				response.setHeader("Cache-Control", "no-cache, no-store");
@@ -109,7 +109,7 @@ public class LoginController {
 		HttpSession session = request.getSession();
 		String userId = (String) session.getAttribute("memberId");
 		String sessionId = (String) session.getAttribute("sessionId");
-		
+
 		if (userId != null && sessionId != null) {
 			try {
 				userService.logout(sessionId, userId);
@@ -118,7 +118,7 @@ public class LoginController {
 				logger.error("로그아웃 처리 중 오류 발생", e);
 			}
 		}
-		
+
 		session.invalidate();
 		return "redirect:/Login";
 	}
@@ -134,8 +134,8 @@ public class LoginController {
 		}
 
 		// 버전 정보 추가
-		mv.addObject("appVersion", VersionUtil.getVersion());
-		
+		session.setAttribute("appVersion", VersionUtil.getVersion());
+
 		// admin 권한 확인을 위한 사용자 ID 추가
 		String memberId = (String) session.getAttribute("memberId");
 		mv.addObject("memberId", memberId);
@@ -170,8 +170,6 @@ public class LoginController {
 
 		return mv;
 	}
-
-
 
 	@RequestMapping(path = "/Dashboard")
 	public ModelAndView dashboard(HttpServletRequest request, ModelAndView mv, HttpSession session) {

@@ -76,7 +76,7 @@
 
 		<ol class="breadcrumb">
 			<li>
-				<a href="#"><i class="icon ion-ios-home"></i> Home</a>
+				v ${appVersion}
 			</li>
 		</ol>
 	</section>

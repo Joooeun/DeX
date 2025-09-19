@@ -358,7 +358,7 @@ var changePW
 								+ pageid
 								+ '" id="iframe'
 								+ pageid
-								+ '" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 120px); border: none; overflow: auto;" onLoad="setFrame(\'iframe'
+								+ '" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" onLoad="setFrame(\'iframe'
 								+ pageid + '\')"></iframe></div>')
 
 		$('.sidebar-menu a:not(\'.addtree\')')
@@ -448,6 +448,47 @@ var changePW
 	
 </script>
 
+<script>
+		// 공지사항 관련 함수들
+		function loadNotice() {
+			$.ajax({
+				url: '/SystemConfig/getNotice',
+				type: 'GET',
+				success: function(response) {
+					if (response.success && response.noticeEnabled === 'true' && response.noticeContent) {
+						showNotice(response.noticeContent);
+					}
+				},
+				error: function() {
+					// 에러 시 아무것도 하지 않음
+				}
+			});
+		}
+		
+		function showNotice(content) {
+			$('#noticeContent').html(content.replace(/\n/g, '<br>'));
+			$('#noticeModal').modal('show');
+		}
+		
+		// 페이지 로드 시 공지사항 확인 및 이벤트 설정
+		$(document).ready(function() {
+			// 오늘 하루 열지 않기 체크
+			var closedDate = localStorage.getItem('noticeClosedDate');
+			var today = new Date().toDateString();
+			if (closedDate !== today) {
+				// 오늘 아직 닫지 않았으면 공지사항 로드
+				loadNotice();
+			}
+			
+			// 오늘 하루 열지 않기 버튼 이벤트
+			$('#modal-today-close').click(function() {
+				// 오늘 날짜를 localStorage에 저장
+				var today = new Date().toDateString();
+				localStorage.setItem('noticeClosedDate', today);
+				$('#noticeModal').modal('hide');
+			});
+		});
+		</script>
 <body class="hold-transition skin-purple-light fixed sidebar-mini">
 
 	<div class="wrapper">
@@ -495,9 +536,6 @@ var changePW
 				<!-- /.search form -->
 				<!-- sidebar menu: : style can be found in sidebar.less -->
 				<ul class="sidebar-menu" data-widget="tree" id="tree">
-					<li class="header">MAIN NAVIGATION</li>
-
-
 
 					<c:if test="${isAdmin}">
 						<li><a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span>
@@ -541,19 +579,19 @@ var changePW
 			<div id="pageTabContent" class="tab-content">
 				<c:if test="${isAdmin}">
 					<div class="tab-pane" id="page1">
-						<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 120px); border: none; overflow: auto;" src="/index2"></iframe>
+						<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/index2"></iframe>
 					</div>
 					<div class="tab-pane active" id="dashboard">
-						<iframe name="iframe_dashboard" id="iframe_dashboard" style="margin: 0; width: 100%; height: calc(100vh - 120px); border: none; overflow: auto;" src="/Dashboard"></iframe>
+						<iframe name="iframe_dashboard" id="iframe_dashboard" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/Dashboard"></iframe>
 					</div>
 				</c:if>
 				<c:if test="${!isAdmin}">
 					<div class="tab-pane active" id="page1">
-						<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 120px); border: none; overflow: auto;" src="/index2"></iframe>
+						<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/index2"></iframe>
 					</div>
 				</c:if>
 				<div class="tab-pane" id="newpage">
-					<iframe name="iframe" id="iframe" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 120px); border: none; overflow: auto;" onload="setFrame('iframe')"></iframe>
+					<iframe name="iframe" id="iframe" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" onload="setFrame('iframe')"></iframe>
 				</div>
 			
 			</div>
@@ -639,46 +677,8 @@ var changePW
 				</div>
 			</div>
 		</div>
+	</div>
+</body>
 
 		
-		<script>
-		// 공지사항 관련 함수들
-		function loadNotice() {
-			$.ajax({
-				url: '/SystemConfig/getNotice',
-				type: 'GET',
-				success: function(response) {
-					if (response.success && response.noticeEnabled === 'true' && response.noticeContent) {
-						showNotice(response.noticeContent);
-					}
-				},
-				error: function() {
-					// 에러 시 아무것도 하지 않음
-				}
-			});
-		}
 		
-		function showNotice(content) {
-			$('#noticeContent').html(content.replace(/\n/g, '<br>'));
-			$('#noticeModal').modal('show');
-		}
-		
-		// 페이지 로드 시 공지사항 확인 및 이벤트 설정
-		$(document).ready(function() {
-			// 오늘 하루 열지 않기 체크
-			var closedDate = localStorage.getItem('noticeClosedDate');
-			var today = new Date().toDateString();
-			if (closedDate !== today) {
-				// 오늘 아직 닫지 않았으면 공지사항 로드
-				loadNotice();
-			}
-			
-			// 오늘 하루 열지 않기 버튼 이벤트
-			$('#modal-today-close').click(function() {
-				// 오늘 날짜를 localStorage에 저장
-				var today = new Date().toDateString();
-				localStorage.setItem('noticeClosedDate', today);
-				$('#noticeModal').modal('hide');
-			});
-		});
-		</script>

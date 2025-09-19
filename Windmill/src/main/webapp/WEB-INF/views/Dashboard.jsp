@@ -1258,8 +1258,8 @@
                     
                     try {
                         // 에러가 있는 경우 처리
-                        if (data && data.error) {
-                            
+                        if (data && (data.error || data.result[0][0]=='Error')) {
+                        	
                             // 에러 상태 설정
                             chartErrorStates[chartType] = true;
                             chartUpdateDisabled[chartType] = true;
@@ -1635,7 +1635,7 @@
             
             try {
                 // 에러가 있는 경우 처리
-                if (data && data.error) {
+                if (data && (data.error|| data.result[0][0]=='Error')) {
                     // 에러 타입에 따른 처리
                     if (data.errorType === 'CHART_NOT_FOUND') {
                         showChartTemplateWarning(chartType);
