@@ -34,16 +34,28 @@
 		try {
 			// Ace Editor가 로드되었는지 확인
 			if (typeof ace !== 'undefined') {
+				
+				var selectedFont = localStorage.getItem('selectedFont') || 'D2Coding';
+				
 				ace.require("ace/ext/language_tools");
 				window.contentEditor = ace.edit("contentEditor");
 				window.contentEditor.setTheme("ace/theme/chrome");
 				window.contentEditor.session.setMode("ace/mode/text");
 				window.contentEditor.setShowPrintMargin(false);
 				window.contentEditor.setFontSize(14);
-				window.contentEditor.setOption("enableBasicAutocompletion", true);
-				window.contentEditor.setOption("enableLiveAutocompletion", true);
-				window.contentEditor.setOption("enableSnippets", true);
+				window.contentEditor.setOptions({
+					fontFamily: selectedFont,
+					enableBasicAutocompletion: true,
+					enableSnippets: true,
+					enableLiveAutocompletion: true,
+					showPrintMargin: false,
+					showGutter: true,
+					showInvisibles: false
+				});
+				
 				window.contentEditor.resize();
+				
+				
 			} else {
 				initTextareaEditor();
 			}

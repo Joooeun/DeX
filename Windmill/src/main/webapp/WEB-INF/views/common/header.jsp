@@ -61,6 +61,38 @@ body {
 	margin-left: 5px;
 }
 </style>
+
+<style>
+:root {
+  --selected-font: D2Coding;
+}
+
+* {
+  font-family: var(--selected-font);
+}
+
+/* Google Fonts fallback 설정 */
+.font-noto-sans-mono {
+  font-family: 'Noto Sans Mono', 'D2Coding', 'Consolas', monospace;
+}
+
+.font-roboto-mono {
+  font-family: 'Roboto Mono', 'D2Coding', 'Consolas', monospace;
+}
+
+.font-source-code-pro {
+  font-family: 'Source Code Pro', 'D2Coding', 'Consolas', monospace;
+}
+
+.font-fira-code {
+  font-family: 'Fira Code', 'D2Coding', 'Consolas', monospace;
+}
+
+.font-jetbrains-mono {
+  font-family: 'JetBrains Mono', 'D2Coding', 'Consolas', monospace;
+}
+
+</style>
 </head>
 
 <script>
@@ -532,9 +564,46 @@ var changePW
 					if (iframe.contentDocument) {
 						iframe.contentDocument.documentElement.style.setProperty('--selected-font', fontFamily);
 						
-						// iframe 내부의 에디터들에도 폰트 적용
-						if (iframe.contentWindow && iframe.contentWindow.changeFont) {
-							iframe.contentWindow.changeFont(fontFamily);
+						// iframe 내부의 에디터들에 직접 폰트 적용
+						if (iframe.contentWindow) {
+							// FileUpload.jsp의 에디터들
+							if (iframe.contentWindow.contentEditor && typeof iframe.contentWindow.contentEditor.setOptions === 'function') {
+								iframe.contentWindow.contentEditor.setOptions({
+									fontFamily: fontFamily
+								});
+							}
+							$('#contentTextarea', iframe.contentDocument).css('font-family', fontFamily);
+							
+							// FileRead.jsp의 에디터들
+							if (iframe.contentWindow.resultEditor && typeof iframe.contentWindow.resultEditor.setOptions === 'function') {
+								iframe.contentWindow.resultEditor.setOptions({
+									fontFamily: fontFamily
+								});
+							}
+							$('#resultTextarea', iframe.contentDocument).css('font-family', fontFamily);
+							
+							// SQLExecute.jsp의 textarea들
+							$('.formtextarea', iframe.contentDocument).css('font-family', fontFamily);
+							
+							// SQLTemplate.jsp의 에디터들
+							if (iframe.contentWindow.sqlEditors) {
+								Object.values(iframe.contentWindow.sqlEditors).forEach(function(editor) {
+									if (editor && typeof editor.setOptions === 'function') {
+										editor.setOptions({
+											fontFamily: fontFamily
+										});
+									}
+								});
+							}
+							if (iframe.contentWindow.SqlTemplateState && iframe.contentWindow.SqlTemplateState.sqlEditors) {
+								Object.values(iframe.contentWindow.SqlTemplateState.sqlEditors).forEach(function(editor) {
+									if (editor && typeof editor.setOptions === 'function') {
+										editor.setOptions({
+											fontFamily: fontFamily
+										});
+									}
+								});
+							}
 						}
 					}
 				} catch (e) {
@@ -593,12 +662,12 @@ var changePW
 							<ul class="dropdown-menu">
 								<li><a href="javascript:changeFont('D2Coding')">D2Coding</a></li>
 								<li><a href="javascript:changeFont('Consolas')">Consolas</a></li>
-								<li><a href="javascript:changeFont('Monaco')">Monaco</a></li>
 								<li><a href="javascript:changeFont('Courier New')">Courier New</a></li>
-								<li><a href="javascript:changeFont('Arial')">Arial</a></li>
-								<li><a href="javascript:changeFont('맑은 고딕')">맑은 고딕</a></li>
-								<li><a href="javascript:changeFont('나눔고딕')">나눔고딕</a></li>
-								<li><a href="javascript:changeFont('돋움')">돋움</a></li>
+								<li><a href="javascript:changeFont('Noto Sans Mono')">Noto Sans Mono</a></li>
+								<li><a href="javascript:changeFont('Roboto Mono')">Roboto Mono</a></li>
+								<li><a href="javascript:changeFont('Source Code Pro')">Source Code Pro</a></li>
+								<li><a href="javascript:changeFont('Fira Code')">Fira Code</a></li>
+								<li><a href="javascript:changeFont('JetBrains Mono')">JetBrains Mono</a></li>
 							</ul>
 						</li>
 						<li><a href="javascript:checkPWModal()">${memberId}</a></li>
