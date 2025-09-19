@@ -70,7 +70,6 @@
 }
 
 #result_table {
-	font-family: D2Coding !important;
 	transition: height 0.3s ease;
 }
 </style>

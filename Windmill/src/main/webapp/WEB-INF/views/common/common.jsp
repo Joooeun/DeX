@@ -3,7 +3,7 @@
 
 
 
-<link href="/resources/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
+<link href="/resources/bootstrap/css/bootstrap.css" rel="stylesheet" type="text/css" />
 <link href="/resources/dist/css/AdminLTE.css" rel="stylesheet" type="text/css" />
 <link href="/resources/dist/css/skins/_all-skins.min.css" rel="stylesheet" type="text/css" />
 
@@ -38,6 +38,16 @@
 <!-- Select2 로컬 파일 -->
 <link href="/resources/plugins/select2/select2.min.css" rel="stylesheet" />
 <script src="/resources/plugins/select2/select2.min.js"></script>
+<style>
+:root {
+  --selected-font: D2Coding;
+}
+
+* {
+  font-family: var(--selected-font);
+}
+
+</style>
 <script type="text/javascript">
 	document.onkeydown = function(e) {
 

@@ -488,6 +488,38 @@ var changePW
 				$('#noticeModal').modal('hide');
 			});
 		});
+		
+		// 글꼴 변경 함수
+		function changeFont(fontFamily) {
+			// 로컬 스토리지에 선택한 글꼴 저장
+			localStorage.setItem('selectedFont', fontFamily);
+			
+			// 현재 페이지의 모든 요소에 글꼴 적용
+			document.documentElement.style.setProperty('--selected-font', fontFamily);
+			
+			// 모든 iframe에도 글꼴 적용
+			var iframes = document.querySelectorAll('iframe');
+			iframes.forEach(function(iframe) {
+				try {
+					if (iframe.contentDocument) {
+						iframe.contentDocument.documentElement.style.setProperty('--selected-font', fontFamily);
+					}
+				} catch (e) {
+					// Cross-origin 에러 무시
+				}
+			});
+			
+			// 드롭다운 메뉴 닫기
+			$('.dropdown-toggle').dropdown('toggle');
+		}
+		
+		// 페이지 로드 시 저장된 글꼴 복원
+		$(document).ready(function() {
+			var savedFont = localStorage.getItem('selectedFont');
+			if (savedFont) {
+				changeFont(savedFont);
+			}
+		});
 		</script>
 <body class="hold-transition skin-purple-light fixed sidebar-mini">
 
@@ -509,6 +541,21 @@ var changePW
 			  </a>
 				<div class="navbar-custom-menu">
 					<ul class="nav navbar-nav">
+						<li class="dropdown">
+							<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+								<i class="fa fa-font"></i> <span class="caret"></span>
+							</a>
+							<ul class="dropdown-menu">
+								<li><a href="javascript:changeFont('D2Coding')">D2Coding</a></li>
+								<li><a href="javascript:changeFont('Consolas')">Consolas</a></li>
+								<li><a href="javascript:changeFont('Monaco')">Monaco</a></li>
+								<li><a href="javascript:changeFont('Courier New')">Courier New</a></li>
+								<li><a href="javascript:changeFont('Arial')">Arial</a></li>
+								<li><a href="javascript:changeFont('맑은 고딕')">맑은 고딕</a></li>
+								<li><a href="javascript:changeFont('나눔고딕')">나눔고딕</a></li>
+								<li><a href="javascript:changeFont('돋움')">돋움</a></li>
+							</ul>
+						</li>
 						<li><a href="javascript:checkPWModal()">${memberId}</a></li>
 						<li><a href="/userRemove"><i class="fa fa-sign-out"></i></a></li>
 					</ul>
