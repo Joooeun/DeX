@@ -250,6 +250,9 @@
 			
 			// 데이터가 있는 경우
 			if (options.data && options.data.length > 0) {
+				// 컨테이너 보이기
+				options.container.show();
+				
 				if (options.useFragment) {
 					// DocumentFragment를 사용한 배치 업데이트
 					var fragment = document.createDocumentFragment();
@@ -273,10 +276,8 @@
 					});
 				}
 			} else {
-				// 데이터가 없는 경우
-				var emptyHtml = '<div class="' + options.emptyMessageClass + '" style="' + options.emptyMessageStyle + '">' + 
-					options.emptyMessage + '</div>';
-				options.container.html(emptyHtml);
+				// 데이터가 없는 경우 - 컨테이너 숨기기
+				options.container.hide();
 			}
 			
 			// 완료 콜백 호출
@@ -2029,9 +2030,9 @@
 						}
 						
 						// 데이터를 바로 UI에 렌더링 (로딩 상태 유지)
-						if (data.sqlContents&&data.sqlContents.length>0) renderSqlContentTabs(data.sqlContents);
-						if (data.parameters&&data.parameters.length>0) renderParameters(data.parameters);
-						if (data.shortcuts&&data.shortcuts.length>0) renderShortcuts(data.shortcuts);
+						if (data.sqlContents) renderSqlContentTabs(data.sqlContents);
+						if (data.parameters) renderParameters(data.parameters);
+						if (data.shortcuts) renderShortcuts(data.shortcuts);
 
 						// 렌더링 완료 후 변경사항 초기화 및 추적 재개
 						setTimeout(function() {
@@ -3372,7 +3373,7 @@
 								</div>
 								<div class="panel-body" style="padding: 10px 15px;">
 									<div class="table-responsive parameter-table-container">
-										<table class="table table-bordered table-striped align-middle table-condensed"
+										<table class="table table-bordered align-middle table-condensed"
 											id="parameterTable">
 											<thead>
 												<tr>
@@ -3408,18 +3409,18 @@
 								</div>
 								<div class="panel-body" style="padding: 10px 15px;">
 									<div class="table-responsive">
-									<table class="table table-bordered table-striped table-condensed"
+									<table class="table table-bordered table-condensed"
 										id="shortcutTable">
 										<thead>
 											<tr>
 											<th style="width: 50px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="키보드 단축키를 설정합니다. F1~F12 키 중에서 선택하여 빠른 SQL 실행이 가능합니다.">단축키</div></th>	
-											<th style="width: 100px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 설명적인 이름을 입력합니다.">단축키명</div></th>
-											<th style="width: 120px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키를 눌렀을 때 실행할 SQL 템플릿을 선택합니다.">대상 템플릿</div></th>
-											<th style="width: 180px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 상세한 설명을 입력합니다.">설명</div></th>
-											<th style="width: 50px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키 실행 시 파라미터로 전달할 컬럼의 인덱스를 설정합니다. 1,2,3 형태로 여러 컬럼을 지정할 수 있습니다.">소스 컬럼</div></th>
-											<th style="width: 40px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키를 자동으로 실행할지 설정합니다. 체크하면 조건이 만족될 때 자동으로 SQL이 실행됩니다다.">자동실행</div></th>
-											<th style="width: 40px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키의 활성화 상태를 설정합니다. 활성으로 설정하면 단축키가 사용 가능하며, 비활성으로 설정하면 사용할 수 없습니다.">상태</div></th>
-											<th style="width: 40px; font-size: 11px;">삭제</th>
+											<th style="width: 120px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 설명적인 이름을 입력합니다.">단축키명</div></th>
+											<th style="width: 80px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키를 눌렀을 때 실행할 SQL 템플릿을 선택합니다.">대상 템플릿</div></th>
+											<th style="width: 150px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키에 대한 상세한 설명을 입력합니다.">설명</div></th>
+											<th style="width: 80px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키 실행 시 파라미터로 전달할 컬럼의 인덱스를 설정합니다. 1,2,3 형태로 여러 컬럼을 지정할 수 있습니다.">소스 컬럼</div></th>
+											<th style="width: 50px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키를 자동으로 실행할지 설정합니다. 체크하면 조건이 만족될 때 자동으로 SQL이 실행됩니다다.">자동실행</div></th>
+											<th style="width: 50px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="단축키의 활성화 상태를 설정합니다. 활성으로 설정하면 단축키가 사용 가능하며, 비활성으로 설정하면 사용할 수 없습니다.">상태</div></th>
+											<th style="width: 50px; font-size: 11px;">삭제</th>
 										</tr>
 										</thead>
 										<tbody id="shortcutTableBody">
