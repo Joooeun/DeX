@@ -4,9 +4,7 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ace.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ext-language_tools.js"></script>
 
-	<!-- Select2 CDN for searchable dropdowns -->
-	<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
 
 		<!-- SQL Template 전용 스타일 -->
 		<link href="/resources/css/sql-template.css" rel="stylesheet" />
@@ -311,7 +309,15 @@
 			if (options.data && options.data.length > 0) {
 				options.data.forEach(function(item) {
 					var value = item[options.valueField];
-					var text = item[options.textField];
+					var text;
+					
+					// textField가 함수인 경우와 문자열인 경우 처리
+					if (typeof options.textField === 'function') {
+						text = options.textField(item);
+					} else {
+						text = item[options.textField];
+					}
+					
 					var option = $('<option value="' + value + '">' + text + '</option>');
 					options.select.append(option);
 				});
