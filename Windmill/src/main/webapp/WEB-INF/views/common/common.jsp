@@ -1,27 +1,39 @@
 <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+
+
+
 <link href="/resources/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
 <link href="/resources/dist/css/AdminLTE.min.css" rel="stylesheet" type="text/css" />
 <link href="/resources/dist/css/skins/_all-skins.min.css" rel="stylesheet" type="text/css" />
+
 <link href="/resources/ionicons/2.0.1/css/ionicons.min.css" rel="stylesheet" type="text/css" />
 <link href="/resources/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
-<script src="/resources/plugins/jQuery/jQuery-2.1.4.min.js"></script>
+<script src="/resources/plugins/jQuery/jquery.min.js"></script>
+<script src="/resources/bootstrap/js/bootstrap.min.js"></script>
 <script src="/resources/plugins/chartjs/ChartJs.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
-<script src="/resources/bootstrap/js/bootstrap.js"></script>
+
+
 <link rel="shortcut icon" href="#">
 
 <link href="/resources/plugins/datatables/datatables.min.css" rel="stylesheet">
-
 <script src="/resources/plugins/datatables/datatables.min.js"></script>
-
 
 <link href="/resources/dist/css/tabulator/tabulator.min.css" rel="stylesheet">
 <script type="text/javascript" src="/resources/dist/js/tabulator/tabulator.js"></script>
 <script type="text/javascript" src="/resources/dist/js/tabulator/xlsx.full.min.js"></script>
 
+
+<script src="/resources/jquery-slimscroll/jquery.slimscroll.js"></script>
+
 <link href="/resources/dist/css/tabulator/tabulator_bootstrap3.css" rel="stylesheet">
+
+
+<!-- Select2 로컬 파일 -->
+<link href="/resources/plugins/select2/select2.min.css" rel="stylesheet" />
+<script src="/resources/plugins/select2/select2.min.js"></script>
 <script type="text/javascript">
 	document.onkeydown = function(e) {
 

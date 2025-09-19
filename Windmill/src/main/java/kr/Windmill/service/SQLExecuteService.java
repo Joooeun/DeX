@@ -1279,7 +1279,7 @@ public class SQLExecuteService {
 			
 		} catch (SQLException e) {
 			// SQL 실행 오류 처리
-			logger.error("SQL Update execution error: {}", e.getMessage());
+			logger.error("SQL Update execution error: {} {}",executeDto.getTemplateId(), e.getMessage());
 			List<Object> errorRow = new ArrayList<>();
 			errorRow.add("Error");
 			errorRow.add("0");

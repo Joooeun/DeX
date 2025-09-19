@@ -9,34 +9,6 @@
 body {
 	margin: 0;
 }
-
-#sidemenu {
-	max-height: calc(100vh - 330px);
-	overflow-y: auto;
-}
-
-::-webkit-scrollbar {
-	width: 3px;
-	height: 7px;
-	border: 2px solid #fff;
-}
-
-::-webkit-scrollbar-track {
-	background: #efefef;
-	-webkit-border-radius: 10px;
-	border-radius: 10px;
-	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .2)
-}
-
-::-webkit-scrollbar-thumb {
-	height: 50px;
-	width: 50px;
-	background: rgba(0, 0, 0, .2);
-	-webkit-border-radius: 8px;
-	border-radius: 8px;
-	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .1)
-}
-
 /* 자동완성 드롭다운 스타일 */
 .search-autocomplete {
 	position: relative;
@@ -386,7 +358,7 @@ var changePW
 								+ pageid
 								+ '" id="iframe'
 								+ pageid
-								+ '" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" onLoad="setFrame(\'iframe'
+								+ '" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 120px); border: none; overflow: auto;" onLoad="setFrame(\'iframe'
 								+ pageid + '\')"></iframe></div>')
 
 		$('.sidebar-menu a:not(\'.addtree\')')
@@ -476,30 +448,7 @@ var changePW
 	
 </script>
 
-<body class="sidebar-mini skin-purple-light">
-
-<!-- 공지사항 모달 -->
-<div class="modal fade" id="noticeModal" tabindex="-1" role="dialog" aria-labelledby="noticeModalLabel">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 class="modal-title" id="noticeModalLabel">
-                    <i class="fa fa-bullhorn"></i> 공지사항
-                </h4>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div id="noticeContent"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="modal-today-close">오늘 하루 열지 않기</button>
-                <button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
-            </div>
-        </div>
-    </div>
-</div>
+<body class="hold-transition skin-purple-light fixed sidebar-mini">
 
 	<div class="wrapper">
 		<header class="main-header">
@@ -509,11 +458,14 @@ var changePW
 			</span>
 			</a>
 			<!-- Header Navbar: style can be found in header.less -->
-			<nav class="navbar navbar-static-top" role="navigation">
-				<!-- Sidebar toggle button-->
-				<a href="#" class="sidebar-toggle" data-toggle="offcanvas" role="button"> <span class="sr-only">Toggle navigation</span> <span class="icon-bar"></span> <span class="icon-bar"></span> <span
-					class="icon-bar"></span>
-				</a>
+			<nav class="navbar navbar-static-top">
+			  <!-- Sidebar toggle button-->
+			  <a href="#" class="sidebar-toggle" data-toggle="push-menu" role="button">
+				<span class="sr-only">Toggle navigation</span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+			  </a>
 				<div class="navbar-custom-menu">
 					<ul class="nav navbar-nav">
 						<li><a href="javascript:checkPWModal()">${memberId}</a></li>
@@ -548,28 +500,27 @@ var changePW
 
 
 					<c:if test="${isAdmin}">
-						<li class="treeview"><a><i class="fa fa-code-fork"></i><span>5e83eb5 / 46246f0</span></a></li>
-						<li class="treeview"><a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span>
+						<li><a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span>
 
 						</a> <!-- <ul class="treeview-menu" id="ConnectionList">
 							<li><a href="/Connection?DB=2"><i class="fa fa-circle-o"></i> DB1</a></li>
 							<li><a href="/Connection?DB=1"><i class="fa fa-circle-o"></i> DB2</a></li>
 						</ul> --></li>
 
-						<li class="treeview"><a href="/User" target="iframe"> <i class="fa fa-user"></i> <span>User</span>
+						<li><a href="/User" target="iframe"> <i class="fa fa-user"></i> <span>User</span>
 
 						</a></li>
 						
-						<li class="treeview"><a href="/SQLTemplate" target="iframe"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span>
+						<li><a href="/SQLTemplate" target="iframe"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span>
 						</a></li>
 						
-						<li class="treeview"><a href="/SystemConfig" target="iframe"> <i class="fa fa-cog"></i> <span>환경설정</span>
+						<li><a href="/SystemConfig" target="iframe"> <i class="fa fa-cog"></i> <span>환경설정</span>
 						</a></li>
 					</c:if>
 
-					<li class="treeview"><a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span>
+					<li><a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span>
 					</a></li>
-					<li class="treeview"><a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileUpload</span>
+					<li><a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileUpload</span>
 					</a></li>
 
 					<li id="sqltree" class="active treeview menu-open"></li>
@@ -590,24 +541,24 @@ var changePW
 			<div id="pageTabContent" class="tab-content">
 				<c:if test="${isAdmin}">
 					<div class="tab-pane" id="page1">
-						<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" src="/index2"></iframe>
+						<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 120px); border: none; overflow: auto;" src="/index2"></iframe>
 					</div>
 					<div class="tab-pane active" id="dashboard">
-						<iframe name="iframe_dashboard" id="iframe_dashboard" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" src="/Dashboard"></iframe>
+						<iframe name="iframe_dashboard" id="iframe_dashboard" style="margin: 0; width: 100%; height: calc(100vh - 120px); border: none; overflow: auto;" src="/Dashboard"></iframe>
 					</div>
 				</c:if>
 				<c:if test="${!isAdmin}">
 					<div class="tab-pane active" id="page1">
-						<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" src="/index2"></iframe>
+						<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 120px); border: none; overflow: auto;" src="/index2"></iframe>
 					</div>
 				</c:if>
 				<div class="tab-pane" id="newpage">
-					<iframe name="iframe" id="iframe" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 90px); border: none; overflow: auto;" onload="setFrame('iframe')"></iframe>
+					<iframe name="iframe" id="iframe" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 120px); border: none; overflow: auto;" onload="setFrame('iframe')"></iframe>
 				</div>
-
+			
 			</div>
 		</div>
-
+		
 		<!-- 비번 변경 Modal -->
 		<div class="modal fade" id="changePWModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
 			<div class="modal-dialog" role="document">
@@ -659,6 +610,31 @@ var changePW
 					<div class="modal-footer">
 						<button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
 						<button type="button" class="btn btn-primary" onclick="checkPW()">확인</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		
+
+		<!-- 공지사항 모달 -->
+		<div class="modal fade" id="noticeModal" tabindex="-1" role="dialog" aria-labelledby="noticeModalLabel">
+			<div class="modal-dialog" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h4 class="modal-title" id="noticeModalLabel">
+							<i class="fa fa-bullhorn"></i> 공지사항
+						</h4>
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+					<div class="modal-body">
+						<div id="noticeContent"></div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-primary" id="modal-today-close">오늘 하루 열지 않기</button>
+						<button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
 					</div>
 				</div>
 			</div>

@@ -6,23 +6,23 @@
 <!-- ======================================== -->
 <style>
 ::-webkit-scrollbar {
-	width: 10px;
-	height: 10px;
-	border: 1px solid #fff;
-}
-
-::-webkit-scrollbar-track {
-	background: #efefef;
-	-webkit-border-radius: 10px;
-	border-radius: 10px;
-	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .2)
+    width: 15px;
+    height: 15px;
 }
 
 ::-webkit-scrollbar-thumb {
-	background: rgba(0, 0, 0, .2);
-	-webkit-border-radius: 8px;
-	border-radius: 8px;
-	-webkit-box-shadow: inset 0 0 4px rgba(0, 0, 0, .1)
+    background: #ababab;
+    border-radius: 10px;
+    border: 4px solid transparent;
+    background-clip: padding-box; // <== make the border work
+}
+
+::-webkit-scrollbar-thumb:hover{
+    border: 0;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 .form-group.required .param:after {
