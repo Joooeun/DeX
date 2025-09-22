@@ -844,7 +844,7 @@ public class SQLExecuteService {
 		
 		try {
 			// 로깅 시작
-			cLog.log_start(executeDto, "템플릿 SQL 실행 시작\n");
+			cLog.log_start(executeDto, "템플릿 SQL 실행 시작\n"); 
 			cLog.logMenuExecutionStart(executeDto);  // 메뉴 실행 시작 로그 저장
 			
 			// SQL 타입 감지
@@ -927,7 +927,7 @@ public class SQLExecuteService {
 			cLog.log_DB(executeDto);
 			cLog.logMenuExecutionEnd(executeDto);  // 메뉴 실행 완료 로그 저장
 
-			logger.error("SQL 실행 실패 - templateId: {} / sql: {}", executeDto.getTemplateId(), sql);
+			logger.error("SQL 실행 실패 - ConnectionId: {} / templateId: {} / sql: {}", executeDto.getConnectionId(), executeDto.getTemplateId(), sql);
 			e1.printStackTrace();
 
 			return errorResult;

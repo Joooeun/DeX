@@ -45,7 +45,7 @@ public class DexStatusService {
 
 	@PostConstruct
 	public void startMonitoring() {
-		cLog.monitoringLog("DEX_STATUS", "DEX 상태 모니터링 시작");
+		// DEX 상태 모니터링 시작 로그 제거 (단순 정보성)
 		isRunning = true;
 
 		// 초기 상태 설정
@@ -64,7 +64,7 @@ public class DexStatusService {
 
 	@PreDestroy
 	public void stopMonitoring() {
-		cLog.monitoringLog("DEX_STATUS", "DEX 상태 모니터링 중지");
+		// DEX 상태 모니터링 중지 로그 제거 (단순 정보성)
 		logger.info("=== DexStatusService 정리 시작 ===");
 		isRunning = false;
 
@@ -88,7 +88,7 @@ public class DexStatusService {
 						logger.info("DexStatusMonitor 스케줄러 강제 종료 완료");
 					}
 				} else {
-					cLog.monitoringLog("DEX_STATUS", "스케줄러가 정상적으로 종료되었습니다.");
+					// 스케줄러 정상 종료 로그 제거 (단순 정보성)
 					logger.info("DexStatusMonitor 스케줄러 정상 종료 완료");
 				}
 			} catch (InterruptedException e) {
@@ -104,7 +104,7 @@ public class DexStatusService {
 		// 상태 맵 정리
 		dexStatusMap.clear();
 		logger.info("DEX 상태 맵 정리 완료");
-		cLog.monitoringLog("DEX_STATUS", "DEX 상태 모니터링 중지 완료");
+		// DEX 상태 모니터링 중지 완료 로그 제거 (단순 정보성)
 		logger.info("=== DexStatusService 정리 완료 ===");
 	}
 
@@ -117,7 +117,7 @@ public class DexStatusService {
 		DexStatusDto serviceStatus = new DexStatusDto("dex_service", "DEX 서비스", "checking", "#ffc107", "서비스 상태 확인 중");
 		dexStatusMap.put("dex_service", serviceStatus);
 
-		cLog.monitoringLog("DEX_STATUS", "DEX 상태 초기화 완료");
+		// DEX 상태 초기화 완료 로그 제거 (단순 정보성)
 	}
 
 	private void updateAllDexStatuses() {
@@ -126,7 +126,7 @@ public class DexStatusService {
 		}
 
 		try {
-			cLog.monitoringLog("DEX_STATUS", "=== DEX 상태 업데이트 시작 ===");
+			// DEX 상태 업데이트 시작 로그 제거 (단순 정보성)
 
 			// DEX 프로세스 상태 확인
 			updateProcessStatus();
@@ -134,7 +134,7 @@ public class DexStatusService {
 			// DEX 서비스 상태 확인
 			updateServiceStatus();
 
-			cLog.monitoringLog("DEX_STATUS", "=== DEX 상태 업데이트 완료 ===");
+			// DEX 상태 업데이트 완료 로그 제거 (단순 정보성)
 
 		} catch (Exception e) {
 			cLog.monitoringLog("DEX_STATUS_ERROR", "DEX 상태 업데이트 중 오류 발생: " + e.getMessage());

@@ -2,6 +2,7 @@ package kr.Windmill.controller;
 
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,8 +24,11 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import kr.Windmill.dto.SqlTemplateExecuteDto;
+import kr.Windmill.dto.connection.ConnectionStatusDto;
 import kr.Windmill.service.SQLExecuteService;
 import kr.Windmill.service.SqlTemplateService;
+import kr.Windmill.service.DashboardSchedulerService;
+import kr.Windmill.service.ConnectionService;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
 
@@ -43,6 +47,12 @@ public class DashboardController {
     private SqlTemplateService sqlTemplateService;
     
     @Autowired
+    private DashboardSchedulerService dashboardSchedulerService;
+    
+    @Autowired
+    private ConnectionService connectionService;
+    
+    @Autowired
     private JdbcTemplate jdbcTemplate;
     
     @Autowired
@@ -50,122 +60,6 @@ public class DashboardController {
         this.com = common;
         this.cLog = log;
     }
-
-    /**
-     * 대시보드 차트 데이터 조회 공통 메서드 (해시 비교 방식)
-     * DB 기반 차트 설정을 우선 확인하고, 없으면 파일 기반으로 폴백
-     * @param chartName 차트명 (예: applCount, lockWaitCount, activeLog, filesystem)
-     * @param lastHash 클라이언트가 보낸 이전 해시값
-     * @param connectionId 선택된 커넥션 ID
-     */
-    @RequestMapping(path = "/Dashboard/{chartName}", method = RequestMethod.POST)
-    public @ResponseBody Map<String, Object> getChartData(
-            @PathVariable String chartName,
-            @RequestParam(required = false) String lastHash,
-            @RequestParam(required = false) String connectionId,
-            @RequestParam(required = false) String checkTemplate,
-            HttpServletRequest request, 
-            HttpSession session) {
-        
-        Map<String, Object> result = new HashMap<>();
-
-        try {
-            // 모니터링 로그 기록
-            cLog.monitoringLog("DASHBOARD", "차트 데이터 요청: " + chartName + " (해시: " + lastHash + ", 커넥션: " + connectionId + ", checkTemplate: " + checkTemplate + ")");
-            
-            // 2. DB 기반 차트 설정 확인
-            Map<String, Object> chartTemplate = sqlTemplateService.getTemplateByChartMapping(chartName);
-            
-            if (chartTemplate == null) {
-                // DB 기반 설정이 없으면 오류 반환
-                cLog.monitoringLog("DASHBOARD_ERROR", "차트 설정을 찾을 수 없음: " + chartName);
-                result.put("error", "차트 설정을 찾을 수 없습니다: " + chartName);
-                result.put("errorType", "CHART_NOT_FOUND");
-                return result;
-            }
-            
-            // checkTemplate=true인 경우 템플릿 정보만 반환
-            if ("true".equals(checkTemplate)) {
-                cLog.monitoringLog("DASHBOARD_TEMPLATE_INFO", "템플릿 정보만 반환: " + chartName);
-                result.put("success", true);
-                result.put("template", chartTemplate);
-                return result;
-            }
-            
-            // 3. SQL 템플릿 실행
-            String templateId = (String) chartTemplate.get("TEMPLATE_ID");
-            String targetConnectionId = connectionId;
-            
-            // 연결 ID가 없으면 템플릿의 접근 가능한 연결 중 첫 번째 사용
-            if (targetConnectionId == null || targetConnectionId.trim().isEmpty()) {
-                Object accessibleConnectionsObj = chartTemplate.get("accessibleConnections");
-                if (accessibleConnectionsObj instanceof List && !((List<?>) accessibleConnectionsObj).isEmpty()) {
-                    targetConnectionId = (String) ((List<?>) accessibleConnectionsObj).get(0);
-                } else {
-                    result.put("error", "차트 실행을 위한 연결 ID가 지정되지 않았습니다.");
-                    return result;
-                }
-            }
-            
-            // SqlTemplateExecuteDto 생성
-            SqlTemplateExecuteDto executeDto = new SqlTemplateExecuteDto();
-            executeDto.setTemplateId(templateId);
-            executeDto.setConnectionId(targetConnectionId);
-            executeDto.setLimit(1000); // 대시보드용으로 충분한 행 수 설정
-            
-            // SQL 실행
-            Map<String, List> sqlResult = sqlExecuteService.executeTemplateSQL(executeDto);
-            
-            // SQL 결과를 차트 데이터로 변환
-            List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
-            
-            // SQL 에러 체크 (단순화)
-            if (sqlResult.containsKey("error")) {
-                result.put("error", sqlResult.get("error"));
-                return result;
-            }
-            
-            // success 필드로 성공 여부 확인
-            List<Boolean> successList = (List<Boolean>) sqlResult.get("success");
-            if (successList != null && !successList.isEmpty() && !successList.get(0)) {
-                result.put("error", "SQL 실행 오류가 발생했습니다.");
-                return result;
-            }
-            
-            // 현재 데이터의 해시값 생성
-            String currentHash = generateHash(rowbody);
-            
-            // 템플릿 ID 추가
-            result.put("templateId", templateId);
-            
-            // 템플릿 정보 추가 (새로고침 간격 포함)
-            result.put("template", chartTemplate);
-            
-            // 해시값 비교
-            if (currentHash.equals(lastHash)) {
-                // 데이터가 변경되지 않음
-                cLog.monitoringLog("DASHBOARD_CACHE", "차트 " + chartName + " 데이터 변경 없음 (캐시 사용)");
-                result.put("changed", false);
-                result.put("hash", currentHash);
-            } else {
-                // 데이터가 변경됨
-                cLog.monitoringLog("DASHBOARD_UPDATE", "차트 " + chartName + " 데이터 업데이트 (행 수: " + rowbody.size() + ")");
-                result.put("changed", true);
-                result.put("hash", currentHash);
-                result.put("result", rowbody);
-            }
-
-        } catch (Exception e) {
-            cLog.monitoringLog("DASHBOARD_EXCEPTION", "차트 " + chartName + " 예외 발생: " + e.getMessage());
-            result.put("error", "차트 데이터 조회 중 오류가 발생했습니다: " + e.getMessage());
-            result.put("errorType", "EXCEPTION");
-        }
-
-        return result;
-    }
-
-
-
 
     
     /**
@@ -201,8 +95,7 @@ public class DashboardController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            // 모니터링 로그 기록
-            cLog.monitoringLog("DASHBOARD", "메뉴 실행 기록 조회 요청");
+            // 모니터링 로그 기록 (요청 시작은 제거)
             
             // 최근 10개 메뉴 실행 기록 조회 (템플릿 이름 포함)
             String sql = "SELECT " +
@@ -264,7 +157,7 @@ public class DashboardController {
             result.put("data", formattedLogs);
             result.put("count", formattedLogs.size());
             
-            cLog.monitoringLog("DASHBOARD", "메뉴 실행 기록 조회 완료: " + formattedLogs.size() + "건");
+            // 조회 완료 로그 제거 (단순 정보성)
             
         } catch (Exception e) {
             cLog.monitoringLog("DASHBOARD_ERROR", "메뉴 실행 기록 조회 실패: " + e.getMessage());
@@ -273,6 +166,170 @@ public class DashboardController {
         }
         
         return result;
+    }
+
+    /**
+     * 모든 대시보드 데이터 조회 (통합 API)
+     * 브라우저에서 호출하여 모든 DB의 모든 차트 데이터를 한 번에 받음
+     */
+    @RequestMapping(value = "/Dashboard/getAllData", method = RequestMethod.POST)
+    @ResponseBody
+    public Map<String, Object> getAllDashboardData(
+            @RequestParam(required = false) String connectionId,
+            HttpServletRequest request, 
+            HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // 조회 시작 로그 제거 (단순 정보성)
+            
+            // 연결 정보 조회
+            List<String> connectionIds = getActiveConnectionIds();
+            
+            // 특정 연결이 지정된 경우 해당 연결만 처리
+            if (connectionId != null && !connectionId.trim().isEmpty()) {
+                connectionIds = connectionIds.contains(connectionId) ? 
+                    Arrays.asList(connectionId) : new ArrayList<>();
+            }
+            
+            // 결과 데이터 구성 - 캐시된 데이터 우선 사용
+            Map<String, Object> allData = new HashMap<>();
+            String[] chartMappings = {"APPL_COUNT", "LOCK_WAIT_COUNT", "ACTIVE_LOG", "FILESYSTEM"};
+            
+            for (String connId : connectionIds) {
+                Map<String, Object> dbData = new HashMap<>();
+                dbData.put("connectionId", connId);
+                
+                // 각 차트별 캐시된 데이터 조회
+                for (String chartMapping : chartMappings) {
+                    try {
+                        // DashboardSchedulerService에서 캐시된 데이터 조회
+                        Object cachedData = dashboardSchedulerService.getChartData(chartMapping, connId);
+                        if (cachedData != null) {
+                            // 캐시된 데이터가 있으면 사용
+                            dbData.put(chartMapping, cachedData);
+                        } else {
+                            Map<String, Object> chartResult = getSingleChartData(chartMapping, connId, session);
+                            dbData.put(chartMapping, chartResult);
+                        }
+                    } catch (Exception e) {
+                        cLog.monitoringLog("DASHBOARD_ERROR", "차트 " + chartMapping + " [" + connId + "] 조회 실패: " + e.getMessage());
+                        dbData.put(chartMapping, createErrorResult("차트 데이터 조회 실패: " + e.getMessage()));
+                    }
+                }
+                
+                allData.put(connId, dbData);
+            }
+            
+            result.put("success", true);
+            result.put("data", allData);
+            result.put("timestamp", System.currentTimeMillis());
+            
+            // 조회 완료 로그 제거 (단순 정보성)
+            
+        } catch (Exception e) {
+            cLog.monitoringLog("DASHBOARD_ERROR", "전체 대시보드 데이터 조회 실패: " + e.getMessage());
+            result.put("success", false);
+            result.put("error", "대시보드 데이터 조회 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 단일 차트 데이터 조회 (내부 메서드)
+     */
+    private Map<String, Object> getSingleChartData(String chartMapping, String connectionId, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // DB 기반 차트 설정 확인
+            Map<String, Object> chartTemplate = sqlTemplateService.getTemplateByChartMapping(chartMapping);
+            
+            if (chartTemplate == null) {
+                result.put("error", "차트 설정을 찾을 수 없습니다: " + chartMapping);
+                result.put("errorType", "CHART_NOT_FOUND");
+                return result;
+            }
+            
+            // SQL 템플릿 실행
+            String templateId = (String) chartTemplate.get("TEMPLATE_ID");
+            String targetConnectionId = connectionId;
+            
+            // 연결 ID가 없으면 템플릿의 접근 가능한 연결 중 첫 번째 사용
+            if (targetConnectionId == null || targetConnectionId.trim().isEmpty()) {
+                Object accessibleConnectionsObj = chartTemplate.get("accessibleConnections");
+                if (accessibleConnectionsObj instanceof List && !((List<?>) accessibleConnectionsObj).isEmpty()) {
+                    targetConnectionId = (String) ((List<?>) accessibleConnectionsObj).get(0);
+                } else {
+                    result.put("error", "차트 실행을 위한 연결 ID가 지정되지 않았습니다.");
+                    return result;
+                }
+            }
+            
+            // SqlTemplateExecuteDto 생성
+            SqlTemplateExecuteDto executeDto = new SqlTemplateExecuteDto();
+            executeDto.setTemplateId(templateId);
+            executeDto.setConnectionId(targetConnectionId);
+            executeDto.setLimit(1000);
+            
+            // SQL 실행
+            Map<String, List> sqlResult = sqlExecuteService.executeTemplateSQL(executeDto);
+            
+            // SQL 결과를 차트 데이터로 변환
+            List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
+            
+            // SQL 에러 체크
+            if (sqlResult.containsKey("error")) {
+                result.put("error", sqlResult.get("error"));
+                return result;
+            }
+            
+            // success 필드로 성공 여부 확인
+            List<Boolean> successList = (List<Boolean>) sqlResult.get("success");
+            if (successList != null && !successList.isEmpty() && !successList.get(0)) {
+                result.put("error", "SQL 실행 오류가 발생했습니다.");
+                return result;
+            }
+            
+            // 성공 결과 반환
+            result.put("success", true);
+            result.put("templateId", templateId);
+            result.put("template", chartTemplate);
+            result.put("result", rowbody);
+            result.put("hash", generateHash(rowbody));
+            
+        } catch (Exception e) {
+            cLog.monitoringLog("DASHBOARD_ERROR", "차트 " + chartMapping + " [" + connectionId + "] 조회 실패: " + e.getMessage());
+            result.put("error", "차트 데이터 조회 중 오류가 발생했습니다: " + e.getMessage());
+            result.put("errorType", "EXCEPTION");
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 에러 결과 생성
+     */
+    private Map<String, Object> createErrorResult(String errorMessage) {
+        Map<String, Object> errorResult = new HashMap<>();
+        errorResult.put("error", errorMessage);
+        errorResult.put("errorType", "GENERAL_ERROR");
+        return errorResult;
+    }
+    
+    /**
+     * 활성화된 연결 ID 목록 조회 (연결 상태가 online인 것만)
+     */
+    private List<String> getActiveConnectionIds() {
+        try {
+            // ConnectionService에서 온라인 연결 ID 목록 조회
+            return connectionService.getOnlineConnectionIds();
+        } catch (Exception e) {
+            cLog.monitoringLog("DASHBOARD_ERROR", "연결 ID 목록 조회 실패: " + e.getMessage());
+            // 최후의 수단으로 빈 리스트 반환 (연결 상태를 확인할 수 없으므로)
+            return new ArrayList<>();
+        }
     }
 
     /**
@@ -285,11 +342,11 @@ public class DashboardController {
             List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql);
             
             if (connections != null && !connections.isEmpty()) {
-                cLog.monitoringLog("DASHBOARD_MONITORING_FOUND", "모니터링 활성화된 연결 발견: 총 " + connections.size() + "개");
+                // 모니터링 연결 발견 로그 제거 (단순 정보성)
                 return true;
             }
             
-            cLog.monitoringLog("DASHBOARD_MONITORING_NONE", "모니터링 활성화된 연결이 없습니다.");
+            // 모니터링 연결 없음 로그 제거 (단순 정보성)
             return false;
         } catch (Exception e) {
             cLog.monitoringLog("DASHBOARD_MONITORING_CHECK_ERROR", "모니터링 활성화 확인 중 오류: " + e.getMessage());

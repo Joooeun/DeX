@@ -17,6 +17,9 @@ import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.springframework.jndi.JndiTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 
 
@@ -24,6 +27,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @ComponentScan( basePackages = { "kr.Windmill" },
                 excludeFilters = @Filter({ org.springframework.stereotype.Controller.class }))
 @EnableTransactionManagement
+@EnableScheduling
 @MapperScan("kr.Windmill.mapper")
 public class AppConfig {
 
@@ -64,6 +68,17 @@ public class AppConfig {
         sessionFactoryBean.setTypeAliasesPackage("kr.Windmill.dto");
         sessionFactoryBean.setConfiguration(mybatisConfig);        
         return sessionFactoryBean;
+    }
+    
+    @Bean
+    public TaskScheduler taskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(10); // 스케줄러 스레드 풀 크기
+        scheduler.setThreadNamePrefix("dashboard-scheduler-");
+        scheduler.setWaitForTasksToCompleteOnShutdown(true);
+        scheduler.setAwaitTerminationSeconds(60);
+        scheduler.initialize();
+        return scheduler;
     }
 
 }

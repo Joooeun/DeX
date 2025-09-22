@@ -250,7 +250,7 @@ public class DynamicJdbcManager implements Closeable {
 			this.maxLifetimeMs = maxLifetimeMs;
 			this.idleTimeoutMs = idleTimeoutMs;
 			this.idle = new LinkedBlockingQueue<>();
-
+			
 			// 간단한 idle evictor
 			this.evictor = Executors.newSingleThreadScheduledExecutor(r -> {
 				Thread t = new Thread(r, "PoolEvictor-" + key.connectionId);

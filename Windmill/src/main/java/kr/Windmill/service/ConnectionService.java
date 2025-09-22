@@ -14,6 +14,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
@@ -121,55 +124,72 @@ public class ConnectionService {
 			return false;
 		}
 		
-		Connection conn = null;
 		try {
-			// DynamicJdbcManager에서 커넥션 가져오기
-			conn = dynamicJdbcManager.getConnection(connectionId);
-
-			// TEST_SQL 조회
-			String testSql = getTestSql(connectionId);
-			if (testSql == null || testSql.trim().isEmpty()) {
-				// TEST_SQL이 없으면 기본 테스트 쿼리 사용
-				testSql = "SELECT 1";
-			}
-
-			// TEST_SQL 실행
-			try (PreparedStatement stmt = conn.prepareStatement(testSql)) {
-				stmt.setQueryTimeout(5); // 5초 쿼리 타임아웃
-				stmt.executeQuery();
-			}
-
-			return true;
-		} catch (Exception e) {
-			logger.error("커넥션 풀 테스트 실패: {} - {}", connectionId, e.getMessage());
 			
-			// 절전 모드 복귀 후 연결 실패 시 풀 재생성 시도
-			if (isLikelySleepModeRecovery(e)) {
-				logger.info("절전 모드 복귀로 인한 연결 실패로 판단, 풀 재생성을 시도합니다: {}", connectionId);
+			// CompletableFuture를 사용하여 타임아웃 설정 (10초)
+			CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> {
+				Connection conn = null;
 				try {
-					// 풀 재생성 시도
-					dynamicJdbcManager.reinitializePool(connectionId);
-					logger.info("풀 재생성 완료: {}", connectionId);
-				} catch (Exception reinitEx) {
-					logger.error("풀 재생성 실패: {} - {}", connectionId, reinitEx.getMessage());
+					// DynamicJdbcManager에서 커넥션 가져오기
+					conn = dynamicJdbcManager.getConnection(connectionId);
+
+					// TEST_SQL 조회
+					String testSql = getTestSql(connectionId);
+					if (testSql == null || testSql.trim().isEmpty()) {
+						// TEST_SQL이 없으면 기본 테스트 쿼리 사용
+						testSql = "SELECT 1";
+					}
+
+					// TEST_SQL 실행
+					try (PreparedStatement stmt = conn.prepareStatement(testSql)) {
+						stmt.setQueryTimeout(5); // 5초 쿼리 타임아웃
+						stmt.executeQuery();
+					}
+
+					return true;
+				} catch (Exception e) {
+					logger.error("커넥션 풀 테스트 실패: {} - {}", connectionId, e.getMessage());
+					
+					// 절전 모드 복귀 후 연결 실패 시 풀 재생성 시도
+					if (isLikelySleepModeRecovery(e)) {
+						logger.info("절전 모드 복귀로 인한 연결 실패로 판단, 풀 재생성을 시도합니다: {}", connectionId);
+						try {
+							// 풀 재생성 시도
+							dynamicJdbcManager.reinitializePool(connectionId);
+							logger.info("풀 재생성 완료: {}", connectionId);
+						} catch (Exception reinitEx) {
+							logger.error("풀 재생성 실패: {} - {}", connectionId, reinitEx.getMessage());
+						}
+					} else {
+						// 일반적인 연결 실패의 경우 상세 로그
+						logger.debug("일반적인 연결 실패: {} - {}", connectionId, e.getClass().getSimpleName());
+					}
+					
+					return false;
+				} finally {
+					if (conn != null) {
+						try {
+							conn.close();
+						} catch (SQLException e) {
+							logger.debug("커넥션 닫기 실패: {}", e.getMessage());
+						}
+					}
 				}
-			} else {
-				// 일반적인 연결 실패의 경우 상세 로그
-				logger.debug("일반적인 연결 실패: {} - {}", connectionId, e.getClass().getSimpleName());
-			}
+			});
 			
+			// 10초 타임아웃으로 결과 대기
+			boolean result = future.get(10, TimeUnit.SECONDS);
+			return result;
+			
+		} catch (TimeoutException e) {
+			logger.error("커넥션 풀 테스트 타임아웃: {} - 10초", connectionId);
 			return false;
-		} finally {
-			if (conn != null) {
-				try {
-					conn.close();
-				} catch (SQLException e) {
-					logger.debug("커넥션 닫기 실패: {}", e.getMessage());
-				}
-			}
+		} catch (Exception e) {
+			System.err.println("ConnectionService: 연결 테스트 예외 [" + connectionId + "] - " + e.getMessage());
+			logger.error("커넥션 풀 테스트 예외: {} - {}", connectionId, e.getMessage());
+			return false;
 		}
 	}
-
 
 
 	/**
@@ -239,13 +259,11 @@ public class ConnectionService {
 
 	@PostConstruct
 	public void startMonitoring() {
-		cLog.monitoringLog("CONNECTION_STATUS", "Connection status monitoring started");
 		isRunning = true;
 
 		// 연결 목록을 미리 확인중 상태로 초기화
 		try {
 			List<String> connectionList = com.ConnectionnList();
-			cLog.monitoringLog("CONNECTION_STATUS", "초기 연결 목록 로드: " + connectionList);
 
 			for (String connectionId : connectionList) {
 				ConnectionStatusDto status = new ConnectionStatusDto(connectionId, "checking", // 확인중 상태
@@ -253,7 +271,7 @@ public class ConnectionService {
 				);
 				status.setLastChecked(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 				connectionStatusMap.put(connectionId, status);
-				cLog.monitoringLog("CONNECTION_STATUS", "연결 상태 초기화: " + connectionId + " - 확인중");
+				// 연결 상태 초기화 로그 제거 (단순 정보성)
 			}
 		} catch (Exception e) {
 			cLog.monitoringLog("CONNECTION_STATUS_ERROR", "초기 연결 목록 로드 중 오류 발생: " + e.getMessage());
@@ -266,7 +284,7 @@ public class ConnectionService {
 
 	@PreDestroy
 	public void stopMonitoring() {
-		cLog.monitoringLog("CONNECTION_STATUS", "Connection status monitoring stopping...");
+		// 모니터링 중지 시작 로그 제거 (단순 정보성)
 		logger.info("=== ConnectionService 정리 시작 ===");
 		isRunning = false;
 
@@ -281,7 +299,7 @@ public class ConnectionService {
 					monitoringThread.interrupt();
 					monitoringThread.join(1000);
 				} else {
-					cLog.monitoringLog("CONNECTION_STATUS", "모니터링 스레드가 정상적으로 종료되었습니다.");
+					// 모니터링 스레드 정상 종료 로그 제거 (단순 정보성)
 					logger.info("ConnectionStatusMonitor 스레드 정상 종료 완료");
 				}
 			} catch (InterruptedException e) {
@@ -298,7 +316,7 @@ public class ConnectionService {
 
 		// 동적 드라이버 매니저 정리
 
-		cLog.monitoringLog("CONNECTION_STATUS", "Connection status monitoring stopped");
+		// 모니터링 중지 완료 로그 제거 (단순 정보성)
 		logger.info("=== ConnectionService 정리 완료 ===");
 	}
 
@@ -331,6 +349,7 @@ public class ConnectionService {
 	}
 
 	private void updateAllConnectionStatusesWithInterval() {
+		
 		try {
 			cLog.monitoringLog("CONNECTION_STATUS", "=== 연결 상태 확인 시작 ===");
 
@@ -345,9 +364,11 @@ public class ConnectionService {
 					continue;
 				}
 				
+				//여기확
 				// 마지막 모니터링 체크 시간 확인
 				Long lastCheck = getLastMonitoringCheck(connectionId);
 				int interval = getMonitoringInterval(connectionId) * 1000; // 초를 밀리초로 변환
+				
 				
 				// 모니터링 간격이 지났거나 처음 체크하는 경우에만 업데이트
 				if (lastCheck == null || (currentTime - lastCheck) >= interval) {
@@ -359,22 +380,6 @@ public class ConnectionService {
 			}
 		} catch (Exception e) {
 			cLog.monitoringLog("CONNECTION_STATUS_ERROR", "연결 상태 확인 중 오류 발생: " + e.getMessage());
-		}
-	}
-
-	private void updateAllConnectionStatuses() {
-		try {
-			cLog.monitoringLog("CONNECTION_STATUS", "=== 연결 상태 확인 시작 ===");
-
-			List<String> connectionList = com.ConnectionnList();
-			cLog.monitoringLog("CONNECTION_STATUS", "발견된 연결 목록: " + connectionList);
-
-			for (String connectionId : connectionList) {
-				cLog.monitoringLog("CONNECTION_STATUS", "연결 상태 확인 중: " + connectionId);
-				updateConnectionStatus(connectionId);
-			}
-		} catch (Exception e) {
-			cLog.monitoringLog("CONNECTION_STATUS_ERROR", "연결 목록 조회 중 오류 발생: " + e.getMessage());
 		}
 	}
 
@@ -392,11 +397,11 @@ public class ConnectionService {
 				return;
 			}
 
-			// 마지막 모니터링 체크 시간 업데이트
-			setLastMonitoringCheck(connectionId);
-
 			// 기존 커넥션 풀에서 연결 가져와서 TEST_SQL 실행
 			boolean isConnected = testConnectionWithPool(connectionId);
+			
+			// 연결 테스트 완료 후 마지막 모니터링 체크 시간 업데이트
+			setLastMonitoringCheck(connectionId);
 
 			// 모니터링 상태 설정
 			String monitoringStatus = isConnected ? "ONLINE" : "OFFLINE";
@@ -444,6 +449,18 @@ public class ConnectionService {
 	public List<ConnectionStatusDto> getAllConnectionStatuses() {
 		return connectionStatusMap.values().stream()
 				.filter(status -> isMonitoringEnabled(status.getConnectionId()))
+				.collect(Collectors.toList());
+	}
+
+	/**
+	 * 온라인 상태인 연결 ID 목록을 반환합니다.
+	 * @return 온라인 연결 ID 목록
+	 */
+	public List<String> getOnlineConnectionIds() {
+		return connectionStatusMap.values().stream()
+				.filter(status -> isMonitoringEnabled(status.getConnectionId()))
+				.filter(status -> "connected".equals(status.getStatus()))
+				.map(ConnectionStatusDto::getConnectionId)
 				.collect(Collectors.toList());
 	}
 
@@ -1098,6 +1115,13 @@ public class ConnectionService {
 			// 모니터링 설정이 변경된 경우 관련 상태 초기화
 			if (monitoringEnabledChanged) {
 				updateMonitoringStatusAfterSettingChange(connectionId, connectionData);
+			}
+			
+			// 연결 정보 업데이트 후 풀 재생성 이벤트 호출
+			try {
+				onConnectionUpdated(connectionId);
+			} catch (Exception e) {
+				logger.warn("연결 업데이트 이벤트 처리 실패: {} - {}", connectionId, e.getMessage());
 			}
 		}
 
