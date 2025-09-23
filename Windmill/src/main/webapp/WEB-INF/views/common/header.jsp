@@ -612,7 +612,7 @@ var changePW
 			});
 			
 			// 드롭다운 메뉴 닫기
-			$('.dropdown-toggle').dropdown('toggle');
+			$('.dropdown-toggle').dropdown('hide');
 		}
 		
 		// 드롭다운 버튼 텍스트 업데이트 함수

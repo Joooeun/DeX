@@ -1587,7 +1587,7 @@
                         </div>
                         <div class="box-body lock-wait-count-container" style="height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; cursor: pointer; transition: all 0.3s ease;" onclick="handleLockWaitCountClick()">
                             <!-- 큰 숫자 표시 -->
-                            <div id="lockWaitCountValue" style="font-size: 72px; font-weight: bold; color: #28a745; margin-bottom: 20px; text-align: center;">
+                            <div id="lockWaitCountValue" style="font-size: 96px; font-weight: bold; color: #28a745; margin-bottom: 20px; text-align: center;">
                                 0
                             </div>
                             <!-- 상태 표시 -->
