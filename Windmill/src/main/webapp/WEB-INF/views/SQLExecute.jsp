@@ -14,10 +14,10 @@
     background: #ababab;
     border-radius: 10px;
     border: 4px solid transparent;
-    background-clip: padding-box; // <== make the border work
+    background-clip: padding-box; /* make the border work */
 }
 
-::-webkit-scrollbar-thumb:hover{
+::-webkit-scrollbar-thumb:hover {
     border: 0;
 }
 
@@ -72,6 +72,26 @@
 #result_table {
 	transition: height 0.3s ease;
 }
+
+/* 파라미터 툴팁 스타일 */
+.param,.shortcut-btn[data-toggle="tooltip"] {
+	position: relative;
+}
+
+/* 툴팁 커스텀 스타일 */
+.tooltip {
+	font-size: 12px;
+	max-width: 300px;
+}
+
+.tooltip-inner {
+	background-color: #333;
+	color: #fff;
+	border-radius: 4px;
+	padding: 8px 12px;
+	text-align: left;
+	line-height: 1.4;
+}
 </style>
 
 <!-- ======================================== -->
@@ -112,6 +132,20 @@ var tableHeight=0;
 			
 			// 일시정지 버튼 초기화
 			$("#pauseBtn").hide();
+			
+			// 파라미터 툴팁 초기화
+			$('[data-toggle="tooltip"]').tooltip({
+				placement: 'top',
+				trigger: 'hover',
+				delay: { show: 300, hide: 100 }
+			});
+			
+			// 단축키 툴팁 초기화
+			$('.shortcut-btn[data-toggle="tooltip"]').tooltip({
+				placement: 'top',
+				trigger: 'hover',
+				delay: { show: 300, hide: 100 }
+			});
 
 			// 개행보기 체크박스 초기 상태 확인 및 적용
 			if ($("#newline").prop('checked')) {
@@ -199,7 +233,7 @@ var tableHeight=0;
 								connectionOptions.first().prop('selected', true);
 							}
 							
-							var shortkey = ${Excute};
+							var shortkey = '${Excute}';
 
 							if (shortkey && $("#connectionlist option:selected").val() != '') {
 								excute();
@@ -243,9 +277,9 @@ var tableHeight=0;
 					length: lines.length
 				}, (v, i) => '<div>' + (i + 1) + '</div>').join('');
 
-				if ($(this).val().length > ${textlimit}) {
+				if ($(this).val().length > '${textlimit}') {
 					alert('입력가능한 범위를 벗어났습니다. 최대 : ${textlimit}');
-					$(this).val($(this).val().substring(0, ${textlimit}))
+					$(this).val($(this).val().substring(0, '${textlimit}'))
 				}
 				$("#textcount").text($(this).val().length)
 			});
@@ -269,40 +303,40 @@ var tableHeight=0;
 		// 키보드 단축키 이벤트 처리 (F1~F12)
 		// ========================================
 		$(document).keydown(function(event) {
-			if (event.keyCode == '112') {
+			if (event.keyCode == 112) {
 				event.preventDefault();
 				sendSql($("#F1").val());
-			} else if (event.keyCode == '113') {
+			} else if (event.keyCode == 113) {
 				event.preventDefault();
 				sendSql($("#F2").val());
-			} else if (event.keyCode == '114') {
+			} else if (event.keyCode == 114) {
 				event.preventDefault();
 				sendSql($("#F3").val());
-			} else if (event.keyCode == '115') {
+			} else if (event.keyCode == 115) {
 				event.preventDefault();
 				sendSql($("#F4").val());
-			} else if (event.keyCode == '116') {
+			} else if (event.keyCode == 116) {
 				event.preventDefault();
 				sendSql($("#F5").val());
-			} else if (event.keyCode == '117') {
+			} else if (event.keyCode == 117) {
 				event.preventDefault();
 				sendSql($("#F6").val());
-			} else if (event.keyCode == '118') {
+			} else if (event.keyCode == 118) {
 				event.preventDefault();
 				sendSql($("#F7").val());
-			} else if (event.keyCode == '119') {
+			} else if (event.keyCode == 119) {
 				event.preventDefault();
 				sendSql($("#F8").val());
-			} else if (event.keyCode == '120') {
+			} else if (event.keyCode == 120) {
 				event.preventDefault();
 				sendSql($("#F9").val());
-			} else if (event.keyCode == '121') {
+			} else if (event.keyCode == 121) {
 				event.preventDefault();
 				sendSql($("#F10").val());
-			} else if (event.keyCode == '122') {
+			} else if (event.keyCode == 122) {
 				event.preventDefault();
 				sendSql($("#F11").val());
-			} else if (event.keyCode == '가나다라마바사') {
+			} else if (event.keyCode == 123) {
 				event.preventDefault();
 				sendSql($("#F12").val());
 			}
@@ -1134,7 +1168,8 @@ var tableHeight=0;
 											<c:when test="${fn:toUpperCase(item.PARAMETER_TYPE) == 'TEXT' || fn:toUpperCase(item.PARAMETER_TYPE) == 'SQL'}">
 												<div class="col-xs-12">
 													<div class="form-group" style="margin-bottom: 0">
-														<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 13px">${fn:toUpperCase(item.PARAMETER_NAME)}</span>
+														<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 13px" 
+															data-toggle="tooltip" data-placement="top" title="${not empty item.DESCRIPTION ? item.DESCRIPTION : '설명이 없습니다.'}">${fn:toUpperCase(item.PARAMETER_NAME)}</span>
 														<div id="container" class="textcontainer">
 
 															<div id="line-numbers" class="container__lines"></div>
@@ -1149,7 +1184,8 @@ var tableHeight=0;
 												<div class="col-lg-2 col-md-3 col-sm-4 col-xs-5">
 													<div class="form-group ${item.IS_REQUIRED == true ? 'required' : ''}">
 														<c:if test="${item.PARAMETER_NAME != 'memberId' && item.IS_HIDDEN != true}">
-															<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 13px">${fn:toUpperCase(item.PARAMETER_NAME)}</span>
+															<span class="param" id="param${status.count}" style="padding-top: 7px; font-weight: bold; font-size: 13px" 
+																data-toggle="tooltip" data-placement="top" title="${not empty item.DESCRIPTION ? item.DESCRIPTION : '설명이 없습니다.'}">${fn:toUpperCase(item.PARAMETER_NAME)}</span>
 														</c:if>
 														<div style="margin: 2px 0">
 															<input type="${item.PARAMETER_NAME=='memberId' || item.IS_HIDDEN == true ? 'hidden' : 'text'}" class="form-control paramvalue" paramtitle="${item.PARAMETER_NAME}" paramtype="${item.PARAMETER_TYPE}"
@@ -1259,7 +1295,10 @@ var tableHeight=0;
 					</div>
 					<div class="box-body">
 						<c:forEach var="item" items="${ShortKey}">
-							<button type="button" class="btn btn-default btn-sm" onclick="sendSql('${item.TARGET_TEMPLATE_ID}&${item.SOURCE_COLUMN_INDEXES}&${item.AUTO_EXECUTE}')">${item.SHORTCUT_NAME}</button>
+							<button type="button" class="btn btn-default btn-sm shortcut-btn" 
+								data-toggle="tooltip" data-placement="top" 
+								title="${not empty item.SHORTCUT_DESCRIPTION ? item.SHORTCUT_DESCRIPTION : '설명이 없습니다.'}"
+								onclick="sendSql('${item.TARGET_TEMPLATE_ID}&${item.SOURCE_COLUMN_INDEXES}&${item.AUTO_EXECUTE}')">${item.SHORTCUT_NAME}</button>
 							<input type="hidden" id="${item.SHORTCUT_KEY}" value="${item.TARGET_TEMPLATE_ID}&${item.SOURCE_COLUMN_INDEXES}&${item.AUTO_EXECUTE}">
 						</c:forEach>
 					</div>

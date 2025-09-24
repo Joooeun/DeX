@@ -77,6 +77,12 @@
 				placement: 'top',
 				trigger: 'hover'
 			});
+			
+			// 초기 로드 완료 표시 (약간의 지연 후)
+			setTimeout(function() {
+				window.SqlTemplateState.initialLoadComplete = true;
+				window.SqlTemplateState.lastLoadTime = Date.now();
+			}, 1000);
 
 			// 차트 매핑 변경 이벤트 (특별한 중복 체크 로직이 있으므로 별도 처리)
 			$('#sqlChartMapping').on('change', function () {
@@ -424,6 +430,7 @@
 			// 상태 관리
 			hasUnsavedChanges: false,
 			isLoading: false,
+			initialLoadComplete: false,
 			
 			// 에디터 관리
 			sqlEditors: {},
@@ -1640,9 +1647,9 @@
 		}
 
 		// SQL 템플릿 저장 (UI에서 직접 값을 읽어서 저장) - 저장 버튼용
-		function saveSqlTemplate(callback) {
+		function saveSqlTemplate() {
 			// 공통 벨리데이션 체크
-			if (!validateTemplateForSave(callback, true)) {
+			if (!validateTemplateForSave(null, true)) {
 				return;
 			}
 
@@ -1650,7 +1657,7 @@
 			showLoading(LOADING_MESSAGES.SAVING);
 
 			// UI에서 직접 값을 읽어서 서버로 전송 (새로고침 포함)
-			saveTemplateToServer(callback);
+			saveTemplateToServer(null);
 		}
 
 		// SQL 템플릿 저장 (네비게이션용 - 새로고침 없음)
@@ -1822,7 +1829,7 @@
 										}
 										// 모든 작업 완료 후 로딩 종료
 										hideLoading();
-									}, 500);
+									}, 1000);
 								} else {
 									// 템플릿 선택이 없는 경우 바로 로딩 종료
 									setTimeout(function() {
@@ -2611,36 +2618,6 @@
 			$('#addSqlContentModal').remove();
 		}
 
-		// 전역 상태 관리 객체 (단순화)
-		window.SqlTemplateState = {
-			// 상태 관리
-			hasUnsavedChanges: false,
-			isLoading: false,
-			
-			// 에디터 관리
-			sqlEditors: {},
-			
-			// 모달 상태
-			editMode: false,
-			currentEditingConnectionId: null,
-			
-			// DB 연결 정보
-			dbConnections: [],
-			
-			// 상태 변경 함수들
-			markAsChanged: function() {
-				if (!this.isLoading) {
-					this.hasUnsavedChanges = true;
-					updateSaveButtonState();
-				}
-			},
-			
-			resetChanges: function() {
-				this.hasUnsavedChanges = false;
-				updateSaveButtonState();
-			}
-		};
-
 		// 템플릿 변경사항 추적
 		function markTemplateChanged() {
 			// 로딩 중이거나 초기화 중에는 변경사항으로 간주하지 않음
@@ -2650,7 +2627,12 @@
 			
 			// 추가 안전장치: 템플릿 로드 후 짧은 시간 내 변경은 무시
 			var now = Date.now();
-			if (window.SqlTemplateState.lastLoadTime && (now - window.SqlTemplateState.lastLoadTime < 200)) {
+			if (window.SqlTemplateState.lastLoadTime && (now - window.SqlTemplateState.lastLoadTime < 500)) {
+				return;
+			}
+			
+			// 초기 로드 완료 후에만 변경사항으로 간주
+			if (!window.SqlTemplateState.initialLoadComplete) {
 				return;
 			}
 			
