@@ -266,7 +266,7 @@ public class SQLTemplateController {
 				}
 				
 				// 템플릿 이름을 그대로 템플릿 ID로 사용
-				request.getTemplate().setTemplateId(templateName);
+				request.getTemplate().setTemplateId(String.valueOf(System.currentTimeMillis()));
 			}
 			
 			// 3. 서비스 호출

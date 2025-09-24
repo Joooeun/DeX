@@ -699,16 +699,9 @@ var changePW
 				<ul class="sidebar-menu" data-widget="tree" id="tree">
 
 					<c:if test="${isAdmin}">
-						<li><a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span>
-
-						</a> <!-- <ul class="treeview-menu" id="ConnectionList">
-							<li><a href="/Connection?DB=2"><i class="fa fa-circle-o"></i> DB1</a></li>
-							<li><a href="/Connection?DB=1"><i class="fa fa-circle-o"></i> DB2</a></li>
-						</ul> --></li>
-
-						<li><a href="/User" target="iframe"> <i class="fa fa-user"></i> <span>User</span>
-
-						</a></li>
+						<li><a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span></a></li>
+						<li><a href="/Dashboard" target="iframe"> <i class="fa fa-line-chart"></i> <span>대시보드</span></a></li>
+						<li><a href="/User" target="iframe"> <i class="fa fa-user"></i> <span>User</span></a></li>
 						
 						<li><a href="/SQLTemplate" target="iframe"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span>
 						</a></li>
@@ -731,7 +724,7 @@ var changePW
 			<ul id="pageTab" class="nav nav-tabs">
 				<c:if test="${isAdmin}">
 					<li><a href="#page1" data-toggle="tab"><i class="fa fa-home"></i></a></li>
-					<li class="active"><a href="#dashboard" data-toggle="tab">대시보드</a></li>
+					<li class="active"><a href="#dashboard" data-toggle="tab">대시보드<button class="close" type="button" title="Remove this page" style="padding-left:3px"><i class="fa fa-close"></i></button></a></li>
 				</c:if>
 				<c:if test="${!isAdmin}">
 					<li class="active"><a href="#page1" data-toggle="tab"><i class="fa fa-home"></i></a></li>

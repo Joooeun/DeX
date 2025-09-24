@@ -1,12 +1,6 @@
 <%@include file="common/common.jsp"%>
-<head>
-    <meta charset="UTF-8">
-    <title>대시보드 - DeX</title>
-    <%@include file="common/common.jsp"%>
     <link href="/resources/css/dashboard.css" rel="stylesheet" type="text/css" />
-</head>
 
-<body class="sidebar-mini skin-purple-light">
     <script>
         // 중앙 타이머 관리 객체
         var TimerManager = {
@@ -609,13 +603,11 @@
                         },
                         annotation: {
                             annotations: {
-                                cpuLabel: {
                                     type: 'doughnutLabel',
                                     content: ({chart}) => {
                                         const value = chart.data.datasets[0].data[0] || 0;
                                         return [
-                                            value.toFixed(1) + '%',
-                                            'CPU 사용률'
+                                            value.toFixed(1) + '%'
                                         ];
                                     },
                                     drawTime: 'beforeDraw',
@@ -627,7 +619,6 @@
                                         const value = chart.data.datasets[0].data[0] || 0;
                                         return COLORS[getTrafficLightColor('ACTIVE_LOG', value)];
                                     }
-                                }
                             }
                         }
                     },
@@ -1115,7 +1106,7 @@
                         }
                         
                         // 원본 SQL 결과 데이터를 차트 요소에 저장
-                        if (resultData && Array.isArray(resultData)) {
+                        if (resultData && Array.isArray(resultData)&&chartType !== 'LOCK_WAIT_COUNT') {
                             // 각 차트 요소에 해당하는 SQL 결과 행을 저장
                             for (var i = 0; i < chartConfig.chart.data.datasets[0].data.length; i++) {
                                 if (resultData[i]) {
@@ -1140,6 +1131,7 @@
                     chartConfig.chart.update();
                 }
             } catch (error) {
+            	
                 // 에러 발생 시 기본 데이터로 설정
                 try {
                     chartConfig.chart.data.labels = ['오류'];
@@ -1538,8 +1530,13 @@
             }
         }
     </script>
-    <div class="wrapper">
         <div class="content-wrapper" style="margin-left: 0; padding: 20px;">
+        
+        <section class="content-header" style="display: none">
+			<h1>대시보드</h1>
+		</section>
+		
+		
             <div class="row">
                 <div class="col-md-12">
                     <div class="box box-default">
@@ -1666,7 +1663,6 @@
                 </div>
             </div>
         </div>
-    </div>
 
     <!-- 모니터링 비활성화 알림 모달 -->
     <div class="modal fade" id="monitoringDisabledModal" tabindex="-1" role="dialog">
@@ -1934,4 +1930,3 @@
         <input id="Path" name="Path" value="" type="hidden">
     </form>
     
-</body>
