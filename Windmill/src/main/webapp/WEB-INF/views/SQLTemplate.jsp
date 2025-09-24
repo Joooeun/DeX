@@ -842,7 +842,7 @@
 				if (typeof ace !== 'undefined') {
 					clearInterval(checkAce);
 
-					initSqlEditorForConnection('sqlEditor_default', '');
+					initSqlEditorForConnection('sqlEditor_default', 'SELECT * FROM (VALUES (\'기본 템플릿\'))');
 				}
 			}, 100);
 
@@ -1575,7 +1575,7 @@
 			// 탭 초기화
 			$('#sqlContentTabs .nav-item:not(:first)').remove();
 			$('#sqlContentTabContent .tab-pane:not(#tab-default)').remove();
-			initSqlEditorForConnection('sqlEditor_default', '');
+			initSqlEditorForConnection('sqlEditor_default', 'SELECT * FROM (VALUES (\'기본 템플릿\'))');
 			
 			// "+" 탭 추가
 			addPlusTab();
