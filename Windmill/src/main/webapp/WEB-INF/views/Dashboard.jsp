@@ -69,13 +69,16 @@
         var activeLogChart;
         var filesystemChart;
         var selectedConnectionId = null; // 선택된 커넥션 ID
+
+
+        var allData;
         
 
         const COLORS = {
-           green:  'rgba(140, 214, 16, 0.7)',
-           yellow:   'rgba(239, 198, 0, 0.7)', 
-           red: 'rgba(231, 24, 49, 0.7)',
-           gray: 'rgba(158, 158, 158, 0.7)'
+           green:  'rgba(140, 214, 16)',
+           yellow:   'rgba(239, 198, 0)', 
+           red: 'rgba(231, 24, 49)',
+           gray: 'rgba(158, 158, 158)'
                
         };
 
@@ -341,10 +344,12 @@
             // 선택된 커넥션 ID 저장
             selectedConnectionId = connectionId;
             
-            logDebug('선택된 커넥션:', connectionId);
-            
             // 차트 데이터 즉시 업데이트
-            updateCharts();
+            if(allData){
+	            processAllChart(allData[connectionId]);
+            }else{
+            	updateCharts();
+            }
         }
         
         // 단일 연결 상태 수동 새로고침
@@ -486,7 +491,6 @@
                 
                 // 차트 데이터 업데이트 (새로운 구조에 맞게)
                 chart.data.datasets[0].data = [numericValue, 100 - numericValue];
-                
                 // 부드러운 애니메이션으로 업데이트
                 chart.update('active');
             } else {
@@ -496,11 +500,6 @@
 
         // 차트 초기화 함수
         function initializeCharts() {
-            // Chart.js datalabels 플러그인 등록
-            Chart.register(ChartDataLabels);
-
-
-            
             const MIN = 0;
             const MAX = 100;
             
@@ -508,6 +507,7 @@
             // APPL_COUNT 차트 (도넛 그래프)
             var applCountCtx = document.getElementById('applCountChart').getContext('2d');
             applCountChart = new Chart(applCountCtx, {
+            	plugins: [ChartDataLabels],
                 type: 'doughnut',
                 data: {
                     labels: [],
@@ -595,30 +595,26 @@
                     circumference: 180,
                     rotation: -90,
                     plugins: {
-                        legend: {
+                    	legend: {
                             display: false
-                        },
-                        tooltip: {
-                            enabled: false
                         },
                         annotation: {
                             annotations: {
-                                    type: 'doughnutLabel',
-                                    content: ({chart}) => {
-                                        const value = chart.data.datasets[0].data[0] || 0;
-                                        return [
-                                            value.toFixed(1) + '%'
-                                        ];
-                                    },
-                                    drawTime: 'beforeDraw',
-                                    position: {
-                                        y: '-50%'
-                                    },
+                            	annotation:{
+                            	  type: 'doughnutLabel',
+                            	  content: ({chart}) => [
+                            	   ( chart.data.datasets[0].data[0] || 0) + '%',
+                            	  ],
+                            	  drawTime: 'beforeDraw',
+                            	  position: {
+                            	    y: '-50%'
+                            	  },
                                     font: [{size: 24, weight: 'bold'}, {size: 12}],
-                                    color: ({chart}) => {
-                                        const value = chart.data.datasets[0].data[0] || 0;
-                                        return COLORS[getTrafficLightColor('ACTIVE_LOG', value)];
-                                    }
+                            	  color: ({chart}) => {
+                                      const value = chart.data.datasets[0].data[0] || 0;
+                                      return COLORS[getTrafficLightColor('ACTIVE_LOG', value)];
+                                  }
+                            	}
                             }
                         }
                     },
@@ -946,6 +942,8 @@
             'FILESYSTEM': null
         };
 
+
+
         // 차트 및 신호등 데이터 업데이트 함수 (통합 API 사용)
         function updateCharts() {
             
@@ -974,17 +972,13 @@
                 timeout: 15000,
                 success: function(response) {
                     if (response.success && response.data) {
+
                         // 모든 연결에 대한 데이터 처리
                         for (var connectionId in response.data) {
-                            var dbData = response.data[connectionId];
-                            if (dbData) {
-                                // 선택된 연결의 차트 데이터 처리
-                                if (connectionId === selectedConnectionId) {
-                                    processChartData('APPL_COUNT', dbData.APPL_COUNT);
-                                    processChartData('LOCK_WAIT_COUNT', dbData.LOCK_WAIT_COUNT);
-                                    processChartData('ACTIVE_LOG', dbData.ACTIVE_LOG);
-                                    processChartData('FILESYSTEM', dbData.FILESYSTEM);
-                                }
+                        	allData = response.data;
+                            var dbData = allData[connectionId];
+                            if (dbData && connectionId === selectedConnectionId) {
+                            	processAllChart(dbData);
                             }
                         }
                         
@@ -1010,6 +1004,14 @@
                     scheduleNextChartUpdate();
                 }
             });
+        }
+
+        function processAllChart(dbData) {
+           
+            processChartData('APPL_COUNT', dbData.APPL_COUNT);
+            processChartData('LOCK_WAIT_COUNT', dbData.LOCK_WAIT_COUNT);
+            processChartData('ACTIVE_LOG', dbData.ACTIVE_LOG);
+            processChartData('FILESYSTEM', dbData.FILESYSTEM);
         }
         
         // 개별 차트 데이터 처리 함수
@@ -1116,6 +1118,8 @@
                                 }
                             }
                         }
+                        
+                        clearChartError(chartType);
                     } else {
                         console.warn('차트 데이터 형식 오류:', chartType, processedData);
                         // 기본 데이터로 설정
@@ -1169,36 +1173,20 @@
                             }
                         }
                         return { labels: labels, data: data };
+                    },
+                    traffic: function(result) {
+                        return result[result.length-1][1];
                     }
                 },
                 'LOCK_WAIT_COUNT': {
                     chart: lockWaitCountChart,
                     processData: function(result) {
-                        var totalValue = 0;
-                        var maxValue = 100; // 기본 최대값
-                        
-                        // 모든 값의 합계 계산
-                        for (var i = 0; i < result.length; i++) {
-                            if (result[i] && result[i].length >= 1) {
-                                // 단일 값인 경우 (예: [[25]])
-                                if (result[i].length === 1) {
-                                    totalValue += parseInt(result[i][0]) || 0;
-                                }
-                                // 두 개 이상의 값인 경우 (예: [["label", 25]])
-                                else if (result[i].length >= 2) {
-                                    totalValue += parseInt(result[i][1]) || 0;
-                                }
-                            }
-                        }
-                        
-                        // 최대값 동적 설정 (현재 값의 2배 또는 100 중 큰 값)
-                        maxValue = Math.max(totalValue * 2, 100);
-                        
                         return { 
-                            totalValue: totalValue, 
-                            maxValue: maxValue,
-                            percentage: Math.min(totalValue / maxValue, 1)
+                            totalValue: result[0][0]
                         };
+                    },
+                    traffic: function(result) {
+                        return result[0][0];
                     }
                 },
                 'ACTIVE_LOG': {
@@ -1213,6 +1201,9 @@
                             }
                         }
                         return { labels: labels, data: data };
+                    },
+                    traffic: function(result) {
+                        return result[0][1]
                     }
                 },
                 'FILESYSTEM': {
@@ -1227,6 +1218,9 @@
                             }
                         }
                         return { labels: labels, data: data };
+                    },
+                    traffic: function(result) {
+                        return  result[0][1]
                     }
                 }
             };
@@ -1319,11 +1313,12 @@
                 var trafficLightContainer = $('#traffic-light-' + connectionId);
                 
                 if (trafficLightContainer.length > 0) {
+           
                     // 각 차트별 신호등 업데이트
-                    updateSingleTrafficLight(trafficLightContainer, 'appl-count', dbData.APPL_COUNT, 'APPL_COUNT');
-                    updateSingleTrafficLight(trafficLightContainer, 'lock-wait', dbData.LOCK_WAIT_COUNT, 'LOCK_WAIT_COUNT');
-                    updateSingleTrafficLight(trafficLightContainer, 'active-log', dbData.ACTIVE_LOG, 'ACTIVE_LOG');
-                    updateSingleTrafficLight(trafficLightContainer, 'filesystem', dbData.FILESYSTEM, 'FILESYSTEM');
+                    updateSingleTrafficLight(trafficLightContainer, 'appl-count', dbData.APPL_COUNT.result, 'APPL_COUNT');
+                    updateSingleTrafficLight(trafficLightContainer, 'lock-wait', dbData.LOCK_WAIT_COUNT.result, 'LOCK_WAIT_COUNT');
+                    updateSingleTrafficLight(trafficLightContainer, 'active-log', dbData.ACTIVE_LOG.result, 'ACTIVE_LOG');
+                    updateSingleTrafficLight(trafficLightContainer, 'filesystem', dbData.FILESYSTEM.result, 'FILESYSTEM');
                 }
             }
         }
@@ -1339,8 +1334,21 @@
                 return;
             }
             
+            var resultData;
+            if (Array.isArray(data)) {
+                resultData = data;
+            } else if (data.rowbody && Array.isArray(data.rowbody)) {
+                // 새로운 API 응답 형식 처리 (rowbody 배열 사용)
+                resultData = data.rowbody;
+            } 
+            
+            
             // 데이터에서 값 추출 (실제 데이터 구조에 따라 조정 필요)
-            var value = extractValueFromData(data, chartType);
+            var value = getChartConfig(chartType).traffic(resultData);
+            
+            //data.result.rowbody
+            //getChartConfig(chartType).processData(data)
+            
 
             if (value === null || value === undefined) {
                 light.removeClass('green yellow red').addClass('gray');
@@ -1525,9 +1533,30 @@
                 
                 chartContainer.css('position', 'relative').append(errorHtml);
                 
-                // 에러 로그 기록
-                console.error('차트 오류 [' + chartType + ']:', errorMessage);
             }
+        }
+        
+        // 차트 오류 해제 함수
+        function clearChartError(chartType) {
+            // 오류 상태 초기화
+            chartErrorStates[chartType] = false;
+            chartUpdateDisabled[chartType] = false;
+            
+            // 오류 메시지 제거
+            var chartId = getChartId(chartType);
+            var chartContainer = $('#' + chartId).closest('.box-body');
+            if (chartContainer.length > 0) {
+                chartContainer.find('.chart-error-message').remove();
+            }
+            
+        }
+        
+        // 모든 차트 오류 해제 함수
+        function clearAllChartErrors() {
+            Object.keys(chartErrorStates).forEach(function(chartType) {
+                clearChartError(chartType);
+            });
+            console.log('모든 차트 오류 해제 완료');
         }
     </script>
         <div class="content-wrapper" style="margin-left: 0; padding: 20px;">
@@ -1584,7 +1613,7 @@
                         </div>
                         <div class="box-body lock-wait-count-container" style="height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; cursor: pointer; transition: all 0.3s ease;" onclick="handleLockWaitCountClick()">
                             <!-- 큰 숫자 표시 -->
-                            <div id="lockWaitCountValue" style="font-size: 96px; font-weight: bold; color: #28a745; margin-bottom: 20px; text-align: center;">
+                            <div id="lockWaitCountValue" style="font-size: 96px; font-weight: bold; color: #00000000; margin-bottom: 20px; text-align: center;">
                                 0
                             </div>
                             <!-- 상태 표시 -->

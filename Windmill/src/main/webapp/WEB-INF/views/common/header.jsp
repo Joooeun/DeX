@@ -73,23 +73,23 @@ body {
 
 /* Google Fonts fallback 설정 */
 .font-noto-sans-mono {
-  font-family: 'Noto Sans Mono', 'D2Coding', 'Consolas', monospace;
+  font-family: 'Noto Sans Mono', 'D2Coding', monospace;
 }
 
 .font-roboto-mono {
-  font-family: 'Roboto Mono', 'D2Coding', 'Consolas', monospace;
+  font-family: 'Roboto Mono', 'D2Coding', monospace;
 }
 
 .font-source-code-pro {
-  font-family: 'Source Code Pro', 'D2Coding', 'Consolas', monospace;
+  font-family: 'Source Code Pro', 'D2Coding', monospace;
 }
 
 .font-fira-code {
-  font-family: 'Fira Code', 'D2Coding', 'Consolas', monospace;
+  font-family: 'Fira Code', 'D2Coding', monospace;
 }
 
 .font-jetbrains-mono {
-  font-family: 'JetBrains Mono', 'D2Coding', 'Consolas', monospace;
+  font-family: 'JetBrains Mono', 'D2Coding', monospace;
 }
 
 </style>
@@ -661,7 +661,6 @@ var changePW
 							</a>
 							<ul class="dropdown-menu">
 								<li><a href="javascript:changeFont('D2Coding')">D2Coding</a></li>
-								<li><a href="javascript:changeFont('Consolas')">Consolas</a></li>
 								<li><a href="javascript:changeFont('Courier New')">Courier New</a></li>
 								<li><a href="javascript:changeFont('Noto Sans Mono')">Noto Sans Mono</a></li>
 								<li><a href="javascript:changeFont('Roboto Mono')">Roboto Mono</a></li>
