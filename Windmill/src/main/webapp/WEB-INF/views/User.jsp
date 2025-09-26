@@ -21,7 +21,7 @@
                         </div>
                         <div class="row" style="margin-top: 10px;">
                             <div class="col-sm-3">
-                                <div class="input-group">
+                                <div class="input-group input-group-sm">
                                     <input type="text" class="form-control" id="searchKeyword" placeholder="ID/이름">
                                     <span class="input-group-btn">
                                         <button type="button" class="btn btn-default" onclick="searchUsers()">
@@ -31,7 +31,7 @@
                                 </div>
                             </div>
                             <div class="col-sm-3">
-                                <div class="input-group">
+                                <div class="input-group input-group-sm">
                                     <span class="input-group-addon">그룹</span>
                                     <select class="form-control" id="groupFilter" onchange="filterByGroup()">
                                         <option value="">전체 그룹</option>

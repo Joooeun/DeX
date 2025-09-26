@@ -696,23 +696,16 @@ var changePW
 				<!-- /.search form -->
 				<!-- sidebar menu: : style can be found in sidebar.less -->
 				<ul class="sidebar-menu" data-widget="tree" id="tree">
-
 					<c:if test="${isAdmin}">
-						<li><a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>Connection</span></a></li>
-						<li><a href="/Dashboard" target="iframe"> <i class="fa fa-line-chart"></i> <span>대시보드</span></a></li>
-						<li><a href="/User" target="iframe"> <i class="fa fa-user"></i> <span>User</span></a></li>
-						
-						<li><a href="/SQLTemplate" target="iframe"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span>
-						</a></li>
-						
-						<li><a href="/SystemConfig" target="iframe"> <i class="fa fa-cog"></i> <span>환경설정</span>
-						</a></li>
+						<li><a href="/SystemConfig" target="iframe"> <i class="fa fa-cog"></i> <span>환경설정</span></a></li>
+						<li><a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>연결 관리</span></a></li>
+						<li><a href="/User" target="iframe"> <i class="fa fa-user"></i> <span>사용자 관리</span></a></li>
+						<li><a href="/SQLTemplate" target="iframe"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span></a></li>
 					</c:if>
 
-					<li><a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileRead</span>
-					</a></li>
-					<li><a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>FileUpload</span>
-					</a></li>
+					<li><a href="/Dashboard" target="iframe"> <i class="fa fa-line-chart"></i> <span>대시보드</span></a></li>
+					<li><a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>파일 읽기</span></a></li>
+					<li><a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>파일 쓰기</span></a></li>
 
 					<li id="sqltree" class="active treeview menu-open"></li>
 				</ul>

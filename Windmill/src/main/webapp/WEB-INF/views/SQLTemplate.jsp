@@ -3411,7 +3411,7 @@
 												<th style="width: 40px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="파라미터를 읽기 전용으로 설정합니다. 체크하면 사용자가 값을 수정할 수 없으며, 기본값이나 시스템에서 설정된 값만 사용됩니다.">읽기전용</div></th>
 												<th style="width: 40px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="파라미터 입력 필드를 화면에서 숨깁니다. 체크하면 사용자에게 표시되지 않지만, 기본값이나 시스템 값이 SQL에 전달됩니다.">숨김</div></th>
 												<th style="width: 40px; font-size: 11px;"><div data-toggle="tooltip" data-placement="top" title="파라미터를 비활성화합니다. 체크하면 입력 필드가 비활성화되어 사용자가 값을 입력할 수 없으며, SQL 실행에서도 제외됩니다.">비활성화</div></th>
-												<th style="width: 40px; font-size: 11px;">작업</th>
+												<th style="width: 40px; font-size: 11px;">삭제</th>
 											</tr>
 											</thead>
 											<tbody id="parameterTableBody">
