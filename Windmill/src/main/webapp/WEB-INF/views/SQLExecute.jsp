@@ -233,7 +233,7 @@ var tableHeight=0;
 								connectionOptions.first().prop('selected', true);
 							}
 							
-							var shortkey = '${Excute}';
+							var shortkey = ${Excute};
 
 							if (shortkey && $("#connectionlist option:selected").val() != '') {
 								excute();
