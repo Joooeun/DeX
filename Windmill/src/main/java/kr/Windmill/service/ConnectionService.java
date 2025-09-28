@@ -920,9 +920,11 @@ public class ConnectionService {
 
 		try {
 			// 사용자 권한 조회
-			String sql = "SELECT DISTINCT dc.CONNECTION_ID " + "FROM DATABASE_CONNECTION dc "
+			String sql = "SELECT DISTINCT dc.CONNECTION_ID " 
+					+ "FROM DATABASE_CONNECTION dc "
 					+ "LEFT JOIN GROUP_CONNECTION_MAPPING gcm ON dc.CONNECTION_ID = gcm.CONNECTION_ID "
-					+ "LEFT JOIN USER_GROUP_MAPPING ugm ON gcm.GROUP_ID = ugm.GROUP_ID " + "WHERE dc.STATUS = 'ACTIVE' " + "AND ugm.USER_ID = ? "
+					+ "LEFT JOIN USER_GROUP_MAPPING ugm ON gcm.GROUP_ID = ugm.GROUP_ID " + "WHERE dc.STATUS = 'ACTIVE' " 
+					+ "AND ugm.USER_ID = ? "
 					+ "ORDER BY dc.CONNECTION_ID";
 
 			List<Map<String, Object>> authorizedConnectionsFromDB = jdbcTemplate.queryForList(sql, userId);

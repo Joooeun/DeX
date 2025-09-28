@@ -118,7 +118,7 @@ public class Common {
 
 		try {
 			// DATABASE_CONNECTION 테이블에서만 조회 (type 구분 없이)
-			String sql = "SELECT CONNECTION_ID FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE'";
+			String sql = "SELECT CONNECTION_ID FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_ID";
 			dblist = jdbcTemplate.queryForList(sql, String.class);
 
 		} catch (Exception e) {
