@@ -14,36 +14,33 @@
 			<div class="col-md-12">
 				<div class="box">
 					<div class="box-header with-border">
-						<div class="row">
-							<div class="col-sm-8">
-								<div class="row">
-									<div class="col-sm-6">
-										<div class="input-group"
-											style="width: 300px; margin-right: 10px;">
-											<input type="text" class="form-control" id="searchKeyword"
-												placeholder="연결명 또는 IP로 검색..."> <span
-												class="input-group-btn">
-												<button type="button" class="btn btn-default"
-													onclick="searchConnections()">
-													<i class="fa fa-search"></i>
-												</button>
-											</span>
-										</div>
-									</div>
-									<div class="col-sm-6">
-										<div class="input-group" style="width: 200px;">
-											<span class="input-group-addon">타입</span> <select
-												class="form-control" id="typeFilter"
-												onchange="filterByType()">
-												<option value="">전체</option>
-												<option value="DB">DB</option>
-												<option value="HOST">HOST</option>
-											</select>
-										</div>
-									</div>
+                        <h3 class="box-title">연결 목록</h3>
+                       
+                        <div class="row" style="margin-top: 10px;">
+							<div class="col-sm-3">
+								<div class="input-group input-group-sm">
+									<input type="text" class="form-control" id="searchKeyword"
+										placeholder="연결명 또는 IP로 검색..."> <span
+										class="input-group-btn">
+										<button type="button" class="btn btn-default"
+											onclick="searchConnections()">
+											<i class="fa fa-search"></i>
+										</button>
+									</span>
 								</div>
 							</div>
-							<div class="col-sm-4">
+							<div class="col-sm-3">
+								<div class="input-group input-group-sm">
+									<span class="input-group-addon">타입</span> <select
+										class="form-control" id="typeFilter"
+										onchange="filterByType()">
+										<option value="">전체</option>
+										<option value="DB">DB</option>
+										<option value="HOST">HOST</option>
+									</select>
+								</div>
+							</div>
+							<div class="col-sm-6">
 								<button type="button" class="btn pull-right btn-primary btn-sm"
 									onclick="showCreateConnectionModal()">
 									<i class="fa fa-plus"></i> 새 연결

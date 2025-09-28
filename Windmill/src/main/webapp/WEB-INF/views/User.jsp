@@ -14,11 +14,7 @@
                 <div class="box">
                     <div class="box-header with-border">
                         <h3 class="box-title">사용자 목록</h3>
-                        <div class="box-tools pull-right">
-                            <button type="button" class="btn btn-primary btn-sm" onclick="showCreateUserModal()">
-                                <i class="fa fa-plus"></i> 새 사용자
-                            </button>
-                        </div>
+                       
                         <div class="row" style="margin-top: 10px;">
                             <div class="col-sm-3">
                                 <div class="input-group input-group-sm">
@@ -38,6 +34,12 @@
                                     </select>
                                 </div>
                             </div>
+                            <div class="col-sm-6">
+								<button type="button" class="btn pull-right btn-primary btn-sm"
+									onclick="showCreateConnectionModal()">
+									<i class="fa fa-plus"></i> 새 사용자
+								</button>
+							</div>
                         </div>
                     </div>
                     <div class="box-body">
