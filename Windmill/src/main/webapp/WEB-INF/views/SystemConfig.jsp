@@ -73,6 +73,52 @@
                 </div>
             </div>
         </div>
+        
+        <!-- 대시보드 차트 설정 -->
+        <div class="row" style="margin-top: 20px;">
+            <div class="col-md-12">
+                <div class="box box-primary">
+                    <div class="box-header with-border">
+                        <h3 class="box-title">
+                            <i class="fa fa-bar-chart"></i> 대시보드 차트 설정
+                        </h3>
+                    </div>
+                    <div class="box-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped" id="chartConfigTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">순서</th>
+                                        <th>템플릿</th>
+                                        <th>차트 타입</th>
+                                        <th style="width: 80px;">삭제</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="chartConfigContainer">
+                                    <!-- 동적으로 차트 설정 항목들이 추가됩니다 -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center" style="margin-top: 15px;">
+                            <button type="button" class="btn btn-success" onclick="addChartConfig()">
+                                <i class="fa fa-plus"></i> 차트 추가
+                            </button>
+                        </div>
+                        
+                        <div class="row" style="margin-top: 20px;">
+                            <div class="col-md-12">
+                                <button type="button" class="btn btn-primary" onclick="saveChartConfig()">
+                                    <i class="fa fa-save"></i> 차트 설정 저장
+                                </button>
+                                <button type="button" class="btn btn-warning" onclick="resetChartErrors()">
+                                    <i class="fa fa-refresh"></i> 에러 상태 리셋
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </section>
 </div>
     
@@ -147,5 +193,283 @@ function showAlert(message, type) {
             $('.alert-success').fadeOut();
         }, 3000);
     }
+}
+
+// 전역 변수: 템플릿 목록 캐시
+var templateListCache = [];
+
+// 대시보드 차트 설정 관련 함수들
+function addChartConfig() {
+    var chartCount = $('.chart-config-item').length;
+    if (chartCount >= 12) {
+        showAlert('최대 12개까지 설정할 수 있습니다.', 'warning');
+        return;
+    }
+    
+    var chartId = 'chart_' + Date.now();
+    
+    var row = $('<tr class="chart-config-item" data-chart-id="' + chartId + '">' +
+        '<td style="text-align: center;">' +
+        '<div style="display: flex; flex-direction: column; align-items: center;">' +
+        '<button type="button" class="btn btn-xs btn-default move-up" title="위로" onclick="moveChartUp(\'' + chartId + '\')">' +
+        '<i class="fa fa-chevron-up"></i>' +
+        '</button>' +
+        '<button type="button" class="btn btn-xs btn-default move-down" title="아래로" onclick="moveChartDown(\'' + chartId + '\')">' +
+        '<i class="fa fa-chevron-down"></i>' +
+        '</button>' +
+        '</div>' +
+        '</td>' +
+        '<td>' +
+        '<select class="form-control template-select2">' +
+        '<option value="">템플릿을 선택하세요</option>' +
+        '</select>' +
+        '</td>' +
+        '<td>' +
+        '<select class="form-control chart-type-select">' +
+        '<option value="">차트 타입을 선택하세요</option>' +
+        '<option value="doughnut">도넛차트</option>' +
+        '<option value="text">텍스트</option>' +
+        '<option value="gauge">게이지</option>' +
+        '<option value="bar">가로막대</option>' +
+        '</select>' +
+        '</td>' +
+        '<td style="text-align: center;">' +
+        '<button type="button" class="btn btn-danger btn-xs parameter-delete-btn" onclick="removeChartConfig(this)">' +
+        '<i class="fa fa-minus"></i>' +
+        '</button>' +
+        '</td>' +
+        '</tr>');
+    
+    $('#chartConfigContainer').append(row);
+    
+    // 새로 추가된 행의 템플릿 드롭다운에 옵션 로드 및 Select2 초기화
+    loadTemplateOptions(row.find('.template-select2'));
+}
+
+function removeChartConfig(button) {
+    $(button).closest('tr').remove();
+}
+
+function moveChartUp(chartId) {
+    var $row = $('.chart-config-item[data-chart-id="' + chartId + '"]');
+    var $prevRow = $row.prev('.chart-config-item');
+    
+    if ($prevRow.length > 0) {
+        $row.insertBefore($prevRow);
+    }
+}
+
+function moveChartDown(chartId) {
+    var $row = $('.chart-config-item[data-chart-id="' + chartId + '"]');
+    var $nextRow = $row.next('.chart-config-item');
+    
+    if ($nextRow.length > 0) {
+        $row.insertAfter($nextRow);
+    }
+}
+
+function loadTemplateOptions(selectElement, selectedValue) {
+    if (templateListCache.length > 0) {
+        // 캐시된 데이터 사용
+        populateTemplateOptions(selectElement, selectedValue);
+    } else {
+        // 캐시가 없으면 로드 후 캐시에 저장
+        $.ajax({
+            type: 'GET',
+            url: '/SQLTemplate/list',
+            success: function(result) {
+                if (result.success) {
+                    templateListCache = result.data;
+                    populateTemplateOptions(selectElement, selectedValue);
+                }
+            },
+            error: function() {
+                console.error('템플릿 목록 로드 실패');
+            }
+        });
+    }
+}
+
+function populateTemplateOptions(selectElement, selectedValue) {
+    var options = '<option value="">템플릿을 선택하세요</option>';
+    templateListCache.forEach(function(template) {
+        var selected = (selectedValue && selectedValue === template.TEMPLATE_ID) ? ' selected' : '';
+        options += '<option value="' + template.TEMPLATE_ID + '"' + selected + '>' + template.TEMPLATE_NAME + '</option>';
+    });
+
+    if (selectElement) {
+        selectElement.html(options);
+        // Select2 초기화
+        selectElement.select2({
+            placeholder: '템플릿을 선택하세요',
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function() {
+                    return "검색 결과가 없습니다.";
+                },
+                searching: function() {
+                    return "검색 중...";
+                }
+            }
+        });
+    }
+}
+
+function getChartConfigData() {
+    var chartData = {
+        charts: []
+    };
+    
+    $('.chart-config-item').each(function(index) {
+        var $row = $(this);
+        var templateId = $row.find('.template-select2').val();
+        var chartType = $row.find('.chart-type-select').val();
+        
+        if (templateId && chartType) {
+            var chart = {
+                id: $row.data('chart-id'),
+                templateId: templateId,
+                chartType: chartType,
+                order: index + 1,
+                templateName: $row.find('.template-select2 option:selected').text()
+            };
+            chartData.charts.push(chart);
+        }
+    });
+    
+    return chartData;
+}
+
+function saveChartConfig() {
+    var chartData = getChartConfigData();
+    
+    $.ajax({
+        url: '/SystemConfig/saveChartConfig',
+        type: 'POST',
+        data: { chartConfig: JSON.stringify(chartData) },
+        success: function(response) {
+            if (response.success) {
+                showAlert('차트 설정이 저장되었습니다.', 'success');
+            } else {
+                showAlert('차트 설정 저장에 실패했습니다: ' + response.message, 'danger');
+            }
+        },
+        error: function() {
+            showAlert('차트 설정 저장 중 오류가 발생했습니다.', 'danger');
+        }
+    });
+}
+
+function resetChartErrors() {
+    if (confirm('모든 차트의 에러 상태를 리셋하시겠습니까?\n\n이 작업은 에러로 인해 중단된 차트들을 즉시 재시작합니다.')) {
+        $.ajax({
+            url: '/SystemConfig/resetChartErrors',
+            type: 'POST',
+            success: function(response) {
+                if (response.success) {
+                    showAlert('차트 에러 상태가 리셋되었습니다. 차트들이 즉시 재시작됩니다.', 'success');
+                } else {
+                    showAlert('에러 상태 리셋에 실패했습니다: ' + response.message, 'danger');
+                }
+            },
+            error: function() {
+                showAlert('에러 상태 리셋 중 오류가 발생했습니다.', 'danger');
+            }
+        });
+    }
+}
+
+// 페이지 로드 시 템플릿 목록 캐시 및 기존 차트 설정 로드
+$(document).ready(function() {
+    // 템플릿 목록 로드
+    $.ajax({
+        type: 'GET',
+        url: '/SQLTemplate/list',
+        success: function(result) {
+            if (result.success) {
+                templateListCache = result.data;
+            }
+        },
+        error: function() {
+            console.error('템플릿 목록 로드 실패');
+        }
+    });
+    
+    // 기존 차트 설정 로드
+    loadExistingChartConfig();
+});
+
+// 기존 차트 설정 로드
+function loadExistingChartConfig() {
+    $.ajax({
+        url: '/SystemConfig/getChartConfig',
+        type: 'GET',
+        success: function(response) {
+            if (response.success && response.chartConfig) {
+                try {
+                    var config = JSON.parse(response.chartConfig);
+                    if (config.charts && config.charts.length > 0) {
+                        // 기존 차트 설정을 테이블에 추가
+                        config.charts.forEach(function(chart, index) {
+                            addChartConfigWithData(chart, index);
+                        });
+                    }
+                } catch (e) {
+                    console.error('차트 설정 파싱 실패:', e);
+                }
+            }
+        },
+        error: function() {
+            console.error('차트 설정 로드 실패');
+        }
+    });
+}
+
+// 기존 데이터로 차트 설정 추가
+function addChartConfigWithData(chartData, index) {
+    var chartId = chartData.id || 'chart_' + Date.now();
+    
+    var row = $('<tr class="chart-config-item" data-chart-id="' + chartId + '">' +
+        '<td style="text-align: center;">' +
+        '<div style="display: flex; flex-direction: column; align-items: center;">' +
+        '<button type="button" class="btn btn-xs btn-default move-up" title="위로" onclick="moveChartUp(\'' + chartId + '\')">' +
+        '<i class="fa fa-chevron-up"></i>' +
+        '</button>' +
+        '<button type="button" class="btn btn-xs btn-default move-down" title="아래로" onclick="moveChartDown(\'' + chartId + '\')">' +
+        '<i class="fa fa-chevron-down"></i>' +
+        '</button>' +
+        '</div>' +
+        '</td>' +
+        '<td>' +
+        '<select class="form-control template-select2">' +
+        '<option value="">템플릿을 선택하세요</option>' +
+        '</select>' +
+        '</td>' +
+        '<td>' +
+        '<select class="form-control chart-type-select">' +
+        '<option value="">차트 타입을 선택하세요</option>' +
+        '<option value="doughnut">도넛차트</option>' +
+        '<option value="text">텍스트</option>' +
+        '<option value="gauge">게이지</option>' +
+        '<option value="bar">가로막대</option>' +
+        '</select>' +
+        '</td>' +
+        '<td style="text-align: center;">' +
+        '<button type="button" class="btn btn-danger btn-xs parameter-delete-btn" onclick="removeChartConfig(this)">' +
+        '<i class="fa fa-minus"></i>' +
+        '</button>' +
+        '</td>' +
+        '</tr>');
+    
+    $('#chartConfigContainer').append(row);
+    
+    // 템플릿 선택
+    var templateSelect = row.find('.template-select2');
+    loadTemplateOptions(templateSelect, chartData.templateId);
+    
+    // 차트 타입 선택
+    var chartTypeSelect = row.find('.chart-type-select');
+    chartTypeSelect.val(chartData.chartType || '');
 }
 </script>

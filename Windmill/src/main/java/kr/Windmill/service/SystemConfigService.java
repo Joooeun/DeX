@@ -96,4 +96,37 @@ public class SystemConfigService {
         }
         return new HashMap<>(configCache);
     }
+    
+    /**
+     * 대시보드 차트 설정을 가져옵니다
+     */
+    public String getDashboardChartConfig() {
+        return getConfigValue("DASHBOARD_CHART_CONFIG", "{}");
+    }
+    
+    /**
+     * 대시보드 차트 설정을 저장합니다
+     */
+    public boolean saveDashboardChartConfig(String chartConfig) {
+        return updateConfigValue("DASHBOARD_CHART_CONFIG", chartConfig);
+    }
+    
+    /**
+     * DASHBOARD_CHART_CONFIG가 없으면 기본값으로 생성합니다
+     */
+    public void ensureConfigExists() {
+        try {
+            String sql = "SELECT COUNT(*) FROM SYSTEM_CONFIG WHERE CONFIG_KEY = 'DASHBOARD_CHART_CONFIG'";
+            int count = jdbcTemplate.queryForObject(sql, Integer.class);
+            
+            if (count == 0) {
+                // 기본값으로 빈 JSON 객체 삽입
+                String insertSql = "INSERT INTO SYSTEM_CONFIG (CONFIG_KEY, CONFIG_VALUE, CREATED_DATE, UPDATED_DATE) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
+                jdbcTemplate.update(insertSql, "DASHBOARD_CHART_CONFIG", "{}");
+                refreshCache();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }

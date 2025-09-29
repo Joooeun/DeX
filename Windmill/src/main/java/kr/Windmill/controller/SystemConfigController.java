@@ -1,6 +1,7 @@
 package kr.Windmill.controller;
 
 import kr.Windmill.service.SystemConfigService;
+import kr.Windmill.service.DashboardSchedulerService;
 import kr.Windmill.service.PermissionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,9 @@ public class SystemConfigController {
     
     @Autowired
     private SystemConfigService systemConfigService;
+    
+    @Autowired
+    private DashboardSchedulerService dashboardSchedulerService;
     
     @Autowired
     private PermissionService permissionService;
@@ -145,6 +149,98 @@ public class SystemConfigController {
             logger.error("공지사항 조회 중 오류 발생", e);
             result.put("success", false);
             result.put("message", "공지사항 조회 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 차트 설정 저장 API
+     */
+    @RequestMapping(value = "/SystemConfig/saveChartConfig", method = RequestMethod.POST)
+    @ResponseBody
+    public Map<String, Object> saveChartConfig(@RequestParam String chartConfig, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        String memberId = (String) session.getAttribute("memberId");
+        if (memberId == null || !permissionService.isAdmin(memberId)) {
+            result.put("success", false);
+            result.put("message", "권한이 없습니다.");
+            return result;
+        }
+        
+        try {
+            // 차트 설정 저장
+            systemConfigService.saveDashboardChartConfig(chartConfig);
+            
+            // 스케줄러 갱신
+            dashboardSchedulerService.refreshSchedulers();
+            
+            result.put("success", true);
+            result.put("message", "차트 설정이 저장되었습니다.");
+            logger.info("차트 설정 저장 완료 - 사용자: {}", memberId);
+        } catch (Exception e) {
+            logger.error("차트 설정 저장 중 오류 발생", e);
+            result.put("success", false);
+            result.put("message", "차트 설정 저장 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 차트 설정 조회 API
+     */
+    @RequestMapping(value = "/SystemConfig/getChartConfig", method = RequestMethod.GET)
+    @ResponseBody
+    public Map<String, Object> getChartConfig(HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        String memberId = (String) session.getAttribute("memberId");
+        if (memberId == null || !permissionService.isAdmin(memberId)) {
+            result.put("success", false);
+            result.put("message", "권한이 없습니다.");
+            return result;
+        }
+        
+        try {
+            String chartConfig = systemConfigService.getDashboardChartConfig();
+            result.put("success", true);
+            result.put("chartConfig", chartConfig);
+        } catch (Exception e) {
+            logger.error("차트 설정 조회 중 오류 발생", e);
+            result.put("success", false);
+            result.put("message", "차트 설정 조회 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 차트 에러 상태 리셋 API
+     */
+    @RequestMapping(value = "/SystemConfig/resetChartErrors", method = RequestMethod.POST)
+    @ResponseBody
+    public Map<String, Object> resetChartErrors(HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        String memberId = (String) session.getAttribute("memberId");
+        if (memberId == null || !permissionService.isAdmin(memberId)) {
+            result.put("success", false);
+            result.put("message", "권한이 없습니다.");
+            return result;
+        }
+        
+        try {
+            dashboardSchedulerService.resetAllErrorStatus();
+            
+            result.put("success", true);
+            result.put("message", "모든 차트의 에러 상태가 리셋되었습니다.");
+            logger.info("차트 에러 상태 리셋 완료 - 사용자: {}", memberId);
+        } catch (Exception e) {
+            logger.error("차트 에러 상태 리셋 중 오류 발생", e);
+            result.put("success", false);
+            result.put("message", "에러 상태 리셋 중 오류가 발생했습니다: " + e.getMessage());
         }
         
         return result;

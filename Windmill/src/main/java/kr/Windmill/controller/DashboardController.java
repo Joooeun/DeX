@@ -10,12 +10,9 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -29,15 +26,12 @@ import kr.Windmill.service.SQLExecuteService;
 import kr.Windmill.service.SqlTemplateService;
 import kr.Windmill.service.DashboardSchedulerService;
 import kr.Windmill.service.ConnectionService;
-import kr.Windmill.util.Common;
+import kr.Windmill.service.SystemConfigService;
 import kr.Windmill.util.Log;
 
 @Controller
 public class DashboardController {
 
-    private static final Logger logger = LoggerFactory.getLogger(DashboardController.class);
-    
-    private final Common com;
     private final Log cLog;
     
     @Autowired
@@ -53,11 +47,13 @@ public class DashboardController {
     private ConnectionService connectionService;
     
     @Autowired
+    private SystemConfigService systemConfigService;
+    
+    @Autowired
     private JdbcTemplate jdbcTemplate;
     
     @Autowired
-    public DashboardController(Common common, Log log) {
-        this.com = common;
+    public DashboardController(Log log) {
         this.cLog = log;
     }
 
@@ -85,6 +81,98 @@ public class DashboardController {
             // 해시 생성 실패 시 데이터의 hashCode 사용
             return String.valueOf(data.hashCode());
         }
+    }
+
+    /**
+     * 연결상태 + 차트정보 통합 조회 API
+     */
+    @RequestMapping(value = "/Dashboard/getIntegratedData", method = RequestMethod.POST)
+    @ResponseBody
+    public Map<String, Object> getIntegratedData(HttpServletRequest request, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // 1. 연결 상태 조회
+            List<ConnectionStatusDto> connections = connectionService.getAllConnectionStatuses();
+            
+            // 2. 차트 설정 조회
+            String chartConfig = systemConfigService.getDashboardChartConfig();
+            Map<String, Object> allData = new HashMap<>();
+            
+            if (chartConfig != null && !chartConfig.trim().isEmpty() && !chartConfig.equals("{}")) {
+            ObjectMapper mapper = new ObjectMapper();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> config = mapper.readValue(chartConfig, Map.class);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> charts = (List<Map<String, Object>>) config.get("charts");
+                
+                if (charts != null) {
+                    for (Map<String, Object> chart : charts) {
+                        String chartId = (String) chart.get("id");
+                        
+                        for (ConnectionStatusDto conn : connections) {
+                            String connectionId = conn.getConnectionId();
+                            
+                            // 캐시된 차트 데이터 조회
+                        Object cachedData = dashboardSchedulerService.getChartData(chartId, connectionId);
+                        if (cachedData != null) {
+                            String dataKey = connectionId + "_charts";
+                            if (!allData.containsKey(dataKey)) {
+                                allData.put(dataKey, new HashMap<String, Object>());
+                            }
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> connectionCharts = (Map<String, Object>) allData.get(dataKey);
+                            connectionCharts.put(chartId, cachedData);
+                        }
+                        }
+                    }
+                }
+            }
+            
+            // 3. 응답 구조 생성
+            List<Map<String, Object>> connectionList = new ArrayList<>();
+            for (ConnectionStatusDto conn : connections) {
+                Map<String, Object> connectionData = new HashMap<>();
+                connectionData.put("connectionId", conn.getConnectionId());
+                connectionData.put("status", conn.getStatus());
+                connectionData.put("connectionName", conn.getConnectionId()); // 연결 이름은 connectionId 사용
+                
+                // 해당 연결의 차트 데이터 추가
+                String dataKey = conn.getConnectionId() + "_charts";
+                if (allData.containsKey(dataKey)) {
+                    connectionData.put("charts", allData.get(dataKey));
+                } else {
+                    connectionData.put("charts", new HashMap<String, Object>());
+                }
+                
+                connectionList.add(connectionData);
+            }
+            
+            result.put("success", true);
+            result.put("connections", connectionList);
+            
+            // 차트 설정을 파싱하여 객체로 전달
+            if (chartConfig != null && !chartConfig.trim().isEmpty() && !chartConfig.equals("{}")) {
+                try {
+                    ObjectMapper mapper = new ObjectMapper();
+                    Object parsedConfig = mapper.readValue(chartConfig, Object.class);
+                    result.put("chartConfig", parsedConfig);
+                } catch (Exception e) {
+                    result.put("chartConfig", null);
+                }
+            } else {
+                result.put("chartConfig", null);
+            }
+            
+            result.put("timestamp", System.currentTimeMillis());
+            
+        } catch (Exception e) {
+            cLog.monitoringLog("DASHBOARD_ERROR", "통합 데이터 조회 실패: " + e.getMessage());
+            result.put("success", false);
+            result.put("error", "통합 데이터 조회 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return result;
     }
 
     /**
@@ -274,9 +362,11 @@ public class DashboardController {
             executeDto.setLimit(1000);
             
             // SQL 실행
+            @SuppressWarnings("rawtypes")
             Map<String, List> sqlResult = sqlExecuteService.executeTemplateSQL(executeDto);
             
             // SQL 결과를 차트 데이터로 변환
+            @SuppressWarnings("unchecked")
             List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
             
             // SQL 에러 체크
@@ -286,6 +376,7 @@ public class DashboardController {
             }
             
             // success 필드로 성공 여부 확인
+            @SuppressWarnings("unchecked")
             List<Boolean> successList = (List<Boolean>) sqlResult.get("success");
             if (successList != null && !successList.isEmpty() && !successList.get(0)) {
                 result.put("error", "SQL 실행 오류가 발생했습니다.");
@@ -332,27 +423,6 @@ public class DashboardController {
         }
     }
 
-    /**
-     * 모니터링이 활성화된 연결이 있는지 확인
-     */
-    private boolean isAnyMonitoringEnabled() {
-        try {
-            // 로컬 DB에서 직접 모니터링이 활성화된 연결 정보 조회
-            String sql = "SELECT CONNECTION_ID, MONITORING_ENABLED FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' AND MONITORING_ENABLED = true";
-            List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql);
-            
-            if (connections != null && !connections.isEmpty()) {
-                // 모니터링 연결 발견 로그 제거 (단순 정보성)
-                return true;
-            }
-            
-            // 모니터링 연결 없음 로그 제거 (단순 정보성)
-            return false;
-        } catch (Exception e) {
-            cLog.monitoringLog("DASHBOARD_MONITORING_CHECK_ERROR", "모니터링 활성화 확인 중 오류: " + e.getMessage());
-            return false; // 오류 발생 시 false 반환 (더 안전한 접근)
-        }
-    }
 
 
 } 
