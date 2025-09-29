@@ -84,16 +84,6 @@
 				window.SqlTemplateState.lastLoadTime = Date.now();
 			}, 1000);
 
-			// 차트 매핑 변경 이벤트 (특별한 중복 체크 로직이 있으므로 별도 처리)
-			$('#sqlChartMapping').on('change', function () {
-				var selectedChart = $(this).val();
-				var currentTemplateId = $('#sqlTemplateId').val();
-
-				if (selectedChart && selectedChart.trim() && currentTemplateId && currentTemplateId.trim()) {
-					// 차트 매핑 중복 체크
-					checkChartMappingDuplicate(selectedChart, currentTemplateId);
-				}
-			});
 		});
 
 		// ===== 유틸리티 함수들 =====
@@ -542,46 +532,6 @@
 			return $(itemHtml)[0]; // jQuery 객체를 DOM 요소로 변환
 		}
 
-		// 차트 매핑 중복 체크 함수
-		function checkChartMappingDuplicate(chartId, excludeTemplateId) {
-			makeAjaxRequest({
-				method: 'POST',
-				url: '/SQLTemplate/chart-mapping/check',
-				data: { chartId: chartId, excludeTemplateId: excludeTemplateId },
-				onSuccess: function(result) {
-					if (result.exists) {
-						var existingTemplate = result.existingTemplate;
-						var confirmMessage = '이미 "' + existingTemplate.TEMPLATE_NAME + '" 템플릿이 "' + chartId + '" 차트에 매핑되어 있습니다.\n\n기존 매핑을 해제하고 이 템플릿으로 변경하시겠습니까?';
-
-						if (confirm(confirmMessage)) {
-							// 기존 매핑 해제 후 새 매핑 설정
-							updateChartMapping(chartId, excludeTemplateId);
-						} else {
-							// 사용자가 취소한 경우 원래 값으로 되돌리기
-							$('#sqlChartMapping').val('');
-						}
-					}
-				},
-				onError: function() {
-					$('#sqlChartMapping').val('');
-				}
-			});
-		}
-
-		// 차트 매핑 업데이트 함수
-		function updateChartMapping(chartId, templateId) {
-			makeAjaxRequest({
-				method: 'POST',
-				url: '/SQLTemplate/chart-mapping/update',
-				data: { chartId: chartId, templateId: templateId },
-				onSuccess: function(result) {
-					showToast('차트 매핑이 업데이트되었습니다.', 'success');
-				},
-				onError: function() {
-					$('#sqlChartMapping').val('');
-				}
-			});
-		}
 
 		// 카테고리별 템플릿 개수 로드
 		function loadCategoryTemplateCounts() {
@@ -1162,16 +1112,6 @@
 				errors.push('새로고침 타임아웃은 0~3600초 사이의 숫자여야 합니다.');
 			}
 
-			// 차트 매핑 검증
-			var chartMapping = $('#sqlChartMapping').val();
-			if (chartMapping && chartMapping.trim()) {
-				// 차트 매핑이 선택된 경우 중복 체크
-				var currentTemplateId = $('#sqlTemplateId').val();
-				if (currentTemplateId && currentTemplateId.trim()) {
-					// 기존 템플릿 수정 시에만 중복 체크
-					// 실제 중복 체크는 서버에서 수행
-				}
-			}
 
 			// 파라미터 벨리데이션
 			var parameters = collectParameters();
@@ -1544,7 +1484,6 @@
 			$('#sqlTemplateStatus').val('ACTIVE');
 			$('#sqlExecutionLimit').val('0');
 			$('#sqlRefreshTimeout').val('0');
-			$('#sqlChartMapping').val('');
 			// 체크박스 설정 (이벤트 트리거 방지)
 			$('#sqlNewline').off('change').prop('checked', false);
 			$('#sqlInactive').prop('checked', false);
@@ -1779,7 +1718,6 @@
 					templateDesc: $('#sqlTemplateDesc').val() || '',
 					sqlContent: getSqlContentFromEditor('sqlEditor_default'),
 					accessibleConnectionIds: $('#accessibleConnections').val() || [],
-					chartMapping: $('#sqlChartMapping').val() || '',
 					version: 1,
 					status: $('#sqlTemplateStatus').val() || 'ACTIVE',
 					executionLimit: parseInt($('#sqlExecutionLimit').val()) || 0,
@@ -1975,7 +1913,6 @@
 						$('#sqlTemplateStatus').val(template.sqlStatus || 'ACTIVE');
 						$('#sqlExecutionLimit').val(template.executionLimit || 0);
 						$('#sqlRefreshTimeout').val(template.refreshTimeout || 0);
-						$('#sqlChartMapping').val(template.chartMapping || '');
 						// 체크박스 설정 (이벤트 트리거 방지)
 						$('#sqlNewline').off('change').prop('checked', template.newline === true);
 						$('#sqlInactive').prop('checked', template.sqlStatus === 'INACTIVE');
@@ -3236,7 +3173,7 @@
 								<div class="panel-body" style="padding: 15px;">
 									<!-- 첫 번째 행: 이름(1) + 실행제한(1) + 카테고리(2) -->
 									<div class="row">
-										<div class="col-md-3">
+										<div class="col-md-2">
 											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
 													title="SQL 템플릿의 고유 이름입니다. 대시보드와 메뉴에서 표시되며, 100자 이하로 입력해주세요."
@@ -3247,7 +3184,7 @@
 													id="sqlTemplateName" placeholder="예: 사용자 활동 조회">
 											</div>
 										</div>
-										<div class="col-md-3">
+										<div class="col-md-2">
 											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
 													title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습니다."
@@ -3257,6 +3194,18 @@
 												<input type="number" class="form-control"
 													id="sqlExecutionLimit" value="0" min="0" max="20000"
 													placeholder="0 = 제한 없음">
+											</div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group" style="margin-bottom: 15px;">
+												<label data-toggle="tooltip" data-placement="top"
+													title="대시보드에서 자동으로 데이터를 새로고침하는 간격을 설정합니다. 0으로 설정하면 자동 새로고침을 사용하지 않습니다."
+													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													새로고침 간격 (초)
+												</label>
+												<input type="number" class="form-control"
+													id="sqlRefreshTimeout" value="0" min="0" max="3600"
+													placeholder="0 = 자동 새로고침 안함">
 											</div>
 										</div>
 										<div class="col-md-6">
@@ -3273,34 +3222,45 @@
 										</div>
 									</div>
 									
-									<!-- 두 번째 행: 새로고침간격(1) + 차트매핑(1) + 연결가능DB(2) -->
+									<!-- 두 번째 행: 새로고침간격(1) + 연결가능DB(3) -->
 									<div class="row">
-										<div class="col-md-3">
-											<div class="form-group" style="margin-bottom: 15px;">
+										<div class="col-md-2">
+											<div class="form-group" style="margin-bottom: 10px;">
 												<label data-toggle="tooltip" data-placement="top"
-													title="대시보드에서 자동으로 데이터를 새로고침하는 간격을 설정합니다. 0으로 설정하면 자동 새로고침을 사용하지 않습니다."
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													새로고침 간격 (초)
+													title="결과 테이블에서 긴 텍스트를 여러 줄로 표시합니다"
+													style="font-size: 11px; margin-bottom: 5px; font-weight: 500; display: block;">
+													개행보기
 												</label>
-												<input type="number" class="form-control"
-													id="sqlRefreshTimeout" value="0" min="0" max="3600"
-													placeholder="0 = 자동 새로고침 안함">
+												<label class="switch">
+													<input type="checkbox" id="sqlNewline">
+													<span class="slider round"></span>
+												</label>
 											</div>
 										</div>
-										<div class="col-md-3">
-											<div class="form-group" style="margin-bottom: 15px;">
+										<div class="col-md-2">
+											<div class="form-group" style="margin-bottom: 10px;">
 												<label data-toggle="tooltip" data-placement="top"
-													title="대시보드에서 차트로 표시할 컬럼을 선택합니다"
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													차트 매핑
+													title="SQL 실행 기록을 감사 로그에 남깁니다"
+													style="font-size: 11px; margin-bottom: 5px; font-weight: 500; display: block;">
+													감사로그
 												</label>
-												<select class="form-control" id="sqlChartMapping">
-													<option value="">차트 매핑 없음</option>
-													<option value="APPL_COUNT">애플리케이션 수</option>
-													<option value="LOCK_WAIT_COUNT">락 대기 수</option>
-													<option value="ACTIVE_LOG">활성 로그</option>
-													<option value="FILESYSTEM">파일시스템</option>
-												</select>
+												<label class="switch">
+													<input type="checkbox" id="sqlAudit">
+													<span class="slider round"></span>
+												</label>
+											</div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group" style="margin-bottom: 10px;">
+												<label data-toggle="tooltip" data-placement="top"
+													title="템플릿을 비활성화하면 메뉴에서 숨겨집니다"
+													style="font-size: 11px; margin-bottom: 5px; font-weight: 500; display: block;">
+													비활성화
+												</label>
+												<label class="switch">
+													<input type="checkbox" id="sqlInactive">
+													<span class="slider round"></span>
+												</label>
 											</div>
 										</div>
 										<div class="col-md-6">
@@ -3330,54 +3290,7 @@
 													placeholder="이 템플릿의 용도와 사용법을 설명하세요"></textarea>
 											</div>
 										</div>
-										<div class="col-md-6">
-											<div class="form-group" style="margin-bottom: 15px;">
-												<label style="font-size: 12px; margin-bottom: 10px; font-weight: 500; display: block;">
-													옵션 설정
-												</label>
-												<div class="row">
-													<div class="col-md-4">
-														<div class="form-group" style="margin-bottom: 10px;">
-															<label data-toggle="tooltip" data-placement="top"
-																title="결과 테이블에서 긴 텍스트를 여러 줄로 표시합니다"
-																style="font-size: 11px; margin-bottom: 5px; font-weight: 500; display: block;">
-																개행보기
-															</label>
-															<label class="switch">
-																<input type="checkbox" id="sqlNewline">
-																<span class="slider round"></span>
-															</label>
-														</div>
-													</div>
-													<div class="col-md-4">
-														<div class="form-group" style="margin-bottom: 10px;">
-															<label data-toggle="tooltip" data-placement="top"
-																title="SQL 실행 기록을 감사 로그에 남깁니다"
-																style="font-size: 11px; margin-bottom: 5px; font-weight: 500; display: block;">
-																감사로그
-															</label>
-															<label class="switch">
-																<input type="checkbox" id="sqlAudit">
-																<span class="slider round"></span>
-															</label>
-														</div>
-													</div>
-													<div class="col-md-4">
-														<div class="form-group" style="margin-bottom: 10px;">
-															<label data-toggle="tooltip" data-placement="top"
-																title="템플릿을 비활성화하면 메뉴에서 숨겨집니다"
-																style="font-size: 11px; margin-bottom: 5px; font-weight: 500; display: block;">
-																비활성화
-															</label>
-															<label class="switch">
-																<input type="checkbox" id="sqlInactive">
-																<span class="slider round"></span>
-															</label>
-														</div>
-													</div>
-												</div>
-											</div>
-										</div>
+										
 									</div>
 									
 									<!-- 숨겨진 상태 필드 (JavaScript에서 체크박스와 동기화) -->

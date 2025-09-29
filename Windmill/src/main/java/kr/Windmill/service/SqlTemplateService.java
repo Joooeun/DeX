@@ -12,18 +12,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import kr.Windmill.util.Common;
-import kr.Windmill.util.DynamicJdbcManager;
-import kr.Windmill.util.Log;
-import kr.Windmill.dto.SqlTemplateSaveRequest;
+import kr.Windmill.dto.SqlContent;
 import kr.Windmill.dto.SqlTemplateInfo;
 import kr.Windmill.dto.SqlTemplateParameter;
+import kr.Windmill.dto.SqlTemplateSaveRequest;
 import kr.Windmill.dto.SqlTemplateShortcut;
-import kr.Windmill.dto.SqlContent;
-import org.springframework.util.StringUtils;
+import kr.Windmill.util.Common;
 
 @Service
 public class SqlTemplateService {
@@ -210,7 +208,6 @@ public class SqlTemplateService {
 		data.put("sqlDesc", row.get("TEMPLATE_DESC"));
 		data.put("sqlContent", row.get("SQL_CONTENT"));
 		data.put("accessibleConnectionIds", row.get("ACCESSIBLE_CONNECTION_IDS"));
-		data.put("chartMapping", row.get("CHART_MAPPING"));
 		data.put("sqlVersion", row.get("VERSION"));
 		data.put("sqlStatus", row.get("STATUS"));
 		data.put("executionLimit", row.get("EXECUTION_LIMIT"));
@@ -286,81 +283,8 @@ public class SqlTemplateService {
 		return result;
 	}
 
-	/**
-	 * 차트 매핑으로 템플릿 조회
-	 */
-	public Map<String, Object> getTemplateByChartMapping(String chartId) {
-		try {
-			String sql = "SELECT t.* " +
-					"FROM SQL_TEMPLATE t " +
-					"WHERE t.CHART_MAPPING = ? AND t.STATUS = 'ACTIVE'";
-			
-			List<Map<String, Object>> results = jdbcTemplate.queryForList(sql, chartId);
-			
-			if (!results.isEmpty()) {
-				Map<String, Object> template = results.get(0);
-				
-				// 접근 가능한 DB 연결 목록 조회 (ACCESSIBLE_CONNECTION_IDS에서 파싱)
-				String accessibleConnectionIds = (String) template.get("ACCESSIBLE_CONNECTION_IDS");
-				List<String> connections = new ArrayList<>();
-				
-				if (accessibleConnectionIds != null && !accessibleConnectionIds.trim().isEmpty()) {
-					String[] ids = accessibleConnectionIds.split(",");
-					for (String id : ids) {
-						String trimmedId = id.trim();
-						if (!trimmedId.isEmpty()) {
-							connections.add(trimmedId);
-						}
-					}
-				}
-				
-				template.put("accessibleConnections", connections);
-				
-				return template;
-			}
-			
-			return null;
-		} catch (Exception e) {
-			logger.error("차트 매핑 템플릿 조회 실패: {}", chartId, e);
-			return null;
-		}
-	}
 
-	/**
-	 * 차트 매핑 중복 체크
-	 */
-	public boolean isChartMappingExists(String chartId, String excludeTemplateId) {
-		try {
-			String sql = "SELECT COUNT(*) FROM SQL_TEMPLATE WHERE CHART_MAPPING = ? AND STATUS = 'ACTIVE'";
-			List<Object> params = new ArrayList<>();
-			params.add(chartId);
-			
-			if (excludeTemplateId != null && !excludeTemplateId.trim().isEmpty()) {
-				sql += " AND TEMPLATE_ID != ?";
-				params.add(excludeTemplateId);
-			}
-			
-			Integer count = jdbcTemplate.queryForObject(sql, Integer.class, params.toArray());
-			return count != null && count > 0;
-		} catch (Exception e) {
-			logger.error("차트 매핑 중복 체크 실패: {}", chartId, e);
-			return false;
-		}
-	}
 
-	/**
-	 * 차트 매핑 해제
-	 */
-	public boolean clearChartMapping(String templateId) {
-		try {
-			String sql = "UPDATE SQL_TEMPLATE SET CHART_MAPPING = NULL, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE TEMPLATE_ID = ?";
-			int result = jdbcTemplate.update(sql, templateId);
-			return result > 0;
-		} catch (Exception e) {
-			logger.error("차트 매핑 해제 실패: {}", templateId, e);
-			return false;
-		}
-	}
 
 	/**
 	 * 템플릿에 접근 가능한 DB 연결 목록 조회
@@ -431,7 +355,7 @@ public class SqlTemplateService {
     	public Map<String, Object> saveSqlTemplate(String templateId, String templateName, String templateDesc, 
                                                Integer version, String status, Integer executionLimit, 
                                                Integer refreshTimeout, Boolean newline, Boolean audit, String categoryIds,
-                                               String accessibleConnectionIds, String chartMapping, String sqlContent, String configContent, String parametersJson, 
+                                               String accessibleConnectionIds, String sqlContent, String configContent, String parametersJson, 
                                                String shortcutsJson, String additionalSqlContents, Boolean replaceAllSqlContents, String userId) {
 		Map<String, Object> result = new HashMap<>();
 
@@ -456,11 +380,11 @@ public class SqlTemplateService {
 				throw new RuntimeException("이미 존재하는 템플릿 이름입니다: " + templateName);
 			}
 			templateId = templateName; // 템플릿 이름을 그대로 템플릿 ID로 사용
-			String insertSql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, CHART_MAPPING, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, NEWLINE, AUDIT, CREATED_BY) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-			jdbcTemplate.update(insertSql, templateId, templateName, templateDesc, sqlContent, accessibleConnectionIds, chartMapping, version, status, executionLimit, refreshTimeout, newline, audit, userId);
+			String insertSql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, NEWLINE, AUDIT, CREATED_BY) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+			jdbcTemplate.update(insertSql, templateId, templateName, templateDesc, sqlContent, accessibleConnectionIds, version, status, executionLimit, refreshTimeout, newline, audit, userId);
 		} else {
-			String updateSql = "UPDATE SQL_TEMPLATE SET TEMPLATE_NAME = ?, TEMPLATE_DESC = ?, SQL_CONTENT = ?, ACCESSIBLE_CONNECTION_IDS = ?, CHART_MAPPING = ?, VERSION = ?, STATUS = ?, EXECUTION_LIMIT = ?, REFRESH_TIMEOUT = ?, NEWLINE = ?, AUDIT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE TEMPLATE_ID = ?";
-			jdbcTemplate.update(updateSql, templateName, templateDesc, sqlContent, accessibleConnectionIds, chartMapping, version, status, executionLimit, refreshTimeout, newline, audit, userId, templateId);
+			String updateSql = "UPDATE SQL_TEMPLATE SET TEMPLATE_NAME = ?, TEMPLATE_DESC = ?, SQL_CONTENT = ?, ACCESSIBLE_CONNECTION_IDS = ?, VERSION = ?, STATUS = ?, EXECUTION_LIMIT = ?, REFRESH_TIMEOUT = ?, NEWLINE = ?, AUDIT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE TEMPLATE_ID = ?";
+			jdbcTemplate.update(updateSql, templateName, templateDesc, sqlContent, accessibleConnectionIds, version, status, executionLimit, refreshTimeout, newline, audit, userId, templateId);
 		}
 
 		// 기존 카테고리 매핑 삭제

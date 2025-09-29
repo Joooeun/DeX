@@ -53,22 +53,57 @@ public class SystemConfigService {
     }
     
     /**
-     * 설정값을 업데이트합니다
+     * 설정값을 업데이트합니다 (없으면 INSERT)
      */
     public boolean updateConfigValue(String configKey, String configValue) {
         try {
-            String sql = "UPDATE SYSTEM_CONFIG SET CONFIG_VALUE = ?, UPDATED_DATE = CURRENT_TIMESTAMP WHERE CONFIG_KEY = ?";
-            int updated = jdbcTemplate.update(sql, configValue, configKey);
+            // 먼저 UPDATE 시도
+            String updateSql = "UPDATE SYSTEM_CONFIG SET CONFIG_VALUE = ?, UPDATED_DATE = CURRENT_TIMESTAMP WHERE CONFIG_KEY = ?";
+            int updated = jdbcTemplate.update(updateSql, configValue, configKey);
             
             if (updated > 0) {
                 // 캐시 갱신
                 refreshCache();
                 return true;
+            } else {
+                // UPDATE가 실패하면 INSERT 시도
+                String insertSql = "INSERT INTO SYSTEM_CONFIG (CONFIG_KEY, CONFIG_VALUE, CONFIG_DESC, CREATED_DATE, UPDATED_DATE) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
+                String description = getDefaultDescription(configKey);
+                jdbcTemplate.update(insertSql, configKey, configValue, description);
+                
+                // 캐시 갱신
+                refreshCache();
+                return true;
             }
-            return false;
         } catch (Exception e) {
             e.printStackTrace();
             return false;
+        }
+    }
+    
+    /**
+     * 설정 키에 대한 기본 설명을 반환합니다
+     */
+    private String getDefaultDescription(String configKey) {
+        switch (configKey) {
+            case "DASHBOARD_CHART_1_ID":
+                return "첫 번째 차트 ID";
+            case "DASHBOARD_CHART_1_TYPE":
+                return "첫 번째 차트 형식";
+            case "DASHBOARD_CHART_2_ID":
+                return "두 번째 차트 ID";
+            case "DASHBOARD_CHART_2_TYPE":
+                return "두 번째 차트 형식";
+            case "DASHBOARD_CHART_3_ID":
+                return "세 번째 차트 ID";
+            case "DASHBOARD_CHART_3_TYPE":
+                return "세 번째 차트 형식";
+            case "DASHBOARD_CHART_4_ID":
+                return "네 번째 차트 ID";
+            case "DASHBOARD_CHART_4_TYPE":
+                return "네 번째 차트 형식";
+            default:
+                return "시스템 설정";
         }
     }
     

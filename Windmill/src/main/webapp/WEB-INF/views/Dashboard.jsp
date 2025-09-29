@@ -69,6 +69,11 @@
         var activeLogChart;
         var filesystemChart;
         var selectedConnectionId = null; // 선택된 커넥션 ID
+        
+        // 대시보드 설정
+        var dashboardConfig = {
+            charts: []
+        };
 
 
         var allData;
@@ -106,6 +111,63 @@
             }
         };
 
+        // 대시보드 설정 로드
+        function loadDashboardConfig() {
+            return new Promise(function(resolve, reject) {
+                $.ajax({
+                    type: 'GET',
+                    url: '/SystemConfig/getDashboardConfig',
+                    success: function(result) {
+                        if (result.success && result.dashboardConfig) {
+                            dashboardConfig = result.dashboardConfig;
+                            console.log('대시보드 설정 로드 완료:', dashboardConfig);
+                            resolve(dashboardConfig);
+                        } else {
+                            console.warn('대시보드 설정 로드 실패, 기본 설정 사용');
+                            // 기본 설정 사용
+                            dashboardConfig = {
+                                charts: [
+                                    { id: 'APPL_COUNT', type: 'line' },
+                                    { id: 'LOCK_WAIT_COUNT', type: '' },
+                                    { id: 'ACTIVE_LOG', type: 'bar' },
+                                    { id: 'FILESYSTEM', type: 'pie' }
+                                ]
+                            };
+                            resolve(dashboardConfig);
+                        }
+                    },
+                    error: function() {
+                        console.error('대시보드 설정 로드 실패, 기본 설정 사용');
+                        // 기본 설정 사용
+                        dashboardConfig = {
+                            charts: [
+                                { id: 'APPL_COUNT', type: 'line' },
+                                { id: 'LOCK_WAIT_COUNT', type: '' },
+                                { id: 'ACTIVE_LOG', type: 'bar' },
+                                { id: 'FILESYSTEM', type: 'pie' }
+                            ]
+                        };
+                        resolve(dashboardConfig);
+                    }
+                });
+            });
+        }
+
+        // 활성 차트 매핑 목록 가져오기
+        function getActiveChartMappings() {
+            return dashboardConfig.charts.map(function(chart) {
+                return chart.id;
+            });
+        }
+
+        // 차트 타입 가져오기
+        function getChartType(chartId) {
+            var chart = dashboardConfig.charts.find(function(c) {
+                return c.id === chartId;
+            });
+            return chart ? chart.type : '';
+        }
+
         // 통합 모니터링 시작 함수
         function startAllMonitoring() {
             
@@ -132,9 +194,16 @@
             stopChartMonitoring();
         }
         
-        // 페이지 로드 시 연결 모니터링 시작
+        // 페이지 로드 시 대시보드 설정 로드 후 모니터링 시작
         $(document).ready(function() {
-            startAllMonitoring();
+            loadDashboardConfig().then(function() {
+                console.log('대시보드 설정 로드 완료, 모니터링 시작');
+                startAllMonitoring();
+            }).catch(function(error) {
+                console.error('대시보드 설정 로드 실패:', error);
+                // 설정 로드 실패해도 기본 설정으로 모니터링 시작
+                startAllMonitoring();
+            });
         });
 
         // 페이지 언로드 시 연결 모니터링 중지

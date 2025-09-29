@@ -15,21 +15,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import kr.Windmill.dto.SqlTemplateExecuteDto;
-import kr.Windmill.dto.connection.ConnectionStatusDto;
-import kr.Windmill.service.SQLExecuteService;
-import kr.Windmill.service.SqlTemplateService;
-import kr.Windmill.service.DashboardSchedulerService;
 import kr.Windmill.service.ConnectionService;
-import kr.Windmill.util.Common;
+import kr.Windmill.service.DashboardSchedulerService;
+import kr.Windmill.service.SQLExecuteService;
+import kr.Windmill.service.SystemConfigService;
 import kr.Windmill.util.Log;
 
 @Controller
@@ -37,14 +35,10 @@ public class DashboardController {
 
     private static final Logger logger = LoggerFactory.getLogger(DashboardController.class);
     
-    private final Common com;
     private final Log cLog;
     
     @Autowired
     private SQLExecuteService sqlExecuteService;
-    
-    @Autowired
-    private SqlTemplateService sqlTemplateService;
     
     @Autowired
     private DashboardSchedulerService dashboardSchedulerService;
@@ -56,8 +50,10 @@ public class DashboardController {
     private JdbcTemplate jdbcTemplate;
     
     @Autowired
-    public DashboardController(Common common, Log log) {
-        this.com = common;
+    private SystemConfigService systemConfigService;
+    
+    @Autowired
+    public DashboardController(Log log) {
         this.cLog = log;
     }
 
@@ -194,7 +190,8 @@ public class DashboardController {
             
             // 결과 데이터 구성 - 캐시된 데이터 우선 사용
             Map<String, Object> allData = new HashMap<>();
-            String[] chartMappings = {"APPL_COUNT", "LOCK_WAIT_COUNT", "ACTIVE_LOG", "FILESYSTEM"};
+            // 환경설정에서 차트 매핑 목록 가져오기
+            String[] chartMappings = getActiveChartMappings();
             
             for (String connId : connectionIds) {
                 Map<String, Object> dbData = new HashMap<>();
@@ -243,29 +240,15 @@ public class DashboardController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            // DB 기반 차트 설정 확인
-            Map<String, Object> chartTemplate = sqlTemplateService.getTemplateByChartMapping(chartMapping);
+            // 환경설정에서 차트에 해당하는 템플릿 ID 조회
+            String templateId = getTemplateIdByChartMapping(chartMapping);
             
-            if (chartTemplate == null) {
+            if (templateId == null || templateId.trim().isEmpty()) {
                 result.put("error", "차트 설정을 찾을 수 없습니다: " + chartMapping);
                 result.put("errorType", "CHART_NOT_FOUND");
                 return result;
             }
-            
-            // SQL 템플릿 실행
-            String templateId = (String) chartTemplate.get("TEMPLATE_ID");
             String targetConnectionId = connectionId;
-            
-            // 연결 ID가 없으면 템플릿의 접근 가능한 연결 중 첫 번째 사용
-            if (targetConnectionId == null || targetConnectionId.trim().isEmpty()) {
-                Object accessibleConnectionsObj = chartTemplate.get("accessibleConnections");
-                if (accessibleConnectionsObj instanceof List && !((List<?>) accessibleConnectionsObj).isEmpty()) {
-                    targetConnectionId = (String) ((List<?>) accessibleConnectionsObj).get(0);
-                } else {
-                    result.put("error", "차트 실행을 위한 연결 ID가 지정되지 않았습니다.");
-                    return result;
-                }
-            }
             
             // SqlTemplateExecuteDto 생성
             SqlTemplateExecuteDto executeDto = new SqlTemplateExecuteDto();
@@ -295,7 +278,6 @@ public class DashboardController {
             // 성공 결과 반환
             result.put("success", true);
             result.put("templateId", templateId);
-            result.put("template", chartTemplate);
             result.put("result", rowbody);
             result.put("hash", generateHash(rowbody));
             
@@ -318,6 +300,85 @@ public class DashboardController {
         return errorResult;
     }
     
+    /**
+     * 차트 매핑으로 템플릿 ID 조회
+     */
+    private String getTemplateIdByChartMapping(String chartMapping) {
+        try {
+            // 환경설정에서 대시보드 차트 설정 조회
+            String dashboardChartsJson = systemConfigService.getConfigValue("DASHBOARD_CHARTS", "[]");
+            
+            // JSON 파싱하여 해당 차트의 템플릿 ID 조회
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                List<Map<String, String>> charts = mapper.readValue(dashboardChartsJson, new TypeReference<List<Map<String, String>>>() {});
+                
+                for (Map<String, String> chart : charts) {
+                    String chartId = chart.get("id");
+                    if (chartMapping.equals(chartId)) {
+                        // 차트 ID와 매핑되는 템플릿 ID 반환 (차트 ID를 템플릿 ID로 사용)
+                        return chartId;
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("대시보드 차트 설정 JSON 파싱 실패: " + e.getMessage());
+            }
+            
+            // 환경설정에서 찾지 못한 경우 기본 매핑 사용
+            switch (chartMapping) {
+                case "APPL_COUNT":
+                    return "201_Activity";
+                case "LOCK_WAIT_COUNT":
+                    return "LOCK_WAIT_COUNT";
+                case "ACTIVE_LOG":
+                    return "ACTIVE_LOG";
+                case "FILESYSTEM":
+                    return "FILE_SYSTEM";
+                default:
+                    return chartMapping; // 차트 ID를 그대로 템플릿 ID로 사용
+            }
+        } catch (Exception e) {
+            logger.error("차트 매핑 템플릿 ID 조회 실패: " + chartMapping, e);
+            return chartMapping; // 오류 시 차트 ID를 그대로 사용
+        }
+    }
+
+    /**
+     * 활성 차트 매핑 목록 조회 (환경설정에서)
+     */
+    private String[] getActiveChartMappings() {
+        try {
+            // 환경설정에서 대시보드 차트 설정 조회
+            String dashboardChartsJson = systemConfigService.getConfigValue("DASHBOARD_CHARTS", "[]");
+            
+            // JSON 파싱하여 차트 ID 목록 생성
+            List<String> chartIds = new ArrayList<>();
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                List<Map<String, String>> charts = mapper.readValue(dashboardChartsJson, new TypeReference<List<Map<String, String>>>() {});
+                
+                for (Map<String, String> chart : charts) {
+                    String chartId = chart.get("id");
+                    if (chartId != null && !chartId.trim().isEmpty()) {
+                        chartIds.add(chartId);
+                    }
+                }
+            } catch (Exception e) {
+                logger.warn("대시보드 차트 설정 JSON 파싱 실패, 기본 설정 사용: " + e.getMessage());
+            }
+            
+            // 설정된 차트가 없으면 기본 차트 사용
+            if (chartIds.isEmpty()) {
+                return new String[]{"APPL_COUNT", "LOCK_WAIT_COUNT", "ACTIVE_LOG", "FILESYSTEM"};
+            }
+            
+            return chartIds.toArray(new String[0]);
+        } catch (Exception e) {
+            logger.error("활성 차트 매핑 조회 실패, 기본 설정 사용", e);
+            return new String[]{"APPL_COUNT", "LOCK_WAIT_COUNT", "ACTIVE_LOG", "FILESYSTEM"};
+        }
+    }
+
     /**
      * 활성화된 연결 ID 목록 조회 (연결 상태가 online인 것만)
      */
