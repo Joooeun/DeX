@@ -472,11 +472,14 @@
             // 유효한 차트가 없으면 메시지 표시
             if (!hasValidCharts) {
                 chartsContainer.html(
-                    '<div class="alert alert-info text-center" style="margin: 20px;">' +
+                    '<div class="alert alert-info text-center" style="margin: 20px;" id="noChartMessage">' +
                     '<i class="fa fa-info-circle"></i> 설정된 차트가 없습니다. ' +
                     '<a href="/SystemConfig" target="_blank">환경설정</a>에서 차트를 설정해주세요.' +
                     '</div>'
                 );
+            } else {
+                // 차트 정보가 있으면 noChartMessage 삭제
+                $('#noChartMessage').remove();
             }
         }
         
@@ -689,14 +692,16 @@
                             	annotation:{
                             	  type: 'doughnutLabel',
                             	  content: ({chart}) => [
-                                  value + '%',
-                            	  ],
+                               	   ( chart.data.datasets[0].data[0] || 0) + '%',
+                               	  ],
                             	  drawTime: 'beforeDraw',
                             	  position: {
                             	    y: '-50%'
                             	  },
                                     font: [{size: 24, weight: 'bold'}, {size: 12}],
-                            	  color: chartData.colors[0]
+                                    color: ({chart}) => {
+                                        return chart.data.datasets[0].backgroundColor[0];
+                                    }
                             	}
                             }
                         }

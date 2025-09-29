@@ -1,5 +1,7 @@
 package kr.Windmill.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -9,6 +11,8 @@ import java.util.Map;
 
 @Service
 public class SystemConfigService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(SystemConfigService.class);
     
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -57,17 +61,32 @@ public class SystemConfigService {
      */
     public boolean updateConfigValue(String configKey, String configValue) {
         try {
-            String sql = "UPDATE SYSTEM_CONFIG SET CONFIG_VALUE = ?, UPDATED_DATE = CURRENT_TIMESTAMP WHERE CONFIG_KEY = ?";
-            int updated = jdbcTemplate.update(sql, configValue, configKey);
             
-            if (updated > 0) {
-                // 캐시 갱신
-                refreshCache();
-                return true;
+            // 먼저 존재 여부 확인
+            String checkSql = "SELECT COUNT(*) FROM SYSTEM_CONFIG WHERE CONFIG_KEY = ?";
+            int count = jdbcTemplate.queryForObject(checkSql, Integer.class, configKey);
+            
+            if (count > 0) {
+                // 업데이트
+                String updateSql = "UPDATE SYSTEM_CONFIG SET CONFIG_VALUE = ?, UPDATED_DATE = CURRENT_TIMESTAMP WHERE CONFIG_KEY = ?";
+                int updated = jdbcTemplate.update(updateSql, configValue, configKey);
+                if (updated > 0) {
+                    refreshCache();
+                    return true;
+                }
+                return false;
+            } else {
+                // 삽입
+                String insertSql = "INSERT INTO SYSTEM_CONFIG (CONFIG_KEY, CONFIG_VALUE, CREATED_DATE, UPDATED_DATE) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
+                int inserted = jdbcTemplate.update(insertSql, configKey, configValue);
+                if (inserted > 0) {
+                    refreshCache();
+                    return true;
+                }
+                return false;
             }
-            return false;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("설정값 업데이트 실패 [{}]: {}", configKey, e.getMessage(), e);
             return false;
         }
     }
@@ -83,7 +102,7 @@ public class SystemConfigService {
             });
             lastCacheUpdate = System.currentTimeMillis();
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("캐시 갱신 실패: {}", e.getMessage(), e);
         }
     }
     
@@ -126,7 +145,7 @@ public class SystemConfigService {
                 refreshCache();
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("설정 존재 확인 및 생성 실패: {}", e.getMessage(), e);
         }
     }
 }
