@@ -178,6 +178,8 @@ public class LoginController {
 			mv.setViewName("redirect:/index");
 			return mv;
 		}
+
+		mv.addObject("isAdmin", permissionService.isAdmin(memberId));
 		mv.setViewName("Dashboard");
 		return mv;
 	}

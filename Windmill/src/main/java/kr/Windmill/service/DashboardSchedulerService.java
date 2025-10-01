@@ -316,7 +316,7 @@ public class DashboardSchedulerService {
             List<Boolean> successList = (List<Boolean>) sqlResult.get("success");
             if (successList != null && !successList.isEmpty() && !successList.get(0)) {
                 Map<String, Object> errorResult = new HashMap<>();
-                errorResult.put("error", "SQL 실행 오류가 발생했습니다.");
+				errorResult.put("error", ((List) sqlResult.get("rowbody").get(0)).get(0));
                 return errorResult;
             }
             
@@ -325,7 +325,7 @@ public class DashboardSchedulerService {
             result.put("success", true);
             result.put("templateId", templateId);
             result.put("result", sqlResult.get("rowbody"));
-            
+           
             return result;
             
         } catch (Exception e) {

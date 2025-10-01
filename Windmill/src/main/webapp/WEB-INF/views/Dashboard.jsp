@@ -9,6 +9,7 @@
         var chartUpdateTimer = null; // 차트 업데이트 타이머
         var cachedApiResponse = null; // API 응답 데이터 캐시
         var chartConfigData = null; // 차트 설정 데이터
+        var isAdmin = ${isAdmin}; // 관리자 권한 여부
 
         // 색상 정의
         const COLORS = {
@@ -147,7 +148,8 @@
             
             var connectionCard = 
                 '<div class="col-md-2 col-sm-3 col-xs-4" style="margin-bottom: 15px;" >' +
-                    '<div class="card connection-card ' + statusClass + '" data-connection-id="' + conn.connectionId + '" onclick="selectConnection(\'' + conn.connectionId + '\')">' +
+                    '<div class="card connection-card ' + statusClass + '" data-connection-id="' + conn.connectionId + '"' + 
+                    (conn.status === 'connected' ? ' onclick="selectConnection(\'' + conn.connectionId + '\')"' : '') + '>' +
                         '<div class="connection-name">' +
                             conn.connectionId +
                         '</div>' +
@@ -256,8 +258,6 @@
                 type: 'POST',
                 success: function(response) {
                 	
-                console.log(response)
-                	
                     if (response.success && response.connections) {
                         // API 응답 데이터 캐시에 저장
                         cachedApiResponse = response;
@@ -317,7 +317,6 @@
         // 차트 데이터만 업데이트 (기존 차트 유지)
         function updateChartData(chartId, chartType, data) {
 
-            console.log("updateChartData");
             // chartId가 이미 chart_ 접두사를 가지고 있는지 확인
             var elementId = chartId.startsWith('chart_') ? chartId : 'chart_' + chartId;
             
@@ -343,6 +342,7 @@
                     if (chartType === 'gauge') {
                         // 게이지 차트는 특별한 데이터 구조 사용
                         var value = chartData.values[0] || 0;
+                        chartInstance.data.labels = chartData.labels;
                         chartInstance.data.datasets[0].data = [value, 100 - value];
                         chartInstance.data.datasets[0].backgroundColor = [chartData.colors[0], '#f0f0f0'];
                     } else {
@@ -457,11 +457,9 @@
                     // 차트 HTML 생성
                     var chartHtml = createChartHtml(chartId, chartType, chartIndex);
                     chartsContainer.append(chartHtml);
-                    console.log("create");
                     // 차트 초기화
                     initializeChart(chartId, chartType, data);
                 } else {
-                console.log("update");
                     // 기존 차트가 있고 타입이 같으면 값만 업데이트
                     updateChartData(chartId, chartType, data);
                 }
@@ -516,7 +514,7 @@
             }
             
             var html = '<div class="col-md-3" style="margin-bottom: 20px;">' +
-                '<div class="box box-primary">' +
+                '<div class="box box-default">' +
                 '<div class="box-header with-border">' +
                 '<h3 class="box-title">' + chartTitle + '</h3>' +
                 '</div>' +
@@ -622,6 +620,25 @@
                     //aspectRatio: 3 / 4,
                     layout: {
                         padding: 30
+                    },
+                    onClick: function(evt, elements) {
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const dataIndex = element.index;
+                            
+                            // 클릭한 요소의 데이터 행 정보 생성
+                            const clickedData = {
+                                index: dataIndex,
+                                label: chartInstance.data.labels[dataIndex],
+                                value: chartInstance.data.datasets[element.datasetIndex].data[dataIndex],
+                                backgroundColor: chartInstance.data.datasets[element.datasetIndex].backgroundColor[dataIndex]
+                            };
+                            
+                            console.log(getChartDataFromCache(canvasId))
+                            
+                            
+                            handleChartElementClick(canvasId, clickedData);
+                        }
                     }
                 }
             });
@@ -644,7 +661,7 @@
             
             var value = chartData.values[0];
             var color = chartData.colors[0];
-            html += '<div style="margin: 10px 0; font-size: 96px;">' +
+            html += '<div style="margin: 10px 0; font-size: 96px; cursor: pointer;" onclick="handleChartElementClick(\'' + canvasId + '\', null)">' +
                 '<span style="color: ' + color + '; font-weight: bold;">' + value + '</span> ' +
                 '</div>';
             
@@ -705,6 +722,12 @@
                             	}
                             }
                         }
+                    },
+                    onClick: function(evt, elements) {
+                        if (elements.length > 0) {
+                            const dataIndex = elements[0].index;
+                            handleChartElementClick(canvasId, dataIndex);
+                        }
                     }
                 }
             });
@@ -747,6 +770,12 @@
                             display: false
                         }
                     },
+                    onClick: function(evt, elements) {
+                        if (elements.length > 0) {
+                            const dataIndex = elements[0].index;
+                            handleChartElementClick(canvasId, dataIndex);
+                        }
+                    },
                     scales: {
                         x: {
                             beginAtZero: true
@@ -759,9 +788,61 @@
             return chartInstance;
         }
         
+        // 차트 데이터 형식 검증
+        function validateChartDataFormat(data) {
+        	
+            // 기본 데이터 구조 확인
+            if (!data) {
+                return {
+                    isValid: false,
+                    templateId : data.templateId,
+                    message: '차트 데이터가 없습니다. SQL 템플릿이 올바른 데이터를 반환하는지 확인해주세요.'
+                };
+            }
+            
+            if (data.result.length === 0) {
+                return {
+                    isValid: false,
+                    templateId : data.templateId,
+                    message: '차트 데이터가 비어있습니다. SQL 템플릿이 데이터를 반환하는지 확인해주세요.'
+                };
+            }
+            
+            // 각 행의 형식 확인
+            for (var i = 0; i < data.result.length; i++) {
+                var row = data.result[i];
+                
+                if (row.length < 3) {
+                    return {
+                        isValid: false,
+                        templateId : data.templateId,
+                        message: '차트 데이터 형식이 올바르지 않습니다. 각 행은 3개의 컬럼이 필요합니다. (상태, 이름, 값)'
+                    };
+                }
+                
+                // 세 번째 컬럼이 숫자인지 확인
+                if (isNaN(parseFloat(row[2]))) {
+                    return {
+                        isValid: false,
+                        templateId : data.templateId,
+                        message: '차트 데이터 형식이 올바르지 않습니다. 세 번째 컬럼은 숫자여야 합니다.)'
+                    };
+                }
+            }
+            
+            return { isValid: true };
+        }
+        
         // 차트 데이터 파싱
         function parseChartData(data) {
-                        var labels = [];
+            // 데이터 형식 검증
+            var validationResult = validateChartDataFormat(data);
+            if (!validationResult.isValid) {
+                showToast(validationResult.templateId + "<br>" + validationResult.message, 'error');
+
+            }
+            
+            var labels = [];
             var values = [];
             var colors = [];
             var colors2 = [];
@@ -981,8 +1062,36 @@
             refreshMenuExecutionLog();
         }
         
+        function reload() {
+        	
+        	 var hasErrorCharts = $('#dynamicChartsContainer .box-danger').length > 0;
+        	 
+        	// 관리자 권한 확인
+        	if (isAdmin && hasErrorCharts) {
+	            if (confirm('에러 상태인 차트가 있습니다.\n\n모든 차트의 에러 상태를 리셋하시겠습니까?\n\n이 작업은 에러로 인해 중단된 차트들을 즉시 재시작합니다.')) {
+	                $.ajax({
+	                    url: '/SystemConfig/resetChartErrors',
+	                    type: 'POST',
+	                    success: function(response) {
+	                        if (response.success) {
+	                        	location.reload();
+	                        } else {
+	                            showToast('에러 상태 리셋에 실패했습니다: ' + response.message, 'error');
+	                        }
+	                    },
+	                    error: function() {
+	                        showToast('에러 상태 리셋 중 오류가 발생했습니다.', 'error');
+	                    }
+	                });
+                }
+        	}else{
+        		location.reload();
+        	}
+		}
+        
         // 메뉴 실행기록 새로고침
         function refreshMenuExecutionLog() {
+        	
             $.ajax({
                 type: 'POST',
                 url: '/Dashboard/menuExecutionLog',
@@ -1073,7 +1182,7 @@
                                 <i class="fa fa-database"></i> 데이터베이스 연결 상태 모니터링
                             </h3>
                             <div class="box-tools pull-right">
-                                <button type="button" class="btn btn-box-tool" onclick="location.reload()">
+                                <button type="button" class="btn btn-box-tool" onclick="reload()">
                                     <i class="fa fa-refresh"></i> 새로고침
                                 </button>
                             </div>
@@ -1112,6 +1221,12 @@
                 </div>
             </div>
     </section>
+    
+    <!-- ParamForm 추가 (sendSql 방식 지원) -->
+    <form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:void(0);" style="display: none;">
+        <input type="hidden" id="sendvalue" name="sendvalue">
+        <input id="Path" name="Path" value="" type="hidden">
+    </form>
         </div>
     
     <style>
@@ -1169,5 +1284,200 @@
         .traffic-light:hover .light {
             transform: scale(1.2);
         }
+    </style>
+    
+    <script>
+        // 차트 요소 클릭 처리 함수
+        function handleChartElementClick(canvasId, rowIndex) {
+            
+            // 차트 설정에서 해당 차트의 템플릿 ID 찾기
+            var templateId = null;
+            if (chartConfigData && chartConfigData.charts) {
+                for (var i = 0; i < chartConfigData.charts.length; i++) {
+                    var chart = chartConfigData.charts[i];
+                    if (chart.id === canvasId) {
+                        templateId = chart.templateId;
+                        break;
+                    }
+                }
+            }
+            
+            if (!templateId) {
+                console.error('템플릿 ID를 찾을 수 없습니다:', canvasId);
+                showToast('차트 정보를 찾을 수 없습니다. 페이지를 새로고침해주세요.', 'warning');
+                return;
+            }
+            
+            // 클릭한 행의 데이터를 파라미터로 변환
+            var parameters = convertRowIndexToParameters(canvasId, rowIndex);
+            
+            // 단축키 정보 조회
+            $.ajax({
+                type: 'POST',
+                url: '/SQLTemplate/shortcuts',
+                data: {
+                    templateId: templateId
+                },
+                success: function(result) {
+                    if (result.success && result.data && result.data.length > 0) {
+                        // 활성화된 첫 번째 단축키 찾기
+                        var firstActiveShortcut = null;
+                        for (var i = 0; i < result.data.length; i++) {
+                            var shortcut = result.data[i];
+                            if (shortcut.IS_ACTIVE === true) {
+                                firstActiveShortcut = shortcut;
+                                break;
+                            }
+                        }
+                        
+                        if (firstActiveShortcut) {
+                            
+                            // 단축키 실행 - 소스 컬럼 인덱스에 따라 파라미터 생성
+                            var sourceColumns = firstActiveShortcut.SOURCE_COLUMN_INDEXES;
+                            var parameterString = '';
+                            
+                            if (sourceColumns && sourceColumns.trim() !== '') {
+                                var columnIndexes = sourceColumns.split(',').map(function(index, arrayIndex) {
+                                    var trimmedIndex = index.trim();
+                                    // 빈 값이면 null 반환, 숫자면 0-based index로 변환
+                                    return trimmedIndex === '' ? null : parseInt(trimmedIndex) - 1;
+                                }).filter(function(index) {
+                                    // null이 아닌 값만 필터링
+                                    return index !== null;
+                                });
+                                
+                                var paramValues = [];
+                                columnIndexes.forEach(function(index) {
+                                    if (parameters && Object.keys(parameters).length > 0) {
+                                        var paramKeys = Object.keys(parameters);
+                                        if (paramKeys[index] !== undefined) {
+                                            paramValues.push(parameters[paramKeys[index]]);
+                                        }
+                                    }
+                                });
+                                
+                                parameterString = paramValues.join(',');
+                            }
+                       
+                            // SQLExecute.jsp의 sendSql 함수 호출 방식과 동일
+                            // common.jsp의 sendSql 함수 사용
+                            sendSql(firstActiveShortcut.TARGET_TEMPLATE_ID + "&" + parameterString + "&" + firstActiveShortcut.AUTO_EXECUTE);
+                            
+                        } else {
+                            console.log('활성화된 단축키가 없습니다.');
+                            showToast('이 차트에 설정된 단축키가 없습니다. 템플릿 관리에서 단축키를 설정해주세요.', 'info');
+                        }
+                    } else {
+                        console.log('단축키가 없습니다.');
+                        showToast('이 차트에 설정된 단축키가 없습니다. 템플릿 관리에서 단축키를 설정해주세요.', 'info');
+                    }
+                },
+                error: function() {
+                    console.error('단축키 정보 조회 실패');
+                    showToast('단축키 정보 조회에 실패했습니다.', 'error');
+                }
+            });
+        }
+        
+        // 행 인덱스를 파라미터로 변환
+        function convertRowIndexToParameters(canvasId, rowIndex) {
+            var parameters = {};
+            
+            // 원본 차트 데이터에서 해당 행의 전체 데이터 가져오기
+            var chartData = getChartDataFromCache(canvasId);
+            console.log(chartData)
+            if (chartData && chartData.result && rowIndex !== undefined) {
+                if (chartData.result[rowIndex] && Array.isArray(chartData.result[rowIndex])) {
+                    var originalRow = chartData.result[rowIndex];
+                    // 원본 데이터의 모든 컬럼을 파라미터로 추가
+                    originalRow.forEach(function(value, index) {
+                        parameters['param' + (index + 1)] = value;
+                    });
+                }
+            }
+            
+            return parameters;
+        }
+        
+        // 캐시에서 차트 데이터 가져오기
+        function getChartDataFromCache(canvasId) {
+            // 현재 선택된 연결 ID 가져오기
+            var selectedConnectionId = getSelectedConnectionId();
+            if (!selectedConnectionId) {
+                return null;
+            }
+            
+            // cachedApiResponse에서 차트 데이터 조회
+            if (cachedApiResponse && cachedApiResponse.connections) {
+                var selectedConnection = cachedApiResponse.connections.find(function(conn) {
+                    return conn.connectionId === selectedConnectionId;
+                });
+                
+                if (selectedConnection && selectedConnection.charts) {
+                    return selectedConnection.charts[canvasId];
+                }
+            }
+            
+            return null;
+        }
+        
+        // 선택된 연결 ID 가져오기
+        function getSelectedConnectionId() {
+            var selectedCard = $('.connection-card.selected');
+            if (selectedCard.length > 0) {
+                return selectedCard.data('connection-id');
+            }
+            return null;
+        }
+        
+        // ========================================
+        // Toast 메시지 함수
+        // ========================================
+        function showToast(message, type = 'info', duration = 3000) {
+            var toastId = 'toast_' + Date.now();
+            var iconClass = {
+                'success': 'fa-check-circle',
+                'error': 'fa-exclamation-circle',
+                'warning': 'fa-exclamation-triangle',
+                'info': 'fa-info-circle'
+            }[type] || 'fa-info-circle';
+            
+            var bgClass = {
+                'success': 'alert-success',
+                'error': 'alert-danger',
+                'warning': 'alert-warning',
+                'info': 'alert-info'
+            }[type] || 'alert-info';
+            
+            var toast = $('<div id="' + toastId + '" class="alert ' + bgClass + ' alert-dismissible" style="margin-bottom: 10px; animation: slideInRight 0.3s ease-out;">' +
+                '<button type="button" class="close" data-dismiss="alert">&times;</button>' +
+                '<i class="fa ' + iconClass + '"></i> ' + message +
+                '</div>');
+            
+            $('#toastContainer').append(toast);
+            
+            // 자동 제거
+            setTimeout(function() {
+                $('#' + toastId).fadeOut(300, function() {
+                    $(this).remove();
+                });
+            }, duration);
+        }
+    </script>
+    
+    <!-- Toast 메시지 컨테이너 -->
+    <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999; width: 350px;"></div>
+    
+    <style>
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
     </style>
     
