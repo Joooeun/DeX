@@ -1184,8 +1184,8 @@
 					errors.push('파라미터명을 입력해주세요. (순서: ' + (index + 1) + ')');
 				} else if (param.name.length > 100) {
 					errors.push('파라미터명은 100자 이하여야 합니다. (' + param.name + ')');
-				} else if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(param.name)) {
-					errors.push('파라미터명은 영문자, 숫자, 언더스코어만 사용 가능하며 숫자로 시작할 수 없습니다. (' + param.name + ')');
+				} else if (!/^[a-zA-Z0-9가-힣_]+$/.test(param.name)) {
+					errors.push('파라미터명은 영문자, 한글, 숫자, 언더스코어만 사용 가능합니다. (' + param.name + ')');
 				}
 
 				// 중복 파라미터명 체크
