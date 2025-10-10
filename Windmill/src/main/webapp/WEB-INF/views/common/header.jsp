@@ -703,9 +703,15 @@ var changePW
 						<li><a href="/SQLTemplate" target="iframe"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span></a></li>
 					</c:if>
 
-					<li><a href="/Dashboard" target="iframe"> <i class="fa fa-dashboard"></i> <span>대시보드</span></a></li>
-					<li><a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>파일 읽기</span></a></li>
-					<li><a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>파일 쓰기</span></a></li>
+					<c:if test="${hasDashboardPermission}">
+						<li><a href="/Dashboard" target="iframe"> <i class="fa fa-dashboard"></i> <span>대시보드</span></a></li>
+					</c:if>
+					<c:if test="${hasFileReadPermission}">
+						<li><a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>파일 읽기</span></a></li>
+					</c:if>
+					<c:if test="${hasFileWritePermission}">
+						<li><a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>파일 쓰기</span></a></li>
+					</c:if>
 
 					<li id="sqltree" class="active treeview menu-open"></li>
 				</ul>

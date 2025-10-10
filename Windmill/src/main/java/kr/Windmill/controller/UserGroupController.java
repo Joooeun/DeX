@@ -9,6 +9,7 @@ import javax.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -42,6 +43,9 @@ public class UserGroupController {
 
 	@Autowired
 	private PermissionService permissionService;
+	
+	@Autowired
+    private JdbcTemplate jdbcTemplate;
 
 	// 사용자 그룹 관리 화면
 	@RequestMapping(path = "", method = RequestMethod.GET)
@@ -590,6 +594,39 @@ public class UserGroupController {
 		return result;
 	}
 
+	// 메뉴 권한 조회 (기존 테이블 활용)
+	@ResponseBody
+	@RequestMapping("/menuPermissions")
+	public Map<String, Object> getMenuPermissions(@RequestParam String groupId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", userGroupService.getMenuPermissions(groupId));
+
+		} catch (Exception e) {
+			logger.error("메뉴 권한 조회 중 오류 발생", e);
+			result.put("success", false);
+			result.put("message", "메뉴 권한 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
 	// SQL 템플릿 카테고리 권한 조회
 	@ResponseBody
 	@RequestMapping("/sqlTemplateCategoryPermissions")
@@ -681,6 +718,8 @@ public class UserGroupController {
 			@SuppressWarnings("unchecked")
 			java.util.List<String> connectionIds = (java.util.List<String>) requestData.get("connectionIds");
 
+			logger.info("연결정보 권한 저장 요청 - groupId: {}, connectionIds: {}", groupId, connectionIds);
+
 			if (groupId == null || connectionIds == null) {
 				result.put("success", false);
 				result.put("message", "필수 파라미터가 누락되었습니다.");
@@ -692,9 +731,11 @@ public class UserGroupController {
 			
 			// 새로운 권한 부여
 			boolean success = true;
+			String errorMessage = "";
 			for (String connectionId : connectionIds) {
 				if (!permissionService.grantConnectionPermission(groupId, connectionId, userId)) {
 					success = false;
+					errorMessage = "연결 ID '" + connectionId + "' 권한 부여 실패";
 					break;
 				}
 			}
@@ -702,9 +743,10 @@ public class UserGroupController {
 			if (success) {
 				result.put("success", true);
 				result.put("message", "연결정보 권한이 성공적으로 저장되었습니다.");
+				logger.info("그룹 연결정보 권한 저장 완료 - groupId: {}, connectionCount: {}", groupId, connectionIds.size());
 			} else {
 				result.put("success", false);
-				result.put("message", "연결정보 권한 저장에 실패했습니다.");
+				result.put("message", "연결정보 권한 저장에 실패했습니다. " + errorMessage);
 			}
 
 		} catch (Exception e) {
@@ -753,6 +795,77 @@ public class UserGroupController {
 			logger.error("권한 저장 중 오류 발생", e);
 			result.put("success", false);
 			result.put("message", "권한 저장 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 메뉴 권한 부여 (기존 테이블 활용)
+	@ResponseBody
+	@RequestMapping(value = "/grantMenuPermissions", method = RequestMethod.POST)
+	public Map<String, Object> grantMenuPermissions(@RequestBody Map<String, Object> requestData, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(userId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			String groupId = (String) requestData.get("groupId");
+			@SuppressWarnings("unchecked")
+			java.util.List<String> menuIds = (java.util.List<String>) requestData.get("menuIds");
+
+			logger.info("메뉴 권한 저장 요청 - groupId: {}, menuIds: {}", groupId, menuIds);
+
+			if (groupId == null || menuIds == null) {
+				result.put("success", false);
+				result.put("message", "필수 파라미터가 누락되었습니다.");
+				return result;
+			}
+
+			// 기존 메뉴 권한 모두 해제 (MENU_로 시작하는 것만)
+			String deleteMenuSql = "DELETE FROM GROUP_CATEGORY_MAPPING WHERE GROUP_ID = ? AND CATEGORY_ID LIKE 'MENU_%'";
+			jdbcTemplate.update(deleteMenuSql, groupId);
+			
+			// 새로운 메뉴 권한 부여
+			boolean success = true;
+			String errorMessage = "";
+			for (String menuId : menuIds) {
+				String insertMenuSql = "INSERT INTO GROUP_CATEGORY_MAPPING (GROUP_ID, CATEGORY_ID, GRANTED_BY, GRANTED_TIMESTAMP) VALUES (?, ?, ?, CURRENT TIMESTAMP)";
+				try {
+					jdbcTemplate.update(insertMenuSql, groupId, menuId, userId);
+					logger.info("메뉴 권한 저장 성공 - groupId: {}, menuId: {}", groupId, menuId);
+				} catch (Exception e) {
+					logger.error("메뉴 권한 저장 실패 - groupId: {}, menuId: {}", groupId, menuId, e);
+					success = false;
+					errorMessage = "메뉴 ID '" + menuId + "' 저장 실패: " + e.getMessage();
+					break;
+				}
+			}
+			
+			if (success) {
+				result.put("success", true);
+				result.put("message", "메뉴 권한이 성공적으로 저장되었습니다.");
+				logger.info("그룹 메뉴 권한 저장 완료 - groupId: {}, menuCount: {}", groupId, menuIds.size());
+			} else {
+				result.put("success", false);
+				result.put("message", "메뉴 권한 저장에 실패했습니다. " + errorMessage);
+			}
+
+		} catch (Exception e) {
+			logger.error("메뉴 권한 저장 중 오류 발생", e);
+			result.put("success", false);
+			result.put("message", "메뉴 권한 저장 중 오류가 발생했습니다.");
 		}
 
 		return result;

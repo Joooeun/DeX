@@ -172,11 +172,58 @@ public class UserGroupService {
                         "CASE WHEN gcm.GROUP_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
                         "FROM DATABASE_CONNECTION c " +
                         "LEFT JOIN GROUP_CONNECTION_MAPPING gcm ON c.CONNECTION_ID = gcm.CONNECTION_ID AND gcm.GROUP_ID = ? " +
-                        "WHERE c.STATUS = 'ACTIVE' " +
                         "ORDER BY c.CONNECTION_ID";
             return jdbcTemplate.queryForList(sql, groupId);
         } catch (Exception e) {
             logger.error("연결 정보 권한 조회 중 오류 발생", e);
+            return new ArrayList<>();
+        }
+    }
+    
+    // 메뉴 권한 조회 (기존 GROUP_CATEGORY_MAPPING 테이블 활용)
+    public List<Map<String, Object>> getMenuPermissions(String groupId) {
+        try {
+            // 기본 메뉴 목록 정의
+            List<Map<String, Object>> allMenus = new ArrayList<>();
+            
+            Map<String, Object> dashboard = new HashMap<>();
+            dashboard.put("MENU_ID", "MENU_DASHBOARD");
+            dashboard.put("MENU_NAME", "대시보드");
+            dashboard.put("MENU_DESCRIPTION", "");
+            allMenus.add(dashboard);
+            
+            Map<String, Object> fileRead = new HashMap<>();
+            fileRead.put("MENU_ID", "MENU_FILE_READ");
+            fileRead.put("MENU_NAME", "파일 읽기");
+            fileRead.put("MENU_DESCRIPTION", "");
+            allMenus.add(fileRead);
+            
+            Map<String, Object> fileWrite = new HashMap<>();
+            fileWrite.put("MENU_ID", "MENU_FILE_WRITE");
+            fileWrite.put("MENU_NAME", "파일 쓰기");
+            fileWrite.put("MENU_DESCRIPTION", "");
+            allMenus.add(fileWrite);
+            
+            Map<String, Object> sqlTemplate = new HashMap<>();
+            sqlTemplate.put("MENU_ID", "MENU_SQL_TEMPLATE");
+            sqlTemplate.put("MENU_NAME", "SQL 템플릿");
+            sqlTemplate.put("MENU_DESCRIPTION", "");
+            allMenus.add(sqlTemplate);
+            
+            // 현재 그룹의 메뉴 권한 조회 (기존 테이블 활용)
+            String sql = "SELECT CATEGORY_ID FROM GROUP_CATEGORY_MAPPING WHERE GROUP_ID = ? AND CATEGORY_ID LIKE 'MENU_%'";
+            List<String> grantedMenus = jdbcTemplate.queryForList(sql, String.class, groupId);
+            
+            // 권한 상태 설정
+            for (Map<String, Object> menu : allMenus) {
+                String menuId = (String) menu.get("MENU_ID");
+                boolean hasPermission = grantedMenus.contains(menuId);
+                menu.put("HAS_PERMISSION", hasPermission);
+            }
+            
+            return allMenus;
+        } catch (Exception e) {
+            logger.error("메뉴 권한 조회 중 오류 발생", e);
             return new ArrayList<>();
         }
     }
@@ -215,6 +262,32 @@ public class UserGroupService {
                         jdbcTemplate.update(insertConnSql, groupId, permission.get("connectionId"), modifiedBy);
                     }
                 }
+            }
+            
+            // 메뉴 권한 저장
+            List<Map<String, Object>> menuPermissions = (List<Map<String, Object>>) permissions.get("menuPermissions");
+            if (menuPermissions != null) {
+                logger.info("메뉴 권한 저장 시작 - groupId: {}, menuCount: {}", groupId, menuPermissions.size());
+                
+                // 기존 메뉴 권한 삭제 (MENU_로 시작하는 것만)
+                String deleteMenuSql = "DELETE FROM GROUP_CATEGORY_MAPPING WHERE GROUP_ID = ? AND CATEGORY_ID LIKE 'MENU_%'";
+                int deletedCount = jdbcTemplate.update(deleteMenuSql, groupId);
+                logger.info("기존 메뉴 권한 삭제 완료 - groupId: {}, deletedCount: {}", groupId, deletedCount);
+                
+                // 새로운 메뉴 권한 추가
+                for (Map<String, Object> permission : menuPermissions) {
+                    if ((Boolean) permission.get("hasPermission")) {
+                        String insertMenuSql = "INSERT INTO GROUP_CATEGORY_MAPPING (GROUP_ID, CATEGORY_ID, GRANTED_BY, GRANTED_TIMESTAMP) VALUES (?, ?, ?, CURRENT TIMESTAMP)";
+                        try {
+                            jdbcTemplate.update(insertMenuSql, groupId, permission.get("menuId"), modifiedBy);
+                            logger.info("메뉴 권한 추가 성공 - groupId: {}, menuId: {}", groupId, permission.get("menuId"));
+                        } catch (Exception e) {
+                            logger.error("메뉴 권한 추가 실패 - groupId: {}, menuId: {}", groupId, permission.get("menuId"), e);
+                            throw new RuntimeException("메뉴 권한 저장 중 오류가 발생했습니다: " + e.getMessage(), e);
+                        }
+                    }
+                }
+                logger.info("메뉴 권한 저장 완료 - groupId: {}", groupId);
             }
             
             return true;

@@ -65,14 +65,20 @@ public class SQLTemplateController {
 
 		logger.info("SQLTemplate 접근 - userId: {}, templateId: {}", userId, templateId);
 
+		// 로그인 확인
+		if (userId == null) {
+			mv.setViewName("redirect:/index");
+			return mv;
+		}
+
 		// templateId가 있으면 특정 템플릿 실행 페이지로 이동
 		if (templateId != null && !templateId.trim().isEmpty()) {
 			return executeSqlTemplate(request, mv, session, templateId);
 		}
 
-		// 관리자 권한 확인
-		if (!permissionService.isAdmin(userId)) {
-			// 관리자가 아니면 접근 차단
+		// SQL 템플릿 메뉴 권한 확인
+		if (!permissionService.checkMenuPermission(userId, "MENU_SQL_TEMPLATE")) {
+			logger.warn("SQL 템플릿 메뉴 권한 없음 - userId: {}", userId);
 			mv.setViewName("redirect:/index");
 			return mv;
 		}

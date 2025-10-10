@@ -49,6 +49,26 @@ public class PermissionService {
         }
     }
     
+    // 메뉴 권한 확인 (기존 GROUP_CATEGORY_MAPPING 테이블 활용)
+    public boolean checkMenuPermission(String userId, String menuId) {
+        try {
+            // 관리자는 모든 메뉴 접근 가능
+            if (isAdmin(userId)) {
+                return true;
+            }
+            
+            String sql = "SELECT COUNT(*) FROM USER_GROUP_MAPPING ugm " +
+                        "INNER JOIN GROUP_CATEGORY_MAPPING gcm ON ugm.GROUP_ID = gcm.GROUP_ID " +
+                        "WHERE ugm.USER_ID = ? AND gcm.CATEGORY_ID = ?";
+            
+            int count = jdbcTemplate.queryForObject(sql, Integer.class, userId, menuId);
+            return count > 0;
+        } catch (Exception e) {
+            logger.error("메뉴 권한 확인 실패: userId={}, menuId={}", userId, menuId, e);
+            return false;
+        }
+    }
+    
     // 사용자가 접근 가능한 SQL 템플릿 카테고리 목록 조회
     public List<String> getAuthorizedCategories(String userId) {
         try {
@@ -123,9 +143,10 @@ public class PermissionService {
             String sql = "INSERT INTO GROUP_CONNECTION_MAPPING (GROUP_ID, CONNECTION_ID, GRANTED_BY, GRANTED_TIMESTAMP) " +
                         "VALUES (?, ?, ?, CURRENT TIMESTAMP)";
             jdbcTemplate.update(sql, groupId, connectionId, grantedBy);
+            logger.info("연결정보 권한 부여 성공 - groupId: {}, connectionId: {}, grantedBy: {}", groupId, connectionId, grantedBy);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("연결정보 권한 부여 실패 - groupId: {}, connectionId: {}, grantedBy: {}", groupId, connectionId, grantedBy, e);
             return false;
         }
     }
@@ -135,9 +156,10 @@ public class PermissionService {
         try {
             String sql = "DELETE FROM GROUP_CATEGORY_MAPPING WHERE GROUP_ID = ? AND CATEGORY_ID = ?";
             jdbcTemplate.update(sql, groupId, categoryId);
+            logger.info("SQL 템플릿 카테고리 권한 해제 성공 - groupId: {}, categoryId: {}", groupId, categoryId);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("SQL 템플릿 카테고리 권한 해제 실패 - groupId: {}, categoryId: {}", groupId, categoryId, e);
             return false;
         }
     }
@@ -146,10 +168,11 @@ public class PermissionService {
     public boolean revokeAllCategoryPermissions(String groupId) {
         try {
             String sql = "DELETE FROM GROUP_CATEGORY_MAPPING WHERE GROUP_ID = ?";
-            jdbcTemplate.update(sql, groupId);
+            int deletedCount = jdbcTemplate.update(sql, groupId);
+            logger.info("그룹 카테고리 권한 해제 완료 - groupId: {}, deletedCount: {}", groupId, deletedCount);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("그룹 카테고리 권한 해제 실패 - groupId: {}", groupId, e);
             return false;
         }
     }
@@ -158,10 +181,11 @@ public class PermissionService {
     public boolean revokeAllConnectionPermissions(String groupId) {
         try {
             String sql = "DELETE FROM GROUP_CONNECTION_MAPPING WHERE GROUP_ID = ?";
-            jdbcTemplate.update(sql, groupId);
+            int deletedCount = jdbcTemplate.update(sql, groupId);
+            logger.info("그룹 연결정보 권한 해제 완료 - groupId: {}, deletedCount: {}", groupId, deletedCount);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("그룹 연결정보 권한 해제 실패 - groupId: {}", groupId, e);
             return false;
         }
     }
@@ -173,9 +197,10 @@ public class PermissionService {
         try {
             String sql = "DELETE FROM GROUP_CONNECTION_MAPPING WHERE GROUP_ID = ? AND CONNECTION_ID = ?";
             jdbcTemplate.update(sql, groupId, connectionId);
+            logger.info("연결정보 권한 해제 성공 - groupId: {}, connectionId: {}", groupId, connectionId);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("연결정보 권한 해제 실패 - groupId: {}, connectionId: {}", groupId, connectionId, e);
             return false;
         }
     }
@@ -193,9 +218,11 @@ public class PermissionService {
                         "WHERE ugm.USER_ID = ? AND ug.GROUP_ID = 'ADMIN_GROUP'";
             
             int count = jdbcTemplate.queryForObject(sql, Integer.class, userId);
-            return count > 0;
+            boolean isAdmin = count > 0;
+            logger.debug("관리자 권한 확인 - userId: {}, isAdmin: {}", userId, isAdmin);
+            return isAdmin;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("관리자 권한 확인 실패 - userId: {}", userId, e);
             return false;
         }
     }

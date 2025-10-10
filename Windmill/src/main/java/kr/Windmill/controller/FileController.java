@@ -32,6 +32,7 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
+import kr.Windmill.service.PermissionService;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,16 +45,29 @@ public class FileController {
 	private final Common com;
 	private final Log cLog;
 	private final JdbcTemplate jdbcTemplate;
+	private final PermissionService permissionService;
 	
 	@Autowired
-	public FileController(Common common, Log log, JdbcTemplate jdbcTemplate) {
+	public FileController(Common common, Log log, JdbcTemplate jdbcTemplate, PermissionService permissionService) {
 		this.com = common;
 		this.cLog = log;
 		this.jdbcTemplate = jdbcTemplate;
+		this.permissionService = permissionService;
 	}
 
 	@RequestMapping(path = "/FileRead")
 	public ModelAndView FileRead(HttpServletRequest request, ModelAndView mv, HttpSession session) throws IOException {
+		String memberId = (String) session.getAttribute("memberId");
+		if (memberId == null) {
+			mv.setViewName("redirect:/index");
+			return mv;
+		}
+		
+		// 파일 읽기 메뉴 권한 확인
+		if (!permissionService.checkMenuPermission(memberId, "MENU_FILE_READ")) {
+			mv.setViewName("redirect:/index");
+			return mv;
+		}
 		
 		logger.info("PATH: {}", request.getParameter("Path"));
 		mv.addObject("Path", request.getParameter("Path"));
@@ -179,6 +193,17 @@ public class FileController {
 
 	@RequestMapping(path = "/FileUpload", method = RequestMethod.GET)
 	public ModelAndView FileUpload(HttpServletRequest request, ModelAndView mv, HttpSession session) {
+		String memberId = (String) session.getAttribute("memberId");
+		if (memberId == null) {
+			mv.setViewName("redirect:/index");
+			return mv;
+		}
+		
+		// 파일 쓰기 메뉴 권한 확인
+		if (!permissionService.checkMenuPermission(memberId, "MENU_FILE_WRITE")) {
+			mv.setViewName("redirect:/index");
+			return mv;
+		}
 
 		return mv;
 	}

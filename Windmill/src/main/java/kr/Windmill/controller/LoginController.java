@@ -140,6 +140,19 @@ public class LoginController {
 		String memberId = (String) session.getAttribute("memberId");
 		mv.addObject("memberId", memberId);
 		mv.addObject("isAdmin", permissionService.isAdmin(memberId));
+		
+		// 메뉴 권한 정보 추가
+		if (memberId != null) {
+			mv.addObject("hasDashboardPermission", permissionService.checkMenuPermission(memberId, "MENU_DASHBOARD"));
+			mv.addObject("hasFileReadPermission", permissionService.checkMenuPermission(memberId, "MENU_FILE_READ"));
+			mv.addObject("hasFileWritePermission", permissionService.checkMenuPermission(memberId, "MENU_FILE_WRITE"));
+			mv.addObject("hasSqlTemplatePermission", permissionService.checkMenuPermission(memberId, "MENU_SQL_TEMPLATE"));
+		} else {
+			mv.addObject("hasDashboardPermission", false);
+			mv.addObject("hasFileReadPermission", false);
+			mv.addObject("hasFileWritePermission", false);
+			mv.addObject("hasSqlTemplatePermission", false);
+		}
 
 		return mv;
 	}
@@ -174,7 +187,13 @@ public class LoginController {
 	@RequestMapping(path = "/Dashboard")
 	public ModelAndView dashboard(HttpServletRequest request, ModelAndView mv, HttpSession session) {
 		String memberId = (String) session.getAttribute("memberId");
-		if (memberId == null || !permissionService.isAdmin(memberId)) {
+		if (memberId == null) {
+			mv.setViewName("redirect:/index");
+			return mv;
+		}
+		
+		// 대시보드 메뉴 권한 확인
+		if (!permissionService.checkMenuPermission(memberId, "MENU_DASHBOARD")) {
 			mv.setViewName("redirect:/index");
 			return mv;
 		}
