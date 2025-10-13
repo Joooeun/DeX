@@ -89,6 +89,18 @@
 				adjustEditorForTemplateType();
 				markTemplateChanged();
 			});
+
+			// Ctrl+S 키보드 단축키 이벤트 리스너
+			$(document).on('keydown', function(e) {
+				// Ctrl+S 또는 Cmd+S (Mac) 키 조합 확인
+				if ((e.ctrlKey || e.metaKey) && e.keyCode === 83) {
+					// 기본 저장 동작 방지
+					e.preventDefault();
+					
+					// 저장 함수 호출
+					saveSqlTemplate();
+				}
+			});
 		});
 
 		// ===== 유틸리티 함수들 =====
