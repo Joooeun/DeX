@@ -18,38 +18,26 @@ public class TemplateConfigService {
     private TemplateMapper templateMapper;
     
     /**
-     * 차트 매핑별 새로고침 주기 조회
-     * @return Map<차트매핑, 새로고침주기(밀리초)>
+     * 차트 매핑별 새로고침 주기 조회 (DEPRECATED - 차트 매핑 기능 제거됨)
+     * @deprecated 차트 매핑 기능이 TEMPLATE_TYPE으로 대체됨
+     * @return 빈 Map 반환
      */
+    @Deprecated
     public Map<String, Integer> getTemplateRefreshIntervals() {
-        try {
-            List<TemplateConfig> configs = templateMapper.getChartMappingConfigs();
-            
-            Map<String, Integer> intervals = new HashMap<>();
-            for (TemplateConfig config : configs) {
-                intervals.put(config.getChartMapping(), config.getRefreshTimeout()== 0 ? 10 : config.getRefreshTimeout());
-            }
-            
-            return intervals;
-        } catch (Exception e) {
-            System.err.println("템플릿 설정 조회 실패: " + e.getMessage());
-            return new HashMap<>();
-        }
+        // 차트 매핑 기능이 제거되어 빈 Map 반환
+        return new HashMap<>();
     }
     
     /**
-     * 특정 차트 매핑의 새로고침 주기 조회
-     * @param chartMapping 차트 매핑 (APPL_COUNT, LOCK_WAIT_COUNT, ACTIVE_LOG, FILESYSTEM)
-     * @return 새로고침 주기 (밀리초), 설정이 없으면 0
+     * 특정 차트 매핑의 새로고침 주기 조회 (DEPRECATED - 차트 매핑 기능 제거됨)
+     * @deprecated 차트 매핑 기능이 TEMPLATE_TYPE으로 대체됨
+     * @param chartMapping 차트 매핑 (사용되지 않음)
+     * @return 기본값 10 반환
      */
+    @Deprecated
     public int getRefreshInterval(String chartMapping) {
-        try {
-            Integer interval = templateMapper.getRefreshIntervalByChartMapping(chartMapping);
-            return interval != 0 ? interval : 10;
-        } catch (Exception e) {
-            System.err.println("차트 매핑 [" + chartMapping + "] 새로고침 주기 조회 실패: " + e.getMessage());
-            return 0;
-        }
+        // 차트 매핑 기능이 제거되어 기본값 반환
+        return 10;
     }
     
     /**

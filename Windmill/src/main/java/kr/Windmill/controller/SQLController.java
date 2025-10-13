@@ -2,6 +2,7 @@ package kr.Windmill.controller;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ import org.springframework.web.servlet.ModelAndView;
 
 import kr.Windmill.service.SqlTemplateService;
 import kr.Windmill.service.SystemConfigService;
+import kr.Windmill.service.ShellExecutionService;
 import kr.Windmill.util.Common;
 
 @Controller
@@ -34,12 +36,14 @@ public class SQLController {
 	private final Common com;
 	private final SqlTemplateService sqlTemplateService;
 	private final SystemConfigService systemConfigService;
+	private final ShellExecutionService shellExecutionService;
 	
 	@Autowired
-	public SQLController(Common common, SqlTemplateService sqlTemplateService, SystemConfigService systemConfigService) {
+	public SQLController(Common common, SqlTemplateService sqlTemplateService, SystemConfigService systemConfigService, ShellExecutionService shellExecutionService) {
 		this.com = common;
 		this.sqlTemplateService = sqlTemplateService;
 		this.systemConfigService = systemConfigService;
+		this.shellExecutionService = shellExecutionService;
 	}
 
 	@RequestMapping(path = "/SQL")
@@ -184,6 +188,224 @@ public class SQLController {
 		}
 
 		return mv;
+	}
+
+	@RequestMapping(path = "/SQLExecute")
+	public ModelAndView sqlExecute(HttpServletRequest request, ModelAndView mv, HttpSession session) {
+		String templateId = request.getParameter("templateId");
+		String templateType = request.getParameter("templateType");
+		String userId = (String) session.getAttribute("memberId");
+		
+		try {
+			// 템플릿 정보 조회
+			Map<String, Object> templateResult = sqlTemplateService.getSqlTemplateDetail(templateId);
+			
+			if (templateResult != null && (Boolean) templateResult.get("success")) {
+				@SuppressWarnings("unchecked")
+				Map<String, Object> templateData = (Map<String, Object>) templateResult.get("data");
+				
+				// templateType이 없으면 템플릿 데이터에서 가져오기
+				if (templateType == null || templateType.isEmpty()) {
+					templateType = (String) templateData.get("templateType");
+				}
+				
+				// 공통 데이터 설정
+				mv.addObject("templateType", templateType);
+				mv.addObject("sqlContent", templateData.get("sqlContent"));
+				mv.addObject("templateId", templateId);
+				mv.addObject("Excute", request.getParameter("Excute") == null ? false : request.getParameter("Excute"));
+				
+				// 단축키 데이터 추가 (모든 템플릿 타입에서 사용 가능)
+				List<Map<String, Object>> shortKeys = sqlTemplateService.getShortKeys(templateId);
+				mv.addObject("ShortKey", shortKeys);
+				
+				// 템플릿 타입에 따른 연결 정보 조회
+				if ("SHELL".equals(templateType)) {
+					// Shell 타입: SFTP 연결 정보 조회
+					List<Map<String, Object>> connections = sqlTemplateService.getAccessibleConnections(templateId, userId);
+					mv.addObject("connections", connections);
+				} else {
+					// SQL 타입: DB 연결 정보 조회
+					List<Map<String, Object>> connections = sqlTemplateService.getAccessibleConnections(templateId, userId);
+					mv.addObject("connections", connections);
+				}
+				
+				mv.setViewName("SQLExecute");
+				return mv;
+			} else {
+				mv.addObject("error", "템플릿을 찾을 수 없습니다.");
+				mv.setViewName("error");
+				return mv;
+			}
+		} catch (Exception e) {
+			logger.error("템플릿 실행 페이지 로드 실패", e);
+			mv.addObject("error", "템플릿 로드 중 오류가 발생했습니다.");
+			mv.setViewName("error");
+			return mv;
+		}
+	}
+	
+	@RequestMapping(path = "/ShellExecute/run")
+	@ResponseBody
+	public Map<String, Object> runShell(HttpServletRequest request, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+		
+		try {
+			String templateId = request.getParameter("templateId");
+			String connectionId = request.getParameter("hostId");  // SFTP 연결 ID
+			String parametersJson = request.getParameter("parameters");
+			
+			// 템플릿에서 스크립트 내용 조회 (SQL 처리와 동일한 방식)
+			Map<String, Object> templateResult = sqlTemplateService.getSqlTemplateDetail(templateId);
+			if (templateResult == null || !(Boolean) templateResult.get("success")) {
+				result.put("success", false);
+				result.put("error", "템플릿을 찾을 수 없습니다: " + templateId);
+				return result;
+			}
+			
+			@SuppressWarnings("unchecked")
+			Map<String, Object> templateData = (Map<String, Object>) templateResult.get("data");
+			String script = (String) templateData.get("sqlContent");
+			
+			if (script == null || script.trim().isEmpty()) {
+				result.put("success", false);
+				result.put("error", "Shell 스크립트가 비어있습니다.");
+				return result;
+			}
+			
+			// SFTP 연결 정보 조회
+			Map<String, Object> connectionInfo = sqlTemplateService.getConnectionInfo(connectionId);
+			if (connectionInfo == null || !(Boolean) connectionInfo.get("success")) {
+				result.put("success", false);
+				result.put("error", "SFTP 연결 정보를 찾을 수 없습니다: " + connectionId);
+				return result;
+			}
+			
+			@SuppressWarnings("unchecked")
+			Map<String, Object> connectionData = (Map<String, Object>) connectionInfo.get("data");
+			String hostName = (String) connectionData.get("HOST_NAME");
+			String hostIp = (String) connectionData.get("HOST_IP");
+			String username = (String) connectionData.get("USERNAME");
+			String password = (String) connectionData.get("PASSWORD");
+			Integer port = (Integer) connectionData.get("PORT");
+			
+			// 기본값 설정
+			if (port == null) port = 22;
+			if (username == null || username.trim().isEmpty()) {
+				result.put("success", false);
+				result.put("error", "SFTP 연결에 사용자명이 설정되지 않았습니다.");
+				return result;
+			}
+			if (password == null || password.trim().isEmpty()) {
+				result.put("success", false);
+				result.put("error", "SFTP 연결에 비밀번호가 설정되지 않았습니다.");
+				return result;
+			}
+			
+			logger.info("Shell 실행 시작 - 호스트: {} ({}), 사용자: {}, 스크립트 길이: {}", 
+					   hostName, hostIp, username, script.length());
+			
+			// 실제 Shell 실행
+			Map<String, Object> executionResult = shellExecutionService.executeShellScript(
+				hostIp, port, username, password, script, parametersJson, 300); // 5분 타임아웃
+			
+			// 결과 처리
+			if ((Boolean) executionResult.get("success")) {
+				result.put("success", true);
+				String output = (String) executionResult.get("output");
+				String error = (String) executionResult.get("error");
+				
+				// 출력과 에러를 결합하여 표시
+				StringBuilder fullOutput = new StringBuilder();
+				fullOutput.append("=== Shell 실행 결과 ===\n");
+				fullOutput.append("호스트: ").append(hostName).append(" (").append(hostIp).append(")\n");
+				fullOutput.append("사용자: ").append(username).append("\n");
+				fullOutput.append("실행 시간: ").append(new java.util.Date()).append("\n\n");
+				
+				if (output != null && !output.trim().isEmpty()) {
+					fullOutput.append("=== 표준 출력 ===\n");
+					fullOutput.append(output);
+				}
+				
+				if (error != null && !error.trim().isEmpty()) {
+					fullOutput.append("\n=== 에러 출력 ===\n");
+					fullOutput.append(error);
+				}
+				
+				result.put("output", fullOutput.toString());
+			} else {
+				result.put("success", false);
+				result.put("error", "Shell 실행 실패: " + executionResult.get("error"));
+			}
+			
+		} catch (Exception e) {
+			logger.error("Shell 실행 중 오류", e);
+			result.put("success", false);
+			result.put("error", "Shell 실행 중 오류가 발생했습니다: " + e.getMessage());
+		}
+		
+		return result;
+	}
+	
+	@RequestMapping(path = "/Template/execute")
+	public void executeTemplate(HttpServletRequest request, HttpServletResponse response) throws IOException {
+		String templateId = request.getParameter("templateId");
+		boolean excuteParam = "true".equalsIgnoreCase(request.getParameter("Excute"));
+		
+		if (templateId == null || templateId.trim().isEmpty()) {
+			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "템플릿 ID가 필요합니다.");
+			return;
+		}
+		
+		try {
+			// DB에서 템플릿 조회
+			Map<String, Object> template = sqlTemplateService.getSqlTemplateDetail(templateId);
+			
+			if (template == null || !(Boolean) template.get("success")) {
+				response.sendError(HttpServletResponse.SC_NOT_FOUND, "템플릿을 찾을 수 없습니다.");
+				return;
+			}
+			
+			@SuppressWarnings("unchecked")
+			Map<String, Object> templateData = (Map<String, Object>) template.get("data");
+			String templateType = (String) templateData.get("templateType");
+			if (templateType == null) templateType = "SQL";
+			
+			// 디버깅 로그 추가
+			logger.info("템플릿 실행 요청 - templateId: {}, templateType: {}", templateId, templateType);
+			
+			// 타입별 처리
+			switch (templateType.toUpperCase()) {
+				case "HTML":
+					// HTML 직접 출력
+					logger.info("HTML 템플릿 처리 시작 - templateId: {}", templateId);
+					response.setContentType("text/html; charset=UTF-8");
+					PrintWriter out = response.getWriter();
+					out.println(templateData.get("sqlContent"));
+					out.flush();
+					logger.info("HTML 템플릿 처리 완료 - templateId: {}", templateId);
+					break;
+					
+				case "SHELL":
+					// Shell 템플릿은 SQLExecute.jsp로 리다이렉트 (타입 분기처리)
+					String shellRedirectUrl = "/SQLExecute?templateId=" + templateId + "&templateType=SHELL";
+					shellRedirectUrl += "&Excute=" + excuteParam;
+					response.sendRedirect(shellRedirectUrl);
+					break;
+					
+				case "SQL":
+				default:
+					// SQL 템플릿은 기존 SQLTemplateController로 리다이렉트
+					String redirectUrl = "/SQLTemplate?templateId=" + templateId;
+					redirectUrl += "&Excute=" + excuteParam;
+					response.sendRedirect(redirectUrl);
+					break; 
+			}
+			
+		} catch (Exception e) {
+			logger.error("템플릿 실행 중 오류 발생: " + templateId, e);
+			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "템플릿 실행 중 오류가 발생했습니다.");
+		}
 	}
 
 	@RequestMapping(path = "HTML")

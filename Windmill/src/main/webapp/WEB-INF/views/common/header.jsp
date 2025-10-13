@@ -139,10 +139,17 @@ var changePW
 		});
 
 		$('#pageTab').on('click', ' li a .close', function() {
-			var tabId = $(this).parents('li').children('a').attr('href');
-			$(this).parents('li').remove('li');
-			$(tabId).remove();
-			$('#pageTab a:first').tab('show');
+			var templateId = $(this).parents('li').children('a').attr('data-template-id');
+			if (templateId) {
+				// 새로운 탭 관리 시스템 사용
+				tabManager.removeTab(templateId);
+			} else {
+				// 기존 방식 (기본 탭들)
+				var tabId = $(this).parents('li').children('a').attr('href');
+				$(this).parents('li').remove('li');
+				$(tabId).remove();
+				$('#pageTab a:first').tab('show');
+			}
 		});
 
 		/**
@@ -352,59 +359,109 @@ var changePW
 
 	var pageImages = [];
 	var pageNum = 1;
-
-	function setFrame(frameid) {
-
-		var text = $('#' + frameid).contents().find('.content-header>h1').text().trim();
-
-		if (text == '') {
-			return;
-		} else {
-			var newtab = true;
-			for (var i = 0; i < $('#pageTab a').length; i++) {
-				if (text == $('#pageTab a:eq(' + i + ')').text()) {
-
-					newtab = false;
-					$('#pageTab a:eq(' + i + ')').tab('show');
-					break;
-				}
-
-			}
-			if (!newtab) {
-				return false;
-			}
-
-		}
-		var pageid = pageNum++;
-
-		$('#pageTab')
-				.append(
-						'<li><a href="#tab' + pageid+'" data-toggle="tab">'
-								+ text
-								+ '<button class="close" type="button" title="Remove this page" style="padding-left:3px"><i class="fa fa-close"></button></a></li>')
-		$('#pageTabContent>div:last').attr("id", 'tab' + pageid);
-		$('#pageTab a:last').tab('show');
-		$('#pageTabContent')
-				.append(
-						'<div class="tab-pane" id="newpage"><iframe name="iframe'
-								+ pageid
-								+ '" id="iframe'
-								+ pageid
-								+ '" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" onLoad="setFrame(\'iframe'
-								+ pageid + '\')"></iframe></div>')
-
-		$('.sidebar-menu a:not(\'.addtree\')')
-				.attr("target", 'iframe' + pageid);
-
-		$('#iframe_1').contents().find('#menus a').attr("target",
-				'iframe' + pageid);
+	
+	// 새로운 탭 관리 시스템 - 전역 객체로 등록
+	window.tabManager = {
+		tabs: new Map(), // 탭 정보 저장
+		activeTab: null,
 		
-		// SQLTemplate의 "해당 메뉴로 이동" 링크 타겟도 변경
-		$('#iframe_1').contents().find('#goToTemplateLink').attr("target",
-				'iframe' + pageid);
-		//alert($('#iframe' + (pageNum == 1 ? '' : pageNum - 1)).contents().find('.ParamForm').length)
-		//$('.iframe').contents().find('.ParamForm').attr("target", 'iframe' + pageid)
+		// 탭 추가
+		addTab: function(templateId, title, url) {
+			console.log('tabManager.addTab 호출:', templateId, title, url);
+			
+			// 중복 탭 체크
+			if (this.tabs.has(templateId)) {
+				console.log('중복 탭 발견, 기존 탭 활성화');
+				this.activateTab(templateId);
+				return;
+			}
+			
+			// 새 탭 생성
+			var tabId = 'tab_' + templateId;
+			var iframeId = 'iframe_' + templateId;
+			
+			// 탭 정보 저장
+			this.tabs.set(templateId, {
+				id: tabId,
+				iframeId: iframeId,
+				title: title,
+				url: url
+			});
+			
+			// 탭 HTML 생성
+			var tabHtml = '<li><a href="#' + tabId + '" data-toggle="tab" data-template-id="' + templateId + '">' + 
+				title + '<button class="close" type="button" title="Remove this page" style="padding-left:3px"><i class="fa fa-close"></i></button></a></li>';
+			
+			var contentHtml = '<div class="tab-pane" id="' + tabId + '">' +
+				'<iframe name="' + iframeId + '" id="' + iframeId + '" class="tab_frame" ' +
+				'style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" ' +
+				'src="' + url + '"></iframe></div>';
+			
+			// DOM에 추가
+			$('#pageTab').append(tabHtml);
+			$('#pageTabContent').append(contentHtml);
+			
+			// 탭 활성화
+			this.activateTab(templateId);
+			
+			// 사이드바 링크 타겟 업데이트
+			this.updateSidebarTargets(iframeId);
+		},
+		
+		// 탭 활성화
+		activateTab: function(templateId) {
+			var tabInfo = this.tabs.get(templateId);
+			if (tabInfo) {
+				$('#pageTab a[data-template-id="' + templateId + '"]').tab('show');
+				this.activeTab = templateId;
+			}
+		},
+		
+		// 탭 제거
+		removeTab: function(templateId) {
+			var tabInfo = this.tabs.get(templateId);
+			if (tabInfo) {
+				$('#pageTab a[data-template-id="' + templateId + '"]').parent().remove();
+				$('#' + tabInfo.id).remove();
+				this.tabs.delete(templateId);
+				
+				// 활성 탭이 제거된 경우 첫 번째 탭 활성화
+				if (this.activeTab === templateId) {
+					var firstTab = this.tabs.keys().next().value;
+					if (firstTab) {
+						this.activateTab(firstTab);
+					}
+				}
+			}
+		},
+		
+		// 사이드바 링크 타겟 업데이트
+		updateSidebarTargets: function(iframeId) {
+			$('.sidebar-menu a:not(\'.addtree\')').attr("target", iframeId);
+			$('#iframe_1').contents().find('#menus a').attr("target", iframeId);
+			$('#iframe_1').contents().find('#goToTemplateLink').attr("target", iframeId);
+		}
+	};
 
+	// 새로운 탭 추가 함수 (템플릿용) - 전역 함수로 등록
+	window.addTemplateTab = function(templateId, title, url) {
+		console.log('addTemplateTab 호출:', templateId, title, url);
+		tabManager.addTab(templateId, title, url);
+	};
+	
+	// 기존 setFrame 함수 (호환성 유지)
+	function setFrame(frameid) {
+		// 새로운 시스템으로 마이그레이션
+		var iframe = $('#' + frameid);
+		var src = iframe.attr('src');
+		
+		if (src && src.includes('templateId=')) {
+			var templateId = src.split('templateId=')[1].split('&')[0];
+			var title = iframe.contents().find('.content-header>h1').text().trim() || templateId;
+			
+			// 새로운 탭 관리 시스템 사용
+			tabManager.addTab(templateId, title, src);
+		}
 	}
 
 	function checkPWModal() {
@@ -697,20 +754,20 @@ var changePW
 				<!-- sidebar menu: : style can be found in sidebar.less -->
 				<ul class="sidebar-menu" data-widget="tree" id="tree">
 					<c:if test="${isAdmin}">
-						<li><a href="/SystemConfig" target="iframe"> <i class="fa fa-cog"></i> <span>환경설정</span></a></li>
-						<li><a href="/Connection" target="iframe"> <i class="fa fa-database"></i> <span>연결 관리</span></a></li>
-						<li><a href="/User" target="iframe"> <i class="fa fa-user"></i> <span>사용자 관리</span></a></li>
-						<li><a href="/SQLTemplate" target="iframe"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span></a></li>
+						<li><a href="javascript:void(0)" onclick="addTemplateTab('systemconfig', '환경설정', '/SystemConfig')"> <i class="fa fa-cog"></i> <span>환경설정</span></a></li>
+						<li><a href="javascript:void(0)" onclick="addTemplateTab('connection', '연결 관리', '/Connection')"> <i class="fa fa-database"></i> <span>연결 관리</span></a></li>
+						<li><a href="javascript:void(0)" onclick="addTemplateTab('user', '사용자 관리', '/User')"> <i class="fa fa-user"></i> <span>사용자 관리</span></a></li>
+						<li><a href="javascript:void(0)" onclick="addTemplateTab('sqltemplate', 'SQL 템플릿 관리', '/SQLTemplate')"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span></a></li>
 					</c:if>
 
 					<c:if test="${hasDashboardPermission}">
-						<li><a href="/Dashboard" target="iframe"> <i class="fa fa-dashboard"></i> <span>대시보드</span></a></li>
+						<li><a href="javascript:void(0)" onclick="addTemplateTab('dashboard', '대시보드', '/Dashboard')"> <i class="fa fa-dashboard"></i> <span>대시보드</span></a></li>
 					</c:if>
 					<c:if test="${hasFileReadPermission}">
-						<li><a href="/FileRead" target="iframe"> <i class="fa fa-file-text-o"></i> <span>파일 읽기</span></a></li>
+						<li><a href="javascript:void(0)" onclick="addTemplateTab('fileread', '파일 읽기', '/FileRead')"> <i class="fa fa-file-text-o"></i> <span>파일 읽기</span></a></li>
 					</c:if>
 					<c:if test="${hasFileWritePermission}">
-						<li><a href="/FileUpload" target="iframe"> <i class="fa fa-file-text-o"></i> <span>파일 쓰기</span></a></li>
+						<li><a href="javascript:void(0)" onclick="addTemplateTab('fileupload', '파일 쓰기', '/FileUpload')"> <i class="fa fa-file-text-o"></i> <span>파일 쓰기</span></a></li>
 					</c:if>
 
 					<li id="sqltree" class="active treeview menu-open"></li>
@@ -743,7 +800,7 @@ var changePW
 					</div>
 				</c:if>
 				<div class="tab-pane" id="newpage">
-					<iframe name="iframe" id="iframe" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" onload="setFrame('iframe')"></iframe>
+					<iframe name="iframe" id="iframe" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;"></iframe>
 				</div>
 			
 			</div>

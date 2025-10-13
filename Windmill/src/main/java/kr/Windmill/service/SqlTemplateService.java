@@ -12,18 +12,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import kr.Windmill.util.Common;
-import kr.Windmill.util.DynamicJdbcManager;
-import kr.Windmill.util.Log;
-import kr.Windmill.dto.SqlTemplateSaveRequest;
+import kr.Windmill.dto.SqlContent;
 import kr.Windmill.dto.SqlTemplateInfo;
 import kr.Windmill.dto.SqlTemplateParameter;
+import kr.Windmill.dto.SqlTemplateSaveRequest;
 import kr.Windmill.dto.SqlTemplateShortcut;
-import kr.Windmill.dto.SqlContent;
-import org.springframework.util.StringUtils;
+import kr.Windmill.util.Common;
 
 @Service
 public class SqlTemplateService {
@@ -58,7 +56,7 @@ public class SqlTemplateService {
 			List<Map<String, Object>> categories = jdbcTemplate.queryForList(categorySql);
 
 			// 2) 카테고리별 템플릿
-			String mappedSql = "SELECT m.CATEGORY_ID, t.TEMPLATE_ID, t.TEMPLATE_NAME " +
+			String mappedSql = "SELECT m.CATEGORY_ID, t.TEMPLATE_ID, t.TEMPLATE_NAME, t.TEMPLATE_TYPE " +
 					"FROM SQL_TEMPLATE_CATEGORY_MAPPING m " +
 					"JOIN SQL_TEMPLATE t ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
 					"WHERE t.STATUS = 'ACTIVE' ORDER BY t.TEMPLATE_NAME ASC";
@@ -69,9 +67,12 @@ public class SqlTemplateService {
 				String categoryId = (String) row.get("CATEGORY_ID");
 				categoryIdToTemplates.computeIfAbsent(categoryId, k -> new ArrayList<>());
 				Map<String, Object> node = new HashMap<>();
-				node.put("type", "sql");
+				String templateType = (String) row.get("TEMPLATE_TYPE");
+				if (templateType == null) templateType = "SQL";
+				
+				node.put("type", templateType.toLowerCase());
 				node.put("id", row.get("TEMPLATE_ID"));
-				node.put("Name", row.get("TEMPLATE_NAME") + ".sql");
+				node.put("Name", row.get("TEMPLATE_NAME")); // 확장자 제외
 				node.put("templateId", row.get("TEMPLATE_ID"));
 				categoryIdToTemplates.get(categoryId).add(node);
 			}
@@ -88,7 +89,7 @@ public class SqlTemplateService {
 			}
 
 			// 3) 미분류 템플릿 (어떤 카테고리에도 매핑되지 않은 템플릿)
-			String uncategorizedSql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME FROM SQL_TEMPLATE t " +
+			String uncategorizedSql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.TEMPLATE_TYPE FROM SQL_TEMPLATE t " +
 					"LEFT JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
 					"WHERE t.STATUS = 'ACTIVE' AND m.TEMPLATE_ID IS NULL ORDER BY t.TEMPLATE_NAME";
 			List<Map<String, Object>> uncategorized = jdbcTemplate.queryForList(uncategorizedSql);
@@ -101,9 +102,12 @@ public class SqlTemplateService {
 				List<Map<String, Object>> children = new ArrayList<>();
 				for (Map<String, Object> row : uncategorized) {
 					Map<String, Object> node = new HashMap<>();
-					node.put("type", "sql");
+					String templateType = (String) row.get("TEMPLATE_TYPE");
+					if (templateType == null) templateType = "SQL";
+					
+					node.put("type", templateType.toLowerCase());
 					node.put("id", row.get("TEMPLATE_ID"));
-					node.put("Name", row.get("TEMPLATE_NAME") + ".sql");
+					node.put("Name", row.get("TEMPLATE_NAME")); // 확장자 제외
 					node.put("templateId", row.get("TEMPLATE_ID"));
 					children.add(node);
 				}
@@ -132,7 +136,7 @@ public class SqlTemplateService {
 
 			// 사용자별 권한 기반 메뉴 조회 (그룹을 통한 권한 체계)
 			String sql = "SELECT DISTINCT c.CATEGORY_ID, c.CATEGORY_NAME, c.CATEGORY_ORDER, " +
-					"t.TEMPLATE_ID, t.TEMPLATE_NAME, m.MAPPING_ORDER " +
+					"t.TEMPLATE_ID, t.TEMPLATE_NAME, t.TEMPLATE_TYPE, m.MAPPING_ORDER " +
 					"FROM SQL_TEMPLATE_CATEGORY c " +
 					"JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON c.CATEGORY_ID = m.CATEGORY_ID " +
 					"JOIN SQL_TEMPLATE t ON m.TEMPLATE_ID = t.TEMPLATE_ID " +
@@ -166,9 +170,12 @@ public class SqlTemplateService {
 				List<Map<String, Object>> children = (List<Map<String, Object>>) categoryMap.get(categoryId).get("list");
 				
 				Map<String, Object> template = new HashMap<>();
-				template.put("type", "sql");
+				String templateType = (String) row.get("TEMPLATE_TYPE");
+				if (templateType == null) templateType = "SQL";
+				
+				template.put("type", templateType.toLowerCase());
 				template.put("id", row.get("TEMPLATE_ID"));
-				template.put("Name", row.get("TEMPLATE_NAME") + ".sql");
+				template.put("Name", row.get("TEMPLATE_NAME")); // 확장자 제외
 				template.put("templateId", row.get("TEMPLATE_ID"));
 				children.add(template);
 			}
@@ -195,7 +202,7 @@ public class SqlTemplateService {
 			return result;
 		}
 
-					String sql = "SELECT TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, CHART_MAPPING, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, NEWLINE, AUDIT FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
+					String sql = "SELECT TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, TEMPLATE_TYPE, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, NEWLINE, AUDIT FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
 		List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, templateId);
 		if (rows.isEmpty()) {
 			result.put("success", false);
@@ -210,7 +217,7 @@ public class SqlTemplateService {
 		data.put("sqlDesc", row.get("TEMPLATE_DESC"));
 		data.put("sqlContent", row.get("SQL_CONTENT"));
 		data.put("accessibleConnectionIds", row.get("ACCESSIBLE_CONNECTION_IDS"));
-		data.put("chartMapping", row.get("CHART_MAPPING"));
+		data.put("templateType", row.get("TEMPLATE_TYPE"));
 		data.put("sqlVersion", row.get("VERSION"));
 		data.put("sqlStatus", row.get("STATUS"));
 		data.put("executionLimit", row.get("EXECUTION_LIMIT"));
@@ -287,15 +294,17 @@ public class SqlTemplateService {
 	}
 
 	/**
-	 * 차트 매핑으로 템플릿 조회
+	 * 템플릿 타입으로 템플릿 조회 (차트 매핑 대체)
 	 */
-	public Map<String, Object> getTemplateByChartMapping(String chartId) {
+	public Map<String, Object> getTemplateByType(String templateType) {
 		try {
-			String sql = "SELECT t.* " +
+			String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.TEMPLATE_DESC, t.SQL_CONTENT, " +
+					"t.ACCESSIBLE_CONNECTION_IDS, t.TEMPLATE_TYPE, t.VERSION, t.STATUS, " +
+					"t.EXECUTION_LIMIT, t.REFRESH_TIMEOUT, t.NEWLINE, t.AUDIT " +
 					"FROM SQL_TEMPLATE t " +
-					"WHERE t.CHART_MAPPING = ? AND t.STATUS = 'ACTIVE'";
+					"WHERE t.TEMPLATE_TYPE = ? AND t.STATUS = 'ACTIVE'";
 			
-			List<Map<String, Object>> results = jdbcTemplate.queryForList(sql, chartId);
+			List<Map<String, Object>> results = jdbcTemplate.queryForList(sql, templateType);
 			
 			if (!results.isEmpty()) {
 				Map<String, Object> template = results.get(0);
@@ -321,66 +330,62 @@ public class SqlTemplateService {
 			
 			return null;
 		} catch (Exception e) {
-			logger.error("차트 매핑 템플릿 조회 실패: {}", chartId, e);
+			logger.error("템플릿 타입 조회 실패: {}", templateType, e);
 			return null;
 		}
 	}
 
 	/**
-	 * 차트 매핑 중복 체크
+	 * 차트 매핑 중복 체크 (DEPRECATED - 차트 매핑 기능 제거됨)
+	 * @deprecated 차트 매핑 기능이 TEMPLATE_TYPE으로 대체됨
 	 */
+	@Deprecated
 	public boolean isChartMappingExists(String chartId, String excludeTemplateId) {
-		try {
-			String sql = "SELECT COUNT(*) FROM SQL_TEMPLATE WHERE CHART_MAPPING = ? AND STATUS = 'ACTIVE'";
-			List<Object> params = new ArrayList<>();
-			params.add(chartId);
-			
-			if (excludeTemplateId != null && !excludeTemplateId.trim().isEmpty()) {
-				sql += " AND TEMPLATE_ID != ?";
-				params.add(excludeTemplateId);
-			}
-			
-			Integer count = jdbcTemplate.queryForObject(sql, Integer.class, params.toArray());
-			return count != null && count > 0;
-		} catch (Exception e) {
-			logger.error("차트 매핑 중복 체크 실패: {}", chartId, e);
-			return false;
-		}
+		// 차트 매핑 기능이 제거되어 항상 false 반환
+		return false;
 	}
 
 	/**
-	 * 차트 매핑 해제
+	 * 차트 매핑 해제 (DEPRECATED - 차트 매핑 기능 제거됨)
+	 * @deprecated 차트 매핑 기능이 TEMPLATE_TYPE으로 대체됨
 	 */
+	@Deprecated
 	public boolean clearChartMapping(String templateId) {
-		try {
-			String sql = "UPDATE SQL_TEMPLATE SET CHART_MAPPING = NULL, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE TEMPLATE_ID = ?";
-			int result = jdbcTemplate.update(sql, templateId);
-			return result > 0;
-		} catch (Exception e) {
-			logger.error("차트 매핑 해제 실패: {}", templateId, e);
-			return false;
-		}
+		// 차트 매핑 기능이 제거되어 항상 true 반환
+		return true;
 	}
 
 	/**
-	 * 템플릿에 접근 가능한 DB 연결 목록 조회
+	 * 템플릿에 접근 가능한 연결 목록 조회 (DB 또는 SFTP)
 	 */
 	public List<Map<String, Object>> getAccessibleConnections(String templateId, String userId) {
 		try {
-			// 템플릿의 접근 가능한 연결 ID 조회
-			String templateSql = "SELECT ACCESSIBLE_CONNECTION_IDS FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
+			// 템플릿 정보 조회 (타입과 접근 가능한 연결 ID)
+			String templateSql = "SELECT TEMPLATE_TYPE, ACCESSIBLE_CONNECTION_IDS FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
 			List<Map<String, Object>> templateResults = jdbcTemplate.queryForList(templateSql, templateId);
 			
 			if (templateResults.isEmpty()) {
 				return new ArrayList<>();
 			}
 			
-			String accessibleConnectionIds = (String) templateResults.get(0).get("ACCESSIBLE_CONNECTION_IDS");
+			Map<String, Object> templateData = templateResults.get(0);
+			String templateType = (String) templateData.get("TEMPLATE_TYPE");
+			String accessibleConnectionIds = (String) templateData.get("ACCESSIBLE_CONNECTION_IDS");
 			
-			// 모든 활성 DB 연결 조회
-			String connectionSql = "SELECT CONNECTION_ID, DB_TYPE, HOST_IP, PORT, DATABASE_NAME, USERNAME, STATUS " +
-								 "FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY DB_TYPE, CONNECTION_ID";
-			List<Map<String, Object>> allConnections = jdbcTemplate.queryForList(connectionSql);
+			List<Map<String, Object>> allConnections = new ArrayList<>();
+			
+			// 템플릿 타입에 따라 연결 조회
+			if ("SHELL".equals(templateType)) {
+				// SFTP 연결 조회
+				String sftpSql = "SELECT SFTP_CONNECTION_ID as CONNECTION_ID, HOST_IP, PORT, USERNAME, STATUS " +
+							   "FROM SFTP_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_ID";
+				allConnections = jdbcTemplate.queryForList(sftpSql);
+			} else {
+				// DB 연결 조회
+				String dbSql = "SELECT CONNECTION_ID, DB_TYPE, HOST_IP, PORT, DATABASE_NAME, USERNAME, STATUS " +
+							 "FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY DB_TYPE, CONNECTION_ID";
+				allConnections = jdbcTemplate.queryForList(dbSql);
+			}
 			
 			// 접근 가능한 연결 ID가 설정되지 않았으면 모든 연결 반환
 			if (accessibleConnectionIds == null || accessibleConnectionIds.trim().isEmpty()) {
@@ -400,7 +405,7 @@ public class SqlTemplateService {
 			
 			return accessibleConnections;
 		} catch (Exception e) {
-			logger.error("접근 가능한 DB 연결 조회 실패: " + templateId, e);
+			logger.error("접근 가능한 연결 조회 실패: " + templateId, e);
 			return new ArrayList<>();
 		}
 	}
@@ -411,7 +416,7 @@ public class SqlTemplateService {
 	public Map<String, Object> getTemplateList() {
 		Map<String, Object> result = new HashMap<>();
 		try {
-			String sql = "SELECT TEMPLATE_ID, TEMPLATE_NAME FROM SQL_TEMPLATE WHERE STATUS = 'ACTIVE' ORDER BY TEMPLATE_NAME";
+			String sql = "SELECT TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_TYPE FROM SQL_TEMPLATE WHERE STATUS = 'ACTIVE' ORDER BY TEMPLATE_NAME";
 			List<Map<String, Object>> templates = jdbcTemplate.queryForList(sql);
 
 			result.put("success", true);
@@ -431,7 +436,7 @@ public class SqlTemplateService {
     	public Map<String, Object> saveSqlTemplate(String templateId, String templateName, String templateDesc, 
                                                Integer version, String status, Integer executionLimit, 
                                                Integer refreshTimeout, Boolean newline, Boolean audit, String categoryIds,
-                                               String accessibleConnectionIds, String chartMapping, String sqlContent, String configContent, String parametersJson, 
+                                               String accessibleConnectionIds, String templateType, String sqlContent, String configContent, String parametersJson, 
                                                String shortcutsJson, String additionalSqlContents, Boolean replaceAllSqlContents, String userId) {
 		Map<String, Object> result = new HashMap<>();
 
@@ -448,6 +453,7 @@ public class SqlTemplateService {
         if (refreshTimeout == null) refreshTimeout = 0;
         if (newline == null) newline = true;
         if (audit == null) audit = false;
+        if (templateType == null) templateType = "SQL";
 
 		boolean isNew = (templateId == null || templateId.trim().isEmpty());
 		if (isNew) {
@@ -456,11 +462,11 @@ public class SqlTemplateService {
 				throw new RuntimeException("이미 존재하는 템플릿 이름입니다: " + templateName);
 			}
 			templateId = templateName; // 템플릿 이름을 그대로 템플릿 ID로 사용
-			String insertSql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, CHART_MAPPING, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, NEWLINE, AUDIT, CREATED_BY) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-			jdbcTemplate.update(insertSql, templateId, templateName, templateDesc, sqlContent, accessibleConnectionIds, chartMapping, version, status, executionLimit, refreshTimeout, newline, audit, userId);
+			String insertSql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, TEMPLATE_TYPE, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, NEWLINE, AUDIT, CREATED_BY) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+			jdbcTemplate.update(insertSql, templateId, templateName, templateDesc, sqlContent, accessibleConnectionIds, templateType, version, status, executionLimit, refreshTimeout, newline, audit, userId);
 		} else {
-			String updateSql = "UPDATE SQL_TEMPLATE SET TEMPLATE_NAME = ?, TEMPLATE_DESC = ?, SQL_CONTENT = ?, ACCESSIBLE_CONNECTION_IDS = ?, CHART_MAPPING = ?, VERSION = ?, STATUS = ?, EXECUTION_LIMIT = ?, REFRESH_TIMEOUT = ?, NEWLINE = ?, AUDIT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE TEMPLATE_ID = ?";
-			jdbcTemplate.update(updateSql, templateName, templateDesc, sqlContent, accessibleConnectionIds, chartMapping, version, status, executionLimit, refreshTimeout, newline, audit, userId, templateId);
+			String updateSql = "UPDATE SQL_TEMPLATE SET TEMPLATE_NAME = ?, TEMPLATE_DESC = ?, SQL_CONTENT = ?, ACCESSIBLE_CONNECTION_IDS = ?, TEMPLATE_TYPE = ?, VERSION = ?, STATUS = ?, EXECUTION_LIMIT = ?, REFRESH_TIMEOUT = ?, NEWLINE = ?, AUDIT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE TEMPLATE_ID = ?";
+			jdbcTemplate.update(updateSql, templateName, templateDesc, sqlContent, accessibleConnectionIds, templateType, version, status, executionLimit, refreshTimeout, newline, audit, userId, templateId);
 		}
 
 		// 기존 카테고리 매핑 삭제
@@ -852,7 +858,7 @@ public class SqlTemplateService {
 	public List<Map<String, Object>> getTemplatesByCategory(String categoryId) {
 		if (categoryId == null || categoryId.trim().isEmpty() || "UNCATEGORIZED".equals(categoryId)) {
 			// 미분류 템플릿 조회
-            String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.CREATED_TIMESTAMP " +
+            String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.TEMPLATE_TYPE, t.CREATED_TIMESTAMP " +
                         "FROM SQL_TEMPLATE t " +
                         "LEFT JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
                         "WHERE t.STATUS = 'ACTIVE' AND m.TEMPLATE_ID IS NULL " +
@@ -860,7 +866,7 @@ public class SqlTemplateService {
 			return jdbcTemplate.queryForList(sql);
 		} else {
 			// 특정 카테고리의 템플릿 조회
-            String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.CREATED_TIMESTAMP " +
+            String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.TEMPLATE_TYPE, t.CREATED_TIMESTAMP " +
                         "FROM SQL_TEMPLATE t " +
                         "JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
                         "WHERE t.STATUS = 'ACTIVE' AND m.CATEGORY_ID = ? " +
@@ -1318,7 +1324,7 @@ public class SqlTemplateService {
 	 */
 	private void saveTemplateInfo(SqlTemplateInfo template, String userId) {
 		String sql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, " +
-		             "ACCESSIBLE_CONNECTION_IDS, CHART_MAPPING, VERSION, STATUS, EXECUTION_LIMIT, " +
+		             "ACCESSIBLE_CONNECTION_IDS, TEMPLATE_TYPE, VERSION, STATUS, EXECUTION_LIMIT, " +
 		             "REFRESH_TIMEOUT, NEWLINE, AUDIT, CREATED_BY, CREATED_TIMESTAMP) " +
 		             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT TIMESTAMP)";
 		
@@ -1330,7 +1336,7 @@ public class SqlTemplateService {
 			template.getTemplateDesc(),
 			template.getSqlContent(),
 			accessibleConnectionIds,
-			template.getChartMapping(),
+			template.getTemplateType(),
 			template.getVersion(),
 			template.getStatus(),
 			template.getExecutionLimit(),
@@ -1447,7 +1453,7 @@ public class SqlTemplateService {
 	private void updateTemplateInfo(SqlTemplateInfo template, String userId) {
 		String sql = "UPDATE SQL_TEMPLATE SET " +
 		             "TEMPLATE_NAME = ?, TEMPLATE_DESC = ?, SQL_CONTENT = ?, " +
-		             "ACCESSIBLE_CONNECTION_IDS = ?, CHART_MAPPING = ?, VERSION = ?, " +
+		             "ACCESSIBLE_CONNECTION_IDS = ?, TEMPLATE_TYPE = ?, VERSION = ?, " +
 		             "STATUS = ?, EXECUTION_LIMIT = ?, REFRESH_TIMEOUT = ?, " +
 		             "NEWLINE = ?, AUDIT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " +
 		             "WHERE TEMPLATE_ID = ?";
@@ -1457,7 +1463,7 @@ public class SqlTemplateService {
 			template.getTemplateDesc(),
 			template.getSqlContent(),
 			template.getAccessibleConnectionIds() != null ? String.join(",", template.getAccessibleConnectionIds()) : null,
-			template.getChartMapping(),
+			template.getTemplateType() != null ? template.getTemplateType() : "SQL",
 			template.getVersion() != null ? template.getVersion() : 1,
 			template.getStatus() != null ? template.getStatus() : "ACTIVE",
 			template.getExecutionLimit() != null ? template.getExecutionLimit() : 0,
@@ -1513,6 +1519,45 @@ public class SqlTemplateService {
 		saveSqlContents(templateId, sqlContents, userId);
 	}
 
+	/**
+	 * 템플릿 단축키 조회
+	 */
+	public List<Map<String, Object>> getShortKeys(String templateId) {
+		try {
+			String sql = "SELECT * FROM SQL_TEMPLATE_SHORTCUT WHERE SOURCE_TEMPLATE_ID = ? ORDER BY SHORTCUT_NAME";
+			return jdbcTemplate.queryForList(sql, templateId);
+		} catch (Exception e) {
+			logger.error("단축키 조회 실패 - templateId: {}", templateId, e);
+			return new ArrayList<>();
+		}
+	}
+	
+	/**
+	 * SFTP 연결 정보 조회
+	 */
+	public Map<String, Object> getConnectionInfo(String connectionId) {
+		Map<String, Object> result = new HashMap<>();
+		
+		try {
+			String sql = "SELECT * FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ?";
+			List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql, connectionId);
+			
+			if (!connections.isEmpty()) {
+				result.put("success", true);
+				result.put("data", connections.get(0));
+			} else {
+				result.put("success", false);
+				result.put("error", "SFTP 연결을 찾을 수 없습니다: " + connectionId);
+			}
+		} catch (Exception e) {
+			logger.error("SFTP 연결 정보 조회 실패 - connectionId: {}", connectionId, e);
+			result.put("success", false);
+			result.put("error", "SFTP 연결 정보 조회 중 오류가 발생했습니다: " + e.getMessage());
+		}
+		
+		return result;
+	}
+	
 	/**
 	 * 기존 관련 데이터 삭제 (레거시 - 더 이상 사용하지 않음)
 	 */

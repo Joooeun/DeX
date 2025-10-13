@@ -789,11 +789,13 @@ public class ConnectionService {
 		allConnections.addAll(dbConnections);
 
 		// SFTP 연결 조회
-		List<Map<String, Object>> sftpConnections = getSftpConnections(userId);
-		for (Map<String, Object> conn : sftpConnections) {
+		List<String> sftpConnectionIds = getSftpConnections(userId);
+		for (String connectionId : sftpConnectionIds) {
+			Map<String, Object> conn = new HashMap<>();
+			conn.put("CONNECTION_ID", connectionId);
 			conn.put("TYPE", "HOST");
+			allConnections.add(conn);
 		}
-		allConnections.addAll(sftpConnections);
 
 		return allConnections;
 	}
@@ -952,22 +954,45 @@ public class ConnectionService {
 	}
 
 	/**
-	 * SFTP 연결 목록을 조회합니다
+	 * 사용자가 권한을 가진 SFTP 연결 목록을 조회합니다
 	 * 
 	 * @param userId 사용자 ID
-	 * @return SFTP 연결 목록
+	 * @return SFTP 연결 ID 목록
 	 */
-	public List<Map<String, Object>> getSftpConnections(String userId) {
-		String sql = "SELECT * FROM SFTP_CONNECTION ORDER BY SFTP_CONNECTION_ID";
-		List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql);
-
-		// SFTP_CONNECTION_ID를 CONNECTION_ID로 매핑
-		for (Map<String, Object> conn : connections) {
-			conn.put("CONNECTION_ID", conn.get("SFTP_CONNECTION_ID"));
+	public List<String> getSftpConnections(String userId) {
+		// admin 사용자는 모든 SFTP 연결에 접근 가능
+		if (permissionService.isAdmin(userId)) {
+			String sql = "SELECT SFTP_CONNECTION_ID FROM SFTP_CONNECTION ORDER BY SFTP_CONNECTION_ID";
+			return jdbcTemplate.queryForList(sql, String.class);
 		}
 
-		// 권한 필터링 적용
-		return filterConnectionsByPermission(userId, connections, "SFTP");
+		// 일반 사용자는 권한이 있는 SFTP 연결만 필터링
+		List<String> authorizedConnections = new ArrayList<>();
+
+		try {
+			// 사용자 권한 조회
+			String sql = "SELECT DISTINCT sc.SFTP_CONNECTION_ID " 
+					+ "FROM SFTP_CONNECTION sc "
+					+ "LEFT JOIN GROUP_CONNECTION_MAPPING gcm ON sc.SFTP_CONNECTION_ID = gcm.CONNECTION_ID "
+					+ "LEFT JOIN USER_GROUP_MAPPING ugm ON gcm.GROUP_ID = ugm.GROUP_ID " 
+					+ "WHERE sc.STATUS = 'ACTIVE' " 
+					+ "AND ugm.USER_ID = ? "
+					+ "ORDER BY sc.SFTP_CONNECTION_ID";
+
+			List<Map<String, Object>> authorizedConnectionsFromDB = jdbcTemplate.queryForList(sql, userId);
+			
+			for (Map<String, Object> connection : authorizedConnectionsFromDB) {
+				String connectionId = (String) connection.get("SFTP_CONNECTION_ID");
+				if (connectionId != null) {
+					authorizedConnections.add(connectionId);
+				}
+			}
+
+		} catch (Exception e) {
+			logger.warn("SFTP 연결 권한 조회 실패, 빈 목록 반환: {} - {}", userId, e.getMessage());
+		}
+
+		return authorizedConnections;
 	}
 
 	/**

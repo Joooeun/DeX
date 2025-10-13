@@ -925,95 +925,37 @@ public class SQLTemplateController {
 	}
 
 	/**
-	 * 차트 매핑 중복 체크
+	 * 차트 매핑 중복 체크 (DEPRECATED - 차트 매핑 기능 제거됨)
+	 * @deprecated 차트 매핑 기능이 TEMPLATE_TYPE으로 대체됨
 	 */
+	@Deprecated
 	@ResponseBody
 	@RequestMapping(path = "/SQLTemplate/chart-mapping/check", method = RequestMethod.POST)
 	public Map<String, Object> checkChartMappingDuplicate(HttpServletRequest request, HttpSession session) {
-		String userId = (String) session.getAttribute("memberId");
 		Map<String, Object> result = new HashMap<>();
-
-		try {
-			String chartId = request.getParameter("chartId");
-			String excludeTemplateId = request.getParameter("excludeTemplateId");
-
-			if (chartId == null || chartId.trim().isEmpty()) {
-				result.put("success", false);
-				result.put("error", "차트 ID가 필요합니다.");
-				return result;
-			}
-
-			// 해당 차트에 매핑된 다른 템플릿이 있는지 확인
-			String sql = "SELECT TEMPLATE_ID, TEMPLATE_NAME FROM SQL_TEMPLATE WHERE CHART_MAPPING = ?";
-			List<Map<String, Object>> existingMappings = jdbcTemplate.queryForList(sql, chartId);
-
-			// excludeTemplateId를 제외한 다른 템플릿이 있는지 확인
-			Map<String, Object> conflictingTemplate = null;
-			for (Map<String, Object> mapping : existingMappings) {
-				String templateId = (String) mapping.get("TEMPLATE_ID");
-				if (!templateId.equals(excludeTemplateId)) {
-					conflictingTemplate = mapping;
-					break;
-				}
-			}
-
-			result.put("success", true);
-			result.put("exists", conflictingTemplate != null);
-			if (conflictingTemplate != null) {
-				result.put("existingTemplate", conflictingTemplate);
-			}
-
-		} catch (Exception e) {
-			logger.error("차트 매핑 중복 체크 실패", e);
-			result.put("success", false);
-			result.put("error", "차트 매핑 중복 체크 실패: " + e.getMessage());
-		}
-
+		
+		// 차트 매핑 기능이 제거되어 항상 중복 없음으로 반환
+		result.put("success", true);
+		result.put("exists", false);
+		result.put("message", "차트 매핑 기능이 제거되었습니다.");
+		
 		return result;
 	}
 
 	/**
-	 * 차트 매핑 업데이트
+	 * 차트 매핑 업데이트 (DEPRECATED - 차트 매핑 기능 제거됨)
+	 * @deprecated 차트 매핑 기능이 TEMPLATE_TYPE으로 대체됨
 	 */
+	@Deprecated
 	@ResponseBody
 	@RequestMapping(path = "/SQLTemplate/chart-mapping/update", method = RequestMethod.POST)
 	public Map<String, Object> updateChartMapping(HttpServletRequest request, HttpSession session) {
-		String userId = (String) session.getAttribute("memberId");
 		Map<String, Object> result = new HashMap<>();
-
-		try {
-			String chartId = request.getParameter("chartId");
-			String templateId = request.getParameter("templateId");
-
-			if (chartId == null || chartId.trim().isEmpty()) {
-				result.put("success", false);
-				result.put("error", "차트 ID가 필요합니다.");
-				return result;
-			}
-
-			if (templateId == null || templateId.trim().isEmpty()) {
-				result.put("success", false);
-				result.put("error", "템플릿 ID가 필요합니다.");
-				return result;
-			}
-
-			// 기존 매핑 해제
-			String clearSql = "UPDATE SQL_TEMPLATE SET CHART_MAPPING = NULL WHERE CHART_MAPPING = ?";
-			jdbcTemplate.update(clearSql, chartId);
-
-			// 새 매핑 설정
-			String updateSql = "UPDATE SQL_TEMPLATE SET CHART_MAPPING = ? WHERE TEMPLATE_ID = ?";
-			jdbcTemplate.update(updateSql, chartId, templateId);
-
-			result.put("success", true);
-			result.put("message", "차트 매핑이 업데이트되었습니다.");
-
-		} catch (Exception e) {
-			logger.error("차트 매핑 업데이트 실패", e);
-			result.put("success", false);
-			result.put("error", "차트 매핑 업데이트 실패: " + e.getMessage());
-		}
-
+		
+		// 차트 매핑 기능이 제거되어 항상 성공으로 반환
+		result.put("success", true);
+		result.put("message", "차트 매핑 기능이 제거되었습니다.");
+		
 		return result;
 	}
 	

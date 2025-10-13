@@ -1,6 +1,8 @@
 <%@include file="common/common.jsp"%>
 <c:set var="textlimit" value="1900000" />
 
+<!-- 기존 SQL 실행 화면 -->
+
 <!-- ======================================== -->
 <!-- SQL 실행 페이지 - 스타일 정의 -->
 <!-- ======================================== -->
@@ -156,23 +158,27 @@ var tableHeight=0;
 			}
 
 		// 차트 초기화
-		ctx = document.getElementById('myChart');
-		myChart = myChart = new Chart(ctx, {
-			type: 'line',
-			data: {
-				labels: [''],
-				datasets: [{
-					label: 'My First Dataset',
-					data: [65, 59, 80, 81, 56, 55, 40],
-					fill: false,
-					borderColor: 'rgb(75, 192, 192)',
-					tension: 0.1
-				}]
-			},
-			options: {
-				maintainAspectRatio: false,
-			}
-		});
+		// SQL 타입일 때만 차트 초기화 처리
+		if (typeof templateType !== 'undefined' && templateType === 'SQL') {
+			ctx = document.getElementById('myChart');
+			myChart = new Chart(ctx, {
+				type: 'line',
+				data: {
+					labels: [''],
+					datasets: [{
+						label: 'My First Dataset',
+						data: [65, 59, 80, 81, 56, 55, 40],
+						fill: false,
+						borderColor: 'rgb(75, 192, 192)',
+						tension: 0.1
+					}]
+				},
+				options: {
+					maintainAspectRatio: false,
+				}
+			});
+		}
+		
 
 		// ========================================
 		// 데이터베이스 연결 목록 조회 (템플릿 접근가능한 연결과 교집합)
@@ -186,17 +192,23 @@ var tableHeight=0;
 			data: { templateId: templateId },
 			success: function(templateResult) {
 				if (templateResult.success && templateResult.data) {
+					var templateType = templateResult.data.templateType;
 					var accessibleConnectionIds = templateResult.data.accessibleConnectionIds || '';
 					var allowedConnections = accessibleConnectionIds ? accessibleConnectionIds.split(',') : [];
 					
-					// 모든 DB 연결 조회
+					// 템플릿 타입에 따라 연결 타입 결정
+					var connectionType = (templateType === 'SHELL') ? 'HOST' : 'DB';
+					var selectId = (templateType === 'SHELL') ? '#hostSelect' : '#connectionlist';
+					
+					// 연결 목록 조회
 					$.ajax({
 						type: 'post',
 						url: "/Connection/list",
 						data: {
-							TYPE: "DB"
+							TYPE: connectionType
 						},
 						success: function(result) {
+							console.log(result)
 							// 접근가능한 연결만 필터링하여 드롭다운에 추가
 							for (var i = 0; i < result.data.length; i++) {
 								var connectionId = result.data[i].split('.')[0];
@@ -204,38 +216,38 @@ var tableHeight=0;
 								// 템플릿에 접근가능한 연결이 설정되어 있으면 필터링
 								if (allowedConnections.length > 0) {
 									if (allowedConnections.includes(connectionId)) {
-										$('#connectionlist').append("<option value='" + connectionId + "'>" + connectionId + "</option>");
+										$(selectId).append("<option value='" + connectionId + "'>" + connectionId + "</option>");
 									}
 								} else {
 									// 접근가능한 연결이 설정되지 않았으면 모든 연결 표시
-									$('#connectionlist').append("<option value='" + connectionId + "'>" + connectionId + "</option>");
+									$(selectId).append("<option value='" + connectionId + "'>" + connectionId + "</option>");
 								}
 							}
 
-							// 기본 선택: 세션에 값이 있거나 DB 연결이 하나만 가능할 때만
+							// 기본 선택: 세션에 값이 있거나 연결이 하나만 가능할 때만
 							var selectedConnection = '${Connection}';
-							var allOptions = $('#connectionlist option');
+							var allOptions = $(selectId + ' option');
 							var connectionOptions = allOptions.filter(function() {
-								return $(this).val() !== '' && $(this).val() !== '====Connection====';
+								return $(this).val() !== '' && $(this).val() !== '====Connection====' && $(this).val() !== '====SFTP Connection====';
 							});
 							var connectionCount = connectionOptions.length;
 							
 							if (selectedConnection && selectedConnection.trim() !== '') {
 								// 세션에 선택된 연결이 있으면 해당 연결 선택
-								$('#connectionlist option').each(function() {
+								$(selectId + ' option').each(function() {
 									if ($(this).val() === selectedConnection) {
 										$(this).prop('selected', true);
 										return false;
 									}
 								});
 							} else if (connectionCount === 1) {
-								// 접근가능한 DB 연결이 하나만 있으면 자동 선택
+								// 접근가능한 연결이 하나만 있으면 자동 선택
 								connectionOptions.first().prop('selected', true);
 							}
 							
-							var shortkey = ${Excute};
-
-							if (shortkey && $("#connectionlist option:selected").val() != '') {
+							
+							var shortkey = '${Excute}';
+							if (shortkey && $(selectId + " option:selected").val() != '') {
 								excute();
 							}
 						},
@@ -637,71 +649,104 @@ var tableHeight=0;
 
 		let ondate = new Date();
 		
-		// 2025-04-29 limit 2만으로 제한
-		var limit = 1000;
+		// 템플릿 타입에 따른 실행 로직 분기
+		var templateType = '${templateType}';
 		
-		// SQL 템플릿 실행 AJAX 요청
-		await $.ajax({
-			type: 'post',
-			url: '/SQLTemplate/execute',
-			data: {
-				templateId: '${templateId}',
-				connectionId: $("#connectionlist").val(),
-				sqlContent: $("#sql_text").val(),
-				parameters: JSON.stringify(params),  // 일반 파라미터만
-				log: JSON.stringify(log),            // LOG 파라미터만 (예전 소스와 동일)
-				limit: $("#limit").val() == 0 ? (limit ? 20000 : 0) : (limit ?  Math.min(20000,  $("#limit").val()) : $("#limit").val())
-			},
-			success: function(result, status, jqXHR) {
-				
-				
-				// 테이블 높이 계산 (최초 1회만)
-				if(tableHeight==0){
-					tableHeight = Math.max(200,$("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 200);
+		if (templateType === 'SHELL') {
+			// Shell 실행 로직
+			var connectionId = $('#hostSelect').val();
+			
+			if (!connectionId) {
+				alert('SFTP 연결을 선택하세요.');
+				$("#excutebtn").attr('disabled', false);
+				$("#loadingdiv").css('display','none');
+				return;
+			}
+			
+			await $.ajax({
+				type: 'post',
+				url: '/ShellExecute/run',
+				data: {
+					templateId: '${templateId}',
+					hostId: connectionId,
+					parameters: JSON.stringify(params)  // 파라미터 지원
+				},
+				success: function(result) {
+					// Shell 결과를 텍스트로 표시
+					displayShellResult(result);
+				},
+				error: function() {
+					alert("Shell 실행 중 오류가 발생했습니다.");
+				},
+				complete: function() {
+					$("#excutebtn").attr('disabled', false);
+					$("#loadingdiv").css('display','none');
 				}
-				
-				// 세션 만료 체크
-				if (jqXHR.getResponseHeader("SESSION_EXPIRED") === "true") {
-					alert("세션이 만료되었습니다.");
-					window.parent.location.href = "/Login";
-				}
-
-				$("#Resultbox").css("display", "block");
-
-				var newline = $("#newline").prop('checked');
-				
-				// data 래퍼에서 실제 결과 추출
-				var resultData = result.data || result;
-				
-				// 결과 헤더 처리
-				if (resultData.rowhead!=null) {
+			});
+		} else {
+			// 2025-04-29 limit 2만으로 제한
+			var limit = 1000;
+			
+			// SQL 템플릿 실행 AJAX 요청
+			await $.ajax({
+				type: 'post',
+				url: '/SQLTemplate/execute',
+				data: {
+					templateId: '${templateId}',
+					connectionId: $("#connectionlist").val(),
+					sqlContent: $("#sql_text").val(),
+					parameters: JSON.stringify(params),  // 일반 파라미터만
+					log: JSON.stringify(log),            // LOG 파라미터만 (예전 소스와 동일)
+					limit: $("#limit").val() == 0 ? (limit ? 20000 : 0) : (limit ?  Math.min(20000,  $("#limit").val()) : $("#limit").val())
+				},
+				success: function(result, status, jqXHR) {
+					// 테이블 높이 계산 (최초 1회만)
+					if(tableHeight==0){
+						tableHeight = Math.max(200,$("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 200);
+					}
 					
-					// 컬럼 정보가 변경된 경우에만 재생성
-					if(JSON.stringify(resultData.rowhead)==JSON.stringify(temp_column)){
-						
-					}else{
-						temp_column = resultData.rowhead
-						column = [];
-						
-						// 컬럼 정의 생성
-						for (var title = 0; title < resultData.rowhead.length; title++) {
-							
-							
-							if (resultData.rowlength) {
-							
-								var culmnitem = {
-									title: resultData.rowhead[title].title,
-									field: title+'',
-									headerTooltip: resultData.rowhead[title].desc
-								}
+					// 세션 만료 체크
+					if (jqXHR.getResponseHeader("SESSION_EXPIRED") === "true") {
+						alert("세션이 만료되었습니다.");
+						window.parent.location.href = "/Login";
+					}
 
-								if (resultData.rowhead[title].rowlength >= 50) {
-									culmnitem.width = 4 * resultData.rowhead[title].rowlength / 10 + 'vw';
-								}
+					$("#Resultbox").css("display", "block");
 
+					var newline = $("#newline").prop('checked');
+					
+					// data 래퍼에서 실제 결과 추출
+					var resultData = result.data || result;
+					
+					// 결과 헤더 처리
+					if (resultData.rowhead!=null) {
+						
+						// 컬럼 정보가 변경된 경우에만 재생성
+						if(JSON.stringify(resultData.rowhead)==JSON.stringify(temp_column)){
+							
+						}else{
+							temp_column = resultData.rowhead
+							column = [];
+							
+							// 컬럼 정의 생성
+							for (var title = 0; title < resultData.rowhead.length; title++) {
 								
-								if ([-6, 5, 4, 6, 7, 8, 2, -5, 3].includes(resultData.rowhead[title].type)) {
-									culmnitem.hozAlign = "right";
+								
+								if (resultData.rowlength) {
+								
+									var culmnitem = {
+										title: resultData.rowhead[title].title,
+										field: title+'',
+										headerTooltip: resultData.rowhead[title].desc
+									}
+
+									if (resultData.rowhead[title].rowlength >= 50) {
+										culmnitem.width = 4 * resultData.rowhead[title].rowlength / 10 + 'vw';
+									}
+
+									
+									if ([-6, 5, 4, 6, 7, 8, 2, -5, 3].includes(resultData.rowhead[title].type)) {
+										culmnitem.hozAlign = "right";
 								} else {
 									if ($("#newline").prop('checked')) {
 										culmnitem.formatter = "textarea"
@@ -856,6 +901,7 @@ var tableHeight=0;
 				alert('시스템오류');
 			}
 		});
+		}
 	}
 	
 	// ========================================
@@ -1100,6 +1146,23 @@ var tableHeight=0;
 	}
 
 	// ========================================
+	// Shell 결과 표시 함수
+	// ========================================
+	function displayShellResult(result) {
+		if (result.success) {
+			$('#result_table').html(result.output || '실행 완료 (출력 없음)');
+			$('#result-text').html('실행 완료 - ' + dateFormat2(new Date()));
+		} else {
+			$('#result_table').html('오류: ' + (result.error || '알 수 없는 오류'));
+			$('#result-text').html('실행 실패');
+		}
+		
+		// 결과 영역 표시
+		$('#Resultbox').show();
+		$('#result_table').show();
+	}
+	
+	// ========================================
 	// Limit 값 체크 함수
 	// ========================================
 	function checkLimit(limit) {
@@ -1140,10 +1203,19 @@ var tableHeight=0;
 				<div class="box box-default collapse in">
 					<div class="box-header with-border">
 						<h5 class="box-title">파라미터 입력</h5>
-						&nbsp;&nbsp;&nbsp;  <select id="connectionlist" onchange="sessionCon(this.value)">
-							<option value="">====Connection====</option>
-						</select>
-
+						&nbsp;&nbsp;&nbsp;  
+						<c:choose>
+							<c:when test="${templateType == 'SHELL'}">
+								<select id="hostSelect" name="hostId" class="form-control" style="width: 200px; display: inline-block;">
+									<option value="">====SFTP Connection====</option>
+								</select>
+							</c:when>
+							<c:otherwise>
+								<select id="connectionlist" onchange="sessionCon(this.value)">
+									<option value="">====Connection====</option>
+								</select>
+							</c:otherwise>
+						</c:choose>
 					</div>
 
 					<form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:startexcute();">
@@ -1235,15 +1307,18 @@ var tableHeight=0;
 						<!-- Nav tabs -->
 						<ul class="nav nav-tabs" role="tablist">
 							<li role="presentation" class="active"><a href="#result" aria-controls="result" role="tab" data-toggle="tab">Result</a></li>
-							<li role="presentation"><a href="#chart" aria-controls="chart" role="tab" data-toggle="tab">Chart</a></li>
+							<c:if test="${templateType != 'SHELL'}">
+								<li role="presentation"><a href="#chart" aria-controls="chart" role="tab" data-toggle="tab">Chart</a></li>
+							</c:if>
 							<!-- <li style="float: right; al"><i class="fa fa-floppy-o"></i></li> -->
-							<li style="float: right; margin-right: 5px"><label style="margin: 0 3px 0 3px;"> limit&nbsp; <input type="number" min="0" max="500" id="limit" value="${not empty limit ? limit : 1000}"
-									onblur="checkLimit(this)" />
-							</label> <label style="margin: 0 3px 0 3px;"> <input type="checkbox" id="newline" <c:if test="${newline}">checked</c:if> /> 개행보기
-							</label> <!-- <label style="margin: 0 3px 0 3px;">
-									<a><i class="fa fa-floppy-o"></i> 저장</a>
-								</label> --></li>
-
+							<c:if test="${templateType != 'SHELL'}">
+								<li style="float: right; margin-right: 5px"><label style="margin: 0 3px 0 3px;"> limit&nbsp; <input type="number" min="0" max="500" id="limit" value="${not empty limit ? limit : 1000}"
+										onblur="checkLimit(this)" />
+								</label> <label style="margin: 0 3px 0 3px;"> <input type="checkbox" id="newline" <c:if test="${newline}">checked</c:if> /> 개행보기
+								</label> <!-- <label style="margin: 0 3px 0 3px;">
+										<a><i class="fa fa-floppy-o"></i> 저장</a>
+									</label> --></li>
+							</c:if>
 						</ul>
 
 						<!-- Tab panes -->
@@ -1263,20 +1338,30 @@ var tableHeight=0;
 										</div>
 									</c:if>
 								</div>
-								<div id="result_table" class="tabulator-placeholder table-striped table-bordered" style="display: block"></div>
-								<div style="text-align: center; margin-top: 5px;">
-									<button type="button" id="expenda" class="btn btn-sm btn-default" style="border-radius: 50%; width: 30px; height: 30px; padding: 0;">
-										<i class="fa fa-chevron-down"></i>
-									</button>
-								</div>
+								<c:choose>
+									<c:when test="${templateType == 'SHELL'}">
+										<!-- Shell 결과: 터미널 스타일 -->
+										<div id="result_table" class="shell-result" style="background-color: #2d3748; color: #e2e8f0; padding: 15px; font-family: 'Courier New', monospace; white-space: pre-wrap; word-wrap: break-word; max-height: 500px; overflow-y: auto; display: none;"></div>
+									</c:when>
+									<c:otherwise>
+										<!-- SQL 결과: 기존 테이블 -->
+										<div id="result_table" class="tabulator-placeholder table-striped table-bordered" style="display: block"></div>
+										<div style="text-align: center; margin-top: 5px;">
+											<button type="button" id="expenda" class="btn btn-sm btn-default" style="border-radius: 50%; width: 30px; height: 30px; padding: 0;">
+												<i class="fa fa-chevron-down"></i>
+											</button>
+										</div>
+									</c:otherwise>
+								</c:choose>
 							</div>
 
-							<div role="tabpanel" class="tab-pane" id="chart">
-
-								<div style="overflow-y: auto; overflow-x: auto; height: calc(100vh * 0.5); width: 100%;">
-									<canvas id="myChart" width="100%" height="100%"></canvas>
+							<c:if test="${templateType != 'SHELL'}">
+								<div role="tabpanel" class="tab-pane" id="chart">
+									<div style="overflow-y: auto; overflow-x: auto; height: calc(100vh * 0.5); width: 100%;">
+										<canvas id="myChart" width="100%" height="100%"></canvas>
+									</div>
 								</div>
-							</div>
+							</c:if>
 						</div>
 					</div>
 				</div>

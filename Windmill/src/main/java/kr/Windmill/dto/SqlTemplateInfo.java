@@ -24,8 +24,8 @@ public class SqlTemplateInfo {
     @JsonProperty("accessibleConnectionIds")
     private List<String> accessibleConnectionIds = new ArrayList<>();
     
-    @JsonProperty("chartMapping")
-    private String chartMapping;
+    @JsonProperty("templateType")
+    private String templateType = "SQL";
     
     @JsonProperty("version")
     private Integer version = 1;
@@ -89,12 +89,12 @@ public class SqlTemplateInfo {
         this.accessibleConnectionIds = accessibleConnectionIds != null ? accessibleConnectionIds : new ArrayList<>();
     }
     
-    public String getChartMapping() {
-        return chartMapping;
+    public String getTemplateType() {
+        return templateType;
     }
     
-    public void setChartMapping(String chartMapping) {
-        this.chartMapping = chartMapping;
+    public void setTemplateType(String templateType) {
+        this.templateType = templateType != null ? templateType : "SQL";
     }
     
     public Integer getVersion() {
@@ -153,7 +153,7 @@ public class SqlTemplateInfo {
                 ", templateDesc='" + templateDesc + '\'' +
                 ", sqlContent='" + sqlContent + '\'' +
                 ", accessibleConnectionIds=" + accessibleConnectionIds +
-                ", chartMapping='" + chartMapping + '\'' +
+                ", templateType='" + templateType + '\'' +
                 ", version=" + version +
                 ", status='" + status + '\'' +
                 ", executionLimit=" + executionLimit +

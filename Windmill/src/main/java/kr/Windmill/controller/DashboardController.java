@@ -282,7 +282,8 @@ public class DashboardController {
             
             // 결과 데이터 구성 - 캐시된 데이터 우선 사용
             Map<String, Object> allData = new HashMap<>();
-            String[] chartMappings = {"APPL_COUNT", "LOCK_WAIT_COUNT", "ACTIVE_LOG", "FILESYSTEM"};
+            // 차트 매핑 기능이 제거됨 - 빈 배열 사용
+            String[] chartMappings = {};
             
             for (String connId : connectionIds) {
                 Map<String, Object> dbData = new HashMap<>();
@@ -325,77 +326,16 @@ public class DashboardController {
     }
     
     /**
-     * 단일 차트 데이터 조회 (내부 메서드)
+     * 단일 차트 데이터 조회 (DEPRECATED - 차트 매핑 기능 제거됨)
+     * @deprecated 차트 매핑 기능이 TEMPLATE_TYPE으로 대체됨
      */
+    @Deprecated
     private Map<String, Object> getSingleChartData(String chartMapping, String connectionId, HttpSession session) {
         Map<String, Object> result = new HashMap<>();
         
-        try {
-            // DB 기반 차트 설정 확인
-            Map<String, Object> chartTemplate = sqlTemplateService.getTemplateByChartMapping(chartMapping);
-            
-            if (chartTemplate == null) {
-                result.put("error", "차트 설정을 찾을 수 없습니다: " + chartMapping);
-                result.put("errorType", "CHART_NOT_FOUND");
-                return result;
-            }
-            
-            // SQL 템플릿 실행
-            String templateId = (String) chartTemplate.get("TEMPLATE_ID");
-            String targetConnectionId = connectionId;
-            
-            // 연결 ID가 없으면 템플릿의 접근 가능한 연결 중 첫 번째 사용
-            if (targetConnectionId == null || targetConnectionId.trim().isEmpty()) {
-                Object accessibleConnectionsObj = chartTemplate.get("accessibleConnections");
-                if (accessibleConnectionsObj instanceof List && !((List<?>) accessibleConnectionsObj).isEmpty()) {
-                    targetConnectionId = (String) ((List<?>) accessibleConnectionsObj).get(0);
-                } else {
-                    result.put("error", "차트 실행을 위한 연결 ID가 지정되지 않았습니다.");
-                    return result;
-                }
-            }
-            
-            // SqlTemplateExecuteDto 생성
-            SqlTemplateExecuteDto executeDto = new SqlTemplateExecuteDto();
-            executeDto.setTemplateId(templateId);
-            executeDto.setConnectionId(targetConnectionId);
-            executeDto.setLimit(1000);
-            
-            // SQL 실행
-            @SuppressWarnings("rawtypes")
-            Map<String, List> sqlResult = sqlExecuteService.executeTemplateSQL(executeDto);
-            
-            // SQL 결과를 차트 데이터로 변환
-            @SuppressWarnings("unchecked")
-            List<Map<String, String>> rowbody = (List<Map<String, String>>) sqlResult.get("rowbody");
-            
-            // SQL 에러 체크
-            if (sqlResult.containsKey("error")) {
-                result.put("error", sqlResult.get("error"));
-                return result;
-            }
-            
-            // success 필드로 성공 여부 확인
-            @SuppressWarnings("unchecked")
-            List<Boolean> successList = (List<Boolean>) sqlResult.get("success");
-            if (successList != null && !successList.isEmpty() && !successList.get(0)) {
-                result.put("error", "SQL 실행 오류가 발생했습니다.");
-                return result;
-            }
-            
-            // 성공 결과 반환
-            result.put("success", true);
-            result.put("templateId", templateId);
-            result.put("template", chartTemplate);
-            result.put("result", rowbody);
-            result.put("hash", generateHash(rowbody));
-            
-        } catch (Exception e) {
-            cLog.monitoringLog("DASHBOARD_ERROR", "차트 " + chartMapping + " [" + connectionId + "] 조회 실패: " + e.getMessage());
-            result.put("error", "차트 데이터 조회 중 오류가 발생했습니다: " + e.getMessage());
-            result.put("errorType", "EXCEPTION");
-        }
-        
+        // 차트 매핑 기능이 제거되어 에러 반환
+        result.put("error", "차트 매핑 기능이 제거되었습니다: " + chartMapping);
+        result.put("errorType", "CHART_MAPPING_DEPRECATED");
         return result;
     }
     

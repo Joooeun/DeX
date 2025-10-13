@@ -99,13 +99,9 @@ public class ConnectionController {
 				result.put("data", dbConnections);
 			} else if ("HOST".equals(type)) {
 				// FileRead.jsp, FileUpload.jsp에서 사용: 사용자가 권한을 가진 SFTP 연결만 반환
-				List<Map<String, Object>> sftpConnections = connectionService.getSftpConnections(userId);
-				List<String> connectionIds = new ArrayList<>();
-				for (Map<String, Object> conn : sftpConnections) {
-					connectionIds.add((String) conn.get("CONNECTION_ID"));
-				}
+				List<String> sftpConnections = connectionService.getSftpConnections(userId);
 				result.put("success", true);
-				result.put("data", connectionIds);
+				result.put("data", sftpConnections);
 			} else {
 				// 관리화면에서 사용: 모든 연결 목록 (페이징 포함)
 				String searchKeyword = request.getParameter("searchKeyword");

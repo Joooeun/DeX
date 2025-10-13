@@ -176,18 +176,16 @@ $(document).ready(function() {
 
 			window.open(pathval.replace("?", "?param="), '_blank')
 		} else {
-			if (value.split('&')[0].includes('.htm')) {
-
-				document.ParamForm.action = "/HTML?Path=" + value.split('&')[0];
-			} else {
-
-				document.ParamForm.action = "/SQL?Excute=" + value.split('&')[2] + "&templateId=" + value.split('&')[0];
-			}
+			// 템플릿 실행 - 통합 엔드포인트 사용
+			var templateId = value.split('&')[0];
+			var excuteParam = value.split('&')[2];
+			
+			document.ParamForm.action = "/Template/execute?templateId=" + templateId + 
+				"&Excute=" + excuteParam;
 			
 			document.ParamForm.method = "POST";
 			document.ParamForm.target = target;
 			document.ParamForm.submit();
-
 
 			document.ParamForm.action = "javascript:startexcute();";
 			document.ParamForm.target = "";
@@ -239,26 +237,13 @@ $(document).ready(function() {
 				folder.append(setMenu(list.list, child));
 
 				parent.append(folder);
-			} else if (list.type === 'sql') {
-				// SQL 템플릿인 경우
-				var childItem = $('<li><a href="/SQL?templateId=' +
-					list.templateId + '" target="iframe" id="' +
-					list.Name.split('.')[0] + '">' +
-					list.Name.split('.')[0] + '</a></li>');
-				parent.append(childItem);
-			} else if (list.Name && list.Name.includes('.htm')) {
-				// HTML 파일인 경우
-				var childItem = $('<li><a href="/HTML?Path=' +
-					encodeURI(list.Path) + '" target="iframe" id="' +
-					list.Name.split('_')[0] + '">' +
-					list.Name.split('.')[0] + '</a></li>');
-				parent.append(childItem);
-			} else if (list.Path) {
-				// 기존 파일 기반 SQL인 경우
-				var childItem = $('<li><a href="/SQL?Path=' +
-					encodeURI(list.Path) + '" target="iframe" id="' +
-					list.Name.split('_')[0] + '">' +
-					list.Name.split('.')[0] + '</a></li>');
+			} else {
+				// 템플릿 아이템 처리 (새로운 탭 시스템 사용)
+				var href = "/Template/execute?templateId=" + list.templateId;
+				
+				// 메뉴 아이템 생성 (새로운 탭 시스템 사용)
+				var childItem = $('<li><a href="javascript:void(0)" onclick="window.addTemplateTab(\'' + list.templateId + '\', \'' + list.Name + '\', \'' + href + '\')" id="' +
+					list.Name + '">' + list.Name + '</a></li>');
 				parent.append(childItem);
 			}
 		}

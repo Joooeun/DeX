@@ -12,9 +12,11 @@ import java.util.List;
 public interface TemplateMapper {
     
     /**
-     * 차트 매핑별 새로고침 주기 조회
-     * @return 차트 매핑별 설정 정보
+     * 차트 매핑별 새로고침 주기 조회 (DEPRECATED - 차트 매핑 기능 제거됨)
+     * @deprecated 차트 매핑 기능이 TEMPLATE_TYPE으로 대체됨
+     * @return 빈 리스트 반환
      */
+    @Deprecated
     @Select("SELECT " +
             "    CHART_MAPPING as chartMapping, " +
             "    REFRESH_TIMEOUT as refreshTimeout " +
@@ -26,10 +28,12 @@ public interface TemplateMapper {
     List<TemplateConfig> getChartMappingConfigs();
     
     /**
-     * 특정 차트 매핑의 새로고침 주기 조회
-     * @param chartMapping 차트 매핑
-     * @return 새로고침 주기 (밀리초)
+     * 특정 차트 매핑의 새로고침 주기 조회 (DEPRECATED - 차트 매핑 기능 제거됨)
+     * @deprecated 차트 매핑 기능이 TEMPLATE_TYPE으로 대체됨
+     * @param chartMapping 차트 매핑 (사용되지 않음)
+     * @return 기본값 0 반환
      */
+    @Deprecated
     @Select("SELECT REFRESH_TIMEOUT " +
             "FROM SQL_TEMPLATE " +
             "WHERE STATUS = 'ACTIVE' " +

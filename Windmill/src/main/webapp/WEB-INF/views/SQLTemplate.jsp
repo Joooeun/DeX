@@ -84,15 +84,10 @@
 				window.SqlTemplateState.lastLoadTime = Date.now();
 			}, 1000);
 
-			// 차트 매핑 변경 이벤트 (특별한 중복 체크 로직이 있으므로 별도 처리)
-			$('#sqlChartMapping').on('change', function () {
-				var selectedChart = $(this).val();
-				var currentTemplateId = $('#sqlTemplateId').val();
-
-				if (selectedChart && selectedChart.trim() && currentTemplateId && currentTemplateId.trim()) {
-					// 차트 매핑 중복 체크
-					checkChartMappingDuplicate(selectedChart, currentTemplateId);
-				}
+			// 템플릿 타입 변경 이벤트
+			$('#sqlTemplateType').on('change', function () {
+				adjustEditorForTemplateType();
+				markTemplateChanged();
 			});
 		});
 
@@ -542,45 +537,29 @@
 			return $(itemHtml)[0]; // jQuery 객체를 DOM 요소로 변환
 		}
 
-		// 차트 매핑 중복 체크 함수
-		function checkChartMappingDuplicate(chartId, excludeTemplateId) {
-			makeAjaxRequest({
-				method: 'POST',
-				url: '/SQLTemplate/chart-mapping/check',
-				data: { chartId: chartId, excludeTemplateId: excludeTemplateId },
-				onSuccess: function(result) {
-					if (result.exists) {
-						var existingTemplate = result.existingTemplate;
-						var confirmMessage = '이미 "' + existingTemplate.TEMPLATE_NAME + '" 템플릿이 "' + chartId + '" 차트에 매핑되어 있습니다.\n\n기존 매핑을 해제하고 이 템플릿으로 변경하시겠습니까?';
-
-						if (confirm(confirmMessage)) {
-							// 기존 매핑 해제 후 새 매핑 설정
-							updateChartMapping(chartId, excludeTemplateId);
-						} else {
-							// 사용자가 취소한 경우 원래 값으로 되돌리기
-							$('#sqlChartMapping').val('');
-						}
-					}
-				},
-				onError: function() {
-					$('#sqlChartMapping').val('');
+		// 템플릿 타입 변경 시 에디터 모드 조정
+		function adjustEditorForTemplateType() {
+			var templateType = $('#sqlTemplateType').val();
+			var editor = window.sqlEditor_default;
+			
+			if (editor) {
+				switch(templateType) {
+					case 'HTML':
+						editor.setOption('mode', 'htmlmixed');
+						break;
+					case 'SHELL':
+						editor.setOption('mode', 'shell');
+						break;
+					case 'PYTHON':
+						editor.setOption('mode', 'python');
+						break;
+					case 'JAVASCRIPT':
+						editor.setOption('mode', 'javascript');
+						break;
+					default:
+						editor.setOption('mode', 'sql');
 				}
-			});
-		}
-
-		// 차트 매핑 업데이트 함수
-		function updateChartMapping(chartId, templateId) {
-			makeAjaxRequest({
-				method: 'POST',
-				url: '/SQLTemplate/chart-mapping/update',
-				data: { chartId: chartId, templateId: templateId },
-				onSuccess: function(result) {
-					showToast('차트 매핑이 업데이트되었습니다.', 'success');
-				},
-				onError: function() {
-					$('#sqlChartMapping').val('');
-				}
-			});
+			}
 		}
 
 		// 카테고리별 템플릿 개수 로드
@@ -671,14 +650,41 @@
 				data: templates,
 				emptyMessage: '템플릿이 없습니다.',
 				itemRenderer: function(template) {
-					var item = $('<div class="template-item" data-id="'
-						+ template.TEMPLATE_ID + '" onclick="selectTemplate(\''
-						+ template.TEMPLATE_ID + '\')">' + '<div class="row">'
-						+ '<div class="col-md-12">' + '<strong>'
-						+ template.TEMPLATE_NAME + '</strong>'
-						+ '<small style="float:right;">생성일: '
-						+ formatDate(template.CREATED_TIMESTAMP) + '</small>'
-						+ '</div>' + '</div>' + '</div>');
+					// 타입별 배지 생성
+					var typeBadge = '';
+					var badgeClass = '';
+					
+					switch((template.TEMPLATE_TYPE || 'SQL').toUpperCase()) {
+						case 'SQL':
+							badgeClass = 'bg-blue';
+							typeBadge = 'SQL';
+							break;
+						case 'HTML':
+							badgeClass = 'bg-orange';
+							typeBadge = 'HTML';
+							break;
+						case 'SHELL':
+							badgeClass = 'bg-green';
+							typeBadge = 'SHELL';
+							break;
+						case 'PYTHON':
+							badgeClass = 'bg-red';
+							typeBadge = 'PYTHON';
+							break;
+						default:
+							badgeClass = 'bg-gray';
+							typeBadge = template.TEMPLATE_TYPE || 'SQL';
+					}
+					
+					var item = $('<div class="template-item" data-id="' + template.TEMPLATE_ID + 
+						'" onclick="selectTemplate(\'' + template.TEMPLATE_ID + '\')">' +
+						'<div class="row">' +
+						'<div class="col-md-12">' +
+						'<span class="badge ' + badgeClass + '" style="margin-right: 8px;">' + typeBadge + '</span>' +
+						'<strong>' + template.TEMPLATE_NAME + '</strong>' +
+						'</div>' +
+						'</div>' +
+						'</div>');
 					return item[0]; // jQuery 객체를 DOM 요소로 변환
 				}
 			});
@@ -1544,7 +1550,7 @@
 			$('#sqlTemplateStatus').val('ACTIVE');
 			$('#sqlExecutionLimit').val('0');
 			$('#sqlRefreshTimeout').val('0');
-			$('#sqlChartMapping').val('');
+			$('#sqlTemplateType').val('SQL');
 			// 체크박스 설정 (이벤트 트리거 방지)
 			$('#sqlNewline').off('change').prop('checked', false);
 			$('#sqlInactive').prop('checked', false);
@@ -1779,7 +1785,7 @@
 					templateDesc: $('#sqlTemplateDesc').val() || '',
 					sqlContent: getSqlContentFromEditor('sqlEditor_default'),
 					accessibleConnectionIds: $('#accessibleConnections').val() || [],
-					chartMapping: $('#sqlChartMapping').val() || '',
+					templateType: $('#sqlTemplateType').val() || 'SQL',
 					version: 1,
 					status: $('#sqlTemplateStatus').val() || 'ACTIVE',
 					executionLimit: parseInt($('#sqlExecutionLimit').val()) || 0,
@@ -1975,7 +1981,7 @@
 						$('#sqlTemplateStatus').val(template.sqlStatus || 'ACTIVE');
 						$('#sqlExecutionLimit').val(template.executionLimit || 0);
 						$('#sqlRefreshTimeout').val(template.refreshTimeout || 0);
-						$('#sqlChartMapping').val(template.chartMapping || '');
+						$('#sqlTemplateType').val(template.templateType || 'SQL');
 						// 체크박스 설정 (이벤트 트리거 방지)
 						$('#sqlNewline').off('change').prop('checked', template.newline === true);
 						$('#sqlInactive').prop('checked', template.sqlStatus === 'INACTIVE');
@@ -3290,16 +3296,16 @@
 										<div class="col-md-3">
 											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
-													title="대시보드에서 차트로 표시할 컬럼을 선택합니다"
+													title="템플릿의 타입을 선택합니다. SQL, HTML, Shell Script 등 다양한 타입을 지원합니다."
 													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													차트 매핑
+													템플릿 타입
 												</label>
-												<select class="form-control" id="sqlChartMapping">
-													<option value="">차트 매핑 없음</option>
-													<option value="APPL_COUNT">애플리케이션 수</option>
-													<option value="LOCK_WAIT_COUNT">락 대기 수</option>
-													<option value="ACTIVE_LOG">활성 로그</option>
-													<option value="FILESYSTEM">파일시스템</option>
+												<select class="form-control" id="sqlTemplateType">
+													<option value="SQL">SQL</option>
+													<option value="HTML">HTML</option>
+													<option value="SHELL">Shell Script</option>
+													<!-- <option value="PYTHON">Python</option>
+													<option value="JAVASCRIPT">JavaScript</option> -->
 												</select>
 											</div>
 										</div>
