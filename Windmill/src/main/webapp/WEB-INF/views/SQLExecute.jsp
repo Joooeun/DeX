@@ -126,40 +126,41 @@ var data;
 var tableoption;
 var temp_column;
 var tableHeight=0;
+let ondate;
 
-			// ========================================
-		// 페이지 로드 시 초기화 함수
-		// ========================================
-		$(document).ready(function() {
-			
-			// 일시정지 버튼 초기화
-			$("#pauseBtn").hide();
-			
-			// 파라미터 툴팁 초기화
-			$('[data-toggle="tooltip"]').tooltip({
-				placement: 'top',
-				trigger: 'hover',
-				delay: { show: 300, hide: 100 }
-			});
-			
-			// 단축키 툴팁 초기화
-			$('.shortcut-btn[data-toggle="tooltip"]').tooltip({
-				placement: 'top',
-				trigger: 'hover',
-				delay: { show: 300, hide: 100 }
-			});
+	// ========================================
+	// 페이지 로드 시 초기화 함수
+	// ========================================
+	$(document).ready(function() {
+		
+		// 일시정지 버튼 초기화
+		$("#pauseBtn").hide();
+		
+		// 파라미터 툴팁 초기화
+		$('[data-toggle="tooltip"]').tooltip({
+			placement: 'top',
+			trigger: 'hover',
+			delay: { show: 300, hide: 100 }
+		});
+		
+		// 단축키 툴팁 초기화
+		$('.shortcut-btn[data-toggle="tooltip"]').tooltip({
+			placement: 'top',
+			trigger: 'hover',
+			delay: { show: 300, hide: 100 }
+		});
 
-			// 개행보기 체크박스 초기 상태 확인 및 적용
-			if ($("#newline").prop('checked')) {
-				// 체크박스가 체크되어 있으면 개행보기 강제 적용
-				setTimeout(function() {
-					$("#newline").trigger('change');
-				}, 100);
-			}
+		// 개행보기 체크박스 초기 상태 확인 및 적용
+		if ($("#newline").prop('checked')) {
+			// 체크박스가 체크되어 있으면 개행보기 강제 적용
+			setTimeout(function() {
+				$("#newline").trigger('change');
+			}, 100);
+		}
 
 		// 차트 초기화
 		// SQL 타입일 때만 차트 초기화 처리
-		if (typeof templateType !== 'undefined' && templateType === 'SQL') {
+		if ('${templateType}' === 'SQL') {
 			ctx = document.getElementById('myChart');
 			myChart = new Chart(ctx, {
 				type: 'line',
@@ -246,7 +247,7 @@ var tableHeight=0;
 							}
 							
 							
-							var shortkey = '${Excute}';
+							var shortkey = ${Excute};
 							if (shortkey && $(selectId + " option:selected").val() != '') {
 								excute();
 							}
@@ -647,7 +648,7 @@ var tableHeight=0;
 		$("#excutebtn").attr('disabled', true);
 		$("#loadingdiv").css('display','block')
 
-		let ondate = new Date();
+		ondate = new Date();
 		
 		// 템플릿 타입에 따른 실행 로직 분기
 		var templateType = '${templateType}';
@@ -980,7 +981,7 @@ var tableHeight=0;
 			
 			var datasets = [];
 			var maxdata = 0;	
-			
+
 			// 데이터셋 생성
 			for (var i = 1; i < labels.length; i++) {
 				
@@ -1024,7 +1025,7 @@ var tableHeight=0;
 	// 차트 업데이트 함수
 	// ========================================
 	function updateChart(result) {
-        
+		
         var datasets = [];
 		
 		var labels = result.rowhead.map((item)=>item.title);

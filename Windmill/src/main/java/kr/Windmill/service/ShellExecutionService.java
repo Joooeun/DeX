@@ -11,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
@@ -144,28 +146,33 @@ public class ShellExecutionService {
 	 * @return 파라미터가 치환된 스크립트
 	 */
 	private String processScriptParameters(String script, String parametersJson) {
-		if (parametersJson == null || parametersJson.trim().isEmpty()) {
-			return script;
-		}
-		
-		try {
-			// JSON 파싱 (간단한 구현)
-			// TODO: 실제 JSON 파싱 라이브러리 사용 권장
-			String processedScript = script;
-			
-			// 파라미터 치환 로직
-			// 예: ${PARAM1} -> 실제 값으로 치환
-			// 현재는 기본적인 치환만 구현
-			if (parametersJson.contains("PARAM1")) {
-				// 실제 파라미터 값으로 치환하는 로직 구현 필요
-				logger.info("파라미터 치환 처리: {}", parametersJson);
-			}
-			
-			return processedScript;
-		} catch (Exception e) {
-			logger.warn("파라미터 치환 중 오류, 원본 스크립트 사용: {}", e.getMessage());
-			return script;
-		}
+	    if (parametersJson == null || parametersJson.trim().isEmpty()) {
+	        return script;
+	    }
+	    
+	    try {
+	        // JSON 파싱 - 배열 형태
+	        ObjectMapper mapper = new ObjectMapper();
+	        JsonNode parametersArray = mapper.readTree(parametersJson);
+	        
+	        String processedScript = script;
+	        
+	        // 배열의 각 요소를 순회
+	        for (JsonNode param : parametersArray) {
+	            String title = param.get("title").asText();
+	            String value = param.get("value").asText();
+	            
+	            // ${title} -> value로 치환
+	            String placeholder = "${" + title + "}";
+	            processedScript = processedScript.replace(placeholder, value);
+	        }
+	        
+	        return processedScript;
+	        
+	    } catch (Exception e) {
+	        logger.warn("파라미터 치환 중 오류, 원본 스크립트 사용: {}", e.getMessage());
+	        return script;
+	    }
 	}
 	
 	/**

@@ -215,9 +215,38 @@ public class SQLController {
 				mv.addObject("templateId", templateId);
 				mv.addObject("Excute", request.getParameter("Excute") == null ? false : request.getParameter("Excute"));
 				
-				// 단축키 데이터 추가 (모든 템플릿 타입에서 사용 가능)
-				List<Map<String, Object>> shortKeys = sqlTemplateService.getShortKeys(templateId);
-				mv.addObject("ShortKey", shortKeys);
+				mv.addObject("templateName", templateData.get("sqlName"));
+				mv.addObject("templateDescription", templateData.get("sqlDesc"));
+				mv.addObject("limit", templateData.get("executionLimit"));
+				mv.addObject("refreshtimeout", templateData.get("refreshTimeout"));
+				mv.addObject("newline", templateData.get("newline"));
+				mv.addObject("Connection", session.getAttribute("connectionId"));
+				
+				
+				// DownloadEnable 설정 (IP 기반)
+				String clientIp = request.getRemoteAddr();
+				String downloadIpPattern = systemConfigService.getConfigValue("DOWNLOAD_IP_PATTERN", "10.240.13.*");
+				boolean downloadEnable = isIpAllowed(com.getIp(request), downloadIpPattern);
+				mv.addObject("DownloadEnable", downloadEnable);
+
+				// 파라미터 정보 조회
+				Map<String, Object> paramResult = sqlTemplateService.getTemplateParameters(templateId);
+				if (paramResult.get("success").equals(true)) {
+					mv.addObject("parameters", paramResult.get("data"));
+					mv.addObject("sendvalue", request.getParameter("sendvalue"));
+				}
+				
+				// 단축키 정보 조회
+				Map<String, Object> shortcutResult = sqlTemplateService.getTemplateShortcuts(templateId);
+				if (shortcutResult.get("success").equals(true)) {
+					mv.addObject("ShortKey", shortcutResult.get("data"));
+				}
+
+				// 사용자 ID 추가
+				mv.addObject("memberId", userId);
+
+				// Path 변수 추가 (템플릿 ID 사용)
+				mv.addObject("Path", templateId);
 				
 				// 템플릿 타입에 따른 연결 정보 조회
 				if ("SHELL".equals(templateType)) {
@@ -350,7 +379,6 @@ public class SQLController {
 	@RequestMapping(path = "/Template/execute")
 	public void executeTemplate(HttpServletRequest request, HttpServletResponse response) throws IOException {
 		String templateId = request.getParameter("templateId");
-		boolean excuteParam = "true".equalsIgnoreCase(request.getParameter("Excute"));
 		
 		if (templateId == null || templateId.trim().isEmpty()) {
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "템플릿 ID가 필요합니다.");
@@ -374,6 +402,9 @@ public class SQLController {
 			// 디버깅 로그 추가
 			logger.info("템플릿 실행 요청 - templateId: {}, templateType: {}", templateId, templateType);
 			
+			// 기존 URL을 그대로 사용하고 templateType만 추가/수정
+			String originalQueryString = request.getQueryString();
+			String redirectUrl = "/SQLExecute?" + originalQueryString + "&templateType=" + templateType;
 			// 타입별 처리
 			switch (templateType.toUpperCase()) {
 				case "HTML":
@@ -387,17 +418,8 @@ public class SQLController {
 					break;
 					
 				case "SHELL":
-					// Shell 템플릿은 SQLExecute.jsp로 리다이렉트 (타입 분기처리)
-					String shellRedirectUrl = "/SQLExecute?templateId=" + templateId + "&templateType=SHELL";
-					shellRedirectUrl += "&Excute=" + excuteParam;
-					response.sendRedirect(shellRedirectUrl);
-					break;
-					
 				case "SQL":
 				default:
-					// SQL 템플릿은 기존 SQLTemplateController로 리다이렉트
-					String redirectUrl = "/SQLTemplate?templateId=" + templateId;
-					redirectUrl += "&Excute=" + excuteParam;
 					response.sendRedirect(redirectUrl);
 					break; 
 			}

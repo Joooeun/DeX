@@ -200,6 +200,9 @@ var changePW
 			}
 		});
 
+		// 대시보드 탭 초기화
+		tabManager.initDashboardTab();
+
 	});
 		
 	/* ------------------------------공지사항 start------------------------------ */
@@ -364,6 +367,7 @@ var changePW
 	window.tabManager = {
 		tabs: new Map(), // 탭 정보 저장
 		activeTab: null,
+		tabOrder: [], // 탭 순서 추적
 		
 		// 탭 추가
 		addTab: function(templateId, title, url) {
@@ -387,6 +391,9 @@ var changePW
 				title: title,
 				url: url
 			});
+			
+			// 탭 순서에 추가
+			this.tabOrder.push(templateId);
 			
 			// 탭 HTML 생성
 			var tabHtml = '<li><a href="#' + tabId + '" data-toggle="tab" data-template-id="' + templateId + '">' + 
@@ -425,13 +432,40 @@ var changePW
 				$('#' + tabInfo.id).remove();
 				this.tabs.delete(templateId);
 				
-				// 활성 탭이 제거된 경우 첫 번째 탭 활성화
-				if (this.activeTab === templateId) {
-					var firstTab = this.tabs.keys().next().value;
-					if (firstTab) {
-						this.activateTab(firstTab);
-					}
+				// 탭 순서에서 제거
+				var index = this.tabOrder.indexOf(templateId);
+				if (index > -1) {
+					this.tabOrder.splice(index, 1);
 				}
+				
+				// 활성 탭이 제거된 경우 다음 탭 활성화
+				if (this.activeTab === templateId) {
+					this.activateNextTab();
+				}
+			}
+		},
+		
+		// 다음 탭 활성화 (FIFO 방식)
+		activateNextTab: function() {
+			// 현재 활성화된 탭의 인덱스 찾기
+			var currentIndex = this.tabOrder.indexOf(this.activeTab);
+			var nextTab = null;
+			
+			// FIFO 방식: 다음 탭(오른쪽) 우선, 없으면 이전 탭(왼쪽)
+			if (currentIndex === -1) {
+				// 현재 탭이 순서에 없는 경우 첫 번째 탭
+				nextTab = this.tabOrder[0];
+			} else if (currentIndex < this.tabOrder.length - 1) {
+				// 다음 탭이 있는 경우 (오른쪽 탭)
+				nextTab = this.tabOrder[currentIndex + 1];
+			} else if (currentIndex > 0) {
+				// 다음 탭이 없고 이전 탭이 있는 경우 (왼쪽 탭)
+				nextTab = this.tabOrder[currentIndex - 1];
+			}
+			
+			// 다음 탭이 있으면 활성화
+			if (nextTab && this.tabs.has(nextTab)) {
+				this.activateTab(nextTab);
 			}
 		},
 		
@@ -440,6 +474,14 @@ var changePW
 			$('.sidebar-menu a:not(\'.addtree\')').attr("target", iframeId);
 			$('#iframe_1').contents().find('#menus a').attr("target", iframeId);
 			$('#iframe_1').contents().find('#goToTemplateLink').attr("target", iframeId);
+		},
+		
+		// 대시보드 탭 초기화
+		initDashboardTab: function() {
+			var isAdmin = '${isAdmin}' === 'true';
+			if (isAdmin) {
+				addTemplateTab('dashboard', '대시보드', '/Dashboard');
+			}
 		}
 	};
 
@@ -779,7 +821,7 @@ var changePW
 			<ul id="pageTab" class="nav nav-tabs">
 				<c:if test="${isAdmin}">
 					<li><a href="#page1" data-toggle="tab"><i class="fa fa-home"></i></a></li>
-					<li class="active"><a href="#dashboard" data-toggle="tab">대시보드<button class="close" type="button" title="Remove this page" style="padding-left:3px"><i class="fa fa-close"></i></button></a></li>
+					
 				</c:if>
 				<c:if test="${!isAdmin}">
 					<li class="active"><a href="#page1" data-toggle="tab"><i class="fa fa-home"></i></a></li>

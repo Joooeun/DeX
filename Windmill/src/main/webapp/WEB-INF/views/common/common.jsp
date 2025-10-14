@@ -88,16 +88,45 @@ $(document).ready(function() {
 			return;
 		}
 
-		var target = $(parent.document).find('#pageTabContent>div:last>iframe').attr('id');
+		var templateId = value.split('&')[0];
+		var target = null;
 
-		for (var i = 0; i < $(parent.document).find('#pageTab a').length; i++) {
+		// 부모 창의 tabManager를 사용하여 탭 찾기
+		if (parent.tabManager && parent.tabManager.tabs.has(templateId)) {
+			var tabInfo = parent.tabManager.tabs.get(templateId);
+			target = tabInfo.iframeId;
+			// 해당 탭 활성화
+			parent.tabManager.activateTab(templateId);
+			
+			// 기존 탭이 있는 경우 sendvalue를 iframe에 전달
+			setTimeout(function() {
+				var iframe = parent.document.getElementById(target);
+				if (iframe && iframe.contentWindow) {
+					var sendvalue = $("#sendvalue").val();
+					if (sendvalue && sendvalue.trim() !== '') {
+						// iframe 내부의 sendvalue 필드에 값 설정
+						try {
+							var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+							var sendvalueField = iframeDoc.getElementById('sendvalue');
+							if (sendvalueField) {
+								sendvalueField.value = sendvalue;
+							}
+						} catch (e) {
+							console.log('iframe 접근 오류:', e);
+						}
+					}
+				}
+			}, 100);
+		} else {
+			// 기존 방식으로 fallback
+			target = $(parent.document).find('#pageTabContent>div:last>iframe').attr('id');
 
-			if (value.split('&')[0] == $(parent.document).find('#pageTab a:eq(' + i + ')').text().replace(/x$/, '')) {
-				target = $(parent.document).find('#pageTabContent>div:eq(' + i + ')>iframe').attr('id');
-				//$(parent.document).find('#pageTab a:eq(' + i + ')').tab('show');
-				break;
+			for (var i = 0; i < $(parent.document).find('#pageTab a').length; i++) {
+				if (value.split('&')[0] == $(parent.document).find('#pageTab a:eq(' + i + ')').text().replace(/x$/, '')) {
+					target = $(parent.document).find('#pageTabContent>div:eq(' + i + ')>iframe').attr('id');
+					break;
+				}
 			}
-
 		}
 
 		var column = value.split('&')[1].split(',');
@@ -176,19 +205,48 @@ $(document).ready(function() {
 
 			window.open(pathval.replace("?", "?param="), '_blank')
 		} else {
-			// 템플릿 실행 - 통합 엔드포인트 사용
+			// 템플릿 실행 - 부모 창의 tabManager 사용
 			var templateId = value.split('&')[0];
 			var excuteParam = value.split('&')[2];
 			
-			document.ParamForm.action = "/Template/execute?templateId=" + templateId + 
-				"&Excute=" + excuteParam;
-			
-			document.ParamForm.method = "POST";
-			document.ParamForm.target = target;
-			document.ParamForm.submit();
+			// 부모 창의 tabManager에 탭이 없으면 새로 추가
+			if (parent.tabManager && !parent.tabManager.tabs.has(templateId)) {
+				// sendvalue를 URL 파라미터로 포함
+				var sendvalue = $("#sendvalue").val();
+				var url = "/Template/execute?templateId=" + templateId + "&Excute=" + excuteParam;
+				if (sendvalue && sendvalue.trim() !== '') {
+					url += "&sendvalue=" + encodeURIComponent(sendvalue);
+				}
+				
+				// 템플릿 정보를 가져와서 탭 추가
+				$.ajax({
+					type: 'GET',
+					url: '/SQLTemplate/detail',
+					data: { templateId: templateId },
+					success: function(templateResult) {
+						if (templateResult.success && templateResult.data) {
+							var title = templateResult.data.templateName || templateId;
+							parent.tabManager.addTab(templateId, title, url);
+						}
+					},
+					error: function() {
+						// 에러 시 기본 탭 추가
+						var title = templateId;
+						parent.tabManager.addTab(templateId, title, url);
+					}
+				});
+			} else {
+				// 기존 방식으로 fallback
+				document.ParamForm.action = "/Template/execute?templateId=" + templateId + 
+					"&Excute=" + excuteParam;
+				
+				document.ParamForm.method = "POST";
+				document.ParamForm.target = target;
+				document.ParamForm.submit();
 
-			document.ParamForm.action = "javascript:startexcute();";
-			document.ParamForm.target = "";
+				document.ParamForm.action = "javascript:startexcute();";
+				document.ParamForm.target = "";
+			}
 		}
 
 	}
