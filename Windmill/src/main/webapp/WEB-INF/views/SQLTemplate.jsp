@@ -4,7 +4,7 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ace.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ext-language_tools.js"></script>
 
-	<!-- SQL Template 전용 스타일 -->
+	<!-- SQL 템플릿 전용 스타일 -->
 	<link href="/resources/css/sql-template.css" rel="stylesheet" />
 	
 	<style>
@@ -3081,21 +3081,8 @@
 				showToast('이동할 템플릿을 선택해주세요.', 'error');
 				return;
 			}
-
-			// newpage 안의 iframe을 타겟으로 사용
-			var parentWindow = window.parent || window;
-			var newpageIframe = $(parentWindow.document).find('#newpage iframe');
-			var targetName = newpageIframe.attr('name') || 'iframe';
-
-			var url = '/SQL?templateId=' + templateId;
-
-			// 단순한 링크 생성 및 클릭 (사이드바와 동일한 방식)
-			var link = document.createElement('a');
-			link.href = url;
-			link.target = targetName;
-			document.body.appendChild(link);
-			link.click();
-			document.body.removeChild(link);
+			
+			sendSql(templateId+"&");
 		}
 
 

@@ -168,12 +168,18 @@ public class UserGroupService {
     // 연결 정보 권한 조회
     public List<Map<String, Object>> getConnectionPermissions(String groupId) {
         try {
-            String sql = "SELECT c.CONNECTION_ID, c.DB_TYPE, " +
-                        "CASE WHEN gcm.GROUP_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
-                        "FROM DATABASE_CONNECTION c " +
-                        "LEFT JOIN GROUP_CONNECTION_MAPPING gcm ON c.CONNECTION_ID = gcm.CONNECTION_ID AND gcm.GROUP_ID = ? " +
-                        "ORDER BY c.CONNECTION_ID";
-            return jdbcTemplate.queryForList(sql, groupId);
+            String sql =
+                "SELECT c.CONNECTION_ID, c.DB_TYPE, " +
+                "CASE WHEN gcm.GROUP_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
+                "FROM DATABASE_CONNECTION c " +
+                "LEFT JOIN GROUP_CONNECTION_MAPPING gcm ON c.CONNECTION_ID = gcm.CONNECTION_ID AND gcm.GROUP_ID = ? " +
+                "UNION ALL " +
+                "SELECT s.SFTP_CONNECTION_ID AS CONNECTION_ID, NULL AS DB_TYPE, " +
+                "CASE WHEN gcm2.GROUP_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_PERMISSION " +
+                "FROM SFTP_CONNECTION s " +
+                "LEFT JOIN GROUP_CONNECTION_MAPPING gcm2 ON s.SFTP_CONNECTION_ID = gcm2.CONNECTION_ID AND gcm2.GROUP_ID = ? " +
+                "ORDER BY CONNECTION_ID";
+            return jdbcTemplate.queryForList(sql, groupId, groupId);
         } catch (Exception e) {
             logger.error("연결 정보 권한 조회 중 오류 발생", e);
             return new ArrayList<>();
@@ -203,13 +209,7 @@ public class UserGroupService {
             fileWrite.put("MENU_NAME", "파일 쓰기");
             fileWrite.put("MENU_DESCRIPTION", "");
             allMenus.add(fileWrite);
-            
-            Map<String, Object> sqlTemplate = new HashMap<>();
-            sqlTemplate.put("MENU_ID", "MENU_SQL_TEMPLATE");
-            sqlTemplate.put("MENU_NAME", "SQL 템플릿");
-            sqlTemplate.put("MENU_DESCRIPTION", "");
-            allMenus.add(sqlTemplate);
-            
+                        
             // 현재 그룹의 메뉴 권한 조회 (기존 테이블 활용)
             String sql = "SELECT CATEGORY_ID FROM GROUP_CATEGORY_MAPPING WHERE GROUP_ID = ? AND CATEGORY_ID LIKE 'MENU_%'";
             List<String> grantedMenus = jdbcTemplate.queryForList(sql, String.class, groupId);

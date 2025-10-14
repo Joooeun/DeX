@@ -1376,7 +1376,7 @@ let ondate;
 			<div class="col-xs-12">
 				<div class="box box-default" style="margin-bottom: 0px">
 					<div class="box-header with-border">
-						<h3 class="box-title">Short Key</h3>
+						<h3 class="box-title">단축키</h3>
 
 					</div>
 					<div class="box-body">

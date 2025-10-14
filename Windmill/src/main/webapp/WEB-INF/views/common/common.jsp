@@ -225,7 +225,7 @@ $(document).ready(function() {
 					data: { templateId: templateId },
 					success: function(templateResult) {
 						if (templateResult.success && templateResult.data) {
-							var title = templateResult.data.templateName || templateId;
+							var title = templateResult.data.sqlName || templateId;
 							parent.tabManager.addTab(templateId, title, url);
 						}
 					},

@@ -4,7 +4,7 @@
     <script>
         // 전역 변수
         var dynamicCharts = {}; // 동적 차트 객체들
-        var selectedConnectionId = null; // 선택된 커넥션 ID
+        var selectedConnectionId = null; // 선택된 연결 ID
         var chartConfig = null; // 차트 설정
         var chartUpdateTimer = null; // 차트 업데이트 타이머
         var cachedApiResponse = null; // API 응답 데이터 캐시
@@ -513,7 +513,7 @@
                 contentElement = '<canvas id="' + elementId + '" data-chart-type="' + chartType + '"></canvas>';
             }
             
-            var html = '<div class="col-md-3" style="margin-bottom: 20px;">' +
+            var html = '<div class="col-md-3">' +
                 '<div class="box box-default">' +
                 '<div class="box-header with-border">' +
                 '<h3 class="box-title">' + chartTitle + '</h3>' +
@@ -848,7 +848,10 @@
             var colors2 = [];
             
             if (data && data.result && Array.isArray(data.result)) {
-                data.result.forEach(function(row) {
+                // 데이터를 10개로 제한
+                var limitedData = data.result.slice(0, 10);
+                
+                limitedData.forEach(function(row) {
                     if (row && row.length >= 3) {
                         var status = row[0]; // 상태
                         var name = row[1];   // 이름
@@ -862,7 +865,7 @@
                 });
             }
             
-                        return { 
+            return { 
                 labels: labels,
                 values: values,
                 colors: colors,
@@ -1198,13 +1201,13 @@
 
         <!-- 동적 차트 영역 -->
             <div class="row">
-            <div id="dynamicChartsContainer">
+            	<div id="dynamicChartsContainer">
                 <!-- 동적 차트들이 여기에 생성됩니다 -->
-                    </div>
                 </div>
+            </div>
 
         <!-- 메뉴 실행기록 섹션 -->
-        <div class="row" style="margin-top: 20px;">
+        <div class="row">
                 <div class="col-md-12">
                     <div class="box box-default">
                         <div class="box-header with-border">

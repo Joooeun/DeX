@@ -295,7 +295,7 @@
 
 <style>
 .permission-section {
-    max-height: 400px;
+    max-height: 80vh;
     overflow-y: auto;
     border: 1px solid #ddd;
     padding: 10px;
@@ -1065,16 +1065,27 @@ function loadAllPermissions() {
                     connections = response.data;
                 } else if (response.data.databaseConnections) {
                     connections = response.data.databaseConnections;
+                } else if (response.data.connections) {
+                    connections = response.data.connections;
                 }
                 
                 connections.forEach(function(conn) {
                     var connId = typeof conn === 'string' ? conn : conn.CONNECTION_ID;
                     var connName = typeof conn === 'string' ? conn : (conn.HOST_IP || conn.CONNECTION_ID);
+                    var connType = typeof conn === 'string' ? '' : (conn.TYPE || '');
+                    
+                    var displayName = connId;
+                    if (connName && connName !== connId) {
+                        displayName += ' (' + connName + ')';
+                    }
+                    if (connType) {
+                        displayName += ' [' + connType + ']';
+                    }
                     
                     var item = '<div class="permission-item">' +
                         '<label>' +
                         '<input type="checkbox" id="group_conn_' + connId + '" class="permission-checkbox">' +
-                        connId + ' (' + connName + ')' +
+                        displayName +
                         '</label>' +
                         '</div>';
                     container.append(item);
@@ -1360,8 +1371,10 @@ function displayGroupConnectionPermissions(permissions) {
                     var item = '<div class="permission-item">' +
                         '<label>' +
                         '<input type="checkbox" id="group_conn_' + connId + '" class="permission-checkbox"' + (isGranted ? ' checked' : '') + '>' +
-                        connId + ' (' + connName + (dbType ? ' - ' + dbType : '') + ')' +
+                        connId +
                         '</label>' +
+                        '<small class="text-muted">' + connName + (dbType ? ' - ' + dbType : '') + '</small>' +
+                       
                         '</div>';
                     container.append(item);
                 });

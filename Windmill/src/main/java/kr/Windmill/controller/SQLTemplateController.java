@@ -63,8 +63,6 @@ public class SQLTemplateController {
 		String userId = (String) session.getAttribute("memberId");
 		String templateId = request.getParameter("templateId");
 
-		logger.info("SQLTemplate 접근 - userId: {}, templateId: {}", userId, templateId);
-
 		// 로그인 확인
 		if (userId == null) {
 			mv.setViewName("redirect:/index");

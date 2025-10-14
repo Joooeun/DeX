@@ -1,7 +1,6 @@
 package kr.Windmill.controller;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,7 +98,7 @@ public class ConnectionController {
 				result.put("data", dbConnections);
 			} else if ("HOST".equals(type)) {
 				// FileRead.jsp, FileUpload.jsp에서 사용: 사용자가 권한을 가진 SFTP 연결만 반환
-				List<String> sftpConnections = connectionService.getSftpConnections(userId);
+				List<String> sftpConnections = connectionService.getUserSftpConnections(userId);
 				result.put("success", true);
 				result.put("data", sftpConnections);
 			} else {
@@ -323,6 +322,13 @@ public class ConnectionController {
 				return result;
 			}
 
+			// 연결 타입 확인
+			String connectionType = request.getParameter("TYPE");
+			if (connectionType == null) {
+				// TYPE이 없으면 DB_TYPE이 있는지 확인하여 타입 결정
+				connectionType = (request.getParameter("DB_TYPE") != null) ? "DB" : "HOST";
+			}
+
 			// 연결 테스트 (폼 데이터로)
 			long startTime = System.currentTimeMillis();
 
@@ -337,8 +343,15 @@ public class ConnectionController {
 			connConfig.put("JDBC_DRIVER_FILE", request.getParameter("JDBC_DRIVER_FILE"));
 			connConfig.put("TEST_SQL", request.getParameter("TEST_SQL"));
 
-			// ConnectionService의 testConnection 메서드 사용 (예외 정보 포함)
-			Map<String, Object> testResult = connectionService.testDatabaseConnection(connConfig);
+			// 연결 타입에 따라 다른 테스트 메서드 호출
+			Map<String, Object> testResult;
+			if ("DB".equals(connectionType)) {
+				// DB 연결 테스트
+				testResult = connectionService.testDatabaseConnection(connConfig);
+			} else {
+				// HOST(SFTP) 연결 테스트
+				testResult = connectionService.testSftpConnection(connConfig);
+			}
 
 			// 결과 처리
 			long endTime = System.currentTimeMillis();
@@ -349,19 +362,21 @@ public class ConnectionController {
 				result.put("duration", duration);
 				result.put("message", "연결이 성공적으로 완료되었습니다.");
 
-				// 드라이버 정보 추가
-				String jdbcDriverFile = request.getParameter("JDBC_DRIVER_FILE");
-				if (jdbcDriverFile != null && !jdbcDriverFile.trim().isEmpty()) {
-					Map<String, String> driverInfo = connectionService.extractDriverInfo(jdbcDriverFile);
-					result.put("driverClass", driverInfo.get("driverClass"));
-					result.put("version", driverInfo.get("version"));
+				// DB 연결인 경우에만 드라이버 정보 추가
+				if ("DB".equals(connectionType)) {
+					String jdbcDriverFile = request.getParameter("JDBC_DRIVER_FILE");
+					if (jdbcDriverFile != null && !jdbcDriverFile.trim().isEmpty()) {
+						Map<String, String> driverInfo = connectionService.extractDriverInfo(jdbcDriverFile);
+						result.put("driverClass", driverInfo.get("driverClass"));
+						result.put("version", driverInfo.get("version"));
+					}
 				}
 
-				logger.info("연결 테스트 성공 - {}:{} ({}ms)", connConfig.get("IP"), connConfig.get("PORT"), duration);
+				logger.info("연결 테스트 성공 - {}:{} ({}ms) [{}]", connConfig.get("IP"), connConfig.get("PORT"), duration, connectionType);
 			} else {
 				result.put("success", false);
 				result.put("message", "연결 테스트 실패: " + testResult.get("error"));
-				logger.error("연결 테스트 실패 - {}:{} (DB: {}, Type: {}, User: {}) - {}", connConfig.get("IP"), connConfig.get("PORT"), connConfig.get("DB"), connConfig.get("DBTYPE"), connConfig.get("USER"), testResult.get("error"));
+				logger.error("연결 테스트 실패 - {}:{} [{}] - {}", connConfig.get("IP"), connConfig.get("PORT"), connectionType, testResult.get("error"));
 			}
 
 		} catch (Exception e) {
