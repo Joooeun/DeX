@@ -174,8 +174,20 @@ var changePW
 		
 		// 자동완성 아이템 클릭 이벤트
 		$(document).on('click', '.autocomplete-item', function() {
-			var href = $(this).data('href');
-			navigateToMenu(href);
+			var menuType = $(this).data('menu-type');
+			var onclick = $(this).data('onclick');
+			
+			if (menuType === 'sql' && onclick) {
+				// SQL 메뉴의 경우 onclick 함수 직접 실행
+				eval(onclick);
+			} else {
+				// 일반 메뉴의 경우 기존 방식 사용
+				var href = $(this).data('href');
+				navigateToMenu(href);
+			}
+			
+			hideAutocomplete();
+			$('#search').val('');
 		});
 		
 		// 검색 버튼 클릭 이벤트
@@ -261,16 +273,27 @@ var changePW
 		// 동적으로 생성된 SQL 메뉴들 추가
 		$('#sidemenu a').each(function() {
 			var $this = $(this);
-			var href = $this.attr('href');
 			var text = $this.text().trim();
+			var onclick = $this.attr('onclick');
 			
-			if (href && text && href !== '#') {
-				allMenuItems.push({
-					text: text,
-					href: href,
-					icon: 'fa-code',
-					type: 'sql'
-				});
+			if (text && onclick) {
+				// onclick에서 templateId와 href 추출
+				var templateIdMatch = onclick.match(/addTemplateTab\('([^']+)'/);
+				var hrefMatch = onclick.match(/addTemplateTab\('[^']+',\s*'[^']+',\s*'([^']+)'/);
+				
+				if (templateIdMatch && hrefMatch) {
+					var templateId = templateIdMatch[1];
+					var href = hrefMatch[1];
+					
+					allMenuItems.push({
+						text: text,
+						href: href,
+						icon: 'fa-code',
+						type: 'sql',
+						templateId: templateId,
+						onclick: onclick
+					});
+				}
 			}
 		});
 	}
@@ -300,7 +323,11 @@ var changePW
 		}
 		
 		items.forEach(function(item) {
-			var itemHtml = '<div class="autocomplete-item" data-href="' + item.href + '">' +
+			var itemHtml = '<div class="autocomplete-item" ' +
+				'data-href="' + item.href + '" ' +
+				'data-menu-type="' + item.type + '" ' +
+				'data-template-id="' + (item.templateId || '') + '" ' +
+				'data-onclick="' + (item.onclick || '') + '">' +
 				'<i class="fa ' + item.icon + ' menu-icon"></i>' +
 				'<span class="menu-text">' + item.text + '</span>' +
 				'</div>';
@@ -338,8 +365,6 @@ var changePW
 		if (iframe && iframe.contentWindow) {
 			iframe.contentWindow.location.href = href;
 		}
-		hideAutocomplete();
-		$('#search').val('');
 	}
 	
 	// 기존 Search 함수 (호환성을 위해 유지)
@@ -356,7 +381,17 @@ var changePW
 		}
 		
 		// 첫 번째 결과로 이동
-		navigateToMenu(filtered[0].href);
+		var firstItem = filtered[0];
+		if (firstItem.type === 'sql' && firstItem.onclick) {
+			// SQL 메뉴의 경우 onclick 함수 직접 실행
+			eval(firstItem.onclick);
+		} else {
+			// 일반 메뉴의 경우 기존 방식 사용
+			navigateToMenu(firstItem.href);
+		}
+		
+		hideAutocomplete();
+		$('#search').val('');
 		return false;
 	}
 
