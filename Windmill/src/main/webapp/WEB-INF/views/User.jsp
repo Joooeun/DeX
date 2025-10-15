@@ -36,7 +36,7 @@
                             </div>
                             <div class="col-sm-6">
 								<button type="button" class="btn pull-right btn-primary btn-sm"
-									onclick="showCreateConnectionModal()">
+									onclick="showCreateUserModal()">
 									<i class="fa fa-plus"></i> 새 사용자
 								</button>
 							</div>
