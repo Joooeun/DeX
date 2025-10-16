@@ -1042,13 +1042,7 @@ let ondate;
 	        
 		} catch (e) {
 			console.error('차트 데이터 업데이트 중 오류 발생:', e);
-			sendErrorToServer({
-			        type: "debug",
-			        data : myChart.data,
-			        labels : labels, 
-					error:e.stack
-			        
-			    });
+			
 		}
 		
 		myChart.update('none');
