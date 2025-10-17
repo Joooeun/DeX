@@ -3705,7 +3705,7 @@
 				</div>
 				<div class="modal-footer">
 					<button type="button" class="btn btn-default" onclick="cancelAddSqlContent()">취소</button>
-					<button type="button" class="btn btn-primary" onclick="confirmAddSqlContent()">추가</button>
+					<button type="button" class="btn btn-primary" onclick="confirmAddSqlContent()">저장</button>
 				</div>
 			</div>
 		</div>
