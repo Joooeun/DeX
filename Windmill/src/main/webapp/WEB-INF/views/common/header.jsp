@@ -141,6 +141,10 @@ var changePW
 		$('#pageTab').on('click', ' li a .close', function() {
 			var templateId = $(this).parents('li').children('a').attr('data-template-id');
 			if (templateId) {
+				// home 탭은 닫을 수 없음
+				if (templateId === 'home') {
+					return false;
+				}
 				// 새로운 탭 관리 시스템 사용
 				tabManager.removeTab(templateId);
 			} else {
@@ -158,6 +162,12 @@ var changePW
 		$("#pageTab").on("click", "a", function(e) {
 			e.preventDefault();
 			$(this).tab('show');
+			
+			// 탭 클릭 시 해당 탭을 마지막 순서로 이동
+			var templateId = $(this).attr('data-template-id');
+			if (templateId && window.tabManager) {
+				window.tabManager.moveTabToLast(templateId);
+			}
 		});
 
 		// 자동완성 관련 이벤트 핸들러
@@ -402,15 +412,13 @@ var changePW
 	window.tabManager = {
 		tabs: new Map(), // 탭 정보 저장
 		activeTab: null,
-		tabOrder: [], // 탭 순서 추적
+		tabOrder: ['home'], // 탭 순서 추적
 		
 		// 탭 추가
 		addTab: function(templateId, title, url) {
-			console.log('tabManager.addTab 호출:', templateId, title, url);
 			
 			// 중복 탭 체크
 			if (this.tabs.has(templateId)) {
-				console.log('중복 탭 발견, 기존 탭 활성화');
 				this.activateTab(templateId);
 				return;
 			}
@@ -431,8 +439,12 @@ var changePW
 			this.tabOrder.push(templateId);
 			
 			// 탭 HTML 생성
+			var closeButton = '';
+			if (templateId !== 'home') {
+				closeButton = '<button class="close" type="button" title="Remove this page" style="padding-left:3px"><i class="fa fa-close"></i></button>';
+			}
 			var tabHtml = '<li><a href="#' + tabId + '" data-toggle="tab" data-template-id="' + templateId + '">' + 
-				title + '<button class="close" type="button" title="Remove this page" style="padding-left:3px"><i class="fa fa-close"></i></button></a></li>';
+				title + closeButton + '</a></li>';
 			
 			var contentHtml = '<div class="tab-pane" id="' + tabId + '">' +
 				'<iframe name="' + iframeId + '" id="' + iframeId + '" class="tab_frame" ' +
@@ -461,6 +473,12 @@ var changePW
 		
 		// 탭 제거
 		removeTab: function(templateId) {
+			// home 탭은 제거할 수 없음
+			if (templateId === 'home') {
+				console.log('home 탭은 제거할 수 없습니다.');
+				return false;
+			}
+			
 			var tabInfo = this.tabs.get(templateId);
 			if (tabInfo) {
 				$('#pageTab a[data-template-id="' + templateId + '"]').parent().remove();
@@ -480,22 +498,22 @@ var changePW
 			}
 		},
 		
-		// 다음 탭 활성화 (FIFO 방식)
+		// 다음 탭 활성화 (LIFO 방식)
 		activateNextTab: function() {
 			// 현재 활성화된 탭의 인덱스 찾기
 			var currentIndex = this.tabOrder.indexOf(this.activeTab);
 			var nextTab = null;
 			
-			// FIFO 방식: 다음 탭(오른쪽) 우선, 없으면 이전 탭(왼쪽)
+			// LIFO 방식: 이전 탭(왼쪽) 우선, 없으면 다음 탭(오른쪽)
 			if (currentIndex === -1) {
-				// 현재 탭이 순서에 없는 경우 첫 번째 탭
-				nextTab = this.tabOrder[0];
-			} else if (currentIndex < this.tabOrder.length - 1) {
-				// 다음 탭이 있는 경우 (오른쪽 탭)
-				nextTab = this.tabOrder[currentIndex + 1];
+				// 현재 탭이 순서에 없는 경우 마지막 탭 (가장 최근)
+				nextTab = this.tabOrder[this.tabOrder.length - 1];
 			} else if (currentIndex > 0) {
-				// 다음 탭이 없고 이전 탭이 있는 경우 (왼쪽 탭)
+				// 이전 탭이 있는 경우 (왼쪽 탭)
 				nextTab = this.tabOrder[currentIndex - 1];
+			} else if (currentIndex < this.tabOrder.length - 1) {
+				// 이전 탭이 없고 다음 탭이 있는 경우 (오른쪽 탭)
+				nextTab = this.tabOrder[currentIndex + 1];
 			}
 			
 			// 다음 탭이 있으면 활성화
@@ -511,8 +529,24 @@ var changePW
 			$('#iframe_1').contents().find('#goToTemplateLink').attr("target", iframeId);
 		},
 		
+		// 탭을 마지막 순서로 이동
+		moveTabToLast: function(templateId) {
+			if (this.tabs.has(templateId)) {
+				// 현재 순서에서 해당 탭 제거
+				var index = this.tabOrder.indexOf(templateId);
+				if (index > -1) {
+					this.tabOrder.splice(index, 1);
+				}
+				// 마지막에 추가
+				this.tabOrder.push(templateId);
+				console.log('탭 순서 변경:', templateId, '-> 마지막 순서');
+			}
+		},
+		
 		// 대시보드 탭 초기화
 		initDashboardTab: function() {
+			addTemplateTab('home', '<i class="fa fa-home"></i>', '/index2');
+			
 			var isAdmin = '${isAdmin}' === 'true';
 			if (isAdmin) {
 				addTemplateTab('dashboard', '대시보드', '/Dashboard');
@@ -854,18 +888,11 @@ var changePW
 		</aside>
 		<div class="content-wrapper" id="framebox">
 			<ul id="pageTab" class="nav nav-tabs">
-				<c:if test="${isAdmin}">
-					<li><a href="#page1" data-toggle="tab"><i class="fa fa-home"></i></a></li>
-					
-				</c:if>
-				<c:if test="${!isAdmin}">
-					<li class="active"><a href="#page1" data-toggle="tab"><i class="fa fa-home"></i></a></li>
-				</c:if>
 			</ul>
 			<div id="pageTabContent" class="tab-content">
 				<c:if test="${isAdmin}">
-					<div class="tab-pane" id="page1">
-						<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/index2"></iframe>
+					<div class="tab-pane" id="home">
+						<iframe name="iframe_home" id="iframe_home" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/index2"></iframe>
 					</div>
 					<div class="tab-pane active" id="dashboard">
 						<iframe name="iframe_dashboard" id="iframe_dashboard" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/Dashboard"></iframe>
@@ -873,7 +900,7 @@ var changePW
 				</c:if>
 				<c:if test="${!isAdmin}">
 					<div class="tab-pane active" id="page1">
-						<iframe name="iframe_1" id="iframe_1" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/index2"></iframe>
+						<iframe name="iframe_home" id="iframe_home" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/index2"></iframe>
 					</div>
 				</c:if>
 				<div class="tab-pane" id="newpage">
