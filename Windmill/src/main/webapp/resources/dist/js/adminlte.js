@@ -590,8 +590,7 @@ throw new Error('AdminLTE requires jQuery')
   };
 
   PushMenu.prototype.init = function () {
-    if (this.options.expandOnHover
-      || ($('body').is(Selector.mini + Selector.layoutFixed))) {
+    if (this.options.expandOnHover) {
       this.expandOnHover();
       $('body').addClass(ClassName.expandFeature);
     }

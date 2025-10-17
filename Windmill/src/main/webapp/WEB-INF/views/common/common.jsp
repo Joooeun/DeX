@@ -34,9 +34,8 @@
 <link href="/resources/dist/css/tabulator/tabulator_bootstrap3.css" rel="stylesheet">
 
 
-<script src="/resources/dist/js/adminlte.min.js"></script>
+<script src="/resources/dist/js/adminlte.js"></script>
 <script src='/resources/plugins/fastclick/fastclick.min.js'></script>
-<script src="/resources/dist/js/demo.js"></script>
 
 <!-- Select2 로컬 파일 -->
 <link href="/resources/plugins/select2/select2.min.css" rel="stylesheet" />
