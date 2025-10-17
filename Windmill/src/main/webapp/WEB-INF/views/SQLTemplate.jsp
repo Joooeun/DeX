@@ -1566,7 +1566,7 @@
 			// 폼 초기화
 			$('#sqlTemplateId, #sqlTemplateName, #sqlTemplateDesc').val('');
 			$('#sqlTemplateStatus').val('ACTIVE');
-			$('#sqlExecutionLimit').val('0');
+			$('#sqlExecutionLimit').val('200');
 			$('#sqlRefreshTimeout').val('0');
 			$('#sqlTemplateType').val('SQL');
 			// 체크박스 설정 (이벤트 트리거 방지)
