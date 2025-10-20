@@ -253,7 +253,11 @@ let ondate;
 							}
 						},
 						error: function() {
-							alert("시스템 에러");
+							showSystemError("연결 정보 조회 실패", {
+								error: xhr.responseText,
+								status: xhr.status,
+								url: '/SQLTemplate/execute'
+							});
 						}
 					});
 				} else {
@@ -602,22 +606,6 @@ let ondate;
 	}
 
 	// ========================================
-	// 트랜잭션 커밋 함수
-	// ========================================
-	function commit() {
-		$.ajax({
-			type: 'post',
-			url: '/SQL/commit',
-			data: {
-				connectionId: $("#connectionlist").val()
-			},
-			error: function() {
-				alert("시스템 에러");
-			}
-		});
-	}
-	
-	// ========================================
 	// SQL 실행 메인 함수
 	// ========================================
 	async function excute() {
@@ -899,7 +887,11 @@ let ondate;
 				$("#loadingdiv").css('display','none')
 				// 에러 발생 시 자동 새로고침 중지
 				stopAutoRefresh();
-				alert('시스템오류');
+				showSystemError("sql 실행 실패", {
+					error: xhr.responseText,
+					status: xhr.status,
+					url: ''
+				});
 			}
 		});
 		}
@@ -928,23 +920,6 @@ let ondate;
 			});
 		}
 
-	}
-
-
-	// ========================================
-	// 파일 읽기 함수
-	// ========================================
-	function readfile() {
-		$.ajax({
-			type: 'post',
-			url: '/SQL/readfile',
-			success: function(result) {
-				alert(result)
-			},
-			error: function() {
-				alert("시스템 에러");
-			}
-		});
 	}
 
 	// ========================================
@@ -1182,7 +1157,7 @@ let ondate;
 
 		<ol class="breadcrumb">
 			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
-			<li class="active"><a href="#" onclick="readfile()">SQL</a></li>
+			<li class="active"><a href="#">SQL</a></li>
 
 		</ol>
 	</section>

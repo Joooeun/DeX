@@ -24,8 +24,12 @@
 					// SFTP 연결 목록을 가져올 수 없습니다
 				}
 			},
-			error : function() {
-				alert("시스템 에러");
+			error : function(xhr, status, error) {
+				showSystemError("연결 정보 조회 실패", {
+					error: xhr.responseText,
+					status: xhr.status,
+					url: '/Connection/list'
+				});
 			}
 		});
 		
@@ -91,8 +95,12 @@
 				setEditorValue(result.result);
 
 			},
-			error : function() {
-				alert("시스템 에러");
+			error : function(xhr, status, error) {
+				showSystemError("파일 읽기 실패", {
+					error: xhr.responseText,
+					status: xhr.status,
+					url: '/FileRead/read'
+				});
 			}
 		});
 

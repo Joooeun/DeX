@@ -17,12 +17,16 @@
 						$('#connectionlist').append("<option value='" + result.data[i] + "'>" + result.data[i] + "</option>");
 					}
 				} else {
-					// SFTP 연결 목록을 가져올 수 없습니다
-				}
-			},
-			error : function() {
-				alert("시스템 에러");
+				// SFTP 연결 목록을 가져올 수 없습니다
 			}
+		},
+		error : function(xhr, status, error) {
+			showSystemError("SFTP 연결 목록 조회 실패", {
+				error: xhr.responseText,
+				status: xhr.status,
+				url: '/FileUpload/sftpList'
+			});
+		}
 		});
 		
 		// Ace Editor 초기화
@@ -112,8 +116,12 @@
 				}
 
 			},
-			error : function() {
-				alert("시스템 에러");
+			error : function(xhr, status, error) {
+				showSystemError("파일 업로드 실패", {
+					error: xhr.responseText,
+					status: xhr.status,
+					url: '/FileUpload/upload'
+				});
 			}
 		});
 

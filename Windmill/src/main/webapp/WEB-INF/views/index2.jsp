@@ -12,8 +12,12 @@
 				setMenu(result, child)
 
 			},
-			error : function() {
-				alert("시스템 에러");
+			error : function(xhr, status, error) {
+				showSystemError("템플릿 목록 조회 실패", {
+					error: xhr.responseText,
+					status: xhr.status,
+					url: '/SQLTemplate/detail'
+				});
 			}
 		});
 

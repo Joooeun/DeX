@@ -1,6 +1,40 @@
 <meta content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' name='viewport'>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 
+<script>
+window.sentryOnLoad = function () {
+	Sentry.init({
+		dsn: "https://8e6f31672463d08b3758a6475c825ae7@o4510201747996672.ingest.us.sentry.io/4510201751470080",
+	  	integrations: [Sentry.browserTracingIntegration()],
+		sendDefaultPii: true,
+		// Performance Monitoring
+		tracesSampleRate: 1.0, // 데이터 샘플링 비율 설정
+		// Session Replay
+		replaysSessionSampleRate: 0.1,
+		replaysOnErrorSampleRate: 1.0,
+	});
+};
+</script>
+<script>
+	// 시스템 에러 알림 함수 (ES5 호환)
+	function showSystemError(errorMessage, errorDetails) {
+		
+		// 사용자에게 상세한 에러 메시지 표시
+		var userMessage = "시스템 에러가 발생했습니다.\n\n";
+		userMessage += "에러: " + (errorMessage || '알 수 없는 에러') + "\n";
+		if (errorDetails && errorDetails.url) {
+			userMessage += "요청 URL: " + errorDetails.url + "\n";
+		}
+		if (errorDetails && errorDetails.status) {
+			userMessage += "상태 코드: " + errorDetails.status + "\n";
+		}
+		userMessage += "\n자세한 내용은 관리자에게 문의하세요.";
+		
+		alert(userMessage);
+		Sentry.captureException(errorDetails); 
+		
+	}
+</script>
 <script
   src="https://js.sentry-cdn.com/8e6f31672463d08b3758a6475c825ae7.min.js"
   crossorigin="anonymous"
