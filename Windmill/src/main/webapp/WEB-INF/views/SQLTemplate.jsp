@@ -626,7 +626,7 @@
 
 				$('.category-item').removeClass('selected');
 				$('[data-id="' + categoryId + '"]').addClass('selected');
-				loadTemplatesByCategory(categoryId);
+				loadTemplatesByCategory(categoryId, false, hideLoading());
 		}
 
 		// 카테고리별 템플릿 로드
@@ -641,7 +641,7 @@
 				url: '/SQLTemplate/category/templates',
 				data: { categoryId: categoryId },
 				onSuccess: function(result) {
-					renderTemplates(result.data);
+					renderTemplates(result.data, categoryId);
 					
 					// 선택 유지가 필요한 경우 이전 선택 복원
 					if (preserveSelection && currentSelectedId) {
@@ -662,12 +662,13 @@
 		}
 
 		// 템플릿 렌더링
-		function renderTemplates(templates) {
+		function renderTemplates(templates, categoryId) {
 			renderList({
 				container: $('#templateList'),
 				data: templates,
 				emptyMessage: '템플릿이 없습니다.',
 				itemRenderer: function(template) {
+
 					// 타입별 배지 생성
 					var typeBadge = '';
 					var badgeClass = '';
@@ -695,7 +696,7 @@
 					}
 					
 					var item = $('<div class="template-item" data-id="' + template.TEMPLATE_ID + 
-						'" onclick="selectTemplate(\'' + template.TEMPLATE_ID + '\')">' +
+						'" onclick="selectTemplate(\'' + template.TEMPLATE_ID + '\', \'' + categoryId + '\')">' +
 						'<div class="row">' +
 						'<div class="col-md-12">' +
 						'<span class="badge ' + badgeClass + '" style="margin-right: 8px;">' + typeBadge + '</span>' +
@@ -709,16 +710,14 @@
 		}
 
 		// 템플릿 선택
-		async function selectTemplate(templateId) {
+		async function selectTemplate(templateId, categoryId) {
 			// 변경사항 확인 + 콜백으로 템플릿 선택 로직 전달
 			const canProceed = await confirmUnsavedChanges(function() {
-				
+				loadTemplatesByCategory(categoryId);
 				loadSqlTemplateDetail(templateId);
+
 			});
 		}
-
-
-
 
 		// 카테고리 옵션 렌더링
 		function renderCategoryOptions(categories) {
@@ -1331,9 +1330,6 @@
 			return true;
 		}
 
-		// 날짜 유효성 검사
-
-
 		// 단축키 추가
 		function addShortcut() {
 			var row = $('<tr class="shortcut-row">'
@@ -1637,6 +1633,8 @@
 				if (selectedCategory && selectedCategory !== 'UNCATEGORIZED') {
 					$('#sqlTemplateCategories').val([selectedCategory]).trigger('change');
 				}
+
+				hideLoading();
 			});
 			if (!canProceed) {
 				return;
@@ -1673,7 +1671,7 @@
 
 
 		// 개선된 SQL 템플릿 저장 함수 (성능 최적화)
-		function saveSqlTemplateImproved() {
+		function saveSqlTemplateImproved(callback) {
 			// 공통 벨리데이션 체크
 			if (!validateTemplateForSave(null, true)) {
 				return;
@@ -1720,16 +1718,31 @@
 						var savedTemplateId = result.templateId;
 						var savedCategoryId = result.categoryId || 'UNCATEGORIZED';
 						
-						// 순차 처리: 카테고리 선택 → 템플릿 목록 새로고침 → 템플릿 선택 → 완료
-						processSaveResult(savedTemplateId, savedCategoryId);
+						// 콜백 호출 (성공)
+						if (callback && typeof callback === 'function') {
+							callback(true);
+						}else{
+							// 순차 처리: 카테고리 선택 → 템플릿 목록 새로고침 → 템플릿 선택 → 완료
+							processSaveResult(savedTemplateId, savedCategoryId);
+						}
 					} else {
 						hideLoading();
 						showToast('저장 실패: ' + result.error, 'error');
+						
+						// 콜백 호출 (실패)
+						if (callback && typeof callback === 'function') {
+							callback(false);
+						}
 					}
 				},
 				error: function (xhr, status, error) {
 					hideLoading();
 					handleAjaxError(xhr, status, error, '저장 중 오류가 발생했습니다.');
+					
+					// 콜백 호출 (에러)
+					if (callback && typeof callback === 'function') {
+						callback(false);
+					}
 				}
 			});
 		}
@@ -1935,106 +1948,6 @@
 			return '전체 연결: ' + connectionIds.join(', ');
 		}
 
-		// 통합된 템플릿 저장 함수
-		// options.refreshTemplate: true면 템플릿 재선택, false면 목록만 새로고침 (기본값: true)
-		function saveTemplateToServer(callback, options = {}) {
-			// 기본 옵션 설정
-			var refreshTemplate = options.refreshTemplate !== false; // 기본값 true
-			
-			// UI에서 직접 값을 읽어서 새로운 JSON API 스펙에 맞게 데이터 구성
-			var requestData = {
-				template: {
-					templateId: $('#sqlTemplateId').val() || '',
-					templateName: $('#sqlTemplateName').val() || '',
-					templateDesc: $('#sqlTemplateDesc').val() || '',
-					sqlContent: getSqlContentFromEditor('sqlEditor_default'),
-					accessibleConnectionIds: $('#accessibleConnections').val() || [],
-					templateType: $('#sqlTemplateType').val() || 'SQL',
-					version: 1,
-					status: $('#sqlTemplateStatus').val() || 'ACTIVE',
-					executionLimit: parseInt($('#sqlExecutionLimit').val()) || 0,
-					refreshTimeout: parseInt($('#sqlRefreshTimeout').val()) || 0,
-					newline: $('#sqlNewline').is(':checked'),
-					audit: $('#sqlAudit').is(':checked')
-				},
-				categories: $('#sqlTemplateCategories').val() || [],
-				parameters: getParametersFromUI(),
-				shortcuts: getShortcutsFromUI(),
-				sqlContents: getSqlContentsFromUI()
-			};
-
-			$.ajax({
-				type: 'POST',
-				url: '/SQLTemplate/save',
-				contentType: 'application/json',
-				data: JSON.stringify(requestData),
-				success: function (result) {
-					if (result.success) {
-						showToast('템플릿이 저장되었습니다.', 'success');
-
-						// 변경사항 초기화
-						window.SqlTemplateState.resetChanges();
-
-						// 저장된 정보 추출
-						var savedTemplateId = result.templateId;
-						var savedCategoryId = result.categoryId || $('.category-item.selected').data('id');
-						
-						// 1단계: 카테고리 선택 (필요한 경우)
-						if (savedCategoryId && $('.category-item.selected').data('id') !== savedCategoryId) {
-							selectCategory(savedCategoryId);
-						}
-						
-						// 2단계: 템플릿 목록 처리
-						var selectedCategory = $('.category-item.selected').data('id');
-						if (selectedCategory) {
-							if (refreshTemplate) {
-								// 템플릿 재선택 모드: 선택 유지하면서 템플릿 목록 새로고침
-								loadTemplatesByCategory(selectedCategory, true);
-								
-								// 목록 로드 완료 후 템플릿 선택
-								if (savedTemplateId) {
-									setTimeout(function() {
-										if ($('[data-id="' + savedTemplateId + '"]').length > 0) {
-											selectTemplate(savedTemplateId);
-										}
-										// 모든 작업 완료 후 로딩 종료
-										hideLoading();
-									}, 1000);
-								} else {
-									// 템플릿 선택이 없는 경우 바로 로딩 종료
-									setTimeout(function() {
-										hideLoading();
-									}, 100);
-								}
-							} else {
-								// 네비게이션 모드: 템플릿 목록만 새로고침 (템플릿 재선택 없음)
-								loadTemplatesByCategory(selectedCategory);
-								hideLoading();
-							}
-						} else {
-							// 카테고리가 없는 경우 바로 로딩 종료
-							hideLoading();
-						}
-						
-						// 카테고리별 템플릿 개수 업데이트
-						loadCategoryTemplateCounts();
-						
-						// 콜백 호출 (성공)
-						if (callback) callback(true);
-					} else {
-						hideLoading();
-						showToast('저장 실패: ' + result.error, 'error');
-						if (callback) callback(false);
-					}
-				},
-				error: function (xhr, status, error) {
-					handleAjaxError(xhr, status, error, '저장 중 오류가 발생했습니다.', callback);
-				}
-			});
-		}
-
-		// 네비게이션용 템플릿 저장 함수 (하위 호환성을 위한 래퍼)
-
 		// UI에서 SQL 에디터 내용을 가져오는 함수
 		function getSqlContentFromEditor(editorId) {
 			// 먼저 window.sqlEditors에서 찾기
@@ -2201,6 +2114,8 @@
 						// 카테고리 선택 UI 업데이트
 						if (data.categories && data.categories.length > 0) {
 							$('#sqlTemplateCategories').val(data.categories).trigger('change');
+						}else if(data.categories && data.categories.length === 0) {
+							$('#sqlTemplateCategories').val([]).trigger('change');
 						}
 						
 						// 데이터를 바로 UI에 렌더링 (로딩 상태 유지)
@@ -2785,7 +2700,7 @@
 			if (window.SqlTemplateState.isLoading) {
 				return;
 			}
-			
+
 			// 추가 안전장치: 템플릿 로드 후 짧은 시간 내 변경은 무시
 			var now = Date.now();
 			if (window.SqlTemplateState.lastLoadTime && (now - window.SqlTemplateState.lastLoadTime < 500)) {
@@ -2817,7 +2732,7 @@
 				showSaveConfirmDialog(message, function(result) {
 					if (result === 'save') {
 						// 저장 후 진행
-						saveSqlTemplateForNavigation(function(success) {
+						saveSqlTemplateImproved(function(success) {
 							if (success && callback && typeof callback === 'function') {
 								// 저장 성공 시 콜백 실행
 								callback();
@@ -2918,16 +2833,17 @@
 			cleanupEventListeners();
 			
 			// 폼 전체에 이벤트 위임으로 통합 관리 (단순화)
-			$('#templateForm').on('input change', 'input, select, textarea', markTemplateChanged);
+			$('#templateForm').on('change keyup paste', 'input:not([type="text"]), select', markTemplateChanged);
+			$('#templateForm').on('keyup paste', 'input[type="text"], textarea', markTemplateChanged);
 			
 			// 동적 테이블 요소들 (이벤트 위임으로 자동 처리)
-			$('#parameterTableBody, #shortcutTableBody').on('input change', 'input, select', markTemplateChanged);
+			$('#parameterTableBody, #shortcutTableBody').on('change keyup paste', 'input, select',markTemplateChanged);
 			
 			// 특수 컴포넌트들
-			$(document).on('change', '.target-template-select2', markTemplateChanged);
+			$(document).on('change', '.target-template-select2',markTemplateChanged);
 			
 			// SQL 에디터 컨테이너 (이벤트 위임)
-			$('#sqlContentTabs').on('input change', '.sql-editor textarea, .sql-textarea', markTemplateChanged);
+			$('#sqlContentTabs').on('change keyup paste', '.sql-editor textarea, .sql-textarea',markTemplateChanged);
 		}
 		
 		// 기존 이벤트 리스너 정리 함수
@@ -2961,7 +2877,6 @@
 					
 					// 다양한 변경 이벤트 등록
 					editor.on('change', markTemplateChanged);
-					editor.on('input', markTemplateChanged);
 					editor.on('paste', markTemplateChanged);
 					
 					// 세션 이벤트도 등록 (백스페이스, 삭제 등)
