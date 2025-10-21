@@ -27,6 +27,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import kr.Windmill.controller.SQLController.SqlType;
 import kr.Windmill.dto.SqlTemplateExecuteDto;
 import kr.Windmill.dto.log.LogInfoDto;
@@ -842,9 +844,22 @@ public class SQLExecuteService {
 		
 		Map<String, List> result = new HashMap<>();
 		
+		String log = "";
+		if (executeDto.getLog() != null) {
+			
+			ObjectMapper objectMapper = new ObjectMapper();
+			Map<String, String> dataMap = objectMapper.readValue(executeDto.getLog(), HashMap.class);
+			
+			for (Map.Entry<String, String> entry : dataMap.entrySet()) {
+				
+				log += "\n" + entry.getKey() + " : " + entry.getValue();
+			}
+		}
+		
+		
 		try {
 			// 로깅 시작
-			cLog.log_start(executeDto, "템플릿 SQL 실행 시작\n"); 
+			cLog.log_start(executeDto, log + "\n템플릿 SQL 실행 시작\n"); 
 			cLog.logMenuExecutionStart(executeDto);  // 메뉴 실행 시작 로그 저장
 			
 			// SQL 타입 감지
