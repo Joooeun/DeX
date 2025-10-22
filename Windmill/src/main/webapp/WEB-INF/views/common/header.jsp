@@ -418,42 +418,48 @@ var changePW
 		addTab: function(templateId, title, url) {
 			
 			// 중복 탭 체크
-			if (this.tabs.has(templateId)) {
-				this.activateTab(templateId);
-				return;
+			if (!this.tabs.has(templateId)) {
+				// 새 탭 생성
+				var tabId = 'tab_' + templateId;
+				var iframeId = 'iframe_' + templateId;
+				
+				// 탭 정보 저장
+				this.tabs.set(templateId, {
+					id: tabId,
+					iframeId: iframeId,
+					title: title,
+					url: url
+				});
+				
+				// 탭 순서에 추가
+				this.tabOrder.push(templateId);
+				
+				// 탭 HTML 생성
+				var closeButton = '';
+				if (templateId !== 'home') {
+					closeButton = '<button class="close" type="button" title="Remove this page" style="padding-left:3px"><i class="fa fa-close"></i></button>';
+				}
+				var tabHtml = '<li><a href="#' + tabId + '" data-toggle="tab" data-template-id="' + templateId + '">' + 
+					title + closeButton + '</a></li>';
+				
+				var contentHtml = '<div class="tab-pane" id="' + tabId + '">' +
+					'<iframe name="' + iframeId + '" id="' + iframeId + '" class="tab_frame" ' +
+					'style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" ' +
+					'src="' + url + '"></iframe></div>';
+				
+				// DOM에 추가
+				$('#pageTab').append(tabHtml);
+				$('#pageTabContent').append(contentHtml);
+			}else{
+				var tabInfo = this.tabs.get(templateId);
+			    if (tabInfo) {
+			        // iframe URL 업데이트
+			        var iframe = document.getElementById(tabInfo.iframeId);
+			        if (iframe) {
+			            iframe.src = url;
+			        }
+			    }
 			}
-			
-			// 새 탭 생성
-			var tabId = 'tab_' + templateId;
-			var iframeId = 'iframe_' + templateId;
-			
-			// 탭 정보 저장
-			this.tabs.set(templateId, {
-				id: tabId,
-				iframeId: iframeId,
-				title: title,
-				url: url
-			});
-			
-			// 탭 순서에 추가
-			this.tabOrder.push(templateId);
-			
-			// 탭 HTML 생성
-			var closeButton = '';
-			if (templateId !== 'home') {
-				closeButton = '<button class="close" type="button" title="Remove this page" style="padding-left:3px"><i class="fa fa-close"></i></button>';
-			}
-			var tabHtml = '<li><a href="#' + tabId + '" data-toggle="tab" data-template-id="' + templateId + '">' + 
-				title + closeButton + '</a></li>';
-			
-			var contentHtml = '<div class="tab-pane" id="' + tabId + '">' +
-				'<iframe name="' + iframeId + '" id="' + iframeId + '" class="tab_frame" ' +
-				'style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" ' +
-				'src="' + url + '"></iframe></div>';
-			
-			// DOM에 추가
-			$('#pageTab').append(tabHtml);
-			$('#pageTabContent').append(contentHtml);
 			
 			// 탭 활성화
 			this.activateTab(templateId);
