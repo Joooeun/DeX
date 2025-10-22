@@ -293,67 +293,7 @@ public class SqlTemplateService {
 		return result;
 	}
 
-	/**
-	 * 템플릿 타입으로 템플릿 조회 (차트 매핑 대체)
-	 */
-	public Map<String, Object> getTemplateByType(String templateType) {
-		try {
-			String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.TEMPLATE_DESC, t.SQL_CONTENT, " +
-					"t.ACCESSIBLE_CONNECTION_IDS, t.TEMPLATE_TYPE, t.VERSION, t.STATUS, " +
-					"t.EXECUTION_LIMIT, t.REFRESH_TIMEOUT, t.NEWLINE, t.AUDIT " +
-					"FROM SQL_TEMPLATE t " +
-					"WHERE t.TEMPLATE_TYPE = ? AND t.STATUS = 'ACTIVE'";
-			
-			List<Map<String, Object>> results = jdbcTemplate.queryForList(sql, templateType);
-			
-			if (!results.isEmpty()) {
-				Map<String, Object> template = results.get(0);
-				
-				// 접근 가능한 DB 연결 목록 조회 (ACCESSIBLE_CONNECTION_IDS에서 파싱)
-				String accessibleConnectionIds = (String) template.get("ACCESSIBLE_CONNECTION_IDS");
-				List<String> connections = new ArrayList<>();
-				
-				if (accessibleConnectionIds != null && !accessibleConnectionIds.trim().isEmpty()) {
-					String[] ids = accessibleConnectionIds.split(",");
-					for (String id : ids) {
-						String trimmedId = id.trim();
-						if (!trimmedId.isEmpty()) {
-							connections.add(trimmedId);
-						}
-					}
-				}
-				
-				template.put("accessibleConnections", connections);
-				
-				return template;
-			}
-			
-			return null;
-		} catch (Exception e) {
-			logger.error("템플릿 타입 조회 실패: {}", templateType, e);
-			return null;
-		}
-	}
 
-	/**
-	 * 차트 매핑 중복 체크 (DEPRECATED - 차트 매핑 기능 제거됨)
-	 * @deprecated 차트 매핑 기능이 TEMPLATE_TYPE으로 대체됨
-	 */
-	@Deprecated
-	public boolean isChartMappingExists(String chartId, String excludeTemplateId) {
-		// 차트 매핑 기능이 제거되어 항상 false 반환
-		return false;
-	}
-
-	/**
-	 * 차트 매핑 해제 (DEPRECATED - 차트 매핑 기능 제거됨)
-	 * @deprecated 차트 매핑 기능이 TEMPLATE_TYPE으로 대체됨
-	 */
-	@Deprecated
-	public boolean clearChartMapping(String templateId) {
-		// 차트 매핑 기능이 제거되어 항상 true 반환
-		return true;
-	}
 
 	/**
 	 * 템플릿에 접근 가능한 연결 목록 조회 (DB 또는 SFTP)
@@ -429,228 +369,6 @@ public class SqlTemplateService {
 		return result;
 	}
 
-	/**
-	 * 템플릿 저장 (신규/수정) - 파라미터 및 단축키 포함
-	 */
-	@Transactional
-    	public Map<String, Object> saveSqlTemplate(String templateId, String templateName, String templateDesc, 
-                                               Integer version, String status, Integer executionLimit, 
-                                               Integer refreshTimeout, Boolean newline, Boolean audit, String categoryIds,
-                                               String accessibleConnectionIds, String templateType, String sqlContent, String configContent, String parametersJson, 
-                                               String shortcutsJson, String additionalSqlContents, Boolean replaceAllSqlContents, String userId) {
-		Map<String, Object> result = new HashMap<>();
-
-		if (templateName == null || templateName.trim().isEmpty()) {
-			result.put("success", false);
-			result.put("error", "SQL 이름을 입력해주세요.");
-			return result;
-		}
-
-		// 기본값 설정
-        if (version == null) version = 1;
-        if (status == null) status = "ACTIVE";
-        if (executionLimit == null) executionLimit = 0;
-        if (refreshTimeout == null) refreshTimeout = 0;
-        if (newline == null) newline = true;
-        if (audit == null) audit = false;
-        if (templateType == null) templateType = "SQL";
-
-		boolean isNew = (templateId == null || templateId.trim().isEmpty());
-		if (isNew) {
-			// 중복 체크
-			if (isTemplateIdExists(templateName)) {
-				throw new RuntimeException("이미 존재하는 템플릿 이름입니다: " + templateName);
-			}
-			templateId = templateName; // 템플릿 이름을 그대로 템플릿 ID로 사용
-			String insertSql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, TEMPLATE_TYPE, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, NEWLINE, AUDIT, CREATED_BY) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-			jdbcTemplate.update(insertSql, templateId, templateName, templateDesc, sqlContent, accessibleConnectionIds, templateType, version, status, executionLimit, refreshTimeout, newline, audit, userId);
-		} else {
-			String updateSql = "UPDATE SQL_TEMPLATE SET TEMPLATE_NAME = ?, TEMPLATE_DESC = ?, SQL_CONTENT = ?, ACCESSIBLE_CONNECTION_IDS = ?, TEMPLATE_TYPE = ?, VERSION = ?, STATUS = ?, EXECUTION_LIMIT = ?, REFRESH_TIMEOUT = ?, NEWLINE = ?, AUDIT = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE TEMPLATE_ID = ?";
-			jdbcTemplate.update(updateSql, templateName, templateDesc, sqlContent, accessibleConnectionIds, templateType, version, status, executionLimit, refreshTimeout, newline, audit, userId, templateId);
-		}
-
-		// 기존 카테고리 매핑 삭제
-		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE TEMPLATE_ID = ?", templateId);
-
-		// 새로운 카테고리 매핑 생성
-		if (categoryIds != null && !categoryIds.trim().isEmpty()) {
-			String[] categoryIdArray = categoryIds.split(",");
-			for (String categoryId : categoryIdArray) {
-				categoryId = categoryId.trim();
-				if (!categoryId.isEmpty()) {
-                    Integer maxOrder = jdbcTemplate.queryForObject(
-                        "SELECT COALESCE(MAX(MAPPING_ORDER), 0) FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE CATEGORY_ID = ?", 
-                        Integer.class, categoryId);
-					int newOrder = (maxOrder != null ? maxOrder : 0) + 1;
-
-                    jdbcTemplate.update(
-                        "INSERT INTO SQL_TEMPLATE_CATEGORY_MAPPING (TEMPLATE_ID, CATEGORY_ID, MAPPING_ORDER, CREATED_BY) VALUES (?, ?, ?, ?)",
-                        templateId, categoryId, newOrder, userId);
-				}
-			}
-		}
-
-		// 파라미터 처리
-		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_PARAMETER WHERE TEMPLATE_ID = ?", templateId);
-
-		if (parametersJson != null && !parametersJson.trim().isEmpty()) {
-			try {
-			List<Map<String, Object>> parameters = com.getListFromString(parametersJson);
-
-				for (Map<String, Object> param : parameters) {
-					try {
-						
-						String name = (String) param.get("PARAMETER_NAME");
-						String type = (String) param.get("PARAMETER_TYPE");
-						String defaultValue = (String) param.get("PARAMETER_DEFAULT");
-						Boolean required = (Boolean) param.get("IS_REQUIRED");
-						
-						// PARAMETER_ORDER는 문자열로 전송되므로 안전하게 변환
-						Integer order = null;
-						Object orderObj = param.get("PARAMETER_ORDER");
-						if (orderObj != null) {
-							if (orderObj instanceof Integer) {
-								order = (Integer) orderObj;
-							} else if (orderObj instanceof String) {
-								try {
-									order = Integer.parseInt((String) orderObj);
-								} catch (NumberFormatException e) {
-									order = 1; // 기본값
-								}
-							}
-						}
-						
-
-					if (name != null && !name.trim().isEmpty()) {
-						String description = (String) param.get("DESCRIPTION");
-						Boolean readonly = (Boolean) param.get("IS_READONLY");
-						Boolean hidden = (Boolean) param.get("IS_HIDDEN");
-						Boolean disabled = (Boolean) param.get("IS_DISABLED");
-
-						// 속성값들을 개별 필드로 저장
-						Boolean isReadonly = readonly != null ? readonly : false;
-						Boolean isHidden = hidden != null ? hidden : false;
-						Boolean isDisabled = disabled != null ? disabled : false;
-
-                        jdbcTemplate.update(
-                            "INSERT INTO SQL_TEMPLATE_PARAMETER (TEMPLATE_ID, PARAMETER_NAME, PARAMETER_TYPE, DEFAULT_VALUE, IS_REQUIRED, PARAMETER_ORDER, IS_READONLY, IS_HIDDEN, IS_DISABLED, DESCRIPTION) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                            templateId, name.trim(), type != null ? type : "STRING", defaultValue, required != null ? required : false, order != null ? order : 1, 
-                            isReadonly, isHidden, isDisabled, description);
-					} else {
-					}
-					} catch (Exception e) {
-						logger.error("개별 파라미터 처리 실패: " + e.getMessage(), e);
-					}
-				}
-			} catch (Exception e) {
-                logger.error("파라미터 JSON 파싱 실패: " + e.getMessage(), e);
-				// 기존 방식으로 fallback
-				if (configContent != null && !configContent.trim().isEmpty()) {
-					String[] lines = configContent.split("\n");
-					int order = 1;
-					for (String line : lines) {
-						line = line.trim();
-						if (!line.isEmpty() && line.contains("=")) {
-							String[] parts = line.split("=", 2);
-							if (parts.length == 2) {
-								String paramName = parts[0].trim();
-								String paramDefaultValue = parts[1].trim();
-
-                                jdbcTemplate.update(
-                                    "INSERT INTO SQL_TEMPLATE_PARAMETER (TEMPLATE_ID, PARAMETER_NAME, PARAMETER_TYPE, DEFAULT_VALUE, PARAMETER_ORDER, IS_READONLY, IS_HIDDEN, IS_DISABLED, DESCRIPTION) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                                    templateId, paramName, "STRING", paramDefaultValue, order++, false, false, false, null);
-							}
-						}
-					}
-				}
-			}
-		}
-		
-		// 단축키 처리
-		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_SHORTCUT WHERE SOURCE_TEMPLATE_ID = ?", templateId);
-
-		if (shortcutsJson != null && !shortcutsJson.trim().isEmpty()) {
-			try {
-			List<Map<String, Object>> shortcuts = parseShortcutsJson(shortcutsJson);
-				for (Map<String, Object> shortcut : shortcuts) {
-					String key = (String) shortcut.get("SHORTCUT_KEY");
-					String name = (String) shortcut.get("SHORTCUT_NAME");
-					String targetTemplateId = (String) shortcut.get("TARGET_TEMPLATE_ID");
-					Boolean autoExecute = (Boolean) shortcut.get("AUTO_EXECUTE");
-					Boolean isActive = (Boolean) shortcut.get("IS_ACTIVE");
-
-										if (key != null && !key.trim().isEmpty() && targetTemplateId != null && !targetTemplateId.trim().isEmpty()) {
-						String description = (String) shortcut.get("SHORTCUT_DESCRIPTION");
-						String sourceColumns = (String) shortcut.get("SOURCE_COLUMNS");
-						
-						// 단축키명이 비어있으면 기본값 설정
-						String finalName = (name != null && !name.trim().isEmpty()) ? name.trim() : key;
-
-                        jdbcTemplate.update(
-                            "INSERT INTO SQL_TEMPLATE_SHORTCUT (SOURCE_TEMPLATE_ID, TARGET_TEMPLATE_ID, SHORTCUT_KEY, SHORTCUT_NAME, SHORTCUT_DESCRIPTION, SOURCE_COLUMN_INDEXES, AUTO_EXECUTE, IS_ACTIVE) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                            templateId, targetTemplateId.trim(), key.trim(), finalName, description, sourceColumns, autoExecute != null ? autoExecute : true, isActive != null ? isActive : true);
-					} else {
-					}
-				}
-			} catch (Exception e) {
-                logger.error("단축키 저장 실패: " + e.getMessage(), e);
-			}
-		}
-
-		// 추가 SQL 내용 처리 (CONNECTION_ID 기반)
-		if (additionalSqlContents != null && !additionalSqlContents.trim().isEmpty()) {
-			logger.debug("추가 SQL 내용 처리 시작 - templateId: {}, additionalSqlContents: {}, replaceAllSqlContents: {}", templateId, additionalSqlContents, replaceAllSqlContents);
-			try {
-				List<Map<String, Object>> additionalContents = com.getListFromString(additionalSqlContents);
-				logger.debug("추가 SQL 내용 파싱 완료 - 개수: {}", additionalContents.size());
-				
-				// replaceAllSqlContents가 true이면 기존 모든 SQL_CONTENT 삭제
-				if (replaceAllSqlContents != null && replaceAllSqlContents) {
-					int deletedAllRows = jdbcTemplate.update("DELETE FROM SQL_CONTENT WHERE TEMPLATE_ID = ?", templateId);
-					logger.debug("기존 모든 SQL_CONTENT 삭제 완료 - 삭제된 행 수: {}", deletedAllRows);
-				}
-				
-				for (Map<String, Object> content : additionalContents) {
-					String connectionId = (String) content.get("connectionId");  // dbType → connectionId로 변경
-					String contentSql = (String) content.get("sqlContent");
-					
-					logger.debug("SQL 내용 처리 - connectionId: {}, sqlContent 길이: {}", connectionId, contentSql != null ? contentSql.length() : 0);
-					
-					if (connectionId != null && !connectionId.trim().isEmpty()) {
-						// SQL 내용이 null이면 빈 문자열로 처리 (연결 ID 변경 시 SQL 내용 보존)
-						if (contentSql == null) {
-							contentSql = "";
-						}
-						
-						// replaceAllSqlContents가 false이면 개별 삭제
-						if (replaceAllSqlContents == null || !replaceAllSqlContents) {
-							int deletedRows = jdbcTemplate.update("DELETE FROM SQL_CONTENT WHERE TEMPLATE_ID = ? AND CONNECTION_ID = ?", templateId, connectionId);
-							logger.debug("기존 SQL_CONTENT 삭제 완료 - 삭제된 행 수: {}", deletedRows);
-						}
-						
-						// 새 SQL_CONTENT 추가 (CONNECTION_ID 기반, 복합 키 사용)
-						int insertedRows = jdbcTemplate.update(
-							"INSERT INTO SQL_CONTENT (TEMPLATE_ID, CONNECTION_ID, SQL_CONTENT, CREATED_BY) VALUES (?, ?, ?, ?)",
-							templateId, connectionId, contentSql, userId);
-						logger.debug("새 SQL_CONTENT 추가 완료 - 삽입된 행 수: {}, templateId: {}, connectionId: {}", insertedRows, templateId, connectionId);
-					} else {
-						logger.warn("연결 ID가 지정되지 않음 - connectionId: {}", connectionId);
-					}
-				}
-			} catch (Exception e) {
-				logger.error("추가 SQL 내용 처리 실패 - templateId: {}, additionalSqlContents: {}", templateId, additionalSqlContents, e);
-				// 트랜잭션 롤백을 위해 예외를 다시 던짐
-				throw new RuntimeException("추가 SQL 내용 처리 실패: " + e.getMessage(), e);
-			}
-		} else {
-			logger.debug("추가 SQL 내용이 없음 - templateId: {}", templateId);
-		}
-
-		result.put("success", true);
-		result.put("templateId", templateId);
-		result.put("message", "SQL 템플릿이 저장되었습니다.");
-		return result;
-	}
 
 	/**
 	 * 템플릿 삭제
@@ -1021,58 +739,6 @@ public class SqlTemplateService {
 		return categories;
 	}
 
-	/**
-	 * 템플릿의 접근 가능한 DB 연결 ID 목록 조회
-	 */
-	public List<String> getTemplateAccessibleConnections(String templateId) {
-		if (templateId == null || templateId.trim().isEmpty()) {
-			return new ArrayList<>();
-		}
-
-		String sql = "SELECT ACCESSIBLE_CONNECTION_IDS FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
-		List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, templateId);
-
-		if (rows.isEmpty()) {
-			return new ArrayList<>();
-		}
-
-		String accessibleConnectionIds = (String) rows.get(0).get("ACCESSIBLE_CONNECTION_IDS");
-
-		// ACCESSIBLE_CONNECTION_IDS가 null이거나 비어있으면 모든 DB 연결 허용
-		if (accessibleConnectionIds == null || accessibleConnectionIds.trim().isEmpty()) {
-			return getAllActiveConnectionIds();
-		}
-
-		// 콤마로 구분된 연결 ID들을 리스트로 변환
-		List<String> connectionIds = new ArrayList<>();
-		String[] ids = accessibleConnectionIds.split(",");
-		for (String id : ids) {
-			String trimmedId = id.trim();
-			if (!trimmedId.isEmpty()) {
-				connectionIds.add(trimmedId);
-			}
-		}
-
-		return connectionIds;
-	}
-
-	/**
-	 * 모든 활성 DB 연결 ID 목록 조회
-	 */
-	private List<String> getAllActiveConnectionIds() {
-		String sql = "SELECT CONNECTION_ID FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_ID";
-		List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
-
-		List<String> connectionIds = new ArrayList<>();
-		for (Map<String, Object> row : rows) {
-			String connectionId = (String) row.get("CONNECTION_ID");
-			if (connectionId != null && !connectionId.trim().isEmpty()) {
-				connectionIds.add(connectionId);
-			}
-		}
-
-		return connectionIds;
-	}
 
 	
 	/**
@@ -1085,6 +751,34 @@ public class SqlTemplateService {
 			return count != null && count > 0;
 		} catch (Exception e) {
 			logger.warn("템플릿 ID 중복 체크 실패: {}", e.getMessage());
+			return false; // 오류 시 중복이 아닌 것으로 간주
+		}
+	}
+
+	/**
+	 * 템플릿 이름 중복 체크
+	 */
+	private boolean isTemplateNameExists(String templateName) {
+		try {
+			String sql = "SELECT COUNT(*) FROM SQL_TEMPLATE WHERE TEMPLATE_NAME = ? AND STATUS != 'DELETED'";
+			Integer count = jdbcTemplate.queryForObject(sql, Integer.class, templateName);
+			return count != null && count > 0;
+		} catch (Exception e) {
+			logger.warn("템플릿 이름 중복 체크 실패: {}", e.getMessage());
+			return false; // 오류 시 중복이 아닌 것으로 간주
+		}
+	}
+
+	/**
+	 * 템플릿 이름 중복 체크 (수정 시 자기 자신 제외)
+	 */
+	private boolean isTemplateNameExists(String templateName, String excludeTemplateId) {
+		try {
+			String sql = "SELECT COUNT(*) FROM SQL_TEMPLATE WHERE TEMPLATE_NAME = ? AND TEMPLATE_ID != ? AND STATUS != 'DELETED'";
+			Integer count = jdbcTemplate.queryForObject(sql, Integer.class, templateName, excludeTemplateId);
+			return count != null && count > 0;
+		} catch (Exception e) {
+			logger.warn("템플릿 이름 중복 체크 실패: {}", e.getMessage());
 			return false; // 오류 시 중복이 아닌 것으로 간주
 		}
 	}
@@ -1558,25 +1252,6 @@ public class SqlTemplateService {
 		return result;
 	}
 	
-	/**
-	 * 기존 관련 데이터 삭제 (레거시 - 더 이상 사용하지 않음)
-	 */
-	private void deleteExistingRelatedData(String templateId) {
-		// 카테고리 매핑 삭제
-		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_CATEGORY_MAPPING WHERE TEMPLATE_ID = ?", templateId);
-		
-		// 파라미터 삭제
-		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_PARAMETER WHERE TEMPLATE_ID = ?", templateId);
-		
-		// 단축키 삭제
-		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE_SHORTCUT WHERE SOURCE_TEMPLATE_ID = ?", templateId);
-		
-		// SQL 내용 삭제
-		jdbcTemplate.update("DELETE FROM SQL_CONTENT WHERE TEMPLATE_ID = ?", templateId);
-		
-		// 템플릿 기본 정보 삭제
-		jdbcTemplate.update("DELETE FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?", templateId);
-	}
 }
 
 

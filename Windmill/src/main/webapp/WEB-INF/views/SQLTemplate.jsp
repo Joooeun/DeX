@@ -1097,9 +1097,11 @@
 			// 기본 정보 벨리데이션
 			var sqlName = $('#sqlTemplateName').val().trim();
 			if (!sqlName) {
-				errors.push('SQL 이름을 입력해주세요.');
+				errors.push('템플릿 이름을 입력해주세요.');
 			} else if (sqlName.length > 100) {
-				errors.push('SQL 이름은 100자 이하여야 합니다.');
+				errors.push('템플릿 이름은 100자 이하여야 합니다.');
+			} else if (!/^[a-zA-Z0-9가-힣_]+$/.test(sqlName)) {
+				errors.push('템플릿 이름은 영문자, 한글, 숫자, 언더스코어만 사용 가능합니다.');
 			}
 
 			// 모든 SQL 탭의 내용 검증
@@ -3270,7 +3272,7 @@
 												<label data-toggle="tooltip" data-placement="top"
 													title="SQL 템플릿의 고유 이름입니다. 대시보드와 메뉴에서 표시되며, 100자 이하로 입력해주세요."
 													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													SQL 이름 <span class="text-danger">*</span>
+													템플릿 이름 <span class="text-danger">*</span>
 												</label>
 												<input type="text" class="form-control"
 													id="sqlTemplateName" placeholder="예: 사용자 활동 조회">
