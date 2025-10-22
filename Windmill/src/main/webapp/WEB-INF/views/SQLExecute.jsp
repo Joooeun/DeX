@@ -1341,25 +1341,23 @@ let ondate;
 		<!-- ======================================== -->
 		<!-- 단축키 영역 -->
 		<!-- ======================================== -->
-		<div class="row" id="Keybox">
-			<div class="col-xs-12">
-				<div class="box box-default" style="margin-bottom: 0px">
-					<div class="box-header with-border">
-						<h3 class="box-title">단축키</h3>
-
-					</div>
-					<div class="box-body">
-						<c:forEach var="item" items="${ShortKey}">
-							<button type="button" class="btn btn-default btn-sm shortcut-btn" 
-								data-toggle="tooltip" data-placement="top" 
-								title="${not empty item.SHORTCUT_DESCRIPTION ? item.SHORTCUT_DESCRIPTION : '설명이 없습니다.'}"
-								onclick="sendSql('${item.TARGET_TEMPLATE_ID}&${item.SOURCE_COLUMN_INDEXES}&${item.AUTO_EXECUTE}')">${item.SHORTCUT_NAME}</button>
-							<input type="hidden" id="${item.SHORTCUT_KEY}" value="${item.TARGET_TEMPLATE_ID}&${item.SOURCE_COLUMN_INDEXES}&${item.AUTO_EXECUTE}">
-						</c:forEach>
+		<c:if test="${not empty ShortKey}">
+			<div class="row" id="Keybox">
+				<div class="col-xs-12">
+					<div class="box box-default" style="margin-bottom: 0px">
+						<div class="box-body">
+							<c:forEach var="item" items="${ShortKey}">
+								<button type="button" class="btn btn-default btn-xs shortcut-btn" 
+									data-toggle="tooltip" data-placement="top" 
+									title="${not empty item.SHORTCUT_DESCRIPTION ? item.SHORTCUT_DESCRIPTION : '설명이 없습니다.'}"
+									onclick="sendSql('${item.TARGET_TEMPLATE_ID}&${item.SOURCE_COLUMN_INDEXES}&${item.AUTO_EXECUTE}')">${item.SHORTCUT_NAME}</button>
+								<input type="hidden" id="${item.SHORTCUT_KEY}" value="${item.TARGET_TEMPLATE_ID}&${item.SOURCE_COLUMN_INDEXES}&${item.AUTO_EXECUTE}">
+							</c:forEach>
+						</div>
 					</div>
 				</div>
 			</div>
-		</div>
+		</c:if>
 
 		<input id="refreshtimeout" value="${not empty refreshtimeout ? refreshtimeout : 0}" type="hidden">
 	</section>
