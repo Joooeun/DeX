@@ -3,6 +3,7 @@ package kr.Windmill.service;
 import java.io.File;
 import java.sql.CallableStatement;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -994,76 +995,193 @@ public class SQLExecuteService {
 			
 			Map<String, List> result = new HashMap<>();
 			
-			// CallableStatement 생성 (이미 파라미터가 바인딩된 SQL 사용)
-			callStmt = con.prepareCall(sql);
+		// DB2 프로시저 처리 (dd 파일의 callprocedure 방식 참고)
+		String callcheckstr = "";
+		String prcdname = "";
+		List<Integer> typelst = new ArrayList<>();
+		List<Integer> rowlength = new ArrayList<>();
+		List<Map<String, Object>> rowhead = new ArrayList<>();
+		
+		// CALL 문에서 프로시저명 추출
+		if (sql.indexOf("CALL") > -1) {
+			prcdname = sql.substring(sql.indexOf("CALL") + 5, sql.indexOf("("));
+			if (prcdname.contains(".")) {
+				prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
+			}
 			
-			// 프로시저 실행
-			callStmt.execute();
+			int paramcnt = StringUtils.countMatches(sql, ",") + 1;
 			
-			// 결과 처리
-			rs = callStmt.getResultSet();
+			// DB2 프로시저 파라미터 타입 조회
+			callcheckstr = "SELECT * FROM syscat.ROUTINEPARMS WHERE routinename = '" + prcdname.toUpperCase().trim() + 
+				"' AND SPECIFICNAME = (SELECT SPECIFICNAME FROM (SELECT SPECIFICNAME, count(*) AS cnt FROM syscat.ROUTINEPARMS " +
+				"WHERE routinename = '" + prcdname.toUpperCase().trim() + "' GROUP BY SPECIFICNAME) a WHERE a.cnt = " + paramcnt + 
+				") AND ROWTYPE != 'P' ORDER BY SPECIFICNAME, ordinal";
 			
-			if (rs != null) {
-				// ResultSet이 있는 경우
-				ResultSetMetaData rsmd = rs.getMetaData();
-				int colCount = rsmd.getColumnCount();
+			PreparedStatement pstmt = null;
+			ResultSet paramRs = null;
+			try {
+				pstmt = con.prepareStatement(callcheckstr);
+				paramRs = pstmt.executeQuery();
 				
-				// 컬럼 헤더 생성
-				List<Map<String, Object>> rowhead = new ArrayList<>();
-				List<Integer> rowlength = new ArrayList<>();
-				
-				for (int i = 0; i < colCount; i++) {
-					Map<String, Object> head = new HashMap<>();
-					head.put("title", rsmd.getColumnLabel(i + 1));
-					head.put("type", rsmd.getColumnType(i + 1));
-					head.put("desc", rsmd.getColumnTypeName(i + 1) + "(" + rsmd.getColumnDisplaySize(i + 1) + ")");
-					rowhead.add(head);
-					rowlength.add(0);
-				}
-				
-				// 데이터 처리
-				List<List<Object>> rowbody = new ArrayList<>();
-				while (rs.next()) {
-					List<Object> row = new ArrayList<>();
-					for (int i = 0; i < colCount; i++) {
-						try {
-							Object value = rsmd.getColumnTypeName(i + 1).equals("CLOB") ? 
-								rs.getString(i + 1) : rs.getObject(i + 1);
-							row.add(value);
-							
-							if (rowlength.get(i) < (value == null ? "" : value.toString()).length()) {
-								rowlength.set(i, Math.min(100, (value == null ? "" : value.toString()).length()));
-							}
-						} catch (Exception e) {
-							row.add(null);
-						}
+				while (paramRs.next()) {
+					String typeName = paramRs.getString("TYPENAME");
+					switch (typeName) {
+						case "VARCHAR2":
+						case "VARCHAR":
+							typelst.add(Types.VARCHAR);
+							break;
+						case "INTEGER":
+							typelst.add(Types.INTEGER);
+							break;
+						case "TIMESTAMP":
+							typelst.add(Types.TIMESTAMP);
+							break;
+						case "DATE":
+							typelst.add(Types.DATE);
+							break;
+						case "DECIMAL":
+							typelst.add(Types.DECIMAL);
+							break;
+						case "BIGINT":
+							typelst.add(Types.BIGINT);
+							break;
+						case "SMALLINT":
+							typelst.add(Types.SMALLINT);
+							break;
+						default:
+							typelst.add(Types.VARCHAR);
+							break;
 					}
-					rowbody.add(row);
+				}
+			} catch (SQLException e) {
+				logger.warn("프로시저 파라미터 정보 조회 실패: {}", e.getMessage());
+			} finally {
+				if (paramRs != null) try { paramRs.close(); } catch (Exception e) {}
+				if (pstmt != null) try { pstmt.close(); } catch (Exception e) {}
+			}
+		}
+		
+		// CallableStatement 생성
+		callStmt = con.prepareCall(sql);
+		
+		// 출력 파라미터 등록
+		for (int i = 0; i < typelst.size(); i++) {
+			callStmt.registerOutParameter(i + 1, typelst.get(i));
+			
+			Map<String, Object> head = new HashMap<>();
+			head.put("title", "OUTPUT_" + (i + 1));
+			head.put("type", typelst.get(i));
+			head.put("desc", "OUTPUT_PARAMETER");
+			rowhead.add(head);
+		}
+		
+		result.put("rowhead", rowhead);
+		
+		// 프로시저 실행
+		callStmt.execute();
+		
+		// 결과 처리
+		rs = callStmt.getResultSet();
+		
+		if (rs != null) {
+			// ResultSet이 있는 경우
+			ResultSetMetaData rsmd = rs.getMetaData();
+			int colcnt = rsmd.getColumnCount();
+			
+			// ResultSet 컬럼 헤더 추가
+			for (int index = 0; index < colcnt; index++) {
+				Map<String, Object> head = new HashMap<>();
+				head.put("title", rsmd.getColumnLabel(index + 1));
+				head.put("type", rsmd.getColumnType(index + 1));
+				head.put("desc", rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")");
+				rowhead.add(head);
+				rowlength.add(0);
+			}
+			result.put("rowhead", rowhead);
+			
+			// ResultSet 데이터 처리
+			List<List<Object>> rowbody = new ArrayList<>();
+			while (rs.next()) {
+				List<Object> body = new ArrayList<>();
+				for (int index = 0; index < colcnt; index++) {
+					try {
+						Object value = rsmd.getColumnTypeName(index + 1).equals("CLOB") ? 
+							rs.getString(index + 1) : rs.getObject(index + 1);
+						body.add(value);
+						
+						if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString().length()) {
+							rowlength.set(index, body.get(index).toString().length() > 100 ? 100 : body.get(index).toString().length());
+						}
+					} catch (NullPointerException e) {
+						body.add(null);
+					} catch (Exception e) {
+						body.add(e.toString());
+					}
+				}
+				rowbody.add(body);
+			}
+			
+			result.put("rowbody", rowbody);
+			result.put("rowlength", rowlength);
+			
+		} else {
+			// ResultSet이 없는 경우 - 출력 파라미터 값 처리
+			List<List<Object>> rowbody = new ArrayList<>();
+			List<Object> element = new ArrayList<>();
+			
+			if (typelst.size() > 0) {
+				// 출력 파라미터 값들 가져오기
+				for (int i = 0; i < typelst.size(); i++) {
+					try {
+						Object value = null;
+						switch (typelst.get(i)) {
+							case Types.INTEGER:
+								value = callStmt.getInt(i + 1);
+								break;
+							case Types.VARCHAR:
+							case Types.CHAR:
+								value = callStmt.getString(i + 1 );
+								break;
+							case Types.DECIMAL:
+								value = callStmt.getBigDecimal(i + 1);
+								break;
+							case Types.BIGINT:
+								value = callStmt.getLong(i + 1 );
+								break;
+							case Types.SMALLINT:
+								value = callStmt.getShort(i + 1);
+								break;
+							default:
+								value = callStmt.getObject(i + 1 );
+								break;
+						}
+						element.add(value);
+					} catch (SQLException e) {
+						logger.warn("출력 파라미터 값 가져오기 실패: index={}, error={}", i + 1, e.getMessage());
+						element.add(null);
+					}
 				}
 				
-				result.put("rowhead", rowhead);
-				result.put("rowbody", rowbody);
-				result.put("rowlength", rowlength);
-				
+				rowlength.add(1);
+				rowlength.add(typelst.size());
 			} else {
-				// ResultSet이 없는 경우
-				List<Map<String, Object>> rowhead = new ArrayList<>();
-				List<List<Object>> rowbody = new ArrayList<>();
-				List<Object> row = new ArrayList<>();
-				
-				// 업데이트된 행 수
+				// 출력 파라미터가 없는 경우
 				Map<String, Object> head = new HashMap<>();
 				head.put("title", "Update Rows");
 				head.put("type", Types.VARCHAR);
 				head.put("desc", "");
 				rowhead.add(head);
-				
-				row.add("" + callStmt.getUpdateCount());
-				rowbody.add(row);
-				
 				result.put("rowhead", rowhead);
-				result.put("rowbody", rowbody);
+				
+				element.add("" + callStmt.getUpdateCount());
+				rowlength.add(callStmt.getUpdateCount());
+				rowlength.add(callStmt.getUpdateCount());
 			}
+			
+			rowbody.add(element);
+			result.put("rowbody", rowbody);
+			result.put("rowlength", rowlength);
+		}
 			
 			// 실행 결과 설정
 			executeDto.setRows(result.get("rowbody") != null ? result.get("rowbody").size() : 0);
@@ -1564,5 +1682,76 @@ public class SQLExecuteService {
 			return sqlContentService.getDefaultSqlContent(templateId);
 		}
 		return sqlContentService.getSqlContentByTemplateAndConnectionId(templateId, connectionId);
+	}
+	
+	/**
+	 * SQL에서 프로시저명 추출
+	 * 
+	 * @param sql SQL 문
+	 * @return 프로시저명
+	 */
+	private String extractProcedureName(String sql) {
+		if (sql == null || sql.trim().isEmpty()) {
+			return null;
+		}
+		
+		// CALL SP_NAME(...) 형태에서 프로시저명 추출
+		String trimmedSql = sql.trim().toUpperCase();
+		if (trimmedSql.startsWith("CALL ")) {
+			int startIndex = 5; // "CALL ".length()
+			int endIndex = trimmedSql.indexOf('(');
+			if (endIndex > startIndex) {
+				return trimmedSql.substring(startIndex, endIndex).trim();
+			}
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * 메타데이터를 통한 동적 출력 파라미터 등록
+	 * 
+	 * @param callStmt CallableStatement
+	 * @param sql SQL 문
+	 * @throws SQLException
+	 */
+	private void registerOutParametersDynamic(CallableStatement callStmt, String sql) throws SQLException {
+		String procedureName = extractProcedureName(sql);
+		if (procedureName == null) {
+			return;
+		}
+		
+		try {
+			DatabaseMetaData metaData = callStmt.getConnection().getMetaData();
+			
+			// 프로시저 파라미터 정보 조회
+			try (ResultSet rs = metaData.getProcedureColumns(null, null, procedureName, null)) {
+				int paramIndex = 1;
+				while (rs.next()) {
+					String paramName = rs.getString("COLUMN_NAME");
+					int paramType = rs.getInt("DATA_TYPE");
+					int paramMode = rs.getInt("COLUMN_TYPE");
+					
+					logger.debug("파라미터 정보: index={}, name={}, type={}, mode={}", paramIndex, paramName, paramType, paramMode);
+					
+					// IBM DB2 COLUMN_TYPE 값: 1=IN, 2=INOUT, 4=OUT
+					// OUT(4) 또는 INOUT(2) 파라미터인 경우 등록
+					if (paramMode == 4 || paramMode == 2) {
+						try {
+							callStmt.registerOutParameter(paramIndex, paramType);
+							logger.debug("OUT 파라미터 등록 성공: index={}, type={}, name={}, mode={}", paramIndex, paramType, paramName, paramMode);
+						} catch (SQLException e) {
+							logger.warn("OUT 파라미터 등록 실패: index={}, type={}, name={}, mode={}, error={}", 
+								paramIndex, paramType, paramName, paramMode, e.getMessage());
+						}
+						
+						paramIndex++;
+					}
+					
+				}
+			}
+		} catch (SQLException e) {
+			logger.warn("메타데이터 조회 실패: procedure={}, error={}", procedureName, e.getMessage());
+		}
 	}
 }

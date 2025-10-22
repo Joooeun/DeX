@@ -252,7 +252,7 @@ let ondate;
 								excute();
 							}
 						},
-						error: function() {
+						error: function(xhr, status, error) {
 							showSystemError("연결 정보 조회 실패", {
 								error: xhr.responseText,
 								status: xhr.status,
@@ -880,7 +880,7 @@ let ondate;
 					$("#excutebtn").val('실행');
 				}
 			},
-			error: function(error) {
+			error: function(xhr, status, error) {
 				// 에러 처리
 				$("#excutebtn").attr('disabled', false);
 				$("#excutebtn").val('실행');
