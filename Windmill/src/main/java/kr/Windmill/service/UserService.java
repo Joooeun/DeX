@@ -313,8 +313,8 @@ public class UserService {
                 return result;
             }
             
-            // 로그인 성공 처리
-            String sessionId = "SESS_" + System.currentTimeMillis() + "_" + userId;
+            // 로그인 성공 처리 - 나노초 + 랜덤으로 중복 방지
+            String sessionId = "SESS_" + System.nanoTime() + "_" + (int)(Math.random() * 1000) + "_" + userId;
             
             // 임시 비밀번호로 로그인했는지 확인
             boolean isTempPasswordLogin = (tempPassword != null && tempPassword.equals(encryptedPassword));
