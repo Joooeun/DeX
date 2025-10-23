@@ -982,6 +982,9 @@
 
 			// 파라미터 삭제 시 자동완성 업데이트
 			updateAllEditorsCompleters();
+			
+			// 변경사항 표시
+			markTemplateChanged();
 		}
 
 		// 파라미터 순서 재정렬
