@@ -602,19 +602,28 @@ public class SQLExecuteService {
 
 	/**
 	 * SQL 타입 감지
+	 * @throws Exception 
 	 */
-	public static SqlType detectSqlType(String sql)  {
+	public static SqlType detectSqlType(String sql) throws Exception  {
 
 		switch (firstword(sql)) {
 		case "CALL":
 		case "BEGIN":
+		case "DECLARE":
+		case "SET":
+		case "EXEC":
 			return SqlType.CALL;
 		case "SELECT":
 		case "WITH":
 		case "VALUE":
+		case "EXPLAIN":
+		case "SHOW":
+		case "DESC":
+		case "PRAGMA":
+		case "VALUES":
 			return SqlType.EXECUTE;
 		default:
-			return SqlType.UPDATE;
+			throw new Exception("지원하지 않는 SQL 타입입니다: " + firstword(sql));
 		}
 	}
 
@@ -703,8 +712,6 @@ public class SQLExecuteService {
 				case UPDATE:
 					result = executeUpdate(executeDto, sql);
 					break;
-				default:
-					throw new Exception("지원하지 않는 SQL 타입입니다: " + sqlType);
 			}
 			
 
