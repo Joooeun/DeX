@@ -663,13 +663,28 @@
 
 		// 템플릿 렌더링
 		function renderTemplates(templates, categoryId) {
+			// 비활성화된 템플릿 스타일 추가
+			if (!$('#inactive-template-styles').length) {
+				$('head').append(`
+					<style id="inactive-template-styles">
+						.inactive-template {
+							background-color: #f9f9f9 !important;
+							border-color: #ccc !important;
+						}
+						.inactive-template:hover {
+							background-color: #f0f0f0 !important;
+						}
+					</style>
+				`);
+			}
+			
 			renderList({
 				container: $('#templateList'),
 				data: templates,
 				emptyMessage: '템플릿이 없습니다.',
 				itemRenderer: function(template) {
 
-					// 타입별 배지 생성
+					// 타입별 배지 생성 (가로너비 통일)
 					var typeBadge = '';
 					var badgeClass = '';
 					
@@ -695,12 +710,22 @@
 							typeBadge = template.TEMPLATE_TYPE || 'SQL';
 					}
 					
-					var item = $('<div class="template-item" data-id="' + template.TEMPLATE_ID + 
+					// 상태별 스타일 및 표시
+					var isInactive = template.STATUS === 'INACTIVE';
+					var itemClass = 'template-item';
+					var nameStyle = '';
+					
+					if (isInactive) {
+						itemClass += ' inactive-template';
+						nameStyle = 'style="color: #999; text-decoration: line-through;"';
+					}
+					
+					var item = $('<div class="' + itemClass + '" data-id="' + template.TEMPLATE_ID + 
 						'" onclick="selectTemplate(\'' + template.TEMPLATE_ID + '\', \'' + categoryId + '\')">' +
 						'<div class="row">' +
 						'<div class="col-md-12">' +
-						'<span class="badge ' + badgeClass + '" style="margin-right: 8px;">' + typeBadge + '</span>' +
-						'<strong>' + template.TEMPLATE_NAME + '</strong>' +
+						'<span class="badge ' + badgeClass + '" style="margin-right: 8px; min-width: 50px; display: inline-block; text-align: center;">' + typeBadge + '</span>' +
+						'<strong ' + nameStyle + '>' + template.TEMPLATE_NAME + '</strong>' +
 						'</div>' +
 						'</div>' +
 						'</div>');
@@ -1572,8 +1597,14 @@
 			$('#sqlTemplateType').val('SQL');
 			// 체크박스 설정 (이벤트 트리거 방지)
 			$('#sqlNewline').off('change').prop('checked', false);
-			$('#sqlInactive').prop('checked', false);
+			$('#sqlInactive').off('change').prop('checked', false);
 			$('#sqlAudit').prop('checked', false);
+			
+			// 비활성화 체크박스 이벤트 핸들러 등록
+			$('#sqlInactive').on('change', function() {
+				var isInactive = $(this).is(':checked');
+				$('#sqlTemplateStatus').val(isInactive ? 'INACTIVE' : 'ACTIVE');
+			});
 
 			// 해당 메뉴로 이동 버튼 비활성화
 			updateGoToTemplateButton();
@@ -2065,8 +2096,14 @@
 							$('#sqlTemplateType').val(template.templateType || 'SQL');
 							// 체크박스 설정 (이벤트 트리거 방지)
 							$('#sqlNewline').off('change').prop('checked', template.newline === true);
-							$('#sqlInactive').prop('checked', template.sqlStatus === 'INACTIVE');
+							$('#sqlInactive').off('change').prop('checked', template.sqlStatus === 'INACTIVE');
 							$('#sqlAudit').prop('checked', template.audit === true);
+							
+							// 비활성화 체크박스 이벤트 핸들러 등록
+							$('#sqlInactive').on('change', function() {
+								var isInactive = $(this).is(':checked');
+								$('#sqlTemplateStatus').val(isInactive ? 'INACTIVE' : 'ACTIVE');
+							});
 
 							// 해당 메뉴로 이동 버튼 활성화
 							updateGoToTemplateButton();

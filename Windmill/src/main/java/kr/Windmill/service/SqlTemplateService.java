@@ -571,24 +571,24 @@ public class SqlTemplateService {
 	}
 
 	/**
-	 * 카테고리별 템플릿 목록 조회
+	 * 카테고리별 템플릿 목록 조회 (관리자용 - 모든 상태 포함)
 	 */
 	public List<Map<String, Object>> getTemplatesByCategory(String categoryId) {
 		if (categoryId == null || categoryId.trim().isEmpty() || "UNCATEGORIZED".equals(categoryId)) {
-			// 미분류 템플릿 조회
-            String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.TEMPLATE_TYPE, t.CREATED_TIMESTAMP " +
+			// 미분류 템플릿 조회 (모든 상태 포함)
+            String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.TEMPLATE_TYPE, t.STATUS, t.CREATED_TIMESTAMP " +
                         "FROM SQL_TEMPLATE t " +
                         "LEFT JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
-                        "WHERE t.STATUS = 'ACTIVE' AND m.TEMPLATE_ID IS NULL " +
-                        "ORDER BY t.TEMPLATE_NAME ASC";
+                        "WHERE m.TEMPLATE_ID IS NULL " +
+                        "ORDER BY t.STATUS DESC, t.TEMPLATE_NAME ASC";
 			return jdbcTemplate.queryForList(sql);
 		} else {
-			// 특정 카테고리의 템플릿 조회
-            String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.TEMPLATE_TYPE, t.CREATED_TIMESTAMP " +
+			// 특정 카테고리의 템플릿 조회 (모든 상태 포함)
+            String sql = "SELECT t.TEMPLATE_ID, t.TEMPLATE_NAME, t.TEMPLATE_TYPE, t.STATUS, t.CREATED_TIMESTAMP " +
                         "FROM SQL_TEMPLATE t " +
                         "JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON t.TEMPLATE_ID = m.TEMPLATE_ID " +
-                        "WHERE t.STATUS = 'ACTIVE' AND m.CATEGORY_ID = ? " +
-                        "ORDER BY t.TEMPLATE_NAME ASC";
+                        "WHERE m.CATEGORY_ID = ? " +
+                        "ORDER BY t.STATUS DESC, t.TEMPLATE_NAME ASC";
 			return jdbcTemplate.queryForList(sql, categoryId);
 		}
 	}
