@@ -65,184 +65,7 @@ public class SQLExecuteService {
 		CALL, EXECUTE, UPDATE
 	}
 
-	/**
-	 * SQL 실행 공통 메서드
-	 * 
-	 * @param data     LogInfoDto - SQL 실행 정보
-	 * @param memberId 사용자 ID
-	 * @param ip       사용자 IP
-	 * @return SQL 실행 결과
-	 */
-	public Map<String, List> executeSQL(LogInfoDto data) throws Exception {
-		data.setStart(Instant.now());
 
-		Properties prop = new Properties();
-		prop.put("clientProgramName", "DeX");
-
-		String sql = data.getSql().length() > 0 ? data.getSql() : com.FileRead(new File(data.getPath()));
-		
-		// 템플릿 ID가 있는 경우, 해당 DB 연결의 SQL 내용 조회
-		if (data.getTemplateId() != null && !data.getTemplateId().trim().isEmpty()) {
-			String connectionId = data.getConnectionId();
-			
-			// connectionId가 null이면 기본 SQL 내용 조회
-			if (connectionId == null || connectionId.trim().isEmpty()) {
-				Map<String, Object> defaultSqlContent = sqlContentService.getDefaultSqlContent(data.getTemplateId());
-				if (defaultSqlContent != null) {
-					sql = (String) defaultSqlContent.get("SQL_CONTENT");
-					// 기본 템플릿은 connectionId가 null이므로 null로 설정
-					connectionId = null;
-					logger.info("템플릿 기본 SQL 내용 사용: templateId={}", 
-						data.getTemplateId());
-				} else {
-					logger.warn("템플릿의 기본 SQL 내용을 찾을 수 없음: templateId={}", 
-						data.getTemplateId());
-				}
-			} else {
-				// CONNECTION_ID 기반 SQL 내용 조회
-				Map<String, Object> sqlContent = sqlContentService.getSqlContentByTemplateAndConnectionId(
-					data.getTemplateId(), connectionId);
-				
-				if (sqlContent != null) {
-					sql = (String) sqlContent.get("SQL_CONTENT");
-					String contentConnectionId = (String) sqlContent.get("CONNECTION_ID");
-					logger.info("템플릿 SQL 내용 사용: templateId={}, requestedConnectionId={}, contentConnectionId={}", 
-						data.getTemplateId(), connectionId, contentConnectionId);
-				} else {
-					logger.warn("템플릿 SQL 내용을 찾을 수 없음: templateId={}, connectionId={}", 
-						data.getTemplateId(), connectionId);
-				}
-			}
-		}
-		
-		data.setParamList(com.getListFromString(data.getParams()));
-		data.setLogsqlA(sql);
-
-		String log = "";
-		if (data.getLog() != null) {
-			for (Entry<String, String> entry : data.getLog().entrySet()) {
-				log += "\n" + entry.getKey() + " : " + entry.getValue();
-			}
-		}
-
-		Map<String, List> result = new HashMap();
-		PreparedStatement pstmt = null;
-
-		try {
-			cLog.log_start(data, log + "\nmenu 실행 시작\n");
-			cLog.logMenuExecutionStart(data);  // 메뉴 실행 시작 로그 저장
-
-			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
-
-			// 파라미터 매핑 처리
-			if (data.getParamList().size() > 0) {
-				mapping = processParameterMapping(data, sql);
-				sql = data.getSql(); // 매핑 후 수정된 SQL
-			}
-
-			String row = "";
-
-			if (detectSqlType(sql) == SqlType.CALL) {
-				data.setLogNo(data.getLogNo() + 1);
-				result = callprocedure(sql, data, mapping);
-
-				data.setRows(Integer.parseInt(result.get("rowlength").get(data.isAudit() ? 1 : 0).toString()));
-				data.setEnd(Instant.now());
-				data.setResult("Success");
-				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
-
-				row = " / rows : " + data.getRows();
-				cLog.log_end(data, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
-				cLog.log_DB(data);
-				cLog.logMenuExecutionEnd(data);  // 메뉴 실행 완료 로그 저장
-
-			} else if (detectSqlType(sql) == SqlType.EXECUTE) {
-				data.setLogNo(data.getLogNo() + 1);
-				result = excutequery(sql, data, data.getLimit(), mapping);
-				data.setRows(result.get("rowbody").size() - 1);
-				data.setEnd(Instant.now());
-				data.setResult("Success");
-				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
-
-				cLog.log_end(data, " sql 실행 종료 : 성공 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
-				cLog.log_DB(data);
-				cLog.logMenuExecutionEnd(data);  // 메뉴 실행 완료 로그 저장
-
-			} else {
-				// UPDATE 타입 처리
-				result = processUpdateSQL(data, mapping, sql);
-
-				data.setRows(result.size());
-				data.setEnd(Instant.now());
-				data.setResult("Success");
-				Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
-
-				cLog.log_end(data, " sql 실행 종료 : 성공 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
-				cLog.log_DB(data);
-				cLog.logMenuExecutionEnd(data);  // 메뉴 실행 완료 로그 저장
-			}
-
-		} catch (SQLException e1) {
-			// SQL 예외 처리
-			Map<String, List> errorResult = new HashMap<>();
-
-			if (errorResult.size() == 0) {
-				List<Map<String, String>> rowhead = new ArrayList<>();
-				rowhead.add(new HashMap<String, String>() {
-					{
-						put("title", "Result");
-					}
-				});
-				rowhead.add(new HashMap<String, String>() {
-					{
-						put("title", "Updated Rows");
-					}
-				});
-				rowhead.add(new HashMap<String, String>() {
-					{
-						put("title", "Query");
-					}
-				});
-				errorResult.put("rowhead", rowhead);
-			}
-
-			List<List<String>> singleList = new ArrayList<List<String>>();
-			if (errorResult.get("rowbody") != null)
-				singleList.addAll(errorResult.get("rowbody"));
-
-			List<String> element = new ArrayList<String>();
-			element.add(e1.toString());
-			element.add("0");
-			element.add(data.getSql());
-
-			singleList.add(element);
-			errorResult.put("rowbody", singleList);
-			List<Boolean> successList = new ArrayList<>();
-			successList.add(false);
-			errorResult.put("success", successList);
-
-			data.setResult(e1.getMessage());
-			data.setDuration(0);
-			cLog.log_end(data, " sql 실행 종료 : 실패 " + e1.getMessage() + "\n\n");
-			cLog.log_DB(data);
-			cLog.logMenuExecutionEnd(data);  // 메뉴 실행 완료 로그 저장
-
-			logger.error("SQL 실행 실패 - id: {} / sql: {}", data.getId(), data.getSql());
-			e1.printStackTrace();
-
-			return errorResult;
-		} catch (Exception e) {
-			data.setEnd(Instant.now());
-			data.setResult("Error");
-			Duration timeElapsed = Duration.between(data.getStart(), data.getEnd());
-			cLog.log_end(data, " sql 실행 종료 : 실패 / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
-			cLog.log_DB(data);
-			cLog.logMenuExecutionEnd(data);  // 메뉴 실행 완료 로그 저장
-			throw e;
-		}
-
-		return result;
-	}
 
 	/**
 	 * 파라미터 매핑 처리
@@ -880,17 +703,21 @@ public class SQLExecuteService {
 					throw new Exception("지원하지 않는 SQL 타입입니다: " + sqlType);
 			}
 			
-			// 성공 결과 설정
-			executeDto.setEndTime(Instant.now());
-			executeDto.setResult("Success");
-			executeDto.setExecutionTime(Duration.between(executeDto.getStartTime(), executeDto.getEndTime()));
-			
-			// 성공 로깅
-			Duration timeElapsed = Duration.between(executeDto.getStartTime(), executeDto.getEndTime());
-			String row = " / rows : " + executeDto.getRows();
-			cLog.log_end(executeDto, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
-			cLog.log_DB(executeDto);
+			if(sqlType != SqlType.UPDATE) {
+				// 성공 결과 설정
+				executeDto.setEndTime(Instant.now());
+				executeDto.setResult("Success");
+				executeDto.setExecutionTime(Duration.between(executeDto.getStartTime(), executeDto.getEndTime()));
+				
+				// 성공 로깅
+				Duration timeElapsed = Duration.between(executeDto.getStartTime(), executeDto.getEndTime());
+				String row = " / rows : " + executeDto.getRows();
+				cLog.log_end(executeDto, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
+				cLog.log_DB(executeDto);
+				
+			}
 			cLog.logMenuExecutionEnd(executeDto);  // 메뉴 실행 완료 로그 저장
+			
 			
 		} catch (SQLException e1) {
 			// SQL 예외 처리
@@ -995,208 +822,198 @@ public class SQLExecuteService {
 			
 			Map<String, List> result = new HashMap<>();
 			
-		// DB2 프로시저 처리 (dd 파일의 callprocedure 방식 참고)
-		String callcheckstr = "";
-		String prcdname = "";
-		List<Integer> typelst = new ArrayList<>();
-		List<Integer> rowlength = new ArrayList<>();
-		List<Map<String, Object>> rowhead = new ArrayList<>();
-		
-		// CALL 문에서 프로시저명 추출
-		if (sql.indexOf("CALL") > -1) {
-			prcdname = sql.substring(sql.indexOf("CALL") + 5, sql.indexOf("("));
-			if (prcdname.contains(".")) {
-				prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
-			}
+			// DB2 프로시저 처리 (dd 파일의 callprocedure 방식 참고)
+			String callcheckstr = "";
+			String prcdname = "";
+			List<Integer> typelst = new ArrayList<>();
+			List<Integer> rowlength = new ArrayList<>();
+			List<Map<String, Object>> rowhead = new ArrayList<>();
 			
-			int paramcnt = StringUtils.countMatches(sql, ",") + 1;
-			
-			// DB2 프로시저 파라미터 타입 조회
-			callcheckstr = "SELECT * FROM syscat.ROUTINEPARMS WHERE routinename = '" + prcdname.toUpperCase().trim() + 
-				"' AND SPECIFICNAME = (SELECT SPECIFICNAME FROM (SELECT SPECIFICNAME, count(*) AS cnt FROM syscat.ROUTINEPARMS " +
-				"WHERE routinename = '" + prcdname.toUpperCase().trim() + "' GROUP BY SPECIFICNAME) a WHERE a.cnt = " + paramcnt + 
-				") AND ROWTYPE != 'P' ORDER BY SPECIFICNAME, ordinal";
-			
-			PreparedStatement pstmt = null;
-			ResultSet paramRs = null;
-			try {
-				pstmt = con.prepareStatement(callcheckstr);
-				paramRs = pstmt.executeQuery();
+			// CALL 문에서 프로시저명 추출
+			if (sql.indexOf("CALL") > -1) {
+				prcdname = sql.substring(sql.indexOf("CALL") + 5, sql.indexOf("("));
+				if (prcdname.contains(".")) {
+					prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
+				}
 				
-				while (paramRs.next()) {
-					String typeName = paramRs.getString("TYPENAME");
-					switch (typeName) {
-						case "VARCHAR2":
-						case "VARCHAR":
-							typelst.add(Types.VARCHAR);
-							break;
-						case "INTEGER":
-							typelst.add(Types.INTEGER);
-							break;
-						case "TIMESTAMP":
-							typelst.add(Types.TIMESTAMP);
-							break;
-						case "DATE":
-							typelst.add(Types.DATE);
-							break;
-						case "DECIMAL":
-							typelst.add(Types.DECIMAL);
-							break;
-						case "BIGINT":
-							typelst.add(Types.BIGINT);
-							break;
-						case "SMALLINT":
-							typelst.add(Types.SMALLINT);
-							break;
-						default:
-							typelst.add(Types.VARCHAR);
-							break;
-					}
-				}
-			} catch (SQLException e) {
-				logger.warn("프로시저 파라미터 정보 조회 실패: {}", e.getMessage());
-			} finally {
-				if (paramRs != null) try { paramRs.close(); } catch (Exception e) {}
-				if (pstmt != null) try { pstmt.close(); } catch (Exception e) {}
-			}
-		}
-		
-		// CallableStatement 생성
-		callStmt = con.prepareCall(sql);
-		
-		// 출력 파라미터 등록
-		for (int i = 0; i < typelst.size(); i++) {
-			callStmt.registerOutParameter(i + 1, typelst.get(i));
-			
-			Map<String, Object> head = new HashMap<>();
-			head.put("title", "OUTPUT_" + (i + 1));
-			head.put("type", typelst.get(i));
-			head.put("desc", "OUTPUT_PARAMETER");
-			rowhead.add(head);
-		}
-		
-		result.put("rowhead", rowhead);
-		
-		// 프로시저 실행
-		callStmt.execute();
-		
-		// 결과 처리
-		rs = callStmt.getResultSet();
-		
-		if (rs != null) {
-			// ResultSet이 있는 경우
-			ResultSetMetaData rsmd = rs.getMetaData();
-			int colcnt = rsmd.getColumnCount();
-			
-			// ResultSet 컬럼 헤더 추가
-			for (int index = 0; index < colcnt; index++) {
-				Map<String, Object> head = new HashMap<>();
-				head.put("title", rsmd.getColumnLabel(index + 1));
-				head.put("type", rsmd.getColumnType(index + 1));
-				head.put("desc", rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")");
-				rowhead.add(head);
-				rowlength.add(0);
-			}
-			result.put("rowhead", rowhead);
-			
-			// ResultSet 데이터 처리
-			List<List<Object>> rowbody = new ArrayList<>();
-			while (rs.next()) {
-				List<Object> body = new ArrayList<>();
-				for (int index = 0; index < colcnt; index++) {
-					try {
-						Object value = rsmd.getColumnTypeName(index + 1).equals("CLOB") ? 
-							rs.getString(index + 1) : rs.getObject(index + 1);
-						body.add(value);
-						
-						if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString().length()) {
-							rowlength.set(index, body.get(index).toString().length() > 100 ? 100 : body.get(index).toString().length());
-						}
-					} catch (NullPointerException e) {
-						body.add(null);
-					} catch (Exception e) {
-						body.add(e.toString());
-					}
-				}
-				rowbody.add(body);
-			}
-			
-			result.put("rowbody", rowbody);
-			result.put("rowlength", rowlength);
-			
-		} else {
-			// ResultSet이 없는 경우 - 출력 파라미터 값 처리
-			List<List<Object>> rowbody = new ArrayList<>();
-			List<Object> element = new ArrayList<>();
-			
-			if (typelst.size() > 0) {
-				// 출력 파라미터 값들 가져오기
-				for (int i = 0; i < typelst.size(); i++) {
-					try {
-						Object value = null;
-						switch (typelst.get(i)) {
-							case Types.INTEGER:
-								value = callStmt.getInt(i + 1);
+				int paramcnt = StringUtils.countMatches(sql, ",") + 1;
+				
+				// DB2 프로시저 파라미터 타입 조회
+				callcheckstr = "SELECT * FROM syscat.ROUTINEPARMS WHERE routinename = '" + prcdname.toUpperCase().trim() + 
+					"' AND SPECIFICNAME = (SELECT SPECIFICNAME FROM (SELECT SPECIFICNAME, count(*) AS cnt FROM syscat.ROUTINEPARMS " +
+					"WHERE routinename = '" + prcdname.toUpperCase().trim() + "' GROUP BY SPECIFICNAME) a WHERE a.cnt = " + paramcnt + 
+					") AND ROWTYPE != 'P' ORDER BY SPECIFICNAME, ordinal";
+				
+				PreparedStatement pstmt = null;
+				ResultSet paramRs = null;
+				try {
+					pstmt = con.prepareStatement(callcheckstr);
+					paramRs = pstmt.executeQuery();
+					
+					while (paramRs.next()) {
+						String typeName = paramRs.getString("TYPENAME");
+						switch (typeName) {
+							case "VARCHAR2":
+							case "VARCHAR":
+								typelst.add(Types.VARCHAR);
 								break;
-							case Types.VARCHAR:
-							case Types.CHAR:
-								value = callStmt.getString(i + 1 );
+							case "INTEGER":
+								typelst.add(Types.INTEGER);
 								break;
-							case Types.DECIMAL:
-								value = callStmt.getBigDecimal(i + 1);
+							case "TIMESTAMP":
+								typelst.add(Types.TIMESTAMP);
 								break;
-							case Types.BIGINT:
-								value = callStmt.getLong(i + 1 );
+							case "DATE":
+								typelst.add(Types.DATE);
 								break;
-							case Types.SMALLINT:
-								value = callStmt.getShort(i + 1);
+							case "DECIMAL":
+								typelst.add(Types.DECIMAL);
+								break;
+							case "BIGINT":
+								typelst.add(Types.BIGINT);
+								break;
+							case "SMALLINT":
+								typelst.add(Types.SMALLINT);
 								break;
 							default:
-								value = callStmt.getObject(i + 1 );
+								typelst.add(Types.VARCHAR);
 								break;
 						}
-						element.add(value);
-					} catch (SQLException e) {
-						logger.warn("출력 파라미터 값 가져오기 실패: index={}, error={}", i + 1, e.getMessage());
-						element.add(null);
 					}
+				} catch (SQLException e) {
+					logger.warn("프로시저 파라미터 정보 조회 실패: {}", e.getMessage());
+				} finally {
+					if (paramRs != null) try { paramRs.close(); } catch (Exception e) {}
+					if (pstmt != null) try { pstmt.close(); } catch (Exception e) {}
 				}
-				
-				rowlength.add(1);
-				rowlength.add(typelst.size());
-			} else {
-				// 출력 파라미터가 없는 경우
-				Map<String, Object> head = new HashMap<>();
-				head.put("title", "Update Rows");
-				head.put("type", Types.VARCHAR);
-				head.put("desc", "");
-				rowhead.add(head);
-				result.put("rowhead", rowhead);
-				
-				element.add("" + callStmt.getUpdateCount());
-				rowlength.add(callStmt.getUpdateCount());
-				rowlength.add(callStmt.getUpdateCount());
 			}
 			
-			rowbody.add(element);
-			result.put("rowbody", rowbody);
-			result.put("rowlength", rowlength);
-		}
+			// CallableStatement 생성
+			callStmt = con.prepareCall(sql);
+			
+			// 출력 파라미터 등록
+			for (int i = 0; i < typelst.size(); i++) {
+				callStmt.registerOutParameter(i + 1, typelst.get(i));
+				
+				Map<String, Object> head = new HashMap<>();
+				head.put("title", "OUTPUT_" + (i + 1));
+				head.put("type", typelst.get(i));
+				head.put("desc", "OUTPUT_PARAMETER");
+				rowhead.add(head);
+			}
+			
+			result.put("rowhead", rowhead);
+			
+			// 프로시저 실행
+			callStmt.execute();
+			
+			// 결과 처리
+			rs = callStmt.getResultSet();
+			
+			if (rs != null) {
+				// ResultSet이 있는 경우
+				ResultSetMetaData rsmd = rs.getMetaData();
+				int colcnt = rsmd.getColumnCount();
+				
+				// ResultSet 컬럼 헤더 추가
+				for (int index = 0; index < colcnt; index++) {
+					Map<String, Object> head = new HashMap<>();
+					head.put("title", rsmd.getColumnLabel(index + 1));
+					head.put("type", rsmd.getColumnType(index + 1));
+					head.put("desc", rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")");
+					rowhead.add(head);
+					rowlength.add(0);
+				}
+				result.put("rowhead", rowhead);
+				
+				// ResultSet 데이터 처리
+				List<List<Object>> rowbody = new ArrayList<>();
+				while (rs.next()) {
+					List<Object> body = new ArrayList<>();
+					for (int index = 0; index < colcnt; index++) {
+						try {
+							Object value = rsmd.getColumnTypeName(index + 1).equals("CLOB") ? 
+								rs.getString(index + 1) : rs.getObject(index + 1);
+							body.add(value);
+							
+							if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString().length()) {
+								rowlength.set(index, body.get(index).toString().length() > 100 ? 100 : body.get(index).toString().length());
+							}
+						} catch (NullPointerException e) {
+							body.add(null);
+						} catch (Exception e) {
+							body.add(e.toString());
+						}
+					}
+					rowbody.add(body);
+				}
+				
+				result.put("rowbody", rowbody);
+				result.put("rowlength", rowlength);
+				
+			} else {
+				// ResultSet이 없는 경우 - 출력 파라미터 값 처리
+				List<List<Object>> rowbody = new ArrayList<>();
+				List<Object> element = new ArrayList<>();
+				
+				if (typelst.size() > 0) {
+					// 출력 파라미터 값들 가져오기
+					for (int i = 0; i < typelst.size(); i++) {
+						try {
+							Object value = null;
+							switch (typelst.get(i)) {
+								case Types.INTEGER:
+									value = callStmt.getInt(i + 1);
+									break;
+								case Types.VARCHAR:
+								case Types.CHAR:
+									value = callStmt.getString(i + 1 );
+									break;
+								case Types.DECIMAL:
+									value = callStmt.getBigDecimal(i + 1);
+									break;
+								case Types.BIGINT:
+									value = callStmt.getLong(i + 1 );
+									break;
+								case Types.SMALLINT:
+									value = callStmt.getShort(i + 1);
+									break;
+								default:
+									value = callStmt.getObject(i + 1 );
+									break;
+							}
+							element.add(value);
+						} catch (SQLException e) {
+							logger.warn("출력 파라미터 값 가져오기 실패: index={}, error={}", i + 1, e.getMessage());
+							element.add(null);
+						}
+					}
+					
+					rowlength.add(1);
+					rowlength.add(typelst.size());
+				} else {
+					// 출력 파라미터가 없는 경우
+					Map<String, Object> head = new HashMap<>();
+					head.put("title", "Update Rows");
+					head.put("type", Types.VARCHAR);
+					head.put("desc", "");
+					rowhead.add(head);
+					result.put("rowhead", rowhead);
+					
+					element.add("" + callStmt.getUpdateCount());
+					rowlength.add(callStmt.getUpdateCount());
+					rowlength.add(callStmt.getUpdateCount());
+				}
+				
+				rowbody.add(element);
+				result.put("rowbody", rowbody);
+				result.put("rowlength", rowlength);
+			}
 			
 			// 실행 결과 설정
 			executeDto.setRows(result.get("rowbody") != null ? result.get("rowbody").size() : 0);
 			
 			return result;
-			
-		} catch (SQLException e) {
-			// SQL 실행 오류 처리
-			logger.error("SQL CallableStatement execution error: {}", e.getMessage());
-			return createErrorResult("SQL 프로시저 실행 오류: " + e.getMessage(), sql);
-			
-		} catch (Exception e) {
-			// 기타 예외 처리
-			logger.error("Unexpected error during callable statement execution: {}", e.getMessage(), e);
-			return createErrorResult("예상치 못한 오류: " + e.getMessage(), sql);
 			
 		} finally {
 			if (rs != null) try { rs.close(); } catch (Exception e) {}
@@ -1355,46 +1172,102 @@ public class SQLExecuteService {
 		
 		// 세미콜론으로 구분된 여러 SQL 처리
 		String[] sqlStatements = sql.trim().split(";");
-		List<List<Object>> allResults = new ArrayList<>();
-		int totalUpdatedRows = 0;
 		
-		for (String singleSql : sqlStatements) {
-			if (singleSql.trim().isEmpty()) {
-				continue;
-			}
+		try {
 			
-			// 단일 SQL 실행
-			List<List<Object>> singleResult = executeSingleUpdate(executeDto, singleSql.trim());
-			allResults.addAll(singleResult);
-			
-			// 업데이트된 행 수 누적
-			for (List<Object> row : singleResult) {
-				if (row.size() > 1 && row.get(1) instanceof String) {
-					try {
-						totalUpdatedRows += Integer.parseInt((String) row.get(1));
-					} catch (NumberFormatException e) {
-						// 무시
-					}
+			for (int i = 0; i < sqlStatements.length; i++) {
+				String singleSql = sqlStatements[i].trim() + ";";
+				if (singleSql.isEmpty()) {
+					continue;
+				}
+				
+				// 각 쿼리마다 개별 로그 번호 증가
+				executeDto.setLogNo(executeDto.getLogNo() + 1);
+				
+				executeDto.setSqlContent(singleSql);
+				
+				Instant singleStart = Instant.now();
+				
+				// 단일 SQL 실행
+				List<List<Object>> singleResult = executeSingleUpdate(executeDto, singleSql);
+				
+				// 결과를 전체 결과에 추가
+				List<List<Object>> allResults = new ArrayList<>();
+				if (result.get("rowbody") != null) {
+					allResults.addAll(result.get("rowbody"));
+				}
+				allResults.addAll(singleResult);
+				result.put("rowbody", allResults);
+				
+				// 각 쿼리마다 개별 로그 기록
+				Duration timeElapsed = Duration.between(singleStart, Instant.now());
+				executeDto.setResult("Success");
+				executeDto.setExecutionTime(timeElapsed);
+				
+				if (singleResult.size() > 0 && singleResult.get(0).size() > 1) {
+					String updatedRows = singleResult.get(0).get(1).toString();
+					executeDto.setRows(Integer.parseInt(updatedRows));
+					
+					String row = " / " + detectSqlType(singleSql) + " rows : " + updatedRows;
+					cLog.log_end(executeDto, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
+					cLog.log_DB(executeDto);
 				}
 			}
+		} catch (Exception e) {
+
+			List<List<Object>> singleList = new ArrayList<List<Object>>();
+
+			List<Object> element = new ArrayList<Object>();
+			element.add(e.toString());
+			element.add("0");
+			element.add(executeDto.getSqlContent());
+			
+			
+			singleList.add(element);
+			
+			
+			// 결과를 전체 결과에 추가
+			List<List<Object>> allResults = new ArrayList<>();
+			if (result.get("rowbody") != null) {
+				allResults.addAll(result.get("rowbody"));
+			}
+			allResults.addAll(singleList);
+			result.put("rowbody", allResults);
+			
+			List<Boolean> successList = new ArrayList<>();
+			successList.add(false);
+			result.put("success", successList);
+
+			// 실패 결과 설정
+			executeDto.setEndTime(Instant.now());
+			executeDto.setResult("Failed");
+			executeDto.setErrorMessage(e.getMessage());
+			executeDto.setExecutionTime(Duration.between(executeDto.getStartTime(), executeDto.getEndTime()));
+
+			// 실패 로깅
+			cLog.log_end(executeDto, " sql 실행 종료 : 실패 " + e.getMessage() + "\n\n");
+			cLog.log_DB(executeDto);
+			cLog.logMenuExecutionEnd(executeDto);  // 메뉴 실행 완료 로그 저장
+
+			logger.error("SQL 실행 실패 - ConnectionId: {} / templateName: {} / sql: {}", executeDto.getConnectionId(), executeDto.getTemplateName(), executeDto.getSqlContent());
+
+			return result;
 		}
-		
-		result.put("rowbody", allResults);
-		
-		// 실행 결과 설정
-		executeDto.setRows(totalUpdatedRows);
 		
 		return result;
 	}
 	
 	/**
 	 * 단일 UPDATE/DELETE/INSERT SQL 실행
+	 * @throws Exception 
 	 */
 	private List<List<Object>> executeSingleUpdate(SqlTemplateExecuteDto executeDto, String sql) throws Exception {
 		List<List<Object>> result = new ArrayList<>();
 		
 		Connection con = null;
 		PreparedStatement pstmt = null;
+		executeDto.setSqlContent(sql);
+		Instant singleStart = Instant.now();
 		
 		try {
 			con = dynamicJdbcManager.getConnection(executeDto.getConnectionId());
@@ -1410,25 +1283,12 @@ public class SQLExecuteService {
 			row.add(sql);
 			result.add(row);
 			
-		} catch (SQLException e) {
-			// SQL 실행 오류 처리
-			logger.error("SQL Update execution error: {} {}",executeDto.getTemplateId(), e.getMessage());
-			List<Object> errorRow = new ArrayList<>();
-			errorRow.add("Error");
-			errorRow.add("0");
-			errorRow.add(sql);
-			result.add(errorRow);
+			// 성공 결과 설정
+			executeDto.setEndTime(Instant.now());
+			executeDto.setResult("Success");
+			executeDto.setExecutionTime(Duration.between(executeDto.getStartTime(), executeDto.getEndTime()));	
 			
-		} catch (Exception e) {
-			// 기타 예외 처리
-			logger.error("Unexpected error during update execution: {}", e.getMessage(), e);
-			List<Object> errorRow = new ArrayList<>();
-			errorRow.add("Error");
-			errorRow.add("0");
-			errorRow.add(sql);
-			result.add(errorRow);
-			
-		} finally {
+		}  finally {
 			if (pstmt != null) try { pstmt.close(); } catch (Exception e) {}
 			if (con != null) {
 				try {
@@ -1438,7 +1298,9 @@ public class SQLExecuteService {
 					logger.error("Connection close error: {}", e.getMessage());
 				}
 			}
+			
 		}
+
 		
 		return result;
 	}
@@ -1568,23 +1430,29 @@ public class SQLExecuteService {
 		if (parameterList == null || parameterList.isEmpty()) {
 			return sql;
 		}
-		
-		String processedSql = sql;
-		for (Map<String, Object> param : parameterList) {
-			String title = (String) param.get("title");
-			Object value = param.get("value");
-			String type = (String) param.get("type");
-			
-			if (title != null && value != null) {
-				// ${paramName} 형태의 파라미터를 실제 값으로 치환
-				// 정규식을 사용하여 정확한 매칭 (단어 경계 고려)
-				String paramPlaceholder = "\\$\\{" + Pattern.quote(title) + "\\}";
-				String paramValue = formatParameterValue(value, type);
-				processedSql = processedSql.replaceAll(paramPlaceholder, paramValue);
+		try {
+			String processedSql = sql;
+			for (Map<String, Object> param : parameterList) {
+				String title = (String) param.get("title");
+				Object value = param.get("value");
+				String type = (String) param.get("type");
+				
+				if (title != null && value != null) {
+					// ${paramName} 형태의 파라미터를 실제 값으로 치환
+					// 정규식을 사용하여 정확한 매칭 (단어 경계 고려)
+					String paramPlaceholder = "\\$\\{" + Pattern.quote(title) + "\\}";
+					String paramValue = formatParameterValue(value, type);
+					processedSql = processedSql.replaceAll(paramPlaceholder, paramValue);
+				}
 			}
+
+			return processedSql;
+			
+		} catch (Exception e) {
+			throw new RuntimeException("파라미터 파싱 중 에러가 발생했습니다. sql을 확인해 주세요.", e);
 		}
 		
-		return processedSql;
+		
 	}
 	
 	/**
@@ -1621,42 +1489,6 @@ public class SQLExecuteService {
 			default:
 				return "'" + value.toString().replace("'", "''") + "'";
 		}
-	}
-
-	/**
-	 * 템플릿의 기본 SQL 내용으로 실행
-	 * 
-	 * @param templateId 템플릿 ID
-	 * @param params 파라미터 JSON 문자열
-	 * @param limit 실행 제한
-	 * @param memberId 사용자 ID
-	 * @param ip 사용자 IP
-	 * @return SQL 실행 결과
-	 */
-	public Map<String, List> executeDefaultTemplateSQL(String templateId, String params, 
-													  Integer limit, String memberId, String ip) throws Exception {
-		// 템플릿의 기본 SQL 내용 조회
-		Map<String, Object> defaultSqlContent = sqlContentService.getDefaultSqlContent(templateId);
-		
-		if (defaultSqlContent == null) {
-			throw new Exception("템플릿의 기본 SQL 내용을 찾을 수 없습니다: " + templateId);
-		}
-		
-		// 기본 SQL 내용은 connectionId가 null
-		String connectionId = null;
-		
-		// 무한 재귀 호출 방지를 위해 직접 LogInfoDto를 생성하여 executeSQL 호출
-		LogInfoDto data = new LogInfoDto();
-		data.setTemplateId(templateId);
-		data.setConnectionId(connectionId);
-		data.setParams(params);
-		data.setLimit(limit != null ? limit : 1000);
-		data.setMemberId(memberId);
-		data.setIp(ip);
-		data.setId(templateId + "_" + System.currentTimeMillis());
-		data.setLogNo(0);
-		
-		return executeSQL(data);
 	}
 
 	/**

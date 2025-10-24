@@ -1,7 +1,9 @@
 package kr.Windmill.dto;
 
+import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -11,6 +13,7 @@ import java.util.Map;
 public class SqlTemplateExecuteDto {
     
     private String templateId;        // 템플릿 ID
+    private String templateName;      // 템플릿 이름
     private String connectionId;      // DB 연결 ID (선택적)
     private String sqlContent;        // 직접 입력된 SQL 내용 (선택적)
     private String parameters;        // 파라미터 JSON 문자열
@@ -27,8 +30,10 @@ public class SqlTemplateExecuteDto {
     private String result;            // 실행 결과 (Success/Failed)
     private Integer rows;             // 처리된 행 수
     private Integer logNo;            // 로그 번호
+    private String logId;            // 로그 ID
     private String errorMessage;      // 에러 메시지
     private Duration executionTime;   // 실행 시간
+
     
     // 생성자
     public SqlTemplateExecuteDto() {
@@ -42,6 +47,14 @@ public class SqlTemplateExecuteDto {
     
     public void setTemplateId(String templateId) {
         this.templateId = templateId;
+    }
+
+    public String getTemplateName() {
+        return templateName;
+    }    
+
+    public void setTemplateName(String templateName) {
+        this.templateName = templateName;
     }
     
     public String getConnectionId() {
@@ -152,8 +165,22 @@ public class SqlTemplateExecuteDto {
         return logNo;
     }
     
-    public void setLogNo(Integer logNo) {
-        this.logNo = logNo;
+    public void setLogNo(int logNo) {
+
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("YYYYMMddHHmmssSSS");
+		String strNowDate = simpleDateFormat.format(Date.from(this.startTime));
+
+		this.logId = this.memberId + "_" + this.templateName + "_" + strNowDate + "_" + logNo;
+		this.logNo = logNo;
+	}
+
+
+    public String getLogId() {
+        return logId;
+    }
+    
+    public void setLogId(String logId) {
+        this.logId = logId;
     }
     
     public String getErrorMessage() {
@@ -171,4 +198,5 @@ public class SqlTemplateExecuteDto {
     public void setExecutionTime(Duration executionTime) {
         this.executionTime = executionTime;
     }
+
 }

@@ -263,21 +263,14 @@ public class SQLTemplateController {
 			if (StringUtils.isEmpty(request.getTemplate().getTemplateId())) {
 				String templateName = request.getTemplate().getTemplateName();
 				
-				// 템플릿 이름 중복 체크
-				if (isTemplateNameExists(templateName)) {
+				// 중복 체크
+				if (isTemplateIdExists(templateName)) {
 					return ResponseEntity.badRequest()
 						.body(createErrorResponse("이미 존재하는 템플릿 이름입니다: " + templateName, "DUPLICATE_TEMPLATE_NAME"));
 				}
 				
-				// 현재 시간을 기반으로 고유한 템플릿 ID 생성
+				// 템플릿 이름을 그대로 템플릿 ID로 사용
 				request.getTemplate().setTemplateId(String.valueOf(System.currentTimeMillis()));
-			} else {
-				// 수정 시 템플릿 이름 중복 체크 (자기 자신 제외)
-				String templateName = request.getTemplate().getTemplateName();
-				if (isTemplateNameExists(templateName, request.getTemplate().getTemplateId())) {
-					return ResponseEntity.badRequest()
-						.body(createErrorResponse("이미 존재하는 템플릿 이름입니다: " + templateName, "DUPLICATE_TEMPLATE_NAME"));
-				}
 			}
 			
 			// 3. 서비스 호출
@@ -410,34 +403,6 @@ public class SQLTemplateController {
 			return count != null && count > 0;
 		} catch (Exception e) {
 			logger.warn("템플릿 ID 중복 체크 실패: {}", e.getMessage());
-			return false; // 오류 시 중복이 아닌 것으로 간주
-		}
-	}
-
-	/**
-	 * 템플릿 이름 중복 체크
-	 */
-	private boolean isTemplateNameExists(String templateName) {
-		try {
-			String sql = "SELECT COUNT(*) FROM SQL_TEMPLATE WHERE TEMPLATE_NAME = ? AND STATUS != 'DELETED'";
-			Integer count = jdbcTemplate.queryForObject(sql, Integer.class, templateName);
-			return count != null && count > 0;
-		} catch (Exception e) {
-			logger.warn("템플릿 이름 중복 체크 실패: {}", e.getMessage());
-			return false; // 오류 시 중복이 아닌 것으로 간주
-		}
-	}
-
-	/**
-	 * 템플릿 이름 중복 체크 (수정 시 자기 자신 제외)
-	 */
-	private boolean isTemplateNameExists(String templateName, String excludeTemplateId) {
-		try {
-			String sql = "SELECT COUNT(*) FROM SQL_TEMPLATE WHERE TEMPLATE_NAME = ? AND TEMPLATE_ID != ? AND STATUS != 'DELETED'";
-			Integer count = jdbcTemplate.queryForObject(sql, Integer.class, templateName, excludeTemplateId);
-			return count != null && count > 0;
-		} catch (Exception e) {
-			logger.warn("템플릿 이름 중복 체크 실패: {}", e.getMessage());
 			return false; // 오류 시 중복이 아닌 것으로 간주
 		}
 	}
@@ -911,6 +876,8 @@ public class SQLTemplateController {
 					Map<String, Object> templateData = (Map<String, Object>) templateInfo.get("data");
 					Boolean audit = (Boolean) templateData.get("audit");
 					executeDto.setAudit(audit != null ? audit : false);
+					executeDto.setTemplateName((String) templateData.get("sqlName"));
+
 					logger.debug("템플릿 audit 설정 조회: templateId={}, audit={}", executeDto.getTemplateId(), audit);
 				} else {
 					executeDto.setAudit(false);
@@ -951,7 +918,7 @@ public class SQLTemplateController {
 		} catch (Exception e) {
 			logger.error("SQL 템플릿 실행 중 오류 발생: {}", e.getMessage(), e);
 			result.put("success", false);
-			result.put("error", "SQL 실행 중 오류가 발생했습니다: " + e.getMessage());
+			result.put("error", e.getMessage());
 		}
 
 		return result;

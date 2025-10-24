@@ -689,6 +689,22 @@ let ondate;
 					limit: $("#limit").val() == 0 ? (limit ? 20000 : 0) : (limit ?  Math.min(20000,  $("#limit").val()) : $("#limit").val())
 				},
 				success: function(result, status, jqXHR) {
+
+					// 에러 응답인지 확인하여 error 쪽으로 넘기기
+					if (result.success === false) {
+						// 에러 처리 (error 함수와 동일한 로직)
+						$("#excutebtn").attr('disabled', false);
+						$("#excutebtn").val('실행');
+						$("#loadingdiv").css('display','none')
+						stopAutoRefresh();
+						showSystemError("sql 실행 실패", {
+							error: result.error || "알 수 없는 오류가 발생했습니다.",
+							status: 500,
+							url: ''
+						});
+						return;
+					}
+
 					// 테이블 높이 계산 (최초 1회만)
 					if(tableHeight==0){
 						tableHeight = Math.max(200,$("#test").height() - $(".content-header").outerHeight(true) - $("#Keybox").outerHeight(true) - $("#top").outerHeight(true) - 200);

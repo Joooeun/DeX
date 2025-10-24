@@ -20,8 +20,12 @@ window.sentryOnLoad = function () {
 	function showSystemError(errorMessage, errorDetails) {
 		
 		// 사용자에게 상세한 에러 메시지 표시
-		var userMessage = "시스템 에러가 발생했습니다.\n\n";
-		userMessage += "에러: " + (errorMessage || '알 수 없는 에러') + "\n";
+		var userMessage = errorMessage+"\n\n";
+		
+		if (errorDetails && errorDetails.error) {
+			userMessage += "에러: " + (errorDetails.error || '알 수 없는 에러') + "\n";
+		}
+		
 		if (errorDetails && errorDetails.url) {
 			userMessage += "요청 URL: " + errorDetails.url + "\n";
 		}

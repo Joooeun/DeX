@@ -681,11 +681,10 @@ public class Log {
 
 			// SQL 내용을 가져오기 위해 파라미터 정보 포함
 			String sqlContent = executeDto.getSqlContent() != null ? executeDto.getSqlContent() : "SQL Template: " + executeDto.getTemplateId();
-			String logId = executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli();
 
-			writer.write("start:" + logId + ":==============================================\n" + sqlContent + 
-				"\nend:" + logId + ":==============================================" + 
-				"\nDB : " + executeDto.getConnectionId() + " / TEMPLATE : " + executeDto.getTemplateId() + msg);
+			writer.write("start:" + executeDto.getLogId() + ":==============================================\n" + sqlContent + 
+				"\nend:" + executeDto.getLogId() + ":==============================================" + 
+				"\nDB : " + executeDto.getConnectionId() + " / TEMPLATE : " + executeDto.getTemplateName() + msg);
 			writer.newLine();
 			writer.close();
 		} catch (IOException e) {
