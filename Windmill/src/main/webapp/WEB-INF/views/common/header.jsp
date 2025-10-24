@@ -12,7 +12,7 @@ body {
 /* 자동완성 드롭다운 스타일 */
 .search-autocomplete {
 	position: relative;
-	display: inline-block;
+	display: table;
 	width: 100%;
 }
 
