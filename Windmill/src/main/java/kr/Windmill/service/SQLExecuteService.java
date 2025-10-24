@@ -663,7 +663,8 @@ public class SQLExecuteService {
 		executeDto.setSqlContent(sql);
 		
 		// 실행 시작 시간 설정
-		executeDto.setStartTime(Instant.now());
+		Instant start = Instant.now();
+		executeDto.setStartTime(start);
 		executeDto.setLogNo(0);
 		
 		Map<String, List> result = new HashMap<>();
@@ -686,6 +687,9 @@ public class SQLExecuteService {
 			cLog.log_start(executeDto, log + "\n템플릿 SQL 실행 시작\n"); 
 			cLog.logMenuExecutionStart(executeDto);  // 메뉴 실행 시작 로그 저장
 			
+
+			executeDto.setLogNo(1);
+			
 			// SQL 타입 감지
 			SqlType sqlType = detectSqlType(sql);
 			
@@ -703,11 +707,14 @@ public class SQLExecuteService {
 					throw new Exception("지원하지 않는 SQL 타입입니다: " + sqlType);
 			}
 			
+
+			executeDto.setEndTime(Instant.now());
+			executeDto.setExecutionTime(Duration.between(start, executeDto.getEndTime()));
+			
+			
 			if(sqlType != SqlType.UPDATE) {
 				// 성공 결과 설정
-				executeDto.setEndTime(Instant.now());
 				executeDto.setResult("Success");
-				executeDto.setExecutionTime(Duration.between(executeDto.getStartTime(), executeDto.getEndTime()));
 				
 				// 성공 로깅
 				Duration timeElapsed = Duration.between(executeDto.getStartTime(), executeDto.getEndTime());
@@ -761,9 +768,9 @@ public class SQLExecuteService {
 
 			// 실패 결과 설정
 			executeDto.setEndTime(Instant.now());
+			executeDto.setExecutionTime(Duration.between(start, executeDto.getEndTime()));
 			executeDto.setResult("Failed");
 			executeDto.setErrorMessage(e1.getMessage());
-			executeDto.setExecutionTime(Duration.between(executeDto.getStartTime(), executeDto.getEndTime()));
 
 			// 실패 로깅
 			cLog.log_end(executeDto, " sql 실행 종료 : 실패 " + e1.getMessage() + "\n\n");
@@ -776,11 +783,12 @@ public class SQLExecuteService {
 			return errorResult;
 			
 		} catch (Exception e) {
+
 			// 실패 결과 설정
 			executeDto.setEndTime(Instant.now());
+			executeDto.setExecutionTime(Duration.between(start, executeDto.getEndTime()));
 			executeDto.setResult("Failed");
 			executeDto.setErrorMessage(e.getMessage());
-			executeDto.setExecutionTime(Duration.between(executeDto.getStartTime(), executeDto.getEndTime()));
 			
 			// 실패 로깅
 			Duration timeElapsed = Duration.between(executeDto.getStartTime(), executeDto.getEndTime());
@@ -1172,6 +1180,8 @@ public class SQLExecuteService {
 		
 		// 세미콜론으로 구분된 여러 SQL 처리
 		String[] sqlStatements = sql.trim().split(";");
+
+		int totalRows = 0;
 		
 		try {
 			
@@ -1182,14 +1192,14 @@ public class SQLExecuteService {
 				}
 				
 				// 각 쿼리마다 개별 로그 번호 증가
-				executeDto.setLogNo(executeDto.getLogNo() + 1);
+				executeDto.setLogNo(i+1);
 				
 				executeDto.setSqlContent(singleSql);
 				
 				Instant singleStart = Instant.now();
 				
 				// 단일 SQL 실행
-				List<List<Object>> singleResult = executeSingleUpdate(executeDto, singleSql);
+				List<List<Object>> singleResult = executeSingleUpdate(executeDto, executeDto.getSqlContent());
 				
 				// 결과를 전체 결과에 추가
 				List<List<Object>> allResults = new ArrayList<>();
@@ -1205,14 +1215,17 @@ public class SQLExecuteService {
 				executeDto.setExecutionTime(timeElapsed);
 				
 				if (singleResult.size() > 0 && singleResult.get(0).size() > 1) {
-					String updatedRows = singleResult.get(0).get(1).toString();
-					executeDto.setRows(Integer.parseInt(updatedRows));
+					int updatedRows = Integer.parseInt(singleResult.get(0).get(1).toString());
+					executeDto.setRows(updatedRows);
+					totalRows += updatedRows;
 					
-					String row = " / " + detectSqlType(singleSql) + " rows : " + updatedRows;
+					String row = " / " + detectSqlType(executeDto.getSqlContent()) + " rows : " + updatedRows;
 					cLog.log_end(executeDto, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 					cLog.log_DB(executeDto);
 				}
 			}
+
+			
 		} catch (Exception e) {
 
 			List<List<Object>> singleList = new ArrayList<List<Object>>();
@@ -1253,7 +1266,7 @@ public class SQLExecuteService {
 
 			return result;
 		}
-		
+		executeDto.setRows(totalRows);
 		return result;
 	}
 	
