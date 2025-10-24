@@ -134,11 +134,12 @@ public class UserService {
             String plainPassword = (String) userData.get("password");
             String encryptedPassword = Crypto.crypt(plainPassword);
             
-            String sql = "INSERT INTO USERS (USER_ID, USER_NAME, PASSWORD, STATUS, IP_RESTRICTION, CREATED_BY) VALUES (?, ?, ?, ?, ?, ?)";
+            String sql = "INSERT INTO USERS (USER_ID, USER_NAME, PASSWORD, TEMP_PASSWORD, PASSWORD_CHANGE_DATE, STATUS, IP_RESTRICTION, CREATED_BY) VALUES (?, ?, ?, ?, CURRENT DATE, ?, ?, ?)";
             jdbcTemplate.update(sql, 
                 userData.get("userId"),
                 userData.get("userName"),
-                encryptedPassword,  // 암호화된 비밀번호 저장
+                encryptedPassword,  // PASSWORD
+                encryptedPassword,  // TEMP_PASSWORD (동일한 값)
                 userData.get("status"),
                 userData.get("ipRestriction"),
                 userData.get("createdBy")
