@@ -612,6 +612,7 @@ public class SQLExecuteService {
 		case "DECLARE":
 		case "SET":
 		case "EXEC":
+		case "DO":			
 			return SqlType.CALL;
 		case "SELECT":
 		case "WITH":
@@ -622,6 +623,12 @@ public class SQLExecuteService {
 		case "PRAGMA":
 		case "VALUES":
 			return SqlType.EXECUTE;
+		case "INSERT":
+		case "UPDATE":
+		case "DELETE":
+		case "MERGE":
+		case "TRUNCATE":
+			return SqlType.UPDATE;
 		default:
 			throw new Exception("지원하지 않는 SQL 타입입니다: " + firstword(sql));
 		}
