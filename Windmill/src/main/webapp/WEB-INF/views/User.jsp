@@ -947,10 +947,10 @@ function showGroupModal() {
     // 권한 목록 로드 (카테고리별로 표시)
     loadAllPermissions();
     
-                    // 첫 번째 탭으로 이동
-                // Bootstrap 3 문법으로 변경
-                // var firstTab = new bootstrap.Tab(document.querySelector('#groupInfoTab-tab'));
-                $('#groupInfoTab-tab').tab('show');
+        // 첫 번째 탭으로 이동
+    // Bootstrap 3 문법으로 변경
+    // var firstTab = new bootstrap.Tab(document.querySelector('#groupInfoTab-tab'));
+    $('#groupInfoTab-tab').tab('show');
     
     $('#groupModal').modal('show');
 }
@@ -1039,7 +1039,7 @@ function loadAllPermissions() {
                         '<input type="checkbox" id="group_category_' + category.CATEGORY_ID + '" class="permission-checkbox">' +
                         category.CATEGORY_NAME + ' (' + category.CATEGORY_ID + ')' +
                         '</label>' +
-                        '<small class="text-muted">' + (category.CATEGORY_DESCRIPTION || '') + '</small>' +
+                        //'<small class="text-muted">' + (category.CATEGORY_DESCRIPTION || '') + '</small>' +
                         '</div>';
                     container.append(item);
                 });
@@ -1297,7 +1297,7 @@ function displayGroupCategoryPermissions(permissions) {
                         '<input type="checkbox" id="group_category_' + category.CATEGORY_ID + '" class="permission-checkbox"' + (isGranted ? ' checked' : '') + '>' +
                         category.CATEGORY_NAME +
                         '</label>' +
-                        '<small class="text-muted">' + (category.CATEGORY_DESCRIPTION || '') + '</small>' +
+                        //'<small class="text-muted">' + (category.CATEGORY_DESCRIPTION || '') + '</small>' +
                         '</div>';
                     container.append(item);
                 });
