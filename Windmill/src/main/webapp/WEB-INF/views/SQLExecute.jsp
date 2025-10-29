@@ -186,88 +186,56 @@ let ondate;
 		// ========================================
 		var templateId = '${templateId}';
 		
-		// 템플릿 정보 조회하여 접근가능한 연결 ID 가져오기
-		$.ajax({
-			type: 'GET',
-			url: '/SQLTemplate/detail',
-			data: { templateId: templateId },
-			success: function(templateResult) {
-				if (templateResult.success && templateResult.data) {
-					var templateType = templateResult.data.templateType;
-					var accessibleConnectionIds = templateResult.data.accessibleConnectionIds || '';
-					var allowedConnections = accessibleConnectionIds ? accessibleConnectionIds.split(',') : [];
-					
-					// 템플릿 타입에 따라 연결 타입 결정
-					var connectionType = (templateType === 'SHELL') ? 'HOST' : 'DB';
-					var selectId = (templateType === 'SHELL') ? '#hostSelect' : '#connectionlist';
-					
-					// 연결 목록 조회
-					$.ajax({
-						type: 'post',
-						url: "/Connection/list",
-						data: {
-							TYPE: connectionType
-						},
-						success: function(result) {
-							console.log(result)
-							// 접근가능한 연결만 필터링하여 드롭다운에 추가
-							for (var i = 0; i < result.data.length; i++) {
-								var connectionId = result.data[i].split('.')[0];
-								
-								// 템플릿에 접근가능한 연결이 설정되어 있으면 필터링
-								if (allowedConnections.length > 0) {
-									if (allowedConnections.includes(connectionId)) {
-										$(selectId).append("<option value='" + connectionId + "'>" + connectionId + "</option>");
-									}
-								} else {
-									// 접근가능한 연결이 설정되지 않았으면 모든 연결 표시
-									$(selectId).append("<option value='" + connectionId + "'>" + connectionId + "</option>");
-								}
-							}
-
-							// 기본 선택: 세션에 값이 있거나 연결이 하나만 가능할 때만
-							var selectedConnection = '${Connection}';
-							var allOptions = $(selectId + ' option');
-							var connectionOptions = allOptions.filter(function() {
-								return $(this).val() !== '' && $(this).val() !== '====Connection====' && $(this).val() !== '====SFTP Connection====';
-							});
-							var connectionCount = connectionOptions.length;
-							
-							if (selectedConnection && selectedConnection.trim() !== '') {
-								// 세션에 선택된 연결이 있으면 해당 연결 선택
-								$(selectId + ' option').each(function() {
-									if ($(this).val() === selectedConnection) {
-										$(this).prop('selected', true);
-										return false;
-									}
-								});
-							} else if (connectionCount === 1) {
-								// 접근가능한 연결이 하나만 있으면 자동 선택
-								connectionOptions.first().prop('selected', true);
-							}
-							
-							
-							var shortkey = ${Excute};
-							if (shortkey && $(selectId + " option:selected").val() != '') {
-								excute();
-							}
-						},
-						error: function(xhr, status, error) {
-							showSystemError("연결 정보 조회 실패", {
-								error: xhr.responseText,
-								status: xhr.status,
-								url: '/SQLTemplate/execute'
-							});
-						}
-					});
-				} else {
-					alert("템플릿 정보를 가져올 수 없습니다.");
-				}
-			},
-			error: function() {
-				alert("템플릿 정보 조회 중 오류가 발생했습니다.");
+		// 서버에서 전달받은 접근 가능한 연결 목록 사용 (보안: 서버에서 이미 필터링됨)
+		var templateType = '${templateType}';
+		var selectId = (templateType === 'SHELL') ? '#hostSelect' : '#connectionlist';
+		
+		// 기존 에러 메시지 제거
+		$(selectId).siblings('.connection-error-message').remove();
+		
+		// 서버에서 전달받은 connections 사용
+		var serverConnections = [];
+		<c:if test="${not empty connections}">
+			<c:forEach var="connection" items="${connections}">
+				serverConnections.push('${connection.CONNECTION_ID}');
+			</c:forEach>
+		</c:if>
+		
+		// 서버에서 전달받은 connections가 비어있으면 에러 메시지 표시
+		if (serverConnections.length === 0) {
+			$(selectId).after('<span class="connection-error-message" style="color: red; margin-left: 10px; font-size: 12px;">사용 가능한 연결이 없습니다.</span>');
+		} else {
+			// 서버에서 필터링된 연결 목록을 드롭다운에 추가
+			for (var i = 0; i < serverConnections.length; i++) {
+				$(selectId).append("<option value='" + serverConnections[i] + "'>" + serverConnections[i] + "</option>");
 			}
-		});
+			
+			// 기본 선택: 세션에 값이 있거나 연결이 하나만 가능할 때만
+			var selectedConnection = '${Connection}';
+			var allOptions = $(selectId + ' option');
+			var connectionOptions = allOptions.filter(function() {
+				return $(this).val() !== '' && $(this).val() !== '====Connection====' && $(this).val() !== '====SFTP Connection====';
+			});
+			var connectionCount = connectionOptions.length;
+			
+			if (selectedConnection && selectedConnection.trim() !== '') {
+				// 세션에 선택된 연결이 있으면 해당 연결 선택
+				$(selectId + ' option').each(function() {
+					if ($(this).val() === selectedConnection) {
+						$(this).prop('selected', true);
+						return false;
+					}
+				});
+			} else if (connectionCount === 1) {
+				// 접근가능한 연결이 하나만 있으면 자동 선택
+				connectionOptions.first().prop('selected', true);
+			}
+			
+			var shortkey = ${Excute};
+			if (shortkey && $(selectId + " option:selected").val() != '') {
+				excute();
+			}
+		}
 
 
 

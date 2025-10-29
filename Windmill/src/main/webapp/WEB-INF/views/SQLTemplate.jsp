@@ -1128,8 +1128,8 @@
 				errors.push('템플릿 이름을 입력해주세요.');
 			} else if (sqlName.length > 100) {
 				errors.push('템플릿 이름은 100자 이하여야 합니다.');
-			} else if (!/^[a-zA-Z0-9가-힣_]+$/.test(sqlName)) {
-				errors.push('템플릿 이름은 영문자, 한글, 숫자, 언더스코어만 사용 가능합니다.');
+			} else if (!/^[a-zA-Z0-9가-힣_\s]+$/.test(sqlName)) {
+				errors.push('템플릿 이름은 영문자, 한글, 숫자, 언더스코어, 공백만 사용 가능합니다.');
 			}
 
 			// 모든 SQL 탭의 내용 검증

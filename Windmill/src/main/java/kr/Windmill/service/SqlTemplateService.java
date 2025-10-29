@@ -327,9 +327,9 @@ public class SqlTemplateService {
 				allConnections = jdbcTemplate.queryForList(dbSql);
 			}
 			
-			// 접근 가능한 연결 ID가 설정되지 않았으면 모든 연결 반환
+			// 접근 가능한 연결 ID가 설정되지 않았으면 빈 리스트 반환 (템플릿 관리에서 선택한 연결이 없으면 연결 목록을 보여주지 않음)
 			if (accessibleConnectionIds == null || accessibleConnectionIds.trim().isEmpty()) {
-				return allConnections;
+				return new ArrayList<>();
 			}
 			
 			// 설정된 연결 ID만 필터링
