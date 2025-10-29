@@ -1340,21 +1340,29 @@
                             var parameterString = '';
                             
                             if (sourceColumns && sourceColumns.trim() !== '') {
-                                var columnIndexes = sourceColumns.split(',').map(function(index, arrayIndex) {
-                                    var trimmedIndex = index.trim();
-                                    // 빈 값이면 null 반환, 숫자면 0-based index로 변환
-                                    return trimmedIndex === '' ? null : parseInt(trimmedIndex) - 1;
-                                }).filter(function(index) {
-                                    // null이 아닌 값만 필터링
-                                    return index !== null;
-                                });
-                                
+                                var columnParts = sourceColumns.split(',');
                                 var paramValues = [];
-                                columnIndexes.forEach(function(index) {
-                                    if (parameters && Object.keys(parameters).length > 0) {
-                                        var paramKeys = Object.keys(parameters);
-                                        if (paramKeys[index] !== undefined) {
-                                            paramValues.push(parameters[paramKeys[index]]);
+                                
+                                columnParts.forEach(function(part) {
+                                    var trimmedPart = part.trim();
+                                    
+                                    // 빈 값은 무시
+                                    if (trimmedPart === '') {
+                                        return;
+                                    }
+                                    
+                                    // 작은따옴표로 감싼 값은 상수값으로 처리
+                                    if (trimmedPart.startsWith("'") && trimmedPart.endsWith("'") && trimmedPart.length > 1) {
+                                        // 작은따옴표 제거하고 상수값으로 사용
+                                        paramValues.push(trimmedPart.substring(1, trimmedPart.length - 1));
+                                    } else if (/^\d+$/.test(trimmedPart)) {
+                                        // 숫자인 경우 컬럼 인덱스로 처리 (1-based를 0-based로 변환)
+                                        var columnIndex = parseInt(trimmedPart) - 1;
+                                        if (parameters && Object.keys(parameters).length > 0) {
+                                            var paramKeys = Object.keys(parameters);
+                                            if (paramKeys[columnIndex] !== undefined) {
+                                                paramValues.push(parameters[paramKeys[columnIndex]]);
+                                            }
                                         }
                                     }
                                 });

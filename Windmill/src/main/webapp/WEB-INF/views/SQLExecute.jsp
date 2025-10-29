@@ -149,6 +149,14 @@ let ondate;
 			trigger: 'hover',
 			delay: { show: 300, hide: 100 }
 		});
+		
+		// 단축키 버튼 클릭 이벤트 핸들러 (data 속성 사용으로 작은따옴표 충돌 방지)
+		$(document).on('click', '.shortcut-btn', function() {
+			var shortcutValue = $(this).data('shortcut-value');
+			if (shortcutValue) {
+				sendSql(shortcutValue);
+			}
+		});
 
 		// 개행보기 체크박스 초기 상태 확인 및 적용
 		if ($("#newline").prop('checked')) {
@@ -1326,7 +1334,7 @@ let ondate;
 								<button type="button" class="btn btn-default btn-xs shortcut-btn" 
 									data-toggle="tooltip" data-placement="top" 
 									title="${not empty item.SHORTCUT_DESCRIPTION ? item.SHORTCUT_DESCRIPTION : '설명이 없습니다.'}"
-									onclick="sendSql('${item.TARGET_TEMPLATE_ID}&${item.SOURCE_COLUMN_INDEXES}&${item.AUTO_EXECUTE}')">${item.SHORTCUT_NAME}</button>
+									data-shortcut-value="${item.TARGET_TEMPLATE_ID}&${item.SOURCE_COLUMN_INDEXES}&${item.AUTO_EXECUTE}">${item.SHORTCUT_NAME}</button>
 								<input type="hidden" id="${item.SHORTCUT_KEY}" value="${item.TARGET_TEMPLATE_ID}&${item.SOURCE_COLUMN_INDEXES}&${item.AUTO_EXECUTE}">
 							</c:forEach>
 						</div>

@@ -137,19 +137,36 @@ $(document).ready(function() {
 					str += '&';
 				}
 				
-				if(column[i]==0){
+				var colValue = column[i].trim();
+				
+				// 작은따옴표로 감싼 값은 상수값으로 처리
+				if (colValue.startsWith("'") && colValue.endsWith("'") && colValue.length > 1) {
+					// 작은따옴표 제거하고 상수값으로 사용
+					str += colValue.substring(1, colValue.length - 1);
+				} else if(colValue == 0){
 					str += "";
-				}else{
-					
-				str += $(".Resultrow.success").children('div').eq(column[i]).text().trim();
+				} else {
+					// 숫자인 경우 컬럼 인덱스로 처리
+					str += $(".Resultrow.success").children('div').eq(colValue).text().trim();
 				}
 			}
 		}else{
 			// 단축키로 전달된 파라미터 처리 개선
-			if (column.length > 0 && column[0].trim() !== '') {
-				str = column.join('&');
-			} else {
-				str = '';
+			for (var i = 0; i < column.length; i++) {
+				if (i > 0) {
+					str += '&';
+				}
+				
+				var colValue = column[i].trim();
+				
+				// 작은따옴표로 감싼 값은 상수값으로 처리
+				if (colValue.startsWith("'") && colValue.endsWith("'") && colValue.length > 1) {
+					// 작은따옴표 제거하고 상수값으로 사용
+					str += colValue.substring(1, colValue.length - 1);
+				} else {
+					// 작은따옴표로 감싸지 않은 값은 그대로 사용 (이미 처리된 값)
+					str += colValue;
+				}
 			}
 		}
 
@@ -174,12 +191,19 @@ $(document).ready(function() {
 
 			var pathval = "";
 			for (var i = 0; i < column.length; i++) {
-				var nCheck = /^\d{1,2}/;
-				if (column[i].match(nCheck)) {
-					pathval += $(".Resultrow.success").children('div').html();
-					
+				var colValue = column[i].trim();
+				
+				// 작은따옴표로 감싼 값은 상수값으로 처리
+				if (colValue.startsWith("'") && colValue.endsWith("'") && colValue.length > 1) {
+					// 작은따옴표 제거하고 상수값으로 사용
+					pathval += colValue.substring(1, colValue.length - 1);
 				} else {
-					pathval += column[i];
+					var nCheck = /^\d{1,2}/;
+					if (colValue.match(nCheck)) {
+						pathval += $(".Resultrow.success").children('div').html();
+					} else {
+						pathval += colValue;
+					}
 				}
 			}
 			myForm.Path.value = pathval;
@@ -190,14 +214,20 @@ $(document).ready(function() {
 
 			var pathval = "";
 			for (var i = 0; i < column.length; i++) {
-				if (column[i].match(/^\d{1,2}$/)) {
-					pathval += $(".Resultrow.success").children('div').eq(column[i]).text();
-				} else if (column[i].match(/^\d{1,2}A/)) {
+				var colValue = column[i].trim();
+				
+				// 작은따옴표로 감싼 값은 상수값으로 처리
+				if (colValue.startsWith("'") && colValue.endsWith("'") && colValue.length > 1) {
+					// 작은따옴표 제거하고 상수값으로 사용
+					pathval += colValue.substring(1, colValue.length - 1);
+				} else if (colValue.match(/^\d{1,2}$/)) {
+					pathval += $(".Resultrow.success").children('div').eq(colValue).text();
+				} else if (colValue.match(/^\d{1,2}A/)) {
 					for (var j = 0; j < $(".Resultrow").length; j++) {//$(".Resultrow").length
-						pathval += $(".Resultrow").eq(j).children('div').eq(column[i].substr(0, column[i].length - 1)).text() + "/";
+						pathval += $(".Resultrow").eq(j).children('div').eq(colValue.substr(0, colValue.length - 1)).text() + "/";
 					}
 				} else {
-					pathval += column[i];
+					pathval += colValue;
 				}
 			}
 

@@ -1306,10 +1306,20 @@
 						return col.trim();
 					});
 
-					// 숫자 형식 검증 (빈 문자열 허용)
+					// 숫자 형식 또는 작은따옴표로 감싼 상수값 검증 (빈 문자열 허용)
 					for (var i = 0; i < sourceColumns.length; i++) {
-						if (!/^\d*$/.test(sourceColumns[i])) {
-							errors.push('소스 컬럼은 숫자 또는 빈 값만 입력 가능합니다. (순서: ' + (index + 1) + ', 값: ' + sourceColumns[i] + ')');
+						var colValue = sourceColumns[i];
+						// 빈 문자열 허용
+						if (colValue === '') {
+							continue;
+						}
+						// 작은따옴표로 감싼 상수값 허용 ('값' 형식)
+						if (colValue.startsWith("'") && colValue.endsWith("'") && colValue.length > 1) {
+							continue;
+						}
+						// 숫자 형식 허용
+						if (!/^\d+$/.test(colValue)) {
+							errors.push('소스 컬럼은 숫자, 작은따옴표로 감싼 상수값(\'값\'), 또는 빈 값만 입력 가능합니다. (순서: ' + (index + 1) + ', 값: ' + colValue + ')');
 							break;
 						}
 					}
@@ -1369,7 +1379,7 @@
 				+ '<option value="">대상 템플릿 선택</option>'
 				+ '</select></td>'
 				+ '<td><input type="text" class="form-control shortcut-description" placeholder="단축키 설명"></td>'
-				+ '<td><input type="text" class="form-control source-columns" placeholder="1,2,3"></td>'
+				+ '<td><input type="text" class="form-control source-columns" placeholder="1,\'상수\',3"></td>'
 				+ '<td><div><input type="checkbox" class="auto-execute" checked></div></td>'
 				+ '<td><div><input type="checkbox" class="shortcut-status" checked></div></td>'
 				+ '<td><button type="button" class="btn btn-danger btn-xs parameter-delete-btn" onclick="removeShortcut(this)"><i class="fa fa-minus"></i></button></td>'
@@ -1468,7 +1478,7 @@
 				'<td><input type="text" class="form-control shortcut-description" value="' + 
 				escapeHtml(shortcut.SHORTCUT_DESCRIPTION || '') + '" placeholder="단축키 설명"></td>' +
 				'<td><input type="text" class="form-control source-columns" value="' + 
-				escapeHtml(shortcut.SOURCE_COLUMN_INDEXES || '') + '" placeholder="1,2,3"></td>' +
+				escapeHtml(shortcut.SOURCE_COLUMN_INDEXES || '') + '" placeholder="1,\'상수\',3"></td>' +
 				'<td><div><input type="checkbox" class="auto-execute"' + 
 				(shortcut.AUTO_EXECUTE ? ' checked' : '') + '></div></td>' +
 				'<td><div><input type="checkbox" class="shortcut-status"' + 
@@ -1494,7 +1504,7 @@
 		// 대상 템플릿의 파라미터 정보로 소스 컬럼 플레이스홀더 업데이트
 		function updateSourceColumnsPlaceholder(templateId, sourceColumnsInput) {
 			if (!templateId) {
-				sourceColumnsInput.attr('placeholder', '1,2,3');
+				sourceColumnsInput.attr('placeholder', '1,\'상수\',3');
 				return;
 			}
 
