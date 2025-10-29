@@ -437,7 +437,7 @@ var changePW
 				// 탭 HTML 생성
 				var closeButton = '';
 				if (templateId !== 'home') {
-					closeButton = '<button class="close" type="button" title="Remove this page" style="padding-left:3px"><i class="fa fa-close"></i></button>';
+					closeButton = '<button class="close" type="button" title="Remove this page" style="padding-left:4px; display:inline-flex; align-items:center; justify-content:center; height:18px;"><i class="fa fa-close" style="font-size:16px;"></i></button>';
 				}
 				var tabHtml = '<li><a href="#' + tabId + '" data-toggle="tab" data-template-id="' + templateId + '">' + 
 					title + closeButton + '</a></li>';

@@ -1188,8 +1188,6 @@ let ondate;
 			<div class="col-xs-12">
 				<div class="box box-default collapse in">
 					<div class="box-header with-border">
-						<h5 class="box-title">파라미터 입력</h5>
-						&nbsp;&nbsp;&nbsp;  
 						<c:choose>
 							<c:when test="${templateType == 'SHELL'}">
 								<select id="hostSelect" name="hostId" class="form-control" style="width: 200px; display: inline-block;">
@@ -1202,12 +1200,22 @@ let ondate;
 								</select>
 							</c:otherwise>
 						</c:choose>
+						<div class="box-tools pull-right">
+							<input type="hidden" id="sendvalue" name="sendvalue">
+							<div style="display: flex; gap: 5px;">
+								<button id="pauseBtn" type="button" class="btn btn-info btn-sm" style="display: none; flex: 1;" onclick="togglePause()">
+									<i class="fa fa-pause"></i> 일시정지
+								</button>
+								<input id="excutebtn" type="submit" class="btn btn-primary" value="실행" style="flex: 1;" form="ParamForm">
+							</div>
+							<input id="Path" name="Path" value="${Path}" type="hidden">
+						</div>
 					</div>
 
 					<form role="form-horizontal" name="ParamForm" id="ParamForm" action="javascript:startexcute();">
 						<div class="box-body">
 							<div class="row">
-								<div class="col-md-10">
+								<div class="col-md-12">
 									<c:if test="${empty sqlContent}">
 										<!-- SQL 에디터 -->
 										<div class="form-group" style="margin-bottom: 0">
@@ -1257,22 +1265,6 @@ let ondate;
 											</c:otherwise>
 										</c:choose>
 									</c:forEach>
-								</div>
-								<div class="col-md-2">
-									<input type="hidden" id="sendvalue" name="sendvalue">
-									<div style="display: flex; gap: 5px;">
-										<button id="pauseBtn" type="button" class="btn btn-info btn-sm" style="display: none; flex: 1;" onclick="togglePause()">
-											<i class="fa fa-pause"></i> 일시정지
-										</button>
-										<input id="excutebtn" type="submit" class="btn btn-primary" value="실행" style="flex: 1;">
-									</div>
-									<input id="Path" name="Path" value="${Path}" type="hidden">
-									<!-- <input
-										id="excutebtn" type="submit" class="form-control" value="실행">  -->
-									<!-- <label><span
-										style="font-size: small;">auto commit</span> <input
-										id="autocommit" type="checkbox" checked="checked" /> </label> -->
-
 								</div>
 							</div>
 						</div>

@@ -346,7 +346,6 @@ public class DashboardSchedulerService {
             
             // 온라인 연결이 없으면 빈 리스트 반환 (조회 시도하지 않음)
             if (onlineConnectionIds.isEmpty()) {
-                System.out.println("⚠️ 온라인 연결이 없어 차트 조회를 건너뜁니다.");
                 return new ArrayList<>();
             }
             
