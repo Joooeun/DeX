@@ -137,7 +137,7 @@
                     <div class="form-group">
                         <label for="password" data-toggle="tooltip" data-placement="top" title="사용자의 로그인 비밀번호를 입력합니다. 수정 시 비워두면 기존 비밀번호가 유지되며, 보안을 위해 암호화되어 저장됩니다.">비밀번호</label>
                         <input type="password" class="form-control" id="password">
-                        <small class="text-muted">
+                        <small class="text-muted" id="passwordDescription" style="display: none;">
                             <strong>수정 시 비워두면 변경하지 않습니다.</strong><br>
                             <span class="text-warning">⚠️ 비밀번호를 입력하면 해당 비밀번호가 임시 비밀번호로 설정되며, 해당 사용자는 다음 로그인 시 비밀번호 변경이 강제됩니다.</span>
                         </small>
@@ -151,8 +151,8 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="groupId" data-toggle="tooltip" data-placement="top" title="사용자가 속할 그룹을 선택합니다. 그룹별로 접근 권한과 연결 권한이 설정되며, 사용자의 역할을 결정합니다.">그룹</label>
-                        <select class="form-control" id="groupId">
+                        <label for="groupId" data-toggle="tooltip" data-placement="top" title="사용자가 속할 그룹을 선택합니다. 그룹별로 접근 권한과 연결 권한이 설정되며, 사용자의 역할을 결정합니다.">그룹 <span class="text-danger">*</span></label>
+                        <select class="form-control" id="groupId" required>
                             <option value="">그룹을 선택하세요</option>
                         </select>
                     </div>
@@ -421,11 +421,11 @@ function loadUserList(page) {
                 displayUserList(response.data);
                 displayPagination(response.pagination);
             } else {
-                showToast(response.message, 'error', '오류');
+                showToast(response.message, 'error');
             }
         },
         error: function() {
-            showToast('사용자 목록 조회 중 오류가 발생했습니다.', 'error', '오류');
+            showToast('사용자 목록 조회 중 오류가 발생했습니다.', 'error');
         }
     });
 }
@@ -601,7 +601,9 @@ function showCreateUserModal() {
     $('#userModalTitle').text('사용자 생성');
     $('#userForm')[0].reset();
     $('#editUserId').val('');
+    $('#userId').prop('readonly', false);
     $('#password').attr('required', true);
+    $('#passwordDescription').hide();
     $('#userModal').modal('show');
 }
 
@@ -621,13 +623,14 @@ function editUser(userId) {
                 $('#status').val(user.STATUS);
                 $('#ipRestriction').val(user.IP_RESTRICTION || '');
                 $('#password').attr('required', false);
+                $('#passwordDescription').show();
                 
                 // 사용자의 현재 그룹 정보 로드
                 loadUserGroup(userId);
                 
                 $('#userModal').modal('show');
             } else {
-                showToast(response.message, 'error', '오류');
+                showToast(response.message, 'error');
             }
         }
     });
@@ -655,11 +658,20 @@ function loadUserGroup(userId) {
 // 사용자 저장
 function saveUser() {
     var editUserId = $('#editUserId').val();
+    var groupId = $('#groupId').val();
+    
+    // 그룹 선택 필수 검증
+    if (!groupId || groupId.trim() === '') {
+        showToast('그룹을 선택해주세요.', 'error');
+        $('#groupId').focus();
+        return;
+    }
+    
     var userData = {
         userId: $('#userId').val(),
         userName: $('#userName').val(),
         status: $('#status').val(),
-        groupId: $('#groupId').val(),
+        groupId: groupId,
         ipRestriction: $('#ipRestriction').val()
     };
     
@@ -678,18 +690,18 @@ function saveUser() {
         data: JSON.stringify(userData),
         success: function(response) {
             if (response.success) {
-                showToast(response.message, 'success', '성공');
+                showToast(response.message, 'success');
                 // Bootstrap 3에서는 getInstance가 없으므로 직접 숨김
                 // var userModal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
                 $('#userModal').modal('hide');
                 loadUserList(currentPage);
                 updateGroupLists(); // 그룹 목록과 필터 업데이트
             } else {
-                showToast(response.message, 'error', '오류');
+                showToast(response.message, 'error');
             }
         },
         error: function() {
-            showToast('사용자 저장 중 오류가 발생했습니다.', 'error', '오류');
+            showToast('사용자 저장 중 오류가 발생했습니다.', 'error');
         }
     });
 }
@@ -704,15 +716,15 @@ function deleteUser(userId) {
         data: { userId: userId },
         success: function(response) {
             if (response.success) {
-                showToast(response.message, 'success', '성공');
+                showToast(response.message, 'success');
                 loadUserList(currentPage);
                 updateGroupLists(); // 그룹 목록과 필터 업데이트
             } else {
-                showToast(response.message, 'error', '오류');
+                showToast(response.message, 'error');
             }
         },
         error: function() {
-            showToast('사용자 삭제 중 오류가 발생했습니다.', 'error', '오류');
+            showToast('사용자 삭제 중 오류가 발생했습니다.', 'error');
         }
     });
 }
@@ -818,16 +830,16 @@ function savePermissions() {
         }),
         success: function(response) {
             if (response.success) {
-                showToast('권한이 저장되었습니다.', 'success', '성공');
+                showToast('권한이 저장되었습니다.', 'success');
                 // Bootstrap 3에서는 getInstance가 없으므로 직접 숨김
                 // var permissionModal = bootstrap.Modal.getInstance(document.getElementById('permissionModal'));
                 $('#permissionModal').modal('hide');
             } else {
-                showToast(response.message, 'error', '오류');
+                showToast(response.message, 'error');
             }
         },
         error: function() {
-            showToast('권한 저장 중 오류가 발생했습니다.', 'error', '오류');
+            showToast('권한 저장 중 오류가 발생했습니다.', 'error');
         }
     });
 }
@@ -855,11 +867,11 @@ function loadActivityLogs() {
             if (response.success) {
                 displayActivityLogs(response.data);
             } else {
-                showToast(response.message, 'error', '오류');
+                showToast(response.message, 'error');
             }
         },
         error: function() {
-            showToast('활동 로그 조회 중 오류가 발생했습니다.', 'error', '오류');
+            showToast('활동 로그 조회 중 오류가 발생했습니다.', 'error');
         }
     });
 }
@@ -889,11 +901,11 @@ function loadGroupTable() {
             if (response.success) {
                 displayGroupTable(response.data);
             } else {
-                showToast(response.message, 'error', '오류');
+                showToast(response.message, 'error');
             }
         },
         error: function() {
-            showToast('그룹 목록 조회 중 오류가 발생했습니다.', 'error', '오류');
+            showToast('그룹 목록 조회 중 오류가 발생했습니다.', 'error');
         }
     });
 }
@@ -1006,18 +1018,18 @@ function saveGroup() {
                     // 새 그룹 생성 시 권한도 함께 저장
                     saveGroupPermissions(response.data.groupId);
                 }
-                showToast(response.message, 'success', '성공');
+                showToast(response.message, 'success');
                 // Bootstrap 3에서는 getInstance가 없으므로 직접 숨김
                 // var groupModal = bootstrap.Modal.getInstance(document.getElementById('groupModal'));
                 $('#groupModal').modal('hide');
                 loadGroupTable();
                 updateGroupLists(); // 사용자 모달의 그룹 목록과 필터 업데이트
             } else {
-                showToast(response.message, 'error', '오류');
+                showToast(response.message, 'error');
             }
         },
         error: function() {
-            showToast('그룹 저장 중 오류가 발생했습니다.', 'error', '오류');
+            showToast('그룹 저장 중 오류가 발생했습니다.', 'error');
         }
     });
 }
@@ -1212,15 +1224,15 @@ function deleteGroup(groupId) {
         data: { groupId: groupId },
         success: function(response) {
             if (response.success) {
-                showToast(response.message, 'success', '성공');
+                showToast(response.message, 'success');
                 loadGroupTable();
                 updateGroupLists(); // 사용자 모달의 그룹 목록과 필터 업데이트
             } else {
-                showToast(response.message, 'error', '오류');
+                showToast(response.message, 'error');
             }
         },
         error: function() {
-            showToast('그룹 삭제 중 오류가 발생했습니다.', 'error', '오류');
+            showToast('그룹 삭제 중 오류가 발생했습니다.', 'error');
         }
     });
 }
@@ -1411,7 +1423,7 @@ function editGroupPermissions(groupId) {
                     $('#groupPermissionsTab-tab').tab('show');
                 }, 100);
             } else {
-                showToast(response.message, 'error', '오류');
+                showToast(response.message, 'error');
             }
         }
     });
