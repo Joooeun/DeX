@@ -433,6 +433,9 @@
 			LOADING_LIST: '템플릿 목록을 불러오는 중...'
 		};
 
+		// 접근 가능한 DB 연결 변경 전 값 추적
+		var previousAccessibleConnections = [];
+
 		// 전역 상태 관리 객체 (단순화)
 		window.SqlTemplateState = {
 			// 상태 관리
@@ -1356,9 +1359,70 @@
 				}
 			});
 
-			if (duplicateShortcuts.length > 0) {
-				errors.push('중복된 단축키가 있습니다: ' + duplicateShortcuts.join(', '));
+		if (duplicateShortcuts.length > 0) {
+			errors.push('중복된 단축키가 있습니다: ' + duplicateShortcuts.join(', '));
+		}
+
+		// 접근 가능한 DB 연결과 SQL 탭 연결 동기화 검증
+		var accessibleConnectionIds = $('#accessibleConnections').val() || [];
+		// 배열로 정규화 (없으면 빈 배열)
+		if (!Array.isArray(accessibleConnectionIds)) {
+			accessibleConnectionIds = accessibleConnectionIds ? [accessibleConnectionIds] : [];
+		}
+		
+		// 접근 가능한 연결이 선택되지 않은 경우는 addSqlContent에서 이미 처리하므로
+		// 여기서는 접근 가능한 연결이 있는 경우만 검증
+		if (accessibleConnectionIds.length > 0) {
+			// SQL 탭에 있는 모든 연결 ID 수집
+			var sqlTabConnectionIds = [];
+			
+			$('#sqlContentTabs .nav-item:not(:first):not(.add-tab)').each(function () {
+				var tabLink = $(this).find('.nav-link');
+				var href = tabLink.attr('href');
+				
+				if (!href || !href.startsWith('#tab-')) {
+					return;
+				}
+				
+				// 탭 ID에서 연결 ID 추출 (하이픈을 콤마로 복원)
+				var connectionId = tabIdToConnectionId(href.replace('#', ''));
+				
+				if (!connectionId || connectionId === 'default') {
+					return;
+				}
+				
+				// 복합 연결 ID를 쉼표로 분리하여 개별 연결 ID로 추가
+				var connectionIds = connectionId.split(',');
+				connectionIds.forEach(function(id) {
+					var trimmedId = id.trim();
+					if (trimmedId && sqlTabConnectionIds.indexOf(trimmedId) === -1) {
+						sqlTabConnectionIds.push(trimmedId);
+					}
+				});
+			});
+			
+			// SQL 탭에는 있지만 접근 가능 목록에는 없는 연결 찾기
+			var inaccessibleConnections = [];
+			sqlTabConnectionIds.forEach(function(connectionId) {
+				if (accessibleConnectionIds.indexOf(connectionId) === -1) {
+					inaccessibleConnections.push(connectionId);
+				}
+			});
+			
+			if (inaccessibleConnections.length > 0) {
+				var connectionNames = inaccessibleConnections.map(function(id) {
+					// 연결 이름 가져오기 시도
+					var conn = window.SqlTemplateState.dbConnections && 
+						window.SqlTemplateState.dbConnections.find(function(c) {
+							return c.CONNECTION_ID === id;
+						});
+					return conn ? (id + ' (' + conn.DB_TYPE + ')') : id;
+				});
+				
+				errors.push('접근 가능한 DB 연결 목록에 없는 연결이 SQL 탭에 있습니다: ' + 
+					connectionNames.join(', ') + '\n\n해당 SQL 탭을 삭제하거나 접근 가능한 DB 연결 목록에 추가해주세요.');
 			}
+		}
 
 		// 에러가 있으면 알림
 		if (errors.length > 0) {
@@ -1367,8 +1431,8 @@
 			return false;
 		}
 
-			return true;
-		}
+		return true;
+	}
 
 		// 단축키 추가
 		function addShortcut() {
@@ -1644,6 +1708,9 @@
 			// 카테고리 및 연결 설정 초기화
 			$('#sqlTemplateCategories').val(null).trigger('change');
 			$('#accessibleConnections').val(null).trigger('change');
+			
+			// 이전 값 저장 (초기화 후)
+			previousAccessibleConnections = [];
 
 			// 탭 초기화
 			$('#sqlContentTabs .nav-item:not(:first)').remove();
@@ -2122,7 +2189,15 @@
 							// 접근 가능한 DB 연결 설정
 							if (template.accessibleConnectionIds) {
 								var connectionIds = template.accessibleConnectionIds.split(',');
-								$('#accessibleConnections').val(connectionIds).trigger('change');
+								$('#accessibleConnections').val(connectionIds);
+								
+								// 이전 값 저장 (change 이벤트 발생 전)
+								previousAccessibleConnections = connectionIds.slice();
+								
+								$('#accessibleConnections').trigger('change');
+							} else {
+								// 이전 값 저장 (빈 배열)
+								previousAccessibleConnections = [];
 							}
 
 							// 기본 템플릿의 SQL 내용을 에디터에 설정
@@ -2508,24 +2583,20 @@
 			// 접근 가능한 연결 목록 가져오기 (multiple select이므로 배열 반환)
 			var accessibleConnectionIds = $('#accessibleConnections').val();
 
-			// 접근 가능한 연결 체크 (편집 모드와 일반 모드 모두 적용)
-			// multiple select의 경우 배열이 반환됨
-			// 접근 가능한 연결이 설정되지 않았으면 모든 연결 허용
+			// 접근 가능한 연결이 선택되지 않았으면 SQL 추가 불가
 			if (!accessibleConnectionIds || accessibleConnectionIds.length === 0) {
-				// 모든 연결 허용 (필터링하지 않음)
-				accessibleConnectionIds = null;
-			} else {
-				// 배열에서 빈 값 제거
-				var connectionIds = accessibleConnectionIds.filter(function (id) {
-					return id && id.trim && id.trim().length > 0;
-				});
+				showToast('먼저 접근 가능한 DB 연결을 선택해주세요.', 'warning');
+				return;
+			}
 
-				if (connectionIds.length === 0) {
-					// 빈 배열이면 모든 연결 허용
-					accessibleConnectionIds = null;
-				} else {
-					accessibleConnectionIds = connectionIds;
-				}
+			// 배열에서 빈 값 제거
+			var connectionIds = accessibleConnectionIds.filter(function (id) {
+				return id && id.trim && id.trim().length > 0;
+			});
+
+			if (connectionIds.length === 0) {
+				showToast('먼저 접근 가능한 DB 연결을 선택해주세요.', 'warning');
+				return;
 			}
 
 			// 전역 캐시에서 연결 목록 가져오기
@@ -2533,11 +2604,9 @@
 				var connections = window.SqlTemplateState.dbConnections;
 
 				// 접근 가능한 연결들만 필터링 (편집 모드와 일반 모드 모두 적용)
-				if (accessibleConnectionIds) {
-					connections = connections.filter(function (connection) {
-						return accessibleConnectionIds.includes(connection.CONNECTION_ID);
-					});
-				}
+				connections = connections.filter(function (connection) {
+					return connectionIds.includes(connection.CONNECTION_ID);
+				});
 
 				if (connections.length === 0) {
 					showToast('접근 가능한 연결이 없습니다.', 'warning');
@@ -2896,6 +2965,84 @@
 			
 			// SQL 에디터 컨테이너 (이벤트 위임)
 			$('#sqlContentTabs').on('change keyup paste', '.sql-editor textarea, .sql-textarea',markTemplateChanged);
+			
+			// accessibleConnections 변경 검증 (SQL 탭 사용 여부 확인)
+			setupAccessibleConnectionsValidation();
+		}
+		
+		// accessibleConnections 변경 검증 설정
+		function setupAccessibleConnectionsValidation() {
+			// 초기값 저장
+			var initialValue = $('#accessibleConnections').val() || [];
+			previousAccessibleConnections = Array.isArray(initialValue) ? initialValue.slice() : (initialValue ? [initialValue] : []);
+			
+			$('#accessibleConnections').off('change.validation').on('change.validation', function() {
+				var current = $(this).val() || [];
+				current = Array.isArray(current) ? current : (current ? [current] : []);
+				
+				// 이전 값과 비교하여 제거된 연결 찾기
+				var removed = previousAccessibleConnections.filter(function(id) {
+					return current.indexOf(id) === -1;
+				});
+				
+				if (removed.length > 0) {
+					// SQL 탭에 있는 모든 연결 ID 수집
+					var sqlTabConnectionIds = [];
+					
+					$('#sqlContentTabs .nav-item:not(:first):not(.add-tab)').each(function() {
+						var tabLink = $(this).find('.nav-link');
+						var href = tabLink.attr('href');
+						
+						if (!href || !href.startsWith('#tab-')) {
+							return;
+						}
+						
+						var connectionId = tabIdToConnectionId(href.replace('#', ''));
+						if (!connectionId || connectionId === 'default') {
+							return;
+						}
+						
+						// 복합 연결 ID를 쉼표로 분리하여 개별 연결 ID로 추가
+						var connectionIds = connectionId.split(',');
+						connectionIds.forEach(function(id) {
+							var trimmedId = id.trim();
+							if (trimmedId && sqlTabConnectionIds.indexOf(trimmedId) === -1) {
+								sqlTabConnectionIds.push(trimmedId);
+							}
+						});
+					});
+					
+					// 제거된 연결 중 SQL 탭에 사용 중인 연결 찾기
+					var usedInTabs = [];
+					removed.forEach(function(removedId) {
+						if (sqlTabConnectionIds.indexOf(removedId) !== -1) {
+							usedInTabs.push(removedId);
+						}
+					});
+					
+					if (usedInTabs.length > 0) {
+						// 연결 이름 가져오기
+						var connectionNames = usedInTabs.map(function(id) {
+							var conn = window.SqlTemplateState.dbConnections && 
+								window.SqlTemplateState.dbConnections.find(function(c) {
+									return c.CONNECTION_ID === id;
+								});
+							return conn ? (id + ' (' + conn.DB_TYPE + ')') : id;
+						});
+						
+						var message = '접근 가능한 DB 연결에서 제거하려는 연결이 SQL 탭에서 사용 중입니다:\n\n' +
+							connectionNames.join('\n') + 
+							'\n\nSQL 탭의 연결을 먼저 수정하거나 삭제해주세요';
+						
+						alert(message);
+						$(this).val(previousAccessibleConnections).trigger('change');
+						return;
+					}
+				}
+				
+				// 현재 값을 이전 값으로 업데이트
+				previousAccessibleConnections = current.slice();
+			});
 		}
 		
 		// 기존 이벤트 리스너 정리 함수
@@ -2905,6 +3052,7 @@
 			$('#parameterTableBody, #shortcutTableBody').off('input change');
 			$('#sqlContentTabs').off('input change');
 			$(document).off('change', '.target-template-select2');
+			// accessibleConnections validation 이벤트는 setupAccessibleConnectionsValidation에서 제거하므로 여기서는 제거하지 않음
 		}
 
 		// ACE 에디터 변경 이벤트 리스너 설정 (포괄적 이벤트 처리)
