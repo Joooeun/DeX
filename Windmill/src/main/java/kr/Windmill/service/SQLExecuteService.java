@@ -1,6 +1,5 @@
 package kr.Windmill.service;
 
-import java.io.File;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -16,8 +15,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -30,12 +27,12 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import kr.Windmill.controller.SQLController.SqlType;
 import kr.Windmill.dto.SqlTemplateExecuteDto;
 import kr.Windmill.dto.log.LogInfoDto;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.DynamicJdbcManager;
 import kr.Windmill.util.Log;
+import kr.Windmill.util.sql.SQLParserUtil;
 
 @Service
 public class SQLExecuteService {
@@ -515,15 +512,41 @@ public class SQLExecuteService {
 		String sqlOrg = sql.trim();
 		String logsqlOrg = data.getLogsql().trim();
 
-		for (int i = 0; i < sqlOrg.split(";").length; i++) {
-			String singleSql = sqlOrg.split(";")[i];
-			if (singleSql.trim().length() == 0) {
+		// JSQLParser를 사용하여 여러 SQL 문장을 정확하게 분리
+		List<String> sqlStatements;
+		List<String> logsqlStatements;
+		try {
+			sqlStatements = SQLParserUtil.splitSqlStatements(sqlOrg);
+			logsqlStatements = SQLParserUtil.splitSqlStatements(logsqlOrg);
+		} catch (Exception e) {
+			logger.warn("SQL 분리 실패, 기존 방식 사용: {}", e.getMessage());
+			// 폴백: 기존 방식으로 분리
+			String[] statements = sqlOrg.split(";");
+			sqlStatements = new ArrayList<>();
+			logsqlStatements = new ArrayList<>();
+			String[] logsqls = logsqlOrg.split(";");
+			for (int j = 0; j < statements.length; j++) {
+				String trimmed = statements[j].trim();
+				if (!trimmed.isEmpty()) {
+					sqlStatements.add(trimmed);
+					if (j < logsqls.length) {
+						logsqlStatements.add(logsqls[j].trim() + ";");
+					} else {
+						logsqlStatements.add("");
+					}
+				}
+			}
+		}
+
+		for (int i = 0; i < sqlStatements.size(); i++) {
+			String singleSql = sqlStatements.get(i).trim();
+			if (singleSql.isEmpty()) {
 				continue;
 			}
 
 			data.setLogNo(data.getLogNo() + 1);
-			sql = singleSql.trim();
-			String logsql = logsqlOrg.split(";")[i].trim() + ";";
+			sql = singleSql;
+			String logsql = i < logsqlStatements.size() ? logsqlStatements.get(i) : "";
 			data.setSql(sql);
 			data.setLogsql(logsql);
 
@@ -604,8 +627,21 @@ public class SQLExecuteService {
 	 * SQL 타입 감지
 	 * @throws Exception 
 	 */
-	public static SqlType detectSqlType(String sql) throws Exception  {
-
+	public static SqlType detectSqlType(String sql) throws Exception {
+		try {
+			// JSQLParser를 사용하여 정확한 SQL 타입 감지
+			return SQLParserUtil.detectSqlType(sql);
+		} catch (Exception e) {
+			// JSQLParser 실패 시 기존 방식으로 폴백
+			logger.debug("JSQLParser 타입 감지 실패, 기존 방식으로 폴백: {}", e.getMessage());
+			return fallbackDetectSqlType(sql);
+		}
+	}
+	
+	/**
+	 * 기존 방식으로 SQL 타입 감지 (폴백용)
+	 */
+	private static SqlType fallbackDetectSqlType(String sql) throws Exception {
 		switch (firstword(sql)) {
 		case "CALL":
 		case "BEGIN":
@@ -1192,15 +1228,30 @@ public class SQLExecuteService {
 		}});
 		result.put("rowhead", rowhead);
 		
-		// 세미콜론으로 구분된 여러 SQL 처리
-		String[] sqlStatements = sql.trim().split(";");
+		// JSQLParser를 사용하여 여러 SQL 문장을 정확하게 분리
+		// 문자열 내부나 주석 내부의 세미콜론은 무시됨
+		List<String> sqlStatements;
+		try {
+			sqlStatements = SQLParserUtil.splitSqlStatements(sql);
+		} catch (Exception e) {
+			logger.warn("SQL 분리 실패, 기존 방식 사용: {}", e.getMessage());
+			// 폴백: 기존 방식으로 분리
+			String[] statements = sql.trim().split(";");
+			sqlStatements = new ArrayList<>();
+			for (String stmt : statements) {
+				String trimmed = stmt.trim();
+				if (!trimmed.isEmpty()) {
+					sqlStatements.add(trimmed);
+				}
+			}
+		}
 
 		int totalRows = 0;
 		
 		try {
 			
-			for (int i = 0; i < sqlStatements.length; i++) {
-				String singleSql = sqlStatements[i].trim() + ";";
+			for (int i = 0; i < sqlStatements.size(); i++) {
+				String singleSql = sqlStatements.get(i).trim();
 				if (singleSql.isEmpty()) {
 					continue;
 				}
