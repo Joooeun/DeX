@@ -435,6 +435,9 @@
 
 		// 사용 가능 DB 변경 전 값 추적
 		var previousAccessibleConnections = [];
+		
+		// 초기화 중 플래그 (검증 건너뛰기용)
+		var isInitializing = false;
 
 		// 전역 상태 관리 객체 (단순화)
 		window.SqlTemplateState = {
@@ -1706,11 +1709,17 @@
 			}, 500);
 
 			// 카테고리 및 연결 설정 초기화
+			// 초기화 플래그 설정 (검증 건너뛰기)
+			isInitializing = true;
+			
+			// 값 설정 및 이벤트 트리거
 			$('#sqlTemplateCategories').val(null).trigger('change');
+			// multiple select는 빈 배열로 초기화해야 함
 			$('#accessibleConnections').val(null).trigger('change');
 			
-			// 이전 값 저장 (초기화 후)
+			// 초기화 완료 후 이전 값 업데이트 및 플래그 해제
 			previousAccessibleConnections = [];
+			isInitializing = false;
 
 			// 탭 초기화
 			$('#sqlContentTabs .nav-item:not(:first)').remove();
@@ -2187,18 +2196,25 @@
 
 
 							// 사용 가능 DB 설정
+							// 초기화 플래그 설정 (검증 건너뛰기)
+							isInitializing = true;
+							
 							if (template.accessibleConnectionIds) {
 								var connectionIds = template.accessibleConnectionIds.split(',');
-								$('#accessibleConnections').val(connectionIds);
 								
-								// 이전 값 저장 (change 이벤트 발생 전)
+								// 이전 값 저장 (값 설정 및 이벤트 발생 전에 저장)
 								previousAccessibleConnections = connectionIds.slice();
 								
-								$('#accessibleConnections').trigger('change');
+								// 값 설정 및 이벤트 트리거
+								$('#accessibleConnections').val(connectionIds).trigger('change');
 							} else {
 								// 이전 값 저장 (빈 배열)
 								previousAccessibleConnections = [];
+								$('#accessibleConnections').val(null).trigger('change');
 							}
+							
+							// 초기화 완료 후 플래그 해제
+							isInitializing = false;
 
 							// 기본 템플릿의 SQL 내용을 에디터에 설정
 							initSqlEditorForConnection('sqlEditor_default', template.sqlContent || '');
@@ -2977,6 +2993,11 @@
 			previousAccessibleConnections = Array.isArray(initialValue) ? initialValue.slice() : (initialValue ? [initialValue] : []);
 			
 			$('#accessibleConnections').off('change.validation').on('change.validation', function() {
+				// 초기화 중에는 검증 건너뛰기
+				if (isInitializing) {
+					return;
+				}
+				
 				var current = $(this).val() || [];
 				current = Array.isArray(current) ? current : (current ? [current] : []);
 				
