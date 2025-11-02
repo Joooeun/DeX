@@ -433,7 +433,7 @@
 			LOADING_LIST: '템플릿 목록을 불러오는 중...'
 		};
 
-		// 연결 가능한 DB 연결 변경 전 값 추적
+		// 사용 가능 DB 변경 전 값 추적
 		var previousAccessibleConnections = [];
 
 		// 전역 상태 관리 객체 (단순화)
@@ -1363,15 +1363,15 @@
 			errors.push('중복된 단축키가 있습니다: ' + duplicateShortcuts.join(', '));
 		}
 
-		// 연결 가능한 DB 연결과 SQL 탭 연결 동기화 검증
+		// 사용 가능 DB와 SQL 탭 연결 동기화 검증
 		var accessibleConnectionIds = $('#accessibleConnections').val() || [];
 		// 배열로 정규화 (없으면 빈 배열)
 		if (!Array.isArray(accessibleConnectionIds)) {
 			accessibleConnectionIds = accessibleConnectionIds ? [accessibleConnectionIds] : [];
 		}
 		
-		// 연결 가능한 연결이 선택되지 않은 경우는 addSqlContent에서 이미 처리하므로
-		// 여기서는 연결 가능한 연결이 있는 경우만 검증
+		// 사용 가능 DB가 선택되지 않은 경우는 addSqlContent에서 이미 처리하므로
+		// 여기서는 사용 가능 DB가 있는 경우만 검증
 		if (accessibleConnectionIds.length > 0) {
 			// SQL 탭에 있는 모든 연결 ID 수집
 			var sqlTabConnectionIds = [];
@@ -1401,7 +1401,7 @@
 				});
 			});
 			
-			// SQL 탭에는 있지만 연결 가능 목록에는 없는 연결 찾기
+			// SQL 탭에는 있지만 사용 가능 DB 목록에는 없는 연결 찾기
 			var inaccessibleConnections = [];
 			sqlTabConnectionIds.forEach(function(connectionId) {
 				if (accessibleConnectionIds.indexOf(connectionId) === -1) {
@@ -1419,8 +1419,8 @@
 					return conn ? (id + ' (' + conn.DB_TYPE + ')') : id;
 				});
 				
-				errors.push('연결 가능한 DB 연결 목록에 없는 연결이 SQL 탭에 있습니다: ' + 
-					connectionNames.join(', ') + '\n\n해당 SQL 탭을 삭제하거나 연결 가능한 DB 연결 목록에 추가해주세요.');
+				errors.push('사용 가능 DB 목록에 없는 연결이 SQL 탭에 있습니다: ' + 
+					connectionNames.join(', ') + '\n\n해당 SQL 탭을 삭제하거나 사용 가능 DB 목록에 추가해주세요.');
 			}
 		}
 
@@ -2186,7 +2186,7 @@
 							updateGoToTemplateButton();
 
 
-							// 연결 가능한 DB 연결 설정
+							// 사용 가능 DB 설정
 							if (template.accessibleConnectionIds) {
 								var connectionIds = template.accessibleConnectionIds.split(',');
 								$('#accessibleConnections').val(connectionIds);
@@ -2580,12 +2580,12 @@
 			var isEditMode = window.SqlTemplateState.editMode || false;
 			var currentEditingConnectionId = window.SqlTemplateState.currentEditingConnectionId || null;
 
-			// 연결 가능한 연결 목록 가져오기 (multiple select이므로 배열 반환)
+			// 사용 가능 DB 목록 가져오기 (multiple select이므로 배열 반환)
 			var accessibleConnectionIds = $('#accessibleConnections').val();
 
-			// 연결 가능한 연결이 선택되지 않았으면 SQL 추가 불가
+			// 사용 가능 DB가 선택되지 않았으면 SQL 추가 불가
 			if (!accessibleConnectionIds || accessibleConnectionIds.length === 0) {
-				showToast('먼저 연결 가능한 DB 연결을 선택해주세요.', 'warning');
+				showToast('먼저 사용 가능 DB를 선택해주세요.', 'warning');
 				return;
 			}
 
@@ -2595,7 +2595,7 @@
 			});
 
 			if (connectionIds.length === 0) {
-				showToast('먼저 연결 가능한 DB 연결을 선택해주세요.', 'warning');
+				showToast('먼저 사용 가능 DB를 선택해주세요.', 'warning');
 				return;
 			}
 
@@ -2603,13 +2603,13 @@
 			if (window.SqlTemplateState.dbConnections && window.SqlTemplateState.dbConnections.length > 0) {
 				var connections = window.SqlTemplateState.dbConnections;
 
-				// 연결 가능한 연결들만 필터링 (편집 모드와 일반 모드 모두 적용)
+				// 사용 가능 DB만 필터링 (편집 모드와 일반 모드 모두 적용)
 				connections = connections.filter(function (connection) {
 					return connectionIds.includes(connection.CONNECTION_ID);
 				});
 
 				if (connections.length === 0) {
-					showToast('연결 가능한 연결이 없습니다.', 'warning');
+					showToast('사용 가능 DB가 없습니다.', 'warning');
 					return;
 				}
 
@@ -3030,7 +3030,7 @@
 							return conn ? (id + ' (' + conn.DB_TYPE + ')') : id;
 						});
 						
-						var message = '연결 가능한 DB 연결에서 제거하려는 연결이 SQL 탭에서 사용 중입니다:\n\n' +
+						var message = '사용 가능 DB에서 제거하려는 연결이 SQL 탭에서 사용 중입니다:\n\n' +
 							connectionNames.join('\n') + 
 							'\n\nSQL 탭의 연결을 먼저 수정하거나 삭제해주세요';
 						
@@ -3537,7 +3537,7 @@
 												<label data-toggle="tooltip" data-placement="top"
 													title="이 SQL 템플릿을 사용할 수 있는 데이터베이스 연결을 선택합니다. 아무것도 선택하지 않으면 모든 DB 연결에서 사용 가능합니다."
 													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													연결 가능한 DB 연결
+													사용 가능 DB
 												</label>
 												<select class="form-control" id="accessibleConnections" multiple>
 													<!-- DB 연결 옵션들이 여기에 로드됩니다 -->

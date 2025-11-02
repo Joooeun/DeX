@@ -345,7 +345,7 @@ public class SqlTemplateService {
 			
 			return accessibleConnections;
 		} catch (Exception e) {
-			logger.error("연결 가능한 연결 조회 실패: " + templateId, e);
+			logger.error("사용 가능 DB 조회 실패: " + templateId, e);
 			return new ArrayList<>();
 		}
 	}
