@@ -171,9 +171,11 @@ public class ConnectionController {
 			boolean saveResult = connectionService.saveConnection(connectionData, userId);
 
 			if (saveResult) {
-				// 커넥션 풀 이벤트 처리
+				// 커넥션 풀 이벤트 처리 (STATUS가 ACTIVE인 경우에만)
 				String connectionId = connectionData.get("CONNECTION_ID").toString();
-				if (connectionId != null && !connectionId.trim().isEmpty()) {
+				String status = (String) connectionData.get("STATUS");
+				
+				if (connectionId != null && !connectionId.trim().isEmpty() && "ACTIVE".equals(status)) {
 					// 기존 연결이 있으면 수정, 없으면 생성
 					if (connectionService.isConnectionExists(connectionId)) {
 						connectionService.onConnectionUpdated(connectionId);

@@ -361,6 +361,13 @@ public class ConnectionService {
 			for (String connectionId : connectionList) {
 				// 모니터링이 활성화되지 않은 연결은 스킵
 				if (!isMonitoringEnabled(connectionId)) {
+					// 모니터링이 비활성화된 연결은 connectionStatusMap에서 제거
+					if (connectionStatusMap.containsKey(connectionId)) {
+						logger.debug("모니터링 비활성화로 인한 연결 상태 제거: {}", connectionId);
+						connectionStatusMap.remove(connectionId);
+						monitoringStatusMap.remove(connectionId);
+						lastMonitoringCheckMap.remove(connectionId);
+					}
 					continue;
 				}
 				
@@ -500,7 +507,8 @@ public class ConnectionService {
 				return false;
 			}
 			
-			Boolean monitoringEnabled = (Boolean) result.get("MONITORING_ENABLED");
+			Object monitoringEnabledObj = result.get("MONITORING_ENABLED");
+			Boolean monitoringEnabled = convertToBoolean(monitoringEnabledObj);
 			return monitoringEnabled != null && monitoringEnabled;
 		} catch (Exception e) {
 			logger.warn("모니터링 설정 조회 실패: {}", connectionId, e);
@@ -1184,11 +1192,17 @@ public class ConnectionService {
 			String sql = "SELECT MONITORING_ENABLED, MONITORING_INTERVAL FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ?";
 			Map<String, Object> currentSettings = jdbcTemplate.queryForMap(sql, connectionId);
 			
-			Boolean currentEnabled = (Boolean) currentSettings.get("MONITORING_ENABLED");
+			// DB에서 가져온 값 타입 변환 (Boolean 또는 숫자 0/1로 올 수 있음)
+			Object currentEnabledObj = currentSettings.get("MONITORING_ENABLED");
+			Boolean currentEnabled = convertToBoolean(currentEnabledObj);
 			Integer currentInterval = (Integer) currentSettings.get("MONITORING_INTERVAL");
 			
-			Boolean newEnabled = (Boolean) connectionData.get("MONITORING_ENABLED");
-			Integer newInterval = (Integer) connectionData.get("MONITORING_INTERVAL");
+			// 요청 파라미터는 String으로 올 수 있으므로 변환 필요
+			Object newEnabledObj = connectionData.get("MONITORING_ENABLED");
+			Boolean newEnabled = convertToBoolean(newEnabledObj);
+			
+			Object newIntervalObj = connectionData.get("MONITORING_INTERVAL");
+			Integer newInterval = convertToInteger(newIntervalObj);
 			
 			// null 체크 및 비교
 			boolean enabledChanged = (currentEnabled == null && newEnabled != null) || 
@@ -1201,6 +1215,72 @@ public class ConnectionService {
 			logger.warn("모니터링 설정 변경 확인 실패: {}", connectionId, e);
 			return false;
 		}
+	}
+
+	/**
+	 * 다양한 타입을 Boolean으로 변환합니다.
+	 * 
+	 * @param value 변환할 값
+	 * @return Boolean 값 (null 가능)
+	 */
+	private Boolean convertToBoolean(Object value) {
+		if (value == null) {
+			return null;
+		}
+		
+		if (value instanceof Boolean) {
+			return (Boolean) value;
+		}
+		
+		if (value instanceof String) {
+			String str = ((String) value).trim().toLowerCase();
+			if ("true".equals(str) || "1".equals(str) || "yes".equals(str) || "on".equals(str)) {
+				return true;
+			} else if ("false".equals(str) || "0".equals(str) || "no".equals(str) || "off".equals(str) || str.isEmpty()) {
+				return false;
+			}
+			return null;
+		}
+		
+		if (value instanceof Number) {
+			return ((Number) value).intValue() != 0;
+		}
+		
+		return null;
+	}
+
+	/**
+	 * 다양한 타입을 Integer로 변환합니다.
+	 * 
+	 * @param value 변환할 값
+	 * @return Integer 값 (null 가능)
+	 */
+	private Integer convertToInteger(Object value) {
+		if (value == null) {
+			return null;
+		}
+		
+		if (value instanceof Integer) {
+			return (Integer) value;
+		}
+		
+		if (value instanceof String) {
+			try {
+				String str = ((String) value).trim();
+				if (str.isEmpty()) {
+					return null;
+				}
+				return Integer.parseInt(str);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		}
+		
+		if (value instanceof Number) {
+			return ((Number) value).intValue();
+		}
+		
+		return null;
 	}
 
 	/**
@@ -1240,7 +1320,8 @@ public class ConnectionService {
 	 */
 	private void updateMonitoringStatusAfterSettingChange(String connectionId, Map<String, Object> connectionData) {
 		try {
-			Boolean monitoringEnabled = (Boolean) connectionData.get("MONITORING_ENABLED");
+			Object monitoringEnabledObj = connectionData.get("MONITORING_ENABLED");
+			Boolean monitoringEnabled = convertToBoolean(monitoringEnabledObj);
 			String status = (String) connectionData.get("STATUS");
 			
 			// STATUS가 INACTIVE면 모니터링 상태 맵에서 제거만 수행
@@ -1268,6 +1349,18 @@ public class ConnectionService {
 				
 				// 마지막 체크 시간 초기화하여 즉시 확인하도록 함
 				lastMonitoringCheckMap.remove(connectionId);
+				
+				// 즉시 상태 확인하여 connectionStatusMap에 추가
+				// 별도 스레드에서 실행하지 않고 현재 스레드에서 즉시 실행
+				try {
+					updateConnectionStatus(connectionId);
+				} catch (Exception e) {
+					logger.error("모니터링 활성화 시 즉시 상태 확인 실패: {}", connectionId, e);
+					// 실패 시에도 checking 상태로 추가하여 화면에 표시되도록 함
+					ConnectionStatusDto initialStatus = new ConnectionStatusDto(connectionId, "checking", "#ffc107");
+					initialStatus.setLastChecked(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+					connectionStatusMap.put(connectionId, initialStatus);
+				}
 				
 				cLog.monitoringLog("CONNECTION_STATUS", "모니터링 활성화 및 즉시 확인: " + connectionId);
 			}

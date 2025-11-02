@@ -33,6 +33,11 @@
             red: { min: 90, max: 100 }
         };
 
+        // 연결 관리 탭 열기 함수
+        function openConnectionTab() {
+            parent.tabManager.addTab('connection', '연결 관리', '/Connection');
+        }
+
         $(document).ready(function() {
             // 연결 상태 모니터링 시작
                 startConnectionMonitoring();
@@ -94,16 +99,17 @@
             if (!connections || connections.length === 0) {
                 container.html('<div class="col-md-12"><div class="alert alert-warning" role="alert">' +
                     '<i class="fa fa-exclamation-triangle"></i> ' +
-                    '연결된 데이터베이스가 없습니다. <a href="/Connection" class="alert-link">연결 관리</a>에서 데이터베이스 연결을 추가하세요.' +
+                    '연결된 데이터베이스가 없습니다. <a href="javascript:void(0);" class="alert-link" onclick="openConnectionTab(); return false;">연결 관리</a>에서 데이터베이스 연결을 추가하세요.' +
                     '</div></div>');
                 return;
             }
             
-            // 초기 로드인지 확인 (컨테이너가 비어있으면 초기 로드)
-            var isInitialLoad = container.children().length === 0;
+            // 초기 로드인지 확인 (컨테이너가 비어있거나 alert가 있으면 초기 로드)
+            var isInitialLoad = container.children().length === 0 || container.find('.alert').length > 0;
             
             if (isInitialLoad) {
                 // 초기 로드: 전체 카드 생성
+                container.empty();
                 connections.forEach(function(conn) {
                     createConnectionCard(conn);
                 });
@@ -113,9 +119,33 @@
                     createDynamicTrafficLights(conn.connectionId);
                 });
             } else {
-                // 업데이트: 기존 카드 업데이트
+                // 업데이트: 추가/삭제/업데이트 처리
+                var currentConnectionIds = [];
+                $('.connection-card').each(function() {
+                    currentConnectionIds.push($(this).data('connection-id'));
+                });
+                
+                var newConnectionIds = connections.map(function(conn) {
+                    return conn.connectionId;
+                });
+                
+                // 삭제된 연결 제거
+                currentConnectionIds.forEach(function(connectionId) {
+                    if (newConnectionIds.indexOf(connectionId) === -1) {
+                        $('.connection-card[data-connection-id="' + connectionId + '"]').closest('.col-md-2, .col-sm-3, .col-xs-4').remove();
+                    }
+                });
+                
+                // 추가/업데이트 처리
                 connections.forEach(function(conn) {
-                    updateConnectionCard(conn);
+                    var existingCard = $('.connection-card[data-connection-id="' + conn.connectionId + '"]');
+                    if (existingCard.length > 0) {
+                        // 기존 카드 업데이트
+                        updateConnectionCard(conn);
+                    } else {
+                        // 새 카드 생성
+                        createConnectionCard(conn);
+                    }
                 });
             }
         }
@@ -180,8 +210,56 @@
         // 연결 카드 업데이트
         function updateConnectionCard(conn) {
             var card = $('.connection-card[data-connection-id="' + conn.connectionId + '"]');
-            if (card.length > 0) {
-                card.find('.connection-status').text(conn.status).css('color', getStatusColor(conn.status));
+            if (card.length === 0) {
+                return;
+            }
+            
+            // 상태에 따른 아이콘, 텍스트, 클래스 결정
+            var statusIcon, statusText, statusClass;
+            if (conn.status === 'connected') {
+                statusIcon = 'fa-check-circle';
+                statusText = '연결됨';
+                statusClass = 'connected';
+            } else if (conn.status === 'checking') {
+                statusIcon = 'fa-spinner fa-spin';
+                statusText = '확인중';
+                statusClass = 'checking';
+            } else if (conn.status === 'error') {
+                statusIcon = 'fa-exclamation-triangle';
+                statusText = '오류';
+                statusClass = 'error';
+            } else {
+                statusIcon = 'fa-times-circle';
+                statusText = '연결실패';
+                statusClass = 'disconnected';
+            }
+            
+            var formattedTime = formatDateTime(conn.lastChecked);
+            
+            // 상태 클래스 업데이트
+            card.removeClass('connected checking error disconnected')
+                .addClass(statusClass);
+            
+            // 상태 텍스트 및 아이콘 업데이트
+            var statusElement = $('#status-' + conn.connectionId);
+            if (statusElement.length > 0) {
+                statusElement.html('<i class="fa ' + statusIcon + '"></i> ' + statusText);
+            }
+            
+            // 마지막 확인 시간 업데이트
+            var lastCheckedElement = $('#lastChecked-' + conn.connectionId);
+            if (lastCheckedElement.length > 0) {
+                lastCheckedElement.text(formattedTime);
+            }
+            
+            // 클릭 이벤트 업데이트 (connected 상태일 때만 클릭 가능)
+            card.off('click');
+            if (conn.status === 'connected') {
+                card.css('cursor', 'pointer');
+                card.attr('onclick', 'selectConnection(\'' + conn.connectionId + '\')');
+            } else {
+                card.css('cursor', 'default');
+                card.removeAttr('onclick');
             }
         }
         
