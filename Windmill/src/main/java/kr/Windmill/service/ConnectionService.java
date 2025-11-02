@@ -491,19 +491,27 @@ public class ConnectionService {
 	// 연결의 모니터링 활성화 여부 확인
 	private boolean isMonitoringEnabled(String connectionId) {
 		try {
-			String sql = "SELECT MONITORING_ENABLED FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
-			Boolean monitoringEnabled = jdbcTemplate.queryForObject(sql, Boolean.class, connectionId);
+			String sql = "SELECT MONITORING_ENABLED, STATUS FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ?";
+			Map<String, Object> result = jdbcTemplate.queryForMap(sql, connectionId);
+			
+			// STATUS가 INACTIVE면 모니터링 비활성화로 간주
+			String status = (String) result.get("STATUS");
+			if (status != null && !"ACTIVE".equals(status)) {
+				return false;
+			}
+			
+			Boolean monitoringEnabled = (Boolean) result.get("MONITORING_ENABLED");
 			return monitoringEnabled != null && monitoringEnabled;
 		} catch (Exception e) {
 			logger.warn("모니터링 설정 조회 실패: {}", connectionId, e);
-			return true; // 기본값으로 모니터링 활성화
+			return false; // 기본값으로 모니터링 비활성화 (안전한 기본값)
 		}
 	}
 
 	// 연결의 모니터링 간격 조회
 	private int getMonitoringInterval(String connectionId) {
 		try {
-			String sql = "SELECT MONITORING_INTERVAL FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
+			String sql = "SELECT MONITORING_INTERVAL FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ?";
 			Integer interval = jdbcTemplate.queryForObject(sql, Integer.class, connectionId);
 			return interval != null ? interval : 300; // 기본값 5분
 		} catch (Exception e) {
@@ -1091,9 +1099,17 @@ public class ConnectionService {
 			// 기존 연결 수정 - 모니터링 설정 변경 확인
 			boolean monitoringEnabledChanged = checkMonitoringSettingChanged(connectionId, connectionData);
 			
+			// STATUS 변경 확인
+			Map<String, Object> statusChangeInfo = checkStatusChanged(connectionId, connectionData);
+			boolean statusChanged = (Boolean) statusChangeInfo.get("changed");
+			String newStatus = (String) statusChangeInfo.get("newStatus");
+			
 			// 연결 ID 변경 여부 확인
 			String newConnectionId = (String) connectionData.get("CONNECTION_ID");
 			boolean connectionIdChanged = !connectionId.equals(newConnectionId);
+			
+			// 실제 사용할 연결 ID 결정 (연결 ID가 변경된 경우 새 ID 사용)
+			String targetConnectionId = connectionIdChanged ? newConnectionId : connectionId;
 			
 			// 기존 연결 수정
 			String sql = "UPDATE DATABASE_CONNECTION SET CONNECTION_ID = ?, DB_TYPE = ?, HOST_IP = ?, PORT = ?, "
@@ -1116,27 +1132,40 @@ public class ConnectionService {
 				monitoringStatusMap.remove(connectionId);
 				lastMonitoringCheckMap.remove(connectionId);
 				
-				// 새 ID의 상태 초기화
-				ConnectionStatusDto newStatus = new ConnectionStatusDto();
-				newStatus.setConnectionId(newConnectionId);
-				newStatus.setStatus("checking");
-				newStatus.setLastChecked(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-				newStatus.setColor("#ffc107");
-				connectionStatusMap.put(newConnectionId, newStatus);
+				// 새 ID의 상태 초기화 (STATUS가 ACTIVE인 경우에만)
+				if ("ACTIVE".equals(newStatus)) {
+					ConnectionStatusDto newStatusDto = new ConnectionStatusDto();
+					newStatusDto.setConnectionId(newConnectionId);
+					newStatusDto.setStatus("checking");
+					newStatusDto.setLastChecked(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+					newStatusDto.setColor("#ffc107");
+					connectionStatusMap.put(newConnectionId, newStatusDto);
+				}
 				
 				logger.info("연결 ID 변경으로 인한 상태 캐시 정리: {} -> {}", connectionId, newConnectionId);
 			}
 			
-			// 모니터링 설정이 변경된 경우 관련 상태 초기화
-			if (monitoringEnabledChanged) {
-				updateMonitoringStatusAfterSettingChange(connectionId, connectionData);
+			// STATUS가 INACTIVE로 변경된 경우 connectionStatusMap에서 제거
+			if (statusChanged && "INACTIVE".equals(newStatus)) {
+				logger.info("STATUS가 INACTIVE로 변경되어 연결 상태 캐시에서 제거: {}", targetConnectionId);
+				connectionStatusMap.remove(targetConnectionId);
+				monitoringStatusMap.remove(targetConnectionId);
+				lastMonitoringCheckMap.remove(targetConnectionId);
+				cLog.monitoringLog("CONNECTION_STATUS", "STATUS가 INACTIVE로 변경됨: " + targetConnectionId);
 			}
 			
-			// 연결 정보 업데이트 후 풀 재생성 이벤트 호출
-			try {
-				onConnectionUpdated(connectionId);
-			} catch (Exception e) {
-				logger.warn("연결 업데이트 이벤트 처리 실패: {} - {}", connectionId, e.getMessage());
+			// 모니터링 설정이 변경된 경우 관련 상태 초기화
+			if (monitoringEnabledChanged) {
+				updateMonitoringStatusAfterSettingChange(targetConnectionId, connectionData);
+			}
+			
+			// 연결 정보 업데이트 후 풀 재생성 이벤트 호출 (STATUS가 ACTIVE인 경우에만)
+			if ("ACTIVE".equals(newStatus)) {
+				try {
+					onConnectionUpdated(targetConnectionId);
+				} catch (Exception e) {
+					logger.warn("연결 업데이트 이벤트 처리 실패: {} - {}", targetConnectionId, e.getMessage());
+				}
 			}
 		}
 
@@ -1175,14 +1204,53 @@ public class ConnectionService {
 	}
 
 	/**
-	 * 모니터링 설정 변경 후 상태를 업데이트합니다
+	 * STATUS 변경 여부를 확인합니다
 	 * 
 	 * @param connectionId 연결 ID
+	 * @param connectionData 연결 데이터
+	 * @return STATUS 변경 여부 및 변경 전 STATUS
+	 */
+	private Map<String, Object> checkStatusChanged(String connectionId, Map<String, Object> connectionData) {
+		Map<String, Object> result = new HashMap<>();
+		try {
+			String sql = "SELECT STATUS FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ?";
+			String currentStatus = jdbcTemplate.queryForObject(sql, String.class, connectionId);
+			String newStatus = (String) connectionData.get("STATUS");
+			
+			boolean statusChanged = (currentStatus == null && newStatus != null) || 
+								   (currentStatus != null && !currentStatus.equals(newStatus));
+			
+			result.put("changed", statusChanged);
+			result.put("currentStatus", currentStatus);
+			result.put("newStatus", newStatus);
+			
+			return result;
+		} catch (Exception e) {
+			logger.warn("STATUS 변경 확인 실패: {}", connectionId, e);
+			result.put("changed", false);
+			return result;
+		}
+	}
+
+	/**
+	 * 모니터링 설정 변경 후 상태를 업데이트합니다
+	 * 
+	 * @param connectionId 연결 ID (실제 사용할 연결 ID - 변경된 경우 새 ID)
 	 * @param connectionData 연결 데이터
 	 */
 	private void updateMonitoringStatusAfterSettingChange(String connectionId, Map<String, Object> connectionData) {
 		try {
 			Boolean monitoringEnabled = (Boolean) connectionData.get("MONITORING_ENABLED");
+			String status = (String) connectionData.get("STATUS");
+			
+			// STATUS가 INACTIVE면 모니터링 상태 맵에서 제거만 수행
+			if ("INACTIVE".equals(status)) {
+				logger.info("STATUS가 INACTIVE이므로 모니터링 상태 초기화: {}", connectionId);
+				lastMonitoringCheckMap.remove(connectionId);
+				monitoringStatusMap.remove(connectionId);
+				connectionStatusMap.remove(connectionId);
+				return;
+			}
 			
 			if (monitoringEnabled != null && !monitoringEnabled) {
 				// 모니터링이 비활성화된 경우
