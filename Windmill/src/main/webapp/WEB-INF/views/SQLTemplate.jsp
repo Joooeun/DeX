@@ -3467,7 +3467,7 @@
 								<button type="button" class="btn btn-success btn-sm" onclick="saveSqlTemplateImproved()">
 									<i class="fa fa-save"></i> 저장
 								</button>
-								<button type="button" class="btn btn-danger btn-sm" onclick="deleteSqlTemplateImproved()" style="margin-left: 5px;">
+								<button type="button" class="btn btn-danger btn-sm" onclick="deleteSqlTemplateImproved()">
 									<i class="fa fa-trash"></i> 삭제
 								</button>
 							</div>
@@ -3751,19 +3751,18 @@
 							<!-- 하단 액션 버튼들 -->
 							<div class="panel-default" style="margin-bottom: 15px;">
 								<div class="panel-body" style="padding: 15px; text-align: right;">
-									<button type="button" class="btn btn-default" id="goToTemplateBtnBottom"
+									<button type="button" class="btn btn-default btn-sm" id="goToTemplateBtnBottom"
 										onclick="goToTemplate()" disabled>
 										<i class="fa fa-external-link"></i> 해당 메뉴로 이동
 									</button>
-									<button type="button" class="btn btn-success" onclick="saveSqlTemplateImproved()" style="margin-left: 10px;">
+									<button type="button" class="btn btn-success btn-sm" onclick="saveSqlTemplateImproved()">
 										<i class="fa fa-save"></i> 저장
 									</button>
-									<button type="button" class="btn btn-danger" onclick="deleteSqlTemplateImproved()" style="margin-left: 10px;">
+									<button type="button" class="btn btn-danger btn-sm" onclick="deleteSqlTemplateImproved()">
 										<i class="fa fa-trash"></i> 삭제
 									</button>
 								</div>
 							</div>
-
 							<!-- 테스트 결과 -->
 							<div id="testResult"></div>
 							</form>
