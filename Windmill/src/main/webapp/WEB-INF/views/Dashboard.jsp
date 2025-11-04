@@ -474,9 +474,31 @@
                 }
             }
             
-            // 기존 차트와 새 차트 비교하여 업데이트
+            // 기존 차트 요소들을 맵으로 저장 (chartId -> DOM 요소)
+            var existingCharts = {};
+            chartsContainer.find('.col-md-3').each(function() {
+                var $chartElement = $(this);
+                // 차트 ID 추출 (chart_ 접두사 고려)
+                var elementId = $chartElement.find('[id^="chart_"], [id^="error_"]').attr('id');
+                if (elementId) {
+                    var chartId;
+                    if (elementId.startsWith('error_')) {
+                        // error_ 접두사 제거
+                        chartId = elementId.substring(6); // 'error_'.length = 6
+                    } else if (elementId.startsWith('chart_')) {
+                        // chart_ 접두사는 그대로 유지 (chartId 자체가 chart_로 시작할 수 있음)
+                        chartId = elementId;
+                    } else {
+                        chartId = elementId;
+                    }
+                    existingCharts[chartId] = $chartElement;
+                }
+            });
+            
+            // 정렬된 순서대로 차트 처리
             var chartIndex = 0;
             var hasValidCharts = false;
+            var chartElementsInOrder = []; // 순서대로 정렬된 차트 요소들
             
             sortedCharts.forEach(function(chart) {
                 var chartId = chart.chartId;
@@ -484,40 +506,57 @@
                 var chartType = chart.chartType;
                 
                 if (!data) return;
+                
+                hasValidCharts = true;
+                
+                // chartId가 이미 chart_ 접두사를 가지고 있는지 확인
+                var elementId = chartId.startsWith('chart_') ? chartId : 'chart_' + chartId;
+                
                 // 기존 차트 요소 확인
-                var existingChart = $('#' + chartId);
+                var existingChartElement = existingCharts[chartId];
+                var existingChart = $('#' + elementId);
                 var existingChartType = existingChart.data('chart-type');
                 
                 // 에러 데이터 처리
                 if (data.error) {
-                    hasValidCharts = true;
-                    
-                    // 기존 에러 차트 확인
                     var existingErrorChart = $('#error_' + chartId);
                     
                     if (existingErrorChart.length > 0) {
-                        // 기존 에러 차트가 있으면 내용만 업데이트
+                        // 기존 에러 차트가 있으면 내용만 업데이트하고 순서에 추가
                         var errorMessage = data.error;
-                        existingErrorChart.find('.box-body').html(
+                        var $boxBody = existingErrorChart.find('.box-body');
+                        $boxBody.css({
+                            'height': '249px',
+                            'display': 'flex',
+                            'align-items': 'top',
+                            'justify-content': 'center'
+                        });
+                        $boxBody.html(
                             '<div class="alert alert-danger" style="margin: 0;">' +
                             '<i class="fa fa-exclamation-circle"></i> ' + errorMessage +
                             '</div>'
                         );
-                        } else {
+                        chartElementsInOrder.push(existingErrorChart.closest('.col-md-3'));
+                    } else {
                         // 기존 차트가 있으면 제거
                         if (existingChart.length > 0) {
-                            existingChart.closest('.col-md-3').remove();
+                            var chartElement = existingChart.closest('.col-md-3');
+                            if (window.chartInstances && window.chartInstances[elementId]) {
+                                window.chartInstances[elementId].destroy();
+                                delete window.chartInstances[elementId];
+                            }
+                            chartElement.remove();
                         }
                         
                         // 새 에러 차트 생성
                         var chartHtml = createErrorChartHtml(chartId, chartIndex, data.error);
-                        chartsContainer.append(chartHtml);
+                        var $newErrorChart = $(chartHtml);
+                        chartsContainer.append($newErrorChart);
+                        chartElementsInOrder.push($newErrorChart);
                     }
                     chartIndex++;
                     return;
                 }
-                
-                hasValidCharts = true;
                 
                 // 기존 오류 차트가 있는지 확인하고 제거
                 var existingErrorChart = $('#error_' + chartId);
@@ -529,20 +568,71 @@
                 if (existingChart.length === 0 || existingChartType !== chartType) {
                     // 기존 차트가 있으면 제거
                     if (existingChart.length > 0) {
-                        existingChart.closest('.col-md-3').remove();
+                        var chartElement = existingChart.closest('.col-md-3');
+                        if (window.chartInstances && window.chartInstances[elementId]) {
+                            window.chartInstances[elementId].destroy();
+                            delete window.chartInstances[elementId];
+                        }
+                        chartElement.remove();
                     }
                     
                     // 차트 HTML 생성
                     var chartHtml = createChartHtml(chartId, chartType, chartIndex);
-                    chartsContainer.append(chartHtml);
+                    var $newChart = $(chartHtml);
+                    chartsContainer.append($newChart);
+                    chartElementsInOrder.push($newChart);
                     // 차트 초기화
                     initializeChart(chartId, chartType, data);
                 } else {
-                    // 기존 차트가 있고 타입이 같으면 값만 업데이트
+                    // 기존 차트가 있고 타입이 같으면 값만 업데이트하고 순서에 추가
                     updateChartData(chartId, chartType, data);
+                    chartElementsInOrder.push(existingChart.closest('.col-md-3'));
                 }
                 
                 chartIndex++;
+            });
+            
+            // 순서대로 차트 요소 재배치
+            // 모든 차트 요소를 detach하고 순서대로 다시 append
+            var $allChartElements = chartsContainer.find('.col-md-3').detach();
+            chartElementsInOrder.forEach(function($chartElement) {
+                if ($chartElement.length > 0) {
+                    chartsContainer.append($chartElement);
+                }
+            });
+            
+            // 더 이상 존재하지 않는 차트 제거
+            chartsContainer.find('.col-md-3').each(function() {
+                var $chartElement = $(this);
+                var elementId = $chartElement.find('[id^="chart_"], [id^="error_"]').attr('id');
+                if (elementId) {
+                    var chartId;
+                    if (elementId.startsWith('error_')) {
+                        // error_ 접두사 제거
+                        chartId = elementId.substring(6); // 'error_'.length = 6
+                    } else if (elementId.startsWith('chart_')) {
+                        // chart_ 접두사는 그대로 유지
+                        chartId = elementId;
+                    } else {
+                        chartId = elementId;
+                    }
+                    
+                    // sortedCharts에 없는 차트는 제거
+                    var found = sortedCharts.some(function(chart) {
+                        return chart.chartId === chartId;
+                    });
+                    
+                    if (!found) {
+                        // Chart.js 인스턴스 정리
+                        if (elementId.startsWith('chart_')) {
+                            if (window.chartInstances && window.chartInstances[elementId]) {
+                                window.chartInstances[elementId].destroy();
+                                delete window.chartInstances[elementId];
+                            }
+                        }
+                        $chartElement.remove();
+                    }
+                }
             });
             
             // 유효한 차트가 없으면 메시지 표시
@@ -609,12 +699,12 @@
         function createErrorChartHtml(chartId, index, errorMessage) {
             var chartTitle = getChartTitle(chartId) + ' (오류)';
             
-            var html = '<div class="col-md-3" style="margin-bottom: 20px;">' +
+            var html = '<div class="col-md-3">' +
                 '<div class="box box-danger" id="error_' + chartId + '">' +
                 '<div class="box-header with-border">' +
                 '<h3 class="box-title"><i class="fa fa-exclamation-triangle"></i> ' + chartTitle + '</h3>' +
                 '</div>' +
-                '<div class="box-body">' +
+                '<div class="box-body" style="height:250px; display:flex; align-items:top; justify-content:center">' +
                 '<div class="alert alert-danger" style="margin: 0;">' +
                 '<i class="fa fa-exclamation-circle"></i> ' + errorMessage +
                 '</div>' +
