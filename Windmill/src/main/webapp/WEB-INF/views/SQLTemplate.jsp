@@ -1851,6 +1851,8 @@
 						hideLoading();
 						showToast('저장 실패: ' + result.error, 'error');
 						
+						Sentry.captureException(result.error); 
+						
 						// 콜백 호출 (실패)
 						if (callback && typeof callback === 'function') {
 							callback(false);

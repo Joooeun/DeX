@@ -343,7 +343,7 @@
                         // 차트 설정 정보 저장
                         if (response.chartConfig) {
                             chartConfigData = response.chartConfig;
-            } else {
+                        } else {
                             chartConfigData = null;
                         }
                         

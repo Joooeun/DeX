@@ -359,9 +359,10 @@ public class SQLTemplateController {
 				if (StringUtils.isEmpty(sqlContent.getConnectionId())) {
 					return result.addError("SQL 내용 " + (i + 1) + "번의 연결 ID를 입력해주세요. 데이터베이스 연결을 식별하는 ID가 필요합니다.", "CONNECTION_ID_REQUIRED");
 				}
-				if (StringUtils.isEmpty(sqlContent.getSqlContent())) {
-					return result.addError("SQL 내용 " + sqlContent.getConnectionId() + "탭의 SQL 쿼리를 입력해주세요. 해당 연결에서 실행할 SQL 문이 필요합니다.", "SQL_CONTENT_REQUIRED");
-				}
+				// 임시 주석처리
+				// if (StringUtils.isEmpty(sqlContent.getSqlContent())) {
+				// 	return result.addError("SQL 내용 " + sqlContent.getConnectionId() + "탭의 SQL 쿼리를 입력해주세요. 해당 연결에서 실행할 SQL 문이 필요합니다.", "SQL_CONTENT_REQUIRED");
+				// }
 			}
 		}
 		
