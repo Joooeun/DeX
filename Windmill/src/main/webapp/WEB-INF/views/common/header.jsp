@@ -875,6 +875,7 @@ var changePW
 						<li><a href="javascript:void(0)" onclick="addTemplateTab('connection', '연결 관리', '/Connection')"> <i class="fa fa-database"></i> <span>연결 관리</span></a></li>
 						<li><a href="javascript:void(0)" onclick="addTemplateTab('user', '사용자 관리', '/User')"> <i class="fa fa-user"></i> <span>사용자 관리</span></a></li>
 						<li><a href="javascript:void(0)" onclick="addTemplateTab('sqltemplate', 'SQL 템플릿 관리', '/SQLTemplate')"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span></a></li>
+						<li><a href="javascript:void(0)" onclick="addTemplateTab('etl', 'ETL 관리', '/ETL')"> <i class="fa fa-exchange"></i> <span>ETL 관리</span></a></li>
 					</c:if>
 
 					<c:if test="${hasDashboardPermission}">
