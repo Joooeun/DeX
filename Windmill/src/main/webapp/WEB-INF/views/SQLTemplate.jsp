@@ -1299,11 +1299,11 @@
 				}
 
 				if (!shortcut.shortcutName || !shortcut.shortcutName.trim()) {
-					errors.push('단축키명을 입력해주세요. (순서: ' + (index + 1) + ')');
+					errors.push((index + 1) +'번째 단축키의 이름을 입력해주세요.');
 				}
 
 				if (!shortcut.targetTemplateId || !shortcut.targetTemplateId.trim()) {
-					errors.push('대상 템플릿을 선택해주세요. (순서: ' + (index + 1) + ')');
+					errors.push((index + 1) +'번째 단축키의 대상 템플릿을 선택해주세요.');
 				}
 
 				// 소스 컬럼 검증 (대상 템플릿의 파라미터 정보 기반)
