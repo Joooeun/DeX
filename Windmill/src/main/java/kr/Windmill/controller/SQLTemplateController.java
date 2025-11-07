@@ -829,19 +829,29 @@ public class SQLTemplateController {
 	@RequestMapping(path = "/SQLTemplate/db-connections")
 	public Map<String, Object> getDbConnections(HttpServletRequest request, HttpSession session) {
 		try {
-			String sql = "SELECT CONNECTION_ID, DB_TYPE, HOST_IP, PORT, DATABASE_NAME, USERNAME, STATUS "
-					+ "FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY DB_TYPE, CONNECTION_ID";
-			List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql);
+			String templateType = request.getParameter("templateType");
+			List<Map<String, Object>> connections;
+			
+			// 템플릿 타입이 SHELL이면 SFTP 연결 조회, 아니면 DB 연결 조회
+			if ("SHELL".equals(templateType)) {
+				String sql = "SELECT SFTP_CONNECTION_ID as CONNECTION_ID, HOST_IP, PORT, USERNAME, STATUS "
+						+ "FROM SFTP_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_ID";
+				connections = jdbcTemplate.queryForList(sql);
+			} else {
+				String sql = "SELECT CONNECTION_ID, DB_TYPE, HOST_IP, PORT, DATABASE_NAME, USERNAME, STATUS "
+						+ "FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY DB_TYPE, CONNECTION_ID";
+				connections = jdbcTemplate.queryForList(sql);
+			}
 
 			Map<String, Object> result = new HashMap<>();
 			result.put("success", true);
 			result.put("data", connections);
 			return result;
 		} catch (Exception e) {
-			logger.error("DB 연결 목록 조회 실패", e);
+			logger.error("연결 목록 조회 실패", e);
 			Map<String, Object> result = new HashMap<>();
 			result.put("success", false);
-			result.put("error", "DB 연결 목록 조회 실패: " + e.getMessage());
+			result.put("error", "연결 목록 조회 실패: " + e.getMessage());
 			return result;
 		}
 	}

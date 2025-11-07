@@ -60,7 +60,7 @@
 	<script>
 		$(document).ready(function () {
 			loadCategories();
-			loadDbConnections();
+			loadAllConnections();  // 초기 로드 시 모든 연결 목록 로드
 			initSqlEditors();
 
 			// 변경사항 추적 설정
@@ -88,6 +88,14 @@
 			$('#sqlTemplateType').on('change', function () {
 				adjustEditorForTemplateType();
 				markTemplateChanged();
+				
+				// 타입 변경 시 연결 목록 재렌더링 및 선택값 초기화
+				var previousValue = $('#accessibleConnections').val();
+				$('#accessibleConnections').val(null).trigger('change');
+				previousAccessibleConnections = [];
+				
+				// 전역 변수에서 가져와서 렌더링 (재로드 불필요)
+				loadConnections();
 			});
 
 			// Ctrl+S 키보드 단축키 이벤트 리스너
@@ -433,7 +441,7 @@
 			LOADING_LIST: '템플릿 목록을 불러오는 중...'
 		};
 
-		// 사용 가능 DB 변경 전 값 추적
+		// 사용 가능 연결 변경 전 값 추적
 		var previousAccessibleConnections = [];
 		
 		// 초기화 중 플래그 (검증 건너뛰기용)
@@ -453,8 +461,9 @@
 			editMode: false,
 			currentEditingConnectionId: null,
 			
-			// DB 연결 정보
-			dbConnections: [],
+			// 연결 정보 (초기 로드 시 모두 저장)
+			dbConnections: [],      // DB 연결 목록
+			sftpConnections: [],   // SFTP 연결 목록
 			
 			// 상태 변경 함수들
 			markAsChanged: function() {
@@ -559,24 +568,27 @@
 		// 템플릿 타입 변경 시 에디터 모드 조정
 		function adjustEditorForTemplateType() {
 			var templateType = $('#sqlTemplateType').val();
-			var editor = window.sqlEditor_default;
+			// window.sqlEditors에서 에디터 가져오기
+			var editor = (window.sqlEditors && window.sqlEditors['sqlEditor_default']) || 
+			             (window.SqlTemplateState && window.SqlTemplateState.sqlEditors && window.SqlTemplateState.sqlEditors['sqlEditor_default']);
 			
-			if (editor) {
+			if (editor && editor.session) {
+				// Ace Editor API 사용
 				switch(templateType) {
 					case 'HTML':
-						editor.setOption('mode', 'htmlmixed');
+						editor.session.setMode('ace/mode/html');
 						break;
 					case 'SHELL':
-						editor.setOption('mode', 'shell');
+						editor.session.setMode('ace/mode/sh');
 						break;
 					case 'PYTHON':
-						editor.setOption('mode', 'python');
+						editor.session.setMode('ace/mode/python');
 						break;
 					case 'JAVASCRIPT':
-						editor.setOption('mode', 'javascript');
+						editor.session.setMode('ace/mode/javascript');
 						break;
 					default:
-						editor.setOption('mode', 'sql');
+						editor.session.setMode('ace/mode/sql');
 				}
 			}
 		}
@@ -863,36 +875,82 @@
 			});
 		}
 
-		// DB 연결 목록 로드
-		function loadDbConnections(callback) {
+		// 초기 로드 시 모든 연결 목록 로드 (DB + SFTP)
+		function loadAllConnections() {
+			// DB 연결 로드
 			makeAjaxRequest({
 				url: '/SQLTemplate/db-connections',
+				data: { templateType: 'SQL' },
 				onSuccess: function(result) {
-					// 전역 변수에 저장
-					window.SqlTemplateState.dbConnections = result.data;
-					renderDbConnections(result.data);
-					
-					// 콜백 함수가 있으면 실행
-					if (callback && typeof callback === 'function') {
-						callback();
-					}
+					window.SqlTemplateState.dbConnections = result.data || [];
+					// 초기 렌더링 (기본 타입은 SQL)
+					loadConnections();
 				},
 				onError: function() {
-					showToast('연결 목록을 불러오는데 실패했습니다.', 'error');
+					showToast('DB 연결 목록을 불러오는데 실패했습니다.', 'error');
+				}
+			});
+			
+			// SFTP 연결 로드
+			makeAjaxRequest({
+				url: '/SQLTemplate/db-connections',
+				data: { templateType: 'SHELL' },
+				onSuccess: function(result) {
+					window.SqlTemplateState.sftpConnections = result.data || [];
+				},
+				onError: function() {
+					showToast('SFTP 연결 목록을 불러오는데 실패했습니다.', 'error');
 				}
 			});
 		}
+		
+		// 템플릿 타입에 따라 적절한 연결 목록 반환 (헬퍼 함수)
+		function getConnectionsByTemplateType(templateType) {
+			templateType = templateType || $('#sqlTemplateType').val() || 'SQL';
+			if (templateType === 'SHELL') {
+				return window.SqlTemplateState.sftpConnections || [];
+			} else {
+				return window.SqlTemplateState.dbConnections || [];
+			}
+		}
+		
+		// 연결 목록 렌더링 (전역 변수에서 가져와서 렌더링만 수행)
+		function loadConnections() {
+			var templateType = $('#sqlTemplateType').val() || 'SQL';
+			var connections = getConnectionsByTemplateType(templateType);
+			
+			// 렌더링
+			renderConnections(connections, templateType);
+		}
+		
+		// 연결 목록 새로고침 (필요시에만 사용)
+		function refreshConnections(callback) {
+			loadAllConnections();
+			if (callback && typeof callback === 'function') {
+				// 비동기 로드이므로 약간의 지연 후 콜백 실행
+				setTimeout(callback, 500);
+			}
+		}
 
-		// DB 연결 옵션 렌더링
-		function renderDbConnections(connections) {
+		// 연결 옵션 렌더링 (DB 또는 SFTP)
+		function renderConnections(connections, templateType) {
+			var placeholder = '연결을 선택하세요';
+			var textField = function(connection) {
+				if (templateType === 'SHELL') {
+					// SFTP 연결: CONNECTION_ID (HOST_IP:PORT) 형식
+					return connection.CONNECTION_ID;
+				} else {
+					// DB 연결: CONNECTION_ID (DB_TYPE) 형식
+					return connection.CONNECTION_ID + ' (' + connection.DB_TYPE + ')';
+				}
+			};
+			
 			renderSelectOptions({
 				select: $('#accessibleConnections'),
 				data: connections,
 				valueField: 'CONNECTION_ID',
-				textField: function(connection) {
-					return connection.CONNECTION_ID + ' (' + connection.DB_TYPE + ')';
-				},
-				placeholder: 'DB 연결을 선택하세요'
+				textField: textField,
+				placeholder: placeholder
 			});
 		}
 
@@ -1366,15 +1424,15 @@
 			errors.push('중복된 단축키가 있습니다: ' + duplicateShortcuts.join(', '));
 		}
 
-		// 사용 가능 DB와 SQL 탭 연결 동기화 검증
+		// 사용 가능 연결과 SQL 탭 연결 동기화 검증
 		var accessibleConnectionIds = $('#accessibleConnections').val() || [];
 		// 배열로 정규화 (없으면 빈 배열)
 		if (!Array.isArray(accessibleConnectionIds)) {
 			accessibleConnectionIds = accessibleConnectionIds ? [accessibleConnectionIds] : [];
 		}
 		
-		// 사용 가능 DB가 선택되지 않은 경우는 addSqlContent에서 이미 처리하므로
-		// 여기서는 사용 가능 DB가 있는 경우만 검증
+		// 사용 가능 연결이 선택되지 않은 경우는 addSqlContent에서 이미 처리하므로
+		// 여기서는 사용 가능 연결이 있는 경우만 검증
 		if (accessibleConnectionIds.length > 0) {
 			// SQL 탭에 있는 모든 연결 ID 수집
 			var sqlTabConnectionIds = [];
@@ -1404,7 +1462,7 @@
 				});
 			});
 			
-			// SQL 탭에는 있지만 사용 가능 DB 목록에는 없는 연결 찾기
+			// SQL 탭에는 있지만 사용 가능 연결 목록에는 없는 연결 찾기
 			var inaccessibleConnections = [];
 			sqlTabConnectionIds.forEach(function(connectionId) {
 				if (accessibleConnectionIds.indexOf(connectionId) === -1) {
@@ -1412,18 +1470,9 @@
 				}
 			});
 			
-			if (inaccessibleConnections.length > 0) {
-				var connectionNames = inaccessibleConnections.map(function(id) {
-					// 연결 이름 가져오기 시도
-					var conn = window.SqlTemplateState.dbConnections && 
-						window.SqlTemplateState.dbConnections.find(function(c) {
-							return c.CONNECTION_ID === id;
-						});
-					return conn ? (id + ' (' + conn.DB_TYPE + ')') : id;
-				});
-				
-				errors.push('사용 가능 DB 목록에 없는 연결이 SQL 탭에 있습니다: ' + 
-					connectionNames.join(', ') + '\n\n해당 SQL 탭을 삭제하거나 사용 가능 DB 목록에 추가해주세요.');
+			if (inaccessibleConnections.length > 0) {				
+				errors.push('사용 가능 연결 목록에 없는 연결이 SQL 탭에 있습니다: ' + 
+					inaccessibleConnections.join(', ') + '\n\n해당 SQL 탭을 삭제하거나 사용 가능 연결 목록에 추가해주세요.');
 			}
 		}
 
@@ -1672,6 +1721,9 @@
 			$('#sqlExecutionLimit').val('200');
 			$('#sqlRefreshTimeout').val('0');
 			$('#sqlTemplateType').val('SQL');
+			
+			// 신규 템플릿이므로 템플릿 타입 변경 가능
+			$('#sqlTemplateType').prop('disabled', false);
 			// 체크박스 설정 (이벤트 트리거 방지)
 			$('#sqlNewline').off('change').prop('checked', false);
 			$('#sqlInactive').off('change').prop('checked', false);
@@ -2163,9 +2215,8 @@
 		function loadSqlTemplateDetail(templateId) {
 			showLoading(LOADING_MESSAGES.LOADING_TEMPLATE);
 			
-			// DB 연결 목록을 먼저 로드하여 accessibleConnections 설정 시 연결 목록이 준비되도록 함
-			loadDbConnections(function() {
-				$.ajax({
+			// 템플릿 상세 정보 로드
+			$.ajax({
 					type: 'GET',
 					url: '/SQLTemplate/detail',
 					data: {
@@ -2182,6 +2233,10 @@
 							$('#sqlExecutionLimit').val(template.executionLimit || 0);
 							$('#sqlRefreshTimeout').val(template.refreshTimeout || 0);
 							$('#sqlTemplateType').val(template.templateType || 'SQL');
+							
+							// 저장된 템플릿이므로 템플릿 타입 변경 불가능
+							$('#sqlTemplateType').prop('disabled', true);
+							
 							// 체크박스 설정 (이벤트 트리거 방지)
 							$('#sqlNewline').off('change').prop('checked', template.newline === true);
 							$('#sqlInactive').off('change').prop('checked', template.sqlStatus === 'INACTIVE');
@@ -2196,8 +2251,11 @@
 							// 해당 메뉴로 이동 버튼 활성화
 							updateGoToTemplateButton();
 
+							// 전역 변수에서 연결 목록이 이미 로드되어 있으므로 바로 렌더링
+							loadConnections();
 
-							// 사용 가능 DB 설정
+
+							// 사용 가능 연결 설정
 							// 초기화 플래그 설정 (검증 건너뛰기)
 							isInitializing = true;
 							
@@ -2237,7 +2295,6 @@
 						showToast('템플릿 정보를 불러오는 중 오류가 발생했습니다.', 'error');
 					}
 				});
-			});
 		}
 
 		// 추가 템플릿 데이터 로드 (단순화된 로드 로직)
@@ -2598,12 +2655,12 @@
 			var isEditMode = window.SqlTemplateState.editMode || false;
 			var currentEditingConnectionId = window.SqlTemplateState.currentEditingConnectionId || null;
 
-			// 사용 가능 DB 목록 가져오기 (multiple select이므로 배열 반환)
+			// 사용 가능 연결 목록 가져오기 (multiple select이므로 배열 반환)
 			var accessibleConnectionIds = $('#accessibleConnections').val();
 
-			// 사용 가능 DB가 선택되지 않았으면 SQL 추가 불가
+			// 사용 가능 연결이 선택되지 않았으면 SQL 추가 불가
 			if (!accessibleConnectionIds || accessibleConnectionIds.length === 0) {
-				showToast('먼저 사용 가능 DB를 선택해주세요.', 'warning');
+				showToast('먼저 사용 가능 연결을 선택해주세요.', 'warning');
 				return;
 			}
 
@@ -2613,32 +2670,35 @@
 			});
 
 			if (connectionIds.length === 0) {
-				showToast('먼저 사용 가능 DB를 선택해주세요.', 'warning');
+				showToast('먼저 사용 가능 연결을 선택해주세요.', 'warning');
 				return;
 			}
 
 			// 전역 캐시에서 연결 목록 가져오기
-			if (window.SqlTemplateState.dbConnections && window.SqlTemplateState.dbConnections.length > 0) {
-				var connections = window.SqlTemplateState.dbConnections;
+			var templateType = $('#sqlTemplateType').val() || 'SQL';
+			var allConnections = getConnectionsByTemplateType(templateType);
+			if (allConnections && allConnections.length > 0) {
+				var connections = allConnections;
 
-				// 사용 가능 DB만 필터링 (편집 모드와 일반 모드 모두 적용)
+				// 사용 가능 연결만 필터링 (편집 모드와 일반 모드 모두 적용)
 				connections = connections.filter(function (connection) {
 					return connectionIds.includes(connection.CONNECTION_ID);
 				});
 
 				if (connections.length === 0) {
-					showToast('사용 가능 DB가 없습니다.', 'warning');
+					showToast('사용 가능 연결이 없습니다.', 'warning');
 					return;
 				}
 
 				// 연결 선택 모달 표시
 				showConnectionSelectionModal(connections, isEditMode, currentEditingConnectionId);
 			} else {
-				// 캐시된 데이터가 없으면 새로 로드
-				loadDbConnections(function() {
-					// 로드 완료 후 다시 시도
+				// 전역 변수에서 연결 목록이 이미 로드되어 있으므로 바로 렌더링
+				loadConnections();
+				// 렌더링 후 다시 시도
+				setTimeout(function() {
 					addSqlContent();
-				});
+				}, 100);
 			}
 		}
 
@@ -2722,7 +2782,7 @@
 				connectionHtml += '<div class="form-check form-check-inline">' +
 					'<input class="form-check-input" type="checkbox" id="conn_' + connection.CONNECTION_ID + '" value="' + connection.CONNECTION_ID + '" ' + disabledAttr + ' ' + checkedAttr + '>' +
 					'<label class="form-check-label" for="conn_' + connection.CONNECTION_ID + '">' +
-					connection.CONNECTION_ID + ' (' + connection.DB_TYPE + ')' + usedText + '</label>' +
+					connection.CONNECTION_ID + ' (' + (connection.DB_TYPE ? connection.DB_TYPE : (connection.HOST_IP ? (connection.HOST_IP + ':' + (connection.PORT || 22)) : '')) + ')' + usedText + '</label>' +
 					'</div>';
 			});
 
@@ -3044,17 +3104,9 @@
 					});
 					
 					if (usedInTabs.length > 0) {
-						// 연결 이름 가져오기
-						var connectionNames = usedInTabs.map(function(id) {
-							var conn = window.SqlTemplateState.dbConnections && 
-								window.SqlTemplateState.dbConnections.find(function(c) {
-									return c.CONNECTION_ID === id;
-								});
-							return conn ? (id + ' (' + conn.DB_TYPE + ')') : id;
-						});
 						
-						var message = '사용 가능 DB에서 제거하려는 연결이 SQL 탭에서 사용 중입니다:\n\n' +
-							connectionNames.join('\n') + 
+						var message = '사용 가능 연결에서 제거하려는 연결이 SQL 탭에서 사용 중입니다:\n\n' +
+						usedInTabs.join(', ') + 
 							'\n\nSQL 탭의 연결을 먼저 수정하거나 삭제해주세요';
 						
 						alert(message);
@@ -3502,13 +3554,17 @@
 										<div class="col-md-3">
 											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
-													title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습니다."
+													title="템플릿의 타입을 선택합니다. SQL, HTML, Shell Script 타입을 지원합니다."
 													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													실행 제한 (행)
+													템플릿 타입
 												</label>
-												<input type="number" class="form-control"
-													id="sqlExecutionLimit" value="0" min="0" max="20000"
-													placeholder="0 = 제한 없음">
+												<select class="form-control" id="sqlTemplateType">
+													<option value="SQL">SQL</option>
+													<option value="HTML">HTML</option>
+													<option value="SHELL">Shell Script</option>
+													<!-- <option value="PYTHON">Python</option>
+													<option value="JAVASCRIPT">JavaScript</option> -->
+												</select>
 											</div>
 										</div>
 										<div class="col-md-6">
@@ -3542,28 +3598,24 @@
 										<div class="col-md-3">
 											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
-													title="템플릿의 타입을 선택합니다. SQL, HTML, Shell Script 등 다양한 타입을 지원합니다."
+													title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습니다."
 													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													템플릿 타입
+													실행 제한 (행)
 												</label>
-												<select class="form-control" id="sqlTemplateType">
-													<option value="SQL">SQL</option>
-													<option value="HTML">HTML</option>
-													<option value="SHELL">Shell Script</option>
-													<!-- <option value="PYTHON">Python</option>
-													<option value="JAVASCRIPT">JavaScript</option> -->
-												</select>
+												<input type="number" class="form-control"
+													id="sqlExecutionLimit" value="0" min="0" max="20000"
+													placeholder="0 = 제한 없음">
 											</div>
 										</div>
 										<div class="col-md-6">
 											<div class="form-group" style="margin-bottom: 15px;">
 												<label data-toggle="tooltip" data-placement="top"
-													title="이 SQL 템플릿을 사용할 수 있는 데이터베이스 연결을 선택합니다. 아무것도 선택하지 않으면 모든 DB 연결에서 사용 가능합니다."
+													title="이 템플릿을 사용할 수 있는 연결을 선택합니다. SQL/HTML 타입은 DB 연결, Shell Script 타입은 SFTP 연결을 선택합니다."
 													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
-													사용 가능 DB
+													사용 가능 연결
 												</label>
 												<select class="form-control" id="accessibleConnections" multiple>
-													<!-- DB 연결 옵션들이 여기에 로드됩니다 -->
+													<!-- 연결 옵션들이 여기에 로드됩니다 -->
 												</select>
 											</div>
 										</div>
