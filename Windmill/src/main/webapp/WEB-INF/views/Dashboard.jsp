@@ -527,12 +527,11 @@
                         var $boxBody = existingErrorChart.find('.box-body');
                         $boxBody.css({
                             'height': '249px',
-                            'display': 'flex',
                             'align-items': 'top',
                             'justify-content': 'center'
                         });
                         $boxBody.html(
-                            '<div class="alert alert-danger" style="margin: 0;">' +
+                            '<div class="alert alert-danger" style="margin: 0;line-break: anywhere;height: 100%;">' +
                             '<i class="fa fa-exclamation-circle"></i> ' + errorMessage +
                             '</div>'
                         );
@@ -704,8 +703,8 @@
                 '<div class="box-header with-border">' +
                 '<h3 class="box-title"><i class="fa fa-exclamation-triangle"></i> ' + chartTitle + '</h3>' +
                 '</div>' +
-                '<div class="box-body" style="height:250px; display:flex; align-items:top; justify-content:center">' +
-                '<div class="alert alert-danger" style="margin: 0;">' +
+                '<div class="box-body" style="height:250px; align-items:top; justify-content:center">' +
+                '<div class="alert alert-danger" style="margin: 0;line-break: anywhere;height: 100%;">' +
                 '<i class="fa fa-exclamation-circle"></i> ' + errorMessage +
                 '</div>' +
                 '</div>' +
