@@ -10,27 +10,26 @@ import javax.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
-import kr.Windmill.dto.SqlTemplateSaveRequest;
-import kr.Windmill.service.SqlTemplateService;
-import kr.Windmill.service.SystemConfigService;
-import kr.Windmill.service.SqlContentService;
-import kr.Windmill.service.PermissionService;
-import kr.Windmill.service.SQLExecuteService;
-import kr.Windmill.util.Common;
 import kr.Windmill.dto.SqlTemplateExecuteDto;
 import kr.Windmill.dto.SqlTemplateSaveRequest;
 import kr.Windmill.dto.ValidationResult;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.http.ResponseEntity;
-import org.springframework.util.StringUtils;
+import kr.Windmill.service.PermissionService;
+import kr.Windmill.service.SQLExecuteService;
+import kr.Windmill.service.SqlContentService;
+import kr.Windmill.service.SqlTemplateService;
+import kr.Windmill.service.SystemConfigService;
+import kr.Windmill.util.Common;
 
 @Controller
 public class SQLTemplateController {
@@ -57,6 +56,9 @@ public class SQLTemplateController {
 
 	@Autowired
 	private Common com;
+
+	@Autowired
+	private kr.Windmill.service.AuditLogService auditLogService;
 
 	@RequestMapping(path = "/SQLTemplate", method = RequestMethod.GET)
 	public ModelAndView sqlTemplateMain(HttpServletRequest request, ModelAndView mv, HttpSession session) {
@@ -205,9 +207,29 @@ public class SQLTemplateController {
 	@RequestMapping(path = "/SQLTemplate/detail")
 	public Map<String, Object> getSqlTemplateDetail(HttpServletRequest request, HttpSession session) {
 		String templateId = request.getParameter("templateId");
+		String userId = (String) session.getAttribute("memberId");
 
 		try {
-			return sqlTemplateService.getSqlTemplateDetail(templateId);
+			Map<String, Object> result = sqlTemplateService.getSqlTemplateDetail(templateId);
+			
+			// 조회 성공 시 audit_log 기록 (24시간 체크 포함)
+			if (result != null && Boolean.TRUE.equals(result.get("success"))) {
+				try {
+					// 템플릿 전체 정보 조회
+					Map<String, Object> templateData = sqlTemplateService.getTemplateDataForAudit(templateId);
+					if (templateData != null) {
+						String ipAddress = com.getIp(request);
+						String userAgent = request.getHeader("User-Agent");
+						String sessionId = (String) session.getAttribute("sessionId");
+						
+						auditLogService.logTemplateView(templateId, userId, templateData, ipAddress, userAgent, sessionId);
+					}
+				} catch (Exception e) {
+					logger.warn("템플릿 조회 audit_log 기록 실패 (무시): {}", e.getMessage());
+				}
+			}
+			
+			return result;
 		} catch (Exception e) {
 			logger.error("SQL 템플릿 상세 조회 실패", e);
 			Map<String, Object> result = new HashMap<>();
@@ -247,6 +269,7 @@ public class SQLTemplateController {
 	                consumes = "application/json", produces = "application/json")
 	public ResponseEntity<Map<String, Object>> saveSqlTemplate(
 			@RequestBody SqlTemplateSaveRequest request,
+			HttpServletRequest httpRequest,
 			HttpSession session) {
 		
 		String userId = (String) session.getAttribute("memberId");
@@ -274,9 +297,30 @@ public class SQLTemplateController {
 			}
 			
 			// 3. 서비스 호출
+			String templateId = request.getTemplate().getTemplateId();
+			boolean isUpdate = StringUtils.hasText(templateId) && isTemplateIdExists(templateId);
+			
 			Map<String, Object> result = sqlTemplateService.saveTemplateWithRelatedData(request, userId);
 			
+			// 저장 성공 시 audit_log 기록
 			if ((Boolean) result.get("success")) {
+				try {
+					// 저장된 템플릿 전체 정보 조회
+					String savedTemplateId = (String) result.get("templateId");
+					Map<String, Object> templateData = sqlTemplateService.getTemplateDataForAudit(savedTemplateId);
+					if (templateData != null) {
+						String ipAddress = com.getIp(httpRequest);
+						String userAgent = httpRequest.getHeader("User-Agent");
+						String sessionId = (String) session.getAttribute("sessionId");
+						
+						String actionType = isUpdate ? "UPDATE" : "CREATE";
+						auditLogService.logTemplateSave(savedTemplateId, userId, actionType, templateData, 
+						                                ipAddress, userAgent, sessionId);
+					}
+				} catch (Exception e) {
+					logger.warn("템플릿 저장 audit_log 기록 실패 (무시): {}", e.getMessage());
+				}
+				
 				return ResponseEntity.ok(result);
 			} else {
 				return ResponseEntity.status(500).body(result);
@@ -423,7 +467,30 @@ public class SQLTemplateController {
 				return result;
 			}
 
-			return sqlTemplateService.deleteSqlTemplate(templateId, userId);
+			// 삭제 전 템플릿 정보 조회 (audit_log 기록용)
+			Map<String, Object> templateData = null;
+			try {
+				templateData = sqlTemplateService.getTemplateDataForAudit(templateId);
+			} catch (Exception e) {
+				logger.warn("삭제 전 템플릿 정보 조회 실패 (무시): {}", e.getMessage());
+			}
+
+			Map<String, Object> result = sqlTemplateService.deleteSqlTemplate(templateId, userId);
+
+			// 삭제 성공 시 audit_log 기록
+			if (Boolean.TRUE.equals(result.get("success")) && templateData != null) {
+				try {
+					String ipAddress = com.getIp(request);
+					String userAgent = request.getHeader("User-Agent");
+					String sessionId = (String) session.getAttribute("sessionId");
+					
+					auditLogService.logTemplateDelete(templateId, userId, templateData, ipAddress, userAgent, sessionId);
+				} catch (Exception e) {
+					logger.warn("템플릿 삭제 audit_log 기록 실패 (무시): {}", e.getMessage());
+				}
+			}
+
+			return result;
 
 		} catch (Exception e) {
 			logger.error("SQL 템플릿 삭제 실패", e);
@@ -995,5 +1062,233 @@ public class SQLTemplateController {
 		
 		// 정확한 IP 매칭
 		return clientIp.equals(pattern);
+	}
+
+	/**
+	 * 템플릿 히스토리 조회
+	 */
+	@ResponseBody
+	@RequestMapping(path = "/SQLTemplate/history")
+	public Map<String, Object> getTemplateHistory(HttpServletRequest request, HttpSession session) {
+		String userId = (String) session.getAttribute("memberId");
+		String templateId = request.getParameter("templateId");
+
+		try {
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(userId)) {
+				Map<String, Object> result = new HashMap<>();
+				result.put("success", false);
+				result.put("error", "관리자만 히스토리를 조회할 수 있습니다.");
+				return result;
+			}
+
+			List<Map<String, Object>> history = auditLogService.getTemplateHistory(templateId);
+			
+			Map<String, Object> result = new HashMap<>();
+			result.put("success", true);
+			result.put("data", history);
+			return result;
+		} catch (Exception e) {
+			logger.error("템플릿 히스토리 조회 실패", e);
+			Map<String, Object> result = new HashMap<>();
+			result.put("success", false);
+			result.put("error", "템플릿 히스토리 조회 실패: " + e.getMessage());
+			return result;
+		}
+	}
+
+	/**
+	 * 템플릿 복구
+	 */
+	@ResponseBody
+	@RequestMapping(path = "/SQLTemplate/restore", method = RequestMethod.POST)
+	public Map<String, Object> restoreTemplate(HttpServletRequest request, HttpSession session) {
+		String userId = (String) session.getAttribute("memberId");
+		String logIdStr = request.getParameter("logId");
+
+		try {
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(userId)) {
+				Map<String, Object> result = new HashMap<>();
+				result.put("success", false);
+				result.put("error", "관리자만 템플릿을 복구할 수 있습니다.");
+				return result;
+			}
+
+			if (logIdStr == null || logIdStr.trim().isEmpty()) {
+				Map<String, Object> result = new HashMap<>();
+				result.put("success", false);
+				result.put("error", "로그 ID가 지정되지 않았습니다.");
+				return result;
+			}
+
+			Long logId = Long.parseLong(logIdStr);
+			
+			// audit_log 조회
+			Map<String, Object> auditLog = auditLogService.getAuditLog(logId);
+			if (auditLog == null) {
+				Map<String, Object> result = new HashMap<>();
+				result.put("success", false);
+				result.put("error", "해당 audit_log를 찾을 수 없습니다.");
+				return result;
+			}
+
+			// NEW_VALUE 또는 OLD_VALUE에서 템플릿 정보 추출
+			String templateJson = (String) auditLog.get("NEW_VALUE");
+			if (templateJson == null || templateJson.trim().isEmpty()) {
+				templateJson = (String) auditLog.get("OLD_VALUE");
+			}
+
+			if (templateJson == null || templateJson.trim().isEmpty()) {
+				Map<String, Object> result = new HashMap<>();
+				result.put("success", false);
+				result.put("error", "복구할 템플릿 정보가 없습니다.");
+				return result;
+			}
+
+			// JSON을 SqlTemplateSaveRequest로 변환
+			com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+			@SuppressWarnings("unchecked")
+			Map<String, Object> templateData = objectMapper.readValue(templateJson, Map.class);
+			
+			// SqlTemplateSaveRequest로 변환
+			String templateId = (String) auditLog.get("RESOURCE_ID");
+			SqlTemplateSaveRequest restoreRequest = convertToSaveRequest(templateData, templateId);
+			
+			// 템플릿 저장
+			Map<String, Object> saveResult = sqlTemplateService.saveTemplateWithRelatedData(restoreRequest, userId);
+			
+			if (Boolean.TRUE.equals(saveResult.get("success"))) {
+				// 복구 성공 시 audit_log 기록
+				try {
+					String ipAddress = com.getIp(request);
+					String userAgent = request.getHeader("User-Agent");
+					String sessionId = (String) session.getAttribute("sessionId");
+					
+					auditLogService.logTemplateRestore(templateId, userId, templateData, logId, 
+					                                   ipAddress, userAgent, sessionId);
+				} catch (Exception e) {
+					logger.warn("템플릿 복구 audit_log 기록 실패 (무시): {}", e.getMessage());
+				}
+			}
+
+			return saveResult;
+		} catch (Exception e) {
+			logger.error("템플릿 복구 실패", e);
+			Map<String, Object> result = new HashMap<>();
+			result.put("success", false);
+			result.put("error", "템플릿 복구 실패: " + e.getMessage());
+			return result;
+		}
+	}
+
+	/**
+	 * 템플릿 데이터를 SqlTemplateSaveRequest로 변환
+	 */
+	@SuppressWarnings("unchecked")
+	private SqlTemplateSaveRequest convertToSaveRequest(Map<String, Object> templateData, String templateId) {
+		SqlTemplateSaveRequest request = new SqlTemplateSaveRequest();
+		
+		// Template 정보
+		Map<String, Object> templateMap = (Map<String, Object>) templateData.get("template");
+		if (templateMap != null) {
+			kr.Windmill.dto.SqlTemplateInfo template = new kr.Windmill.dto.SqlTemplateInfo();
+			template.setTemplateId((String) templateMap.get("templateId"));
+			template.setTemplateName((String) templateMap.get("sqlName"));
+			template.setTemplateDesc((String) templateMap.get("sqlDesc"));
+			template.setSqlContent((String) templateMap.get("sqlContent"));
+			
+			String accessibleConnectionIds = (String) templateMap.get("accessibleConnectionIds");
+			if (accessibleConnectionIds != null && !accessibleConnectionIds.isEmpty()) {
+				template.setAccessibleConnectionIds(java.util.Arrays.asList(accessibleConnectionIds.split(",")));
+			} else {
+				template.setAccessibleConnectionIds(new java.util.ArrayList<>());
+			}
+			
+			template.setTemplateType((String) templateMap.get("templateType"));
+			Object versionObj = templateMap.get("sqlVersion");
+			if (versionObj != null) {
+				template.setVersion(((Number) versionObj).intValue());
+			}
+			template.setStatus((String) templateMap.get("sqlStatus"));
+			Object limitObj = templateMap.get("executionLimit");
+			if (limitObj != null) {
+				template.setExecutionLimit(((Number) limitObj).intValue());
+			}
+			Object timeoutObj = templateMap.get("refreshTimeout");
+			if (timeoutObj != null) {
+				template.setRefreshTimeout(((Number) timeoutObj).intValue());
+			}
+			template.setNewline((Boolean) templateMap.get("newline"));
+			template.setAudit((Boolean) templateMap.get("audit"));
+			
+			request.setTemplate(template);
+		}
+		
+		// Categories
+		List<String> categories = (List<String>) templateData.get("categories");
+		request.setCategories(categories != null ? categories : new java.util.ArrayList<>());
+		
+		// Parameters
+		List<Map<String, Object>> paramsList = (List<Map<String, Object>>) templateData.get("parameters");
+		if (paramsList != null) {
+			List<kr.Windmill.dto.SqlTemplateParameter> parameters = new java.util.ArrayList<>();
+			for (Map<String, Object> paramMap : paramsList) {
+				kr.Windmill.dto.SqlTemplateParameter param = new kr.Windmill.dto.SqlTemplateParameter();
+				param.setParameterName((String) paramMap.get("PARAMETER_NAME"));
+				param.setParameterType((String) paramMap.get("PARAMETER_TYPE"));
+				Object orderObj = paramMap.get("PARAMETER_ORDER");
+				if (orderObj != null) {
+					param.setParameterOrder(((Number) orderObj).intValue());
+				}
+				param.setIsRequired((Boolean) paramMap.get("IS_REQUIRED"));
+				param.setDefaultValue((String) paramMap.get("DEFAULT_VALUE"));
+				param.setIsReadonly((Boolean) paramMap.get("IS_READONLY"));
+				param.setIsHidden((Boolean) paramMap.get("IS_HIDDEN"));
+				param.setIsDisabled((Boolean) paramMap.get("IS_DISABLED"));
+				param.setDescription((String) paramMap.get("DESCRIPTION"));
+				parameters.add(param);
+			}
+			request.setParameters(parameters);
+		}
+		
+		// Shortcuts
+		List<Map<String, Object>> shortcutsList = (List<Map<String, Object>>) templateData.get("shortcuts");
+		if (shortcutsList != null) {
+			List<kr.Windmill.dto.SqlTemplateShortcut> shortcuts = new java.util.ArrayList<>();
+			for (Map<String, Object> shortcutMap : shortcutsList) {
+				kr.Windmill.dto.SqlTemplateShortcut shortcut = new kr.Windmill.dto.SqlTemplateShortcut();
+				// SOURCE_TEMPLATE_ID는 저장 시 자동으로 설정되므로 여기서는 설정하지 않음
+				shortcut.setTargetTemplateId((String) shortcutMap.get("TARGET_TEMPLATE_ID"));
+				shortcut.setShortcutKey((String) shortcutMap.get("SHORTCUT_KEY"));
+				shortcut.setShortcutName((String) shortcutMap.get("SHORTCUT_NAME"));
+				shortcut.setShortcutDescription((String) shortcutMap.get("SHORTCUT_DESCRIPTION"));
+				shortcut.setSourceColumnIndexes((String) shortcutMap.get("SOURCE_COLUMN_INDEXES"));
+				shortcut.setAutoExecute((Boolean) shortcutMap.get("AUTO_EXECUTE"));
+				shortcut.setIsActive((Boolean) shortcutMap.get("IS_ACTIVE"));
+				shortcuts.add(shortcut);
+			}
+			request.setShortcuts(shortcuts);
+		}
+		
+		// SQL Contents
+		List<Map<String, Object>> sqlContentsList = (List<Map<String, Object>>) templateData.get("sqlContents");
+		if (sqlContentsList != null) {
+			List<kr.Windmill.dto.SqlContent> sqlContents = new java.util.ArrayList<>();
+			for (Map<String, Object> contentMap : sqlContentsList) {
+				kr.Windmill.dto.SqlContent content = new kr.Windmill.dto.SqlContent();
+				// TEMPLATE_ID는 저장 시 자동으로 설정되므로 여기서는 설정하지 않음
+				content.setConnectionId((String) contentMap.get("CONNECTION_ID"));
+				content.setSqlContent((String) contentMap.get("SQL_CONTENT"));
+				Object versionObj = contentMap.get("VERSION");
+				if (versionObj != null) {
+					content.setVersion(((Number) versionObj).intValue());
+				}
+				sqlContents.add(content);
+			}
+			request.setSqlContents(sqlContents);
+		}
+		
+		return request;
 	}
 }

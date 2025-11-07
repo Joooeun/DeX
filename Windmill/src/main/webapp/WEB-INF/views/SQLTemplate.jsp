@@ -1741,6 +1741,8 @@
 			updateGoToTemplateButton();
 			// 복사 버튼 상태 업데이트
 			updateCopyButtonState();
+			// 히스토리 버튼 비활성화 (새 템플릿)
+			$('#historyBtn, #historyBtnBottom').prop('disabled', true);
 
 			// 에디터 초기화 완료 후 이벤트 핸들러 재연결
 			setTimeout(function () {
@@ -2038,6 +2040,155 @@
 			hideLoading();
 		}
 
+		// 템플릿 히스토리 조회
+		function showTemplateHistory() {
+			var templateId = $('#sqlTemplateId').val();
+			if (!templateId) {
+				showToast('템플릿을 먼저 선택해주세요.', 'warning');
+				return;
+			}
+
+			// 모달 초기화
+			$('#historyLoading').show();
+			$('#historyContent').hide();
+			$('#historyError').hide();
+			$('#historyTableBody').empty();
+			$('#historyModal').modal('show');
+
+			// 히스토리 조회
+			$.ajax({
+				type: 'GET',
+				url: '/SQLTemplate/history',
+				data: { templateId: templateId },
+				success: function(result) {
+					$('#historyLoading').hide();
+					
+					if (result.success && result.data) {
+						renderHistoryTable(result.data);
+						$('#historyContent').show();
+					} else {
+						$('#historyError').text(result.error || '히스토리를 조회할 수 없습니다.').show();
+					}
+				},
+				error: function() {
+					$('#historyLoading').hide();
+					$('#historyError').text('히스토리 조회 중 오류가 발생했습니다.').show();
+				}
+			});
+		}
+
+		// 히스토리 테이블 렌더링
+		function renderHistoryTable(history) {
+			var tbody = $('#historyTableBody');
+			tbody.empty();
+
+			if (history.length === 0) {
+				tbody.append('<tr><td colspan="6" style="text-align: center;">히스토리가 없습니다.</td></tr>');
+				return;
+			}
+
+			// 가장 최근 항목의 액션 타입 확인 (현재 상태와 동일한지 판단)
+			var firstItem = history[0];
+			var firstActionType = firstItem.ACTION_TYPE || '';
+			var isFirstItemCurrentState = (firstActionType === 'CREATE' || firstActionType === 'UPDATE' || firstActionType === 'DELETE');
+
+			history.forEach(function(item, index) {
+				var actionType = item.ACTION_TYPE || '';
+				var actionTypeText = getActionTypeText(actionType);
+				var actionTypeClass = getActionTypeClass(actionType);
+				var createdTime = formatDateTime(item.CREATED_TIMESTAMP);
+				
+				var restoreBtn = '';
+				// 복구 가능한 액션: CREATE, UPDATE, DELETE, VIEW
+				// 단, 가장 최근 항목이 CREATE/UPDATE/DELETE이면 복구 버튼 숨김 (현재 상태와 동일)
+				var canRestore = (actionType === 'CREATE' || actionType === 'UPDATE' || actionType === 'DELETE' || actionType === 'VIEW');
+				if (canRestore && !(index === 0 && isFirstItemCurrentState)) {
+					restoreBtn = '<button class="btn btn-sm btn-primary" onclick="restoreTemplate(' + item.LOG_ID + ')">복구</button>';
+				}
+
+				var row = '<tr>' +
+					'<td>' + createdTime + '</td>' +
+					'<td><span class="label label-' + actionTypeClass + '">' + actionTypeText + '</span></td>' +
+					'<td>' + (item.USER_ID || '-') + '</td>' +
+					'<td>' + restoreBtn + '</td>' +
+					'</tr>';
+				
+				tbody.append(row);
+			});
+		}
+
+		// 작업 타입 텍스트 변환
+		function getActionTypeText(actionType) {
+			var map = {
+				'CREATE': '생성',
+				'UPDATE': '수정',
+				'DELETE': '삭제',
+				'VIEW': '조회',
+				'RESTORE': '복구'
+			};
+			return map[actionType] || actionType;
+		}
+
+		// 작업 타입 클래스 변환
+		function getActionTypeClass(actionType) {
+			var map = {
+				'CREATE': 'success',
+				'UPDATE': 'info',
+				'DELETE': 'danger',
+				'VIEW': 'default',
+				'RESTORE': 'warning'
+			};
+			return map[actionType] || 'default';
+		}
+
+		// 날짜 시간 포맷팅
+		function formatDateTime(timestamp) {
+			if (!timestamp) return '-';
+			var date = new Date(timestamp);
+			var year = date.getFullYear();
+			var month = String(date.getMonth() + 1).padStart(2, '0');
+			var day = String(date.getDate()).padStart(2, '0');
+			var hours = String(date.getHours()).padStart(2, '0');
+			var minutes = String(date.getMinutes()).padStart(2, '0');
+			var seconds = String(date.getSeconds()).padStart(2, '0');
+			return year + '-' + month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
+		}
+
+		// 템플릿 복구
+		function restoreTemplate(logId) {
+			if (!confirm('이 시점의 템플릿 정보로 복구하시겠습니까?\n현재 템플릿 정보는 덮어씌워집니다.')) {
+				return;
+			}
+
+			showLoading('템플릿 복구 중...');
+
+			$.ajax({
+				type: 'POST',
+				url: '/SQLTemplate/restore',
+				data: { logId: logId },
+				success: function(result) {
+					hideLoading();
+					
+					if (result.success) {
+						showToast('템플릿이 복구되었습니다.', 'success');
+						$('#historyModal').modal('hide');
+						
+						// 템플릿 다시 로드
+						var templateId = $('#sqlTemplateId').val();
+						if (templateId) {
+							loadSqlTemplateDetail(templateId);
+						}
+					} else {
+						showToast('복구 실패: ' + (result.error || '알 수 없는 오류'), 'error');
+					}
+				},
+				error: function() {
+					hideLoading();
+					showToast('복구 중 오류가 발생했습니다.', 'error');
+				}
+			});
+		}
+
 
 		// ===== ID 변환 유틸리티 함수들 =====
 		
@@ -2256,6 +2407,10 @@
 							updateGoToTemplateButton();
 							// 복사 버튼 상태 업데이트
 							updateCopyButtonState();
+							// 히스토리 버튼 활성화 (템플릿이 로드된 경우에만)
+							if (templateId) {
+								$('#historyBtn, #historyBtnBottom').prop('disabled', false);
+							}
 
 							// 전역 변수에서 연결 목록이 이미 로드되어 있으므로 바로 렌더링
 							loadConnections();
@@ -3611,6 +3766,10 @@
 									onclick="copyTemplate()" disabled>
 									<i class="fa fa-copy"></i> 복사
 								</button>
+								<button type="button" class="btn btn-primary btn-sm" id="historyBtn"
+									onclick="showTemplateHistory()" disabled>
+									<i class="fa fa-history"></i> 히스토리
+								</button>
 								<button type="button" class="btn btn-success btn-sm" onclick="saveSqlTemplateImproved()">
 									<i class="fa fa-save"></i> 저장
 								</button>
@@ -3902,6 +4061,10 @@
 										onclick="goToTemplate()" disabled>
 										<i class="fa fa-external-link"></i> 해당 메뉴로 이동
 									</button>
+									<button type="button" class="btn btn-primary btn-sm" id="historyBtnBottom"
+										onclick="showTemplateHistory()" disabled>
+										<i class="fa fa-history"></i> 히스토리
+									</button>
 									<button type="button" class="btn btn-success btn-sm" onclick="saveSqlTemplateImproved()">
 										<i class="fa fa-save"></i> 저장
 									</button>
@@ -3918,6 +4081,44 @@
 					</div>
 				</div>
 		</section>
+	</div>
+
+	<!-- 히스토리 모달 -->
+	<div class="modal fade" id="historyModal" tabindex="-1" role="dialog">
+		<div class="modal-dialog modal-lg" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+					<h4 class="modal-title">템플릿 히스토리</h4>
+				</div>
+				<div class="modal-body">
+					<div id="historyLoading" style="text-align: center; padding: 20px;">
+						<i class="fa fa-spinner fa-spin"></i> 로딩 중...
+					</div>
+					<div id="historyContent" style="display: none;">
+						<table class="table table-bordered table-striped">
+							<thead>
+								<tr>
+									<th>일시</th>
+									<th>작업</th>
+									<th>사용자</th>
+									<th>작업</th>
+								</tr>
+							</thead>
+							<tbody id="historyTableBody">
+							</tbody>
+						</table>
+					</div>
+					<div id="historyError" style="display: none; color: red; padding: 20px; text-align: center;">
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-default" data-dismiss="modal">닫기</button>
+				</div>
+			</div>
+		</div>
 	</div>
 
 	<!-- 로딩 오버레이 -->

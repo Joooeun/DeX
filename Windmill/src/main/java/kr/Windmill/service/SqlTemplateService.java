@@ -37,6 +37,9 @@ public class SqlTemplateService {
 	@Autowired
 	private SqlContentService sqlContentService;
 
+	@Autowired
+	private AuditLogService auditLogService;
+
 	private final Common com;
 
 	@Autowired
@@ -386,6 +389,38 @@ public class SqlTemplateService {
 		result.put("success", true);
 		result.put("message", "SQL 템플릿이 삭제되었습니다.");
 		return result;
+	}
+
+	/**
+	 * audit_log 기록을 위한 템플릿 전체 정보 조회
+	 * @param templateId 템플릿 ID
+	 * @return 템플릿 전체 정보 (저장 구조와 동일)
+	 */
+	public Map<String, Object> getTemplateDataForAudit(String templateId) {
+		try {
+			// getFullTemplateDetail과 동일한 구조로 데이터 조회
+			Map<String, Object> templateResult = getSqlTemplateDetail(templateId);
+			if (!(Boolean) templateResult.get("success")) {
+				return null;
+			}
+			
+			Map<String, Object> paramResult = getTemplateParameters(templateId);
+			Map<String, Object> shortcutResult = getTemplateShortcuts(templateId);
+			List<Map<String, Object>> sqlContents = sqlContentService.getSqlContentsByTemplate(templateId);
+			List<String> categories = getTemplateCategories(templateId);
+			
+			Map<String, Object> data = new HashMap<>();
+			data.put("template", templateResult.get("data"));
+			data.put("categories", categories);
+			data.put("parameters", paramResult.get("data"));
+			data.put("shortcuts", shortcutResult.get("data"));
+			data.put("sqlContents", sqlContents);
+			
+			return data;
+		} catch (Exception e) {
+			logger.error("audit_log용 템플릿 정보 조회 실패: " + templateId, e);
+			return null;
+		}
 	}
 
 	/**
