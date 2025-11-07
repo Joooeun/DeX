@@ -565,21 +565,6 @@ var changePW
 		console.log('addTemplateTab 호출:', templateId, title, url);
 		tabManager.addTab(templateId, title, url);
 	};
-	
-	// 기존 setFrame 함수 (호환성 유지)
-	function setFrame(frameid) {
-		// 새로운 시스템으로 마이그레이션
-		var iframe = $('#' + frameid);
-		var src = iframe.attr('src');
-		
-		if (src && src.includes('templateId=')) {
-			var templateId = src.split('templateId=')[1].split('&')[0];
-			var title = iframe.contents().find('.content-header>h1').text().trim() || templateId;
-			
-			// 새로운 탭 관리 시스템 사용
-			tabManager.addTab(templateId, title, src);
-		}
-	}
 
 	function checkPWModal() {
 		$('#checkPWModal').modal('show')

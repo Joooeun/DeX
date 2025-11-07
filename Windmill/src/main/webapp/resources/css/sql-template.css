@@ -2,7 +2,7 @@
 
 /* 카테고리 및 템플릿 목록 스타일 */
 .category-list {
-	max-height: 40vh;
+	max-height: 30vh;
 	overflow-y: auto;
 	overflow-x: hidden;
 }
@@ -28,7 +28,7 @@
 }
 
 .template-list {
-	max-height: 60vh;
+	max-height: 50vh;
 	overflow-y: auto;
 	overflow-x: hidden;
 }

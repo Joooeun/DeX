@@ -82,6 +82,8 @@
 			setTimeout(function() {
 				window.SqlTemplateState.initialLoadComplete = true;
 				window.SqlTemplateState.lastLoadTime = Date.now();
+				// 초기 복사 버튼 상태 업데이트
+				updateCopyButtonState();
 			}, 1000);
 
 			// 템플릿 타입 변경 이벤트
@@ -476,6 +478,7 @@
 			resetChanges: function() {
 				this.hasUnsavedChanges = false;
 				updateSaveButtonState();
+				updateCopyButtonState();
 			}
 		};
 
@@ -743,7 +746,7 @@
 						'<div class="row">' +
 						'<div class="col-md-12">' +
 						'<span class="badge ' + badgeClass + '" style="margin-right: 8px; min-width: 50px; display: inline-block; text-align: center;">' + typeBadge + '</span>' +
-						'<strong ' + nameStyle + '>' + template.TEMPLATE_NAME + '</strong>' +
+						'<strong ' + nameStyle + '>' + escapeHtml(template.TEMPLATE_NAME) + '</strong>' +
 						'</div>' +
 						'</div>' +
 						'</div>');
@@ -1192,9 +1195,8 @@
 				errors.push('템플릿 이름을 입력해주세요.');
 			} else if (sqlName.length > 100) {
 				errors.push('템플릿 이름은 100자 이하여야 합니다.');
-			} else if (!/^[a-zA-Z0-9가-힣_\s]+$/.test(sqlName)) {
-				errors.push('템플릿 이름은 영문자, 한글, 숫자, 언더스코어, 공백만 사용 가능합니다.');
 			}
+			// XSS 방지를 위해 HTML 삽입 시 이스케이프 처리하므로 검증 제한 제거
 
 			// 모든 SQL 탭의 내용 검증
 			var hasValidSqlContent = false;
@@ -1669,7 +1671,7 @@
 						var options = '<option value="">대상 템플릿 선택</option>';
 						result.data.forEach(function (template) {
 							var selected = (selectedValue && selectedValue === template.TEMPLATE_ID) ? ' selected' : '';
-							options += '<option value="' + template.TEMPLATE_ID + '"' + selected + '>' + template.TEMPLATE_NAME + '</option>';
+							options += '<option value="' + escapeHtml(template.TEMPLATE_ID) + '"' + selected + '>' + escapeHtml(template.TEMPLATE_NAME) + '</option>';
 						});
 
 						if (selectElement) {
@@ -1737,6 +1739,8 @@
 
 			// 해당 메뉴로 이동 버튼 비활성화
 			updateGoToTemplateButton();
+			// 복사 버튼 상태 업데이트
+			updateCopyButtonState();
 
 			// 에디터 초기화 완료 후 이벤트 핸들러 재연결
 			setTimeout(function () {
@@ -2250,6 +2254,8 @@
 
 							// 해당 메뉴로 이동 버튼 활성화
 							updateGoToTemplateButton();
+							// 복사 버튼 상태 업데이트
+							updateCopyButtonState();
 
 							// 전역 변수에서 연결 목록이 이미 로드되어 있으므로 바로 렌더링
 							loadConnections();
@@ -2330,6 +2336,7 @@
 							window.SqlTemplateState.hasUnsavedChanges = false;
 							window.SqlTemplateState.isLoading = false;
 							updateSaveButtonState();
+							updateCopyButtonState();
 						}, 100);
 
 						// 커스텀 이벤트 트리거
@@ -3173,6 +3180,96 @@
 				saveBtn.removeClass('btn-warning').addClass('btn-success');
 				saveBtn.html('<i class="fa fa-save"></i> 저장');
 			}
+			// 복사 버튼 상태도 함께 업데이트
+			updateCopyButtonState();
+		}
+
+		// 복사 버튼 상태 업데이트
+		function updateCopyButtonState() {
+			var copyBtn = $('#copyTemplateBtn');
+			var templateId = $('#sqlTemplateId').val();
+			
+			// 템플릿이 선택되지 않았거나 변경사항이 있으면 비활성화
+			if (!templateId || templateId.trim() === '' || window.SqlTemplateState.hasUnsavedChanges) {
+				copyBtn.prop('disabled', true);
+			} else {
+				copyBtn.prop('disabled', false);
+			}
+		}
+
+		// 템플릿 복사 함수
+		function copyTemplate() {
+			var templateId = $('#sqlTemplateId').val();
+			var templateName = $('#sqlTemplateName').val();
+			
+			// 템플릿이 선택되지 않았으면 복사 불가
+			if (!templateId || templateId.trim() === '') {
+				showToast('복사할 템플릿을 선택해주세요.', 'warning');
+				return;
+			}
+			
+			// 변경사항이 있으면 복사 불가
+			if (window.SqlTemplateState.hasUnsavedChanges) {
+				showToast('변경사항을 먼저 저장하거나 취소해주세요.', 'warning');
+				return;
+			}
+			
+			// 템플릿 이름에 "(복사)" 접미사 추가
+			var newTemplateName = generateCopyName(templateName);
+			
+			// 로딩 상태 설정 (초기화 중에는 변경사항으로 간주하지 않음)
+			window.SqlTemplateState.isLoading = true;
+			
+			// 템플릿 ID 초기화 (새 템플릿으로 만들기)
+			$('#sqlTemplateId').val('');
+			
+			// 템플릿 이름 변경
+			$('#sqlTemplateName').val(newTemplateName);
+			
+			// 템플릿 목록에서 선택 효과 제거
+			$('.template-item').removeClass('selected');
+			
+			// 템플릿 타입 변경 가능하도록 설정
+			$('#sqlTemplateType').prop('disabled', false);
+			
+			// 로딩 상태 해제
+			window.SqlTemplateState.isLoading = false;
+			
+			// 변경사항으로 표시 (복사 후 템플릿 이름이 변경되었으므로)
+			window.SqlTemplateState.markAsChanged();
+			
+			// 버튼 상태 업데이트
+			updateSaveButtonState();
+			updateCopyButtonState();
+			updateGoToTemplateButton();
+			
+			// 사용자 피드백
+			showToast('템플릿이 복사되었습니다. 이름을 수정하고 저장해주세요.', 'success');
+			
+			// 템플릿 이름 필드에 포커스
+			$('#sqlTemplateName').focus();
+			$('#sqlTemplateName').select();
+		}
+
+		// 복사본 이름 생성 (중복 처리)
+		function generateCopyName(originalName) {
+			if (!originalName || originalName.trim() === '') {
+				return '새 템플릿 (복사)';
+			}
+			
+			// 이미 "(복사)"가 포함되어 있는지 확인
+			var copyPattern = /^(.+?)\s*\(복사(?:\s*(\d+))?\)\s*$/;
+			var match = originalName.match(copyPattern);
+			
+			if (match) {
+				// 이미 "(복사)" 또는 "(복사 N)" 형식인 경우
+				var baseName = match[1].trim();
+				var copyNumber = match[2] ? parseInt(match[2]) : 1;
+				return baseName + ' (복사 ' + (copyNumber + 1) + ')';
+			} else {
+				// 처음 복사하는 경우
+				return originalName + ' (복사)';
+			}
 		}
 
 		// SQL 연결 편집 모달 열기
@@ -3371,6 +3468,8 @@
 				button.prop('disabled', true);
 				buttonBottom.prop('disabled', true);
 			}
+			// 복사 버튼 상태도 함께 업데이트
+			updateCopyButtonState();
 		}
 
 		// 해당 메뉴로 이동
@@ -3459,14 +3558,6 @@
 
 	<!-- Content Wrapper -->
 	<div class="content-wrapper" style="margin-left: 0">
-		<!-- Content Header -->
-		<section class="content-header">
-			<h1>SQL 템플릿 관리</h1>
-			<ol class="breadcrumb">
-				<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
-				<li class="active">SQL 템플릿 관리</li>
-			</ol>
-		</section>
 
 		<!-- Main content -->
 		<section class="content">
@@ -3516,6 +3607,10 @@
 									onclick="goToTemplate()" disabled>
 									<i class="fa fa-external-link"></i> 해당 메뉴로 이동
 								</button>
+								<button type="button" class="btn btn-info btn-sm" id="copyTemplateBtn"
+									onclick="copyTemplate()" disabled>
+									<i class="fa fa-copy"></i> 복사
+								</button>
 								<button type="button" class="btn btn-success btn-sm" onclick="saveSqlTemplateImproved()">
 									<i class="fa fa-save"></i> 저장
 								</button>
@@ -3531,7 +3626,7 @@
 							<input type="hidden" id="sqlTemplateId">
 
 							<!-- 기본 정보 및 설정 (통합) -->
-							<div class="panel panel-default" style="margin-bottom: 15px;">
+							<div class="panel panel-default">
 								<div class="panel-heading" style="padding: 8px 15px;">
 									<h4 class="panel-title" style="font-size: 14px; margin: 0;">
 										<i class="fa fa-info-circle"></i> 기본 정보 및 설정
@@ -3541,10 +3636,10 @@
 									<!-- 첫 번째 행: 이름(1) + 실행제한(1) + 카테고리(2) -->
 									<div class="row">
 										<div class="col-md-3">
-											<div class="form-group" style="margin-bottom: 15px;">
+											<div class="form-group">
 												<label data-toggle="tooltip" data-placement="top"
 													title="SQL 템플릿의 고유 이름입니다. 대시보드와 메뉴에서 표시되며, 100자 이하로 입력해주세요."
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													style="font-size: 12px; font-weight: 500;">
 													템플릿 이름 <span class="text-danger">*</span>
 												</label>
 												<input type="text" class="form-control"
@@ -3552,10 +3647,10 @@
 											</div>
 										</div>
 										<div class="col-md-3">
-											<div class="form-group" style="margin-bottom: 15px;">
+											<div class="form-group">
 												<label data-toggle="tooltip" data-placement="top"
 													title="템플릿의 타입을 선택합니다. SQL, HTML, Shell Script 타입을 지원합니다."
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													style="font-size: 12px; font-weight: 500;">
 													템플릿 타입
 												</label>
 												<select class="form-control" id="sqlTemplateType">
@@ -3568,10 +3663,10 @@
 											</div>
 										</div>
 										<div class="col-md-6">
-											<div class="form-group" style="margin-bottom: 15px;">
+											<div class="form-group">
 												<label data-toggle="tooltip" data-placement="top"
 													title="SQL 템플릿을 분류하여 관리합니다. 카테고리별로 템플릿을 그룹화하여 찾기 쉽게 만들 수 있습니다."
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													style="font-size: 12px; font-weight: 500;">
 													카테고리
 												</label>
 												<select class="form-control" id="sqlTemplateCategories" multiple>
@@ -3584,10 +3679,10 @@
 									<!-- 두 번째 행: 새로고침간격(1) + 차트매핑(1) + 연결가능DB(2) -->
 									<div class="row">
 										<div class="col-md-3">
-											<div class="form-group" style="margin-bottom: 15px;">
+											<div class="form-group">
 												<label data-toggle="tooltip" data-placement="top"
 													title="대시보드에서 자동으로 데이터를 새로고침하는 간격을 설정합니다. 0으로 설정하면 자동 새로고침을 사용하지 않습니다."
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													style="font-size: 12px; font-weight: 500;">
 													새로고침 간격 (초)
 												</label>
 												<input type="number" class="form-control"
@@ -3596,10 +3691,10 @@
 											</div>
 										</div>
 										<div class="col-md-3">
-											<div class="form-group" style="margin-bottom: 15px;">
+											<div class="form-group">
 												<label data-toggle="tooltip" data-placement="top"
 													title="SQL 실행 결과의 최대 행 수를 제한합니다. 0으로 설정하면 제한이 없습니다."
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													style="font-size: 12px; font-weight: 500;">
 													실행 제한 (행)
 												</label>
 												<input type="number" class="form-control"
@@ -3608,10 +3703,10 @@
 											</div>
 										</div>
 										<div class="col-md-6">
-											<div class="form-group" style="margin-bottom: 15px;">
+											<div class="form-group">
 												<label data-toggle="tooltip" data-placement="top"
 													title="이 템플릿을 사용할 수 있는 연결을 선택합니다. SQL/HTML 타입은 DB 연결, Shell Script 타입은 SFTP 연결을 선택합니다."
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													style="font-size: 12px; font-weight: 500;">
 													사용 가능 연결
 												</label>
 												<select class="form-control" id="accessibleConnections" multiple>
@@ -3624,10 +3719,10 @@
 									<!-- 세 번째 행: 설명(2) + 옵션설정(2) -->
 									<div class="row">
 										<div class="col-md-6">
-											<div class="form-group" style="margin-bottom: 15px;">
+											<div class="form-group">
 												<label data-toggle="tooltip" data-placement="top"
 													title="이 템플릿의 용도와 사용법을 설명하세요"
-													style="font-size: 12px; margin-bottom: 5px; font-weight: 500;">
+													style="font-size: 12px; font-weight: 500;">
 													설명
 												</label>
 												<textarea class="form-control" id="sqlTemplateDesc" rows="3"
@@ -3635,16 +3730,16 @@
 											</div>
 										</div>
 										<div class="col-md-6">
-											<div class="form-group" style="margin-bottom: 15px;">
-												<label style="font-size: 12px; margin-bottom: 10px; font-weight: 500; display: block;">
+											<div class="form-group">
+												<label style="font-size: 12px; font-weight: 500; display: block;">
 													옵션 설정
 												</label>
 												<div class="row">
 													<div class="col-md-4">
-														<div class="form-group" style="margin-bottom: 10px;">
+														<div class="form-group">
 															<label data-toggle="tooltip" data-placement="top"
 																title="결과 테이블에서 긴 텍스트를 여러 줄로 표시합니다"
-																style="font-size: 11px; margin-bottom: 5px; font-weight: 500; display: block;">
+																style="font-size: 11px; font-weight: 500; display: block;">
 																개행보기
 															</label>
 															<label class="switch">
@@ -3654,10 +3749,10 @@
 														</div>
 													</div>
 													<div class="col-md-4">
-														<div class="form-group" style="margin-bottom: 10px;">
+														<div class="form-group">
 															<label data-toggle="tooltip" data-placement="top"
 																title="SQL 실행 기록을 감사 로그에 남깁니다"
-																style="font-size: 11px; margin-bottom: 5px; font-weight: 500; display: block;">
+																style="font-size: 11px; font-weight: 500; display: block;">
 																감사로그
 															</label>
 															<label class="switch">
@@ -3667,10 +3762,10 @@
 														</div>
 													</div>
 													<div class="col-md-4">
-														<div class="form-group" style="margin-bottom: 10px;">
+														<div class="form-group">
 															<label data-toggle="tooltip" data-placement="top"
 																title="템플릿을 비활성화하면 메뉴에서 숨겨집니다"
-																style="font-size: 11px; margin-bottom: 5px; font-weight: 500; display: block;">
+																style="font-size: 11px; font-weight: 500; display: block;">
 																비활성화
 															</label>
 															<label class="switch">
@@ -3694,7 +3789,7 @@
 
 
 							<!-- 파라미터 관리 카드 (컴팩트) -->
-							<div class="panel panel-default" style="margin-bottom: 15px;">
+							<div class="panel panel-default">
 								<div class="panel-heading" style="padding: 8px 15px;">
 									<h4 class="panel-title" style="font-size: 14px; margin: 0;">
 										<i class="fa fa-sliders"></i> 파라미터 관리
@@ -3730,7 +3825,7 @@
 							</div>
 
 							<!-- 단축키 관리 카드 (컴팩트) -->
-							<div class="panel panel-default" style="margin-bottom: 15px;">
+							<div class="panel panel-default">
 								<div class="panel-heading" style="padding: 8px 15px;">
 									<h4 class="panel-title" style="font-size: 14px; margin: 0;">
 										<i class="fa fa-keyboard-o"></i> 단축키 관리
@@ -3764,7 +3859,7 @@
 						</div>
 
 							<!-- DB별 SQL 내용 관리 카드 (컴팩트) -->
-							<div class="panel panel-default" style="margin-bottom: 15px;">
+							<div class="panel panel-default">
 								<div class="panel-heading" style="padding: 8px 15px;">
 									<h4 class="panel-title" style="font-size: 14px; margin: 0;">
 										<i class="fa fa-database"></i> DB별 SQL 내용
@@ -3801,7 +3896,7 @@
 							</div>
 
 							<!-- 하단 액션 버튼들 -->
-							<div class="panel-default" style="margin-bottom: 15px;">
+							<div class="panel-default">
 								<div class="panel-body" style="padding: 15px; text-align: right;">
 									<button type="button" class="btn btn-default btn-sm" id="goToTemplateBtnBottom"
 										onclick="goToTemplate()" disabled>
