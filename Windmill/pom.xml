@@ -143,6 +143,12 @@
 			<artifactId>jackson-databind</artifactId>
 			<version>2.12.3</version>
 		</dependency>
+		<!-- JSQLParser for SQL parsing -->
+		<dependency>
+			<groupId>com.github.jsqlparser</groupId>
+			<artifactId>jsqlparser</artifactId>
+			<version>4.7</version>
+		</dependency>
 
 	</dependencies>
 

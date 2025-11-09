@@ -36,6 +36,7 @@ import kr.Windmill.service.ConnectionDTO;
 import kr.Windmill.service.LogInfoDTO;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
+import kr.Windmill.util.sql.SQLParserUtil;
 
 @Controller
 public class SQLController {
@@ -268,7 +269,7 @@ public class SQLController {
 
 			String row = "";
 
-			if (detectSqlType(sql) == SqlType.CALL) {
+			if (SQLParserUtil.detectSqlType(sql) == SqlType.CALL) {
 				data.setLogNo(data.getLogNo() + 1);
 				// cLog.log_line(data, "start============================================\n" +
 				// data.getLogsql() + "\nend==============================================");
@@ -284,7 +285,7 @@ public class SQLController {
 				cLog.log_end(data, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 				cLog.log_DB(data);
 
-			} else if (detectSqlType(sql) == SqlType.EXECUTE) {
+			} else if (SQLParserUtil.detectSqlType(sql) == SqlType.EXECUTE) {
 				data.setLogNo(data.getLogNo() + 1);
 				// cLog.log_line(data, "start============================================\n" +
 				// data.getLogsql() + "\nend==============================================");
@@ -322,16 +323,43 @@ public class SQLController {
 				String sqlOrg = sql.trim();
 				String logsqlOrg = data.getLogsql().trim();
 
-				for (int i = 0; i < sqlOrg.split(";").length; i++) {
+				// JSQLParser를 사용하여 여러 SQL 문장을 정확하게 분리
+				List<String> sqlStatements;
+				List<String> logsqlStatements;
+				try {
+					sqlStatements = SQLParserUtil.splitSqlStatements(sqlOrg);
+					logsqlStatements = SQLParserUtil.splitSqlStatements(logsqlOrg);
+				} catch (Exception e) {
+					logger.warn("SQL 분리 실패, 기존 방식 사용: {}", e.getMessage());
+					// 폴백: 기존 방식으로 분리
+					String[] statements = sqlOrg.split(";");
+					sqlStatements = new ArrayList<>();
+					for (String stmt : statements) {
+						String trimmed = stmt.trim();
+						if (!trimmed.isEmpty()) {
+							sqlStatements.add(trimmed);
+						}
+					}
+					statements = logsqlOrg.split(";");
+					logsqlStatements = new ArrayList<>();
+					for (String stmt : statements) {
+						String trimmed = stmt.trim();
+						if (!trimmed.isEmpty()) {
+							logsqlStatements.add(trimmed + ";");
+						}
+					}
+				}
 
-					String singleSql = sqlOrg.split(";")[i];
+				for (int i = 0; i < sqlStatements.size(); i++) {
+
+					String singleSql = sqlStatements.get(i);
 
 					if (singleSql.trim().length() == 0) {
 						continue;
 					}
 					data.setLogNo(data.getLogNo() + 1);
 					sql = singleSql.trim();
-					String logsql = logsqlOrg.split(";")[i].trim() + ";";
+					String logsql = (i < logsqlStatements.size()) ? logsqlStatements.get(i) : singleSql + ";";
 
 					// cLog.log_line(data, "start============================================\n" +
 					// logsql + "\nend==============================================");
@@ -359,7 +387,7 @@ public class SQLController {
 				}
 			}
 
-		} catch (SQLException e1) {
+		} catch (Exception e1) {
 
 			if (result.size() == 0) {
 				List<Map> rowhead = new ArrayList<>();
@@ -402,12 +430,10 @@ public class SQLController {
 
 			data.setResult(e1.getMessage());
 			data.setDuration(0);
-			cLog.log_end(data, " sql 실 행 종료 : 실패 " + e1.getMessage() + "\n\n");
+			cLog.log_end(data, " sql 실행 종료 : 실패 " + e1.getMessage() + "\n\n");
 			cLog.log_DB(data);
 
 			System.out.println("id : " + session.getAttribute("memberId") + " / sql : " + sql);
-			e1.printStackTrace();
-		} catch (Exception e1) {
 			e1.printStackTrace();
 		}
 
@@ -443,19 +469,25 @@ public class SQLController {
 		return firstWord;
 	}
 
-	// SQL 유형 판별
+	// SQL 유형 판별 (JSQLParser 사용, 폴백용으로 기존 로직 유지)
+	@Deprecated
 	public static SqlType detectSqlType(String sql) {
-
-		switch (firstword(sql)) {
-		case "CALL":
-		case "BEGIN":
-			return SqlType.CALL;
-		case "SELECT":
-		case "WITH":
-		case "VALUE":
-			return SqlType.EXECUTE;
-		default:
-			return SqlType.UPDATE;
+		try {
+			return SQLParserUtil.detectSqlType(sql);
+		} catch (Exception e) {
+			logger.warn("SQL 타입 감지 실패, 기존 방식으로 폴백: {}", e.getMessage());
+			// 기존 방식으로 폴백
+			switch (firstword(sql)) {
+			case "CALL":
+			case "BEGIN":
+				return SqlType.CALL;
+			case "SELECT":
+			case "WITH":
+			case "VALUE":
+				return SqlType.EXECUTE;
+			default:
+				return SqlType.UPDATE;
+			}
 		}
 	}
 }
