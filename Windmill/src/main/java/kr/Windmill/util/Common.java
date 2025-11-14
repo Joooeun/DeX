@@ -11,60 +11,59 @@ import java.io.UnsupportedEncodingException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.sql.Types;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.servlet.http.HttpServletRequest;
 
-import org.apache.commons.lang3.StringUtils;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import crypt.AES256Cipher;
-import kr.Windmill.service.ConnectionDTO;
-import kr.Windmill.service.LogInfoDTO;
+import kr.Windmill.dto.log.LogInfoDto;
+import kr.Windmill.service.UserService;
 
+@Component
 public class Common {
 	private static final Logger logger = LoggerFactory.getLogger(Common.class);
 
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+	
+	@Autowired
+	private UserService userService;
+
 	public static String system_properties = "";
-	public static String ConnectionPath = "";
-	public static String SrcPath = "";
-	public static String UserPath = "";
 	public static String tempPath = "";
+	public static String JdbcPath = ""; // JDBC 드라이버 폴더 경로
 	public static String RootPath = "";
-	public static String LogDB = "";
-	public static String DownloadIP = "";
 	public static String LogCOL = "";
 	public static int Timeout = 15;
 
@@ -86,182 +85,95 @@ public class Common {
 			logger.error("system_properties : " + system_properties);
 		}
 
+		// RootPath 먼저 설정
 		RootPath = props.getProperty("Root") + File.separator;
-		ConnectionPath = props.getProperty("Root") + File.separator + "Connection" + File.separator;
-		SrcPath = props.getProperty("Root") + File.separator + "src" + File.separator;
+		
+		// RootPath 유효성 확인
+		if (!isRootPathValid()) {
+			logger.error("RootPath가 유효하지 않아 애플리케이션 초기화를 중단합니다: {}", RootPath);
+			return; // 여기서 메서드 종료
+		}
+		
+		// RootPath가 유효한 경우에만 다른 경로들 설정
 		tempPath = props.getProperty("Root") + File.separator + "temp" + File.separator;
-		UserPath = props.getProperty("Root") + File.separator + "user" + File.separator;
-		Timeout = Integer.parseInt(props.getProperty("Timeout") == null ? "15" : props.getProperty("Timeout"));
-		LogDB = props.getProperty("LogDB");
-		DownloadIP = props.getProperty("DownloadIP");
+		JdbcPath = props.getProperty("Root") + File.separator + "jdbc" + File.separator;
 		LogCOL = props.getProperty("LogCOL");
-		logger.info("RootPath : " + RootPath + " / Timeout : " + Timeout + " / LogDB : " + LogDB);
+		logger.info("RootPath : " + RootPath);
 
-	}
-
-	public Map<String, String> ConnectionConf(String ConnectionName) throws IOException {
-		Map<String, String> map = new HashMap<>();
-
-		map.put("ConnectionName", ConnectionName);
-
-		String propFile = ConnectionPath + ConnectionName;
-		Properties props = new Properties();
-
-		String propStr = FileRead(new File(propFile + ".properties"));
-
-		if (!propStr.startsWith("#")) {
-			propStr = FileReadDec(new File(propFile + ".properties"));
-		}
-
-		props.load(new ByteArrayInputStream(propStr.getBytes()));
-
-		map.put("TYPE", bytetostr(props.getProperty("TYPE")));
-		map.put("IP", bytetostr(props.getProperty("IP")));
-		map.put("PORT", bytetostr(props.getProperty("PORT")));
-		map.put("USER", bytetostr(props.getProperty("USER")));
-		map.put("PW", bytetostr(props.getProperty("PW")));
-		map.put("DB", bytetostr(props.getProperty("DB")));
-		map.put("DBTYPE", bytetostr(props.getProperty("DBTYPE")));
-		map.put("JDBC", bytetostr(props.getProperty("JDBC")));
-		return map;
-	}
-
-	public Map<String, String> UserConf(String UserName) {
-		Map<String, String> map = new HashMap<>();
-
-		map.put("UserName", UserName);
-
-		try {
-			String propFile = UserPath + UserName;
-			Properties props = new Properties();
-			String propStr = FileRead(new File(propFile));
-
-			if (!propStr.startsWith("#")) {
-				propStr = FileReadDec(new File(propFile));
-			}
-
-			props.load(new ByteArrayInputStream(propStr.getBytes()));
-
-			map.put("ID", UserName);
-			map.put("NAME", bytetostr(props.getProperty("NAME")));
-			map.put("IP", bytetostr(props.getProperty("IP")));
-			map.put("PW", bytetostr(props.getProperty("PW")));
-			map.put("MENU", bytetostr(props.getProperty("MENU")));
-			map.put("CONNECTION", bytetostr(props.getProperty("CONNECTION")));
-
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return map;
-	}
-
-	public Map<String, String> SqlConf(String sqlPath) {
-		Map<String, String> map = new HashMap<>();
-
-		map.put("sql", sqlPath);
-
-		try {
-			String propFile = SrcPath + sqlPath + ".properties";
-			Properties props = new Properties();
-
-			String propStr = FileRead(new File(propFile));
-
-			props.load(new ByteArrayInputStream(propStr.getBytes()));
-
-			map.put("SHORTKEY", props.getProperty("SHORTKEY"));
-			map.put("LIMIT", props.getProperty("LIMIT"));
-			map.put("REFRESHTIMEOUT", props.getProperty("REFRESHTIMEOUT"));
-
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return map;
-	}
-
-	public void sqlConfSave(String sqlPath, Map<String, String> conf) {
-
-		String propFile = SrcPath + sqlPath + ".properties";
-		File file = new File(propFile);
-
-		try {
-			String str = "#" + sqlPath + "\n";
-			FileWriter fw = new FileWriter(file);
-
-			for (Map.Entry<String, String> entry : conf.entrySet()) {
-				String key = entry.getKey();
-				String val = entry.getValue();
-				str += key + "=" + val + "\n";
-			}
-
-			fw.write(str);
-			fw.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		// RootPath 유효성 확인 후 JDBC 폴더 생성
+		if (isRootPathValid()) {
+			createJdbcDirectory();
+		} else {
+			logger.error("RootPath가 유효하지 않아 JDBC 폴더 생성을 건너뜁니다: {}", RootPath);
 		}
 
 	}
 
-	public List<String> ConnectionnList(String type) {
 
+
+
+
+	public List<String> ConnectionnList() {
 		List<String> dblist = new ArrayList<>();
 
 		try {
-			// System.out.println("[debug]" + ConnectionPath);
-			File dirFile = new File(ConnectionPath);
-			File[] fileList = dirFile.listFiles();
-			Arrays.sort(fileList);
-			for (File tempFile : fileList) {
-				if (tempFile.isFile() && tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".properties")) {
+			// DATABASE_CONNECTION 테이블에서만 조회 (type 구분 없이)
+			String sql = "SELECT CONNECTION_ID FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_ID";
+			dblist = jdbcTemplate.queryForList(sql, String.class);
 
-					String propStr = FileRead(tempFile);
-					if (!propStr.startsWith("#")) {
-						propStr = FileReadDec(tempFile);
-					}
-
-					Properties props = new Properties();
-
-					props.load(new ByteArrayInputStream(propStr.getBytes()));
-
-					if (props.getProperty("TYPE").equals(type) || type.equals("")) {
-						String tempFileName = tempFile.getName();
-						dblist.add(tempFileName);
-					}
-
-				}
-			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		} catch (Exception e) {
+			logger.error("DB 기반 연결 목록 조회 실패: {}", e.getMessage(), e);
 		}
 
 		return dblist;
 	}
 
-	public List<Map<String, String>> UserList() {
+	public static List<Map<String, ?>> getfiles(String root, int depth) {
 
-		List<Map<String, String>> userlist = new ArrayList<>();
+		List<Map<String, ?>> list = new ArrayList<>();
 
-		File dirFile = new File(UserPath);
+		File dirFile = new File(root);
 		File[] fileList = dirFile.listFiles();
 		Arrays.sort(fileList);
-		for (File tempFile : fileList) {
 
-			Map user = new HashMap<String, String>();
-			if (tempFile.isFile()) {
+		try {
+			for (File tempFile : fileList) {
+				if (tempFile.isFile()) {
+					if (tempFile.getName().contains(".")) {
+						if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".sql")) {
+							Map<String, Object> element = new HashMap<>();
+							element.put("Name", tempFile.getName());
+							element.put("Path", tempFile.getPath());
 
-				String tempFileName = tempFile.getName();
+							list.add(element);
+						} else if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".htm")) {
+							Map<String, Object> element = new HashMap<>();
+							element.put("Name", tempFile.getName());
+							element.put("Path", tempFile.getPath());
 
-				if (!tempFileName.contains(".")) {
-					user.put("id", tempFileName);
-					user.put("name", UserConf(tempFileName).get("NAME"));
-					userlist.add(user);
+							list.add(element);
+						}
+					} else {
+						logger.warn("파일 확인 필요: {}", tempFile.getPath());
+					}
+
+				} else if (tempFile.isDirectory()) {
+					Map<String, Object> element = new HashMap<>();
+
+					element.put("Name", tempFile.getName());
+					element.put("Path", "Path" + depth);
+					element.put("list", getfiles(tempFile.getPath(), depth + 1));
+
+					list.add(element);
 				}
-
 			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
-		return userlist;
+		return list;
+
 	}
 
 	public String FileRead(File file) throws IOException {
@@ -295,7 +207,8 @@ public class Common {
 			str = a256.AES_Decode(str);
 
 		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
-			// TODO Auto-generated catch block
+
+			logger.error("파일 복호화 실패: {}", file.getPath(), e);
 			e.printStackTrace();
 		}
 		return str;
@@ -378,11 +291,12 @@ public class Common {
 		return i;
 	}
 
-	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDTO data, List<Map<String, Object>> params) throws SQLException {
+	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDto data, List<Map<String, String>> mapping) throws SQLException {
 
 		Connection con = null;
 		PreparedStatement pstmt = null;
 		try {
+			// 동적 드라이버 로딩 사용 (ConnectionDto 정보가 없는 경우 기본 방식)
 			con = DriverManager.getConnection(jdbc, prop);
 
 			con.setAutoCommit(false);
@@ -391,40 +305,25 @@ public class Common {
 
 			int rowcnt = 0;
 
-			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
-
-			if (params.size() > 0) {
-
-				String patternString = ":(";
-				for (int i = 0; i < params.size(); i++) {
-					if (i != 0)
-						patternString += "|";
-					patternString += params.get(i).get("title");
-				}
-				patternString += ")";
-				Pattern pattern = Pattern.compile(patternString);
-				Matcher matcher = pattern.matcher(sql);
-				int cnt = 0;
-				while (matcher.find()) {
-					Map temp = new HashMap<>();
-					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
-					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
-					mapping.add(temp);
-					cnt++;
-				}
-				matcher.reset();
-				sql = matcher.replaceAll("?");
-
-			}
-
 			pstmt = con.prepareStatement(sql);
 			for (int i = 0; i < mapping.size(); i++) {
-				pstmt.setString(i + 1, mapping.get(i).get("value"));
+				switch (mapping.get(i).get("type")) {
+				case "string":
+				case "text":
+				case "varchar":
+
+					pstmt.setString(i + 1, mapping.get(i).get("value"));
+					break;
+
+				default:
+					pstmt.setInt(i + 1, Integer.parseInt(mapping.get(i).get("value")));
+					break;
+				}
 			}
 
 			if (data != null) {
 
-				List<Object> logparams = Arrays.asList(data.getId(), data.getIp(), data.getConnection(), data.getPath(), data.getSqlType(), data.getRows(), data.getLogsql(), data.getResult(), data.getDuration(), data.getStart(), data.getXmlLog());
+				List<Object> logparams = Arrays.asList(data.getId(), data.getIp(), data.getConnectionId(), data.getTitle(), data.getSqlType(), data.getRows(), data.getLogsql(), data.getResult(), data.getDuration(), data.getStart(), data.getXmlLog(), data.getLogId());
 
 				mapParams(pstmt, logparams);
 			}
@@ -466,446 +365,70 @@ public class Common {
 
 	}
 
-	public ConnectionDTO getConnection(String connectionId) throws IOException {
-		Map<String, String> map = ConnectionConf(connectionId);
-
-		ConnectionDTO connection = new ConnectionDTO();
-
-		Properties prop = new Properties();
-
-		String dbtype = map.get("DBTYPE") == null ? "DB2" : map.get("DBTYPE");
-		String driver = "";
-		String jdbc = "";
-		String jar = map.get("JDBC").length() > 0 ? map.get("JDBC") : "jcc-11.5.0.0.jar";
-
-		switch (dbtype) {
-		case "DB2":
-			driver = "com.ibm.db2.jcc.DB2Driver";
-			jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
-			break;
-		case "ORACLE":
-			driver = "oracle.jdbc.driver.OracleDriver";
-			jdbc = "jdbc:oracle:thin:@" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
-			break;
-		case "PostgreSQL":
-			driver = "org.postgresql.Driver";
-			jdbc = "jdbc:postgresql://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
-			break;
-		case "Tibero":
-			driver = "com.tmax.tibero.jdbc.TbDriver";
-			jdbc = "jdbc:tibero:thin:@" + map.get("IP") + ":" + map.get("PORT") + ":" + map.get("DB");
-			break;
-
-		default:
-			driver = "com.ibm.db2.jcc.DB2Driver";
-			jdbc = "jdbc:db2://" + map.get("IP") + ":" + map.get("PORT") + "/" + map.get("DB");
-			break;
-		}
-
-		prop.put("user", map.get("USER"));
-		prop.put("password", map.get("PW"));
-
-		connection.setDbtype(dbtype);
-		connection.setProp(prop);
-		connection.setDriver(driver);
-		connection.setJdbc(jdbc);
-		connection.setDbName(connectionId);
-		connection.setJar(jar);
-
-		return connection;
-	}
-
-	public Map<String, List> excutequery(String sql, String dbtype, String jdbc, Properties prop, int limit, List<Map<String, Object>> params) throws SQLException {
-
-		Connection con = null;
-
-		PreparedStatement pstmt = null;
-		ResultSet rs = null;
-		try {
-			con = DriverManager.getConnection(jdbc, prop);
-
-			con.setAutoCommit(false);
-
-			Map<String, List> result = new HashMap<String, List>();
-
-			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
-
-			if (params.size() > 0) {
-				String patternString = ":(";
-				for (int i = 0; i < params.size(); i++) {
-					if (i != 0)
-						patternString += "|";
-					patternString += params.get(i).get("title");
-				}
-				patternString += ")";
-				Pattern pattern = Pattern.compile(patternString);
-				Matcher matcher = pattern.matcher(sql);
-				int cnt = 0;
-				while (matcher.find()) {
-					Map temp = new HashMap<>();
-					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
-					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
-					mapping.add(temp);
-					cnt++;
-				}
-				matcher.reset();
-				sql = matcher.replaceAll("?");
-
-			}
-
-			pstmt = con.prepareStatement(sql);
-			for (int i = 0; i < mapping.size(); i++) {
-				pstmt.setString(i + 1, mapping.get(i).get("value"));
-			}
-
-			if (limit > 0) {
-				pstmt.setMaxRows(limit);
-			}
-			rs = pstmt.executeQuery();
-
-			ResultSetMetaData rsmd = rs.getMetaData();
-
-			int colcnt = rsmd.getColumnCount();
-
-			List rowhead = new ArrayList<>();
-			List<Integer> rowlength = new ArrayList<>();
-			String column;
-
-			for (int index = 0; index < colcnt; index++) {
-
-				Map head = new HashMap();
-
-				ResultSet resultSet = con.getMetaData().getColumns(null, rsmd.getSchemaName(index + 1), rsmd.getTableName(index + 1), rsmd.getColumnName(index + 1));
-
-				String desc = rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")";
-
-				if (resultSet.next()) {
-					String REMARKS = resultSet.getString("REMARKS") == null ? "" : "\n" + resultSet.getString("REMARKS");
-					desc += REMARKS;
-				}
-
-				head.put("title", rsmd.getColumnLabel(index + 1));
-				head.put("type", rsmd.getColumnType(index + 1));
-				head.put("desc", desc);
-
-				rowhead.add(head);
-
-				rowlength.add(0);
-			}
-
-			result.put("rowhead", rowhead);
-
-			List rowbody = new ArrayList<>();
-
-			while (rs.next()) {
-
-				List body = new ArrayList<>();
-				for (int index = 0; index < colcnt; index++) {
-
-					// column = rsmd.getColumnName(index + 1);
-					// 타입별 get함수 다르게 변경필
-					try {
-
-						switch (rsmd.getColumnType(index + 1)) {
-						case Types.SQLXML:
-							body.add(rs.getSQLXML(index + 1).toString());
-							break;
-
-						case Types.BIGINT:
-						case Types.DECIMAL:
-							body.add(rs.getBigDecimal(index + 1).toString());
-							break;
-
-						case Types.CLOB:
-						case Types.TIMESTAMP:
-							body.add(rs.getString(index + 1));
-							break;
-
-						default:
-							body.add(rs.getObject(index + 1));
-//							System.out.println(rs.getObject(index + 1) + " / " + rs.getObject(index + 1).getClass());
-							break;
-						}
-
-						if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString().length()) {
-							rowlength.set(index, body.get(index).toString().length() > 100 ? 100 : body.get(index).toString().length());
-						}
-
-					} catch (NullPointerException e) {
-						body.add(null);
-					} catch (Exception e) {
-						body.add(e.toString());
-					}
-
-				}
-				rowbody.add(body);
-			}
-			result.put("rowbody", rowbody);
-			result.put("rowlength", rowlength);
-
-			return result;
-
-		} finally {
-			if (rs != null) {
-				try {
-					rs.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (pstmt != null) {
-				try {
-					pstmt.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (con != null) {
-
-				try {
-					con.commit();
-					con.close();
-
-				} catch (SQLException ex) {
-					logger.error(ex.toString());
-				}
-			} else {
-
-			}
-		}
-	}
-
-	public Map<String, List> callprocedure(String sql, String dbtype, String jdbc, Properties prop, List<Map<String, Object>> params) throws SQLException {
-
-		Connection con = null;
-
-		CallableStatement callStmt1 = null;
-		PreparedStatement pstmt = null;
-		ResultSet rs = null;
-		ResultSet rs2 = null;
-		try {
-			con = DriverManager.getConnection(jdbc, prop);
-
-			con.setAutoCommit(false);
-
-			Map<String, List> result = new HashMap<String, List>();
-
-			String callcheckstr = "";
-
-			String prcdname = "";
-			prcdname = sql.substring(sql.indexOf("CALL") + 6, sql.indexOf("("));
-			if (prcdname.contains(".")) {
-				prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
-			}
-
-			int paramcnt = StringUtils.countMatches(sql, ",") + 1;
-			switch (dbtype) {
-			case "DB2":
-				callcheckstr = "SELECT * FROM   syscat.ROUTINEPARMS WHERE  routinename = '" + prcdname.toUpperCase().trim() + "' AND SPECIFICNAME = (SELECT SPECIFICNAME " + " FROM   (SELECT SPECIFICNAME, count(*) AS cnt FROM   syscat.ROUTINEPARMS WHERE  routinename = '"
-						+ prcdname.toUpperCase().trim() + "' GROUP  BY SPECIFICNAME) a WHERE  a.cnt = " + paramcnt + ") AND ROWTYPE != 'P' ORDER  BY SPECIFICNAME, ordinal";
-				break;
-			case "ORACLE":
-				callcheckstr = "SELECT DATA_TYPE AS TYPENAME\r\n" + "  FROM sys.user_arguments    \r\n" + " WHERE object_name = '" + prcdname.toUpperCase().trim() + "'";
-				break;
-
-			default:
-				break;
-			}
-
-			List<Integer> typelst = new ArrayList<>();
-			pstmt = con.prepareStatement(callcheckstr);
-			rs = pstmt.executeQuery();
-
-			List<Integer> rowlength = new ArrayList<>();
-
-			while (rs.next()) {
-				switch (rs.getString("TYPENAME")) {
-				case "VARCHAR2":
-					typelst.add(java.sql.Types.VARCHAR);
-					break;
-				case "VARCHAR":
-					typelst.add(java.sql.Types.VARCHAR);
-					break;
-				case "INTEGER":
-					typelst.add(java.sql.Types.INTEGER);
-					break;
-				case "TIMESTAMP":
-					typelst.add(java.sql.Types.TIMESTAMP);
-					break;
-				case "DATE":
-					typelst.add(java.sql.Types.DATE);
-					break;
-				}
-			}
-
-			List<Map<String, String>> mapping = new ArrayList<Map<String, String>>();
-
-			if (params.size() > 0) {
-				String patternString = ":(";
-				for (int i = 0; i < params.size(); i++) {
-					if (i != 0)
-						patternString += "|";
-					patternString += params.get(i).get("title");
-				}
-				patternString += ")";
-				Pattern pattern = Pattern.compile(patternString);
-				Matcher matcher = pattern.matcher(sql);
-				int cnt = 0;
-				while (matcher.find()) {
-					Map temp = new HashMap<>();
-					temp.put("value", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("value"));
-					temp.put("type", params.stream().filter(p -> p.get("title").equals(matcher.group(1))).findFirst().get().get("type"));
-					mapping.add(temp);
-					cnt++;
-				}
-				matcher.reset();
-				sql = matcher.replaceAll("?");
-			}
-
-			callStmt1 = con.prepareCall(sql);
-			for (int i = 0; i < mapping.size(); i++) {
-				callStmt1.setString(i + 1, mapping.get(i).get("value"));
-			}
-
-			for (int i = 0; i < typelst.size(); i++) {
-				callStmt1.registerOutParameter(i + 1, typelst.get(i));
-			}
-
-			callStmt1.execute();
-
-			rs2 = callStmt1.getResultSet();
-
-			if (rs2 != null) {
-				ResultSetMetaData rsmd = rs2.getMetaData();
-				int colcnt = rsmd.getColumnCount();
-
-				List rowhead = new ArrayList<>();
-				String column;
-
-				for (int index = 0; index < colcnt; index++) {
-
-					Map head = new HashMap();
-
-					head.put("title", rsmd.getColumnLabel(index + 1));
-					head.put("type", rsmd.getColumnType(index + 1));
-					head.put("desc", rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")");
-
-					rowhead.add(head);
-					rowlength.add(0);
-
-				}
-				result.put("rowhead", rowhead);
-
-				List rowbody = new ArrayList<>();
-				while (rs2.next()) {
-
-					List body = new ArrayList<>();
-					for (int index = 0; index < colcnt; index++) {
-
-						// column = rsmd.getColumnName(index + 1);
-						// 타입별 get함수 다르게 변경필
-						try {
-
-							body.add((rsmd.getColumnTypeName(index + 1).equals("CLOB") ? rs2.getString(index + 1) : rs2.getObject(index + 1)));
-
-							if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString().length()) {
-								rowlength.set(index, body.get(index).toString().length() > 100 ? 100 : body.get(index).toString().length());
-							}
-
-						} catch (NullPointerException e) {
-							body.add(null);
-						} catch (Exception e) {
-							body.add(e.toString());
-						}
-					}
-
-					rowbody.add(body);
-
-				}
-
-				result.put("rowbody", rowbody);
-				result.put("rowlength", rowlength);
-			} else {
-
-				List<String> element = new ArrayList<String>();
-				for (int i = 0; i < typelst.size(); i++) {
-
-					element.add(callStmt1.getString(i + 1) + "");
-
-				}
-
-				result.put("rowbody", element);
-			}
-
-			return result;
-		} finally {
-			if (rs != null) {
-				try {
-					rs.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (pstmt != null) {
-				try {
-					pstmt.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (rs2 != null) {
-				try {
-					rs2.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (callStmt1 != null) {
-				try {
-					callStmt1.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (con != null) {
-
-				try {
-					con.commit();
-					con.close();
-
-				} catch (SQLException ex) {
-					logger.error(ex.toString());
-				}
-			} else {
-
-			}
-		}
-	}
-
-	public List<Map<String, Object>> getJsonObjectFromString(String jsonStr) {
-
-		JSONArray jsonArray = new JSONArray();
-
-		JSONParser jsonParser = new JSONParser();
-
-		try {
-
-			jsonArray = (JSONArray) jsonParser.parse(jsonStr);
-
-		} catch (ParseException e) {
-			e.printStackTrace();
-		}
-
+	public List<Map<String, Object>> getListFromString(String jsonStr) {
 		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
 
-		if (jsonArray != null) {
+		// null 또는 빈 문자열 체크
+		if (jsonStr == null || jsonStr.trim().isEmpty()) {
+			logger.debug("JSON 문자열이 null이거나 비어있습니다.");
+			return list;
+		}
 
-			int jsonSize = jsonArray.size();
-
-			for (int i = 0; i < jsonSize; i++) {
-
-				Map<String, Object> map = getMapFromJsonObject((JSONObject) jsonArray.get(i));
-				list.add(map);
+		try {
+			// Jackson ObjectMapper를 사용한 안전한 JSON 파싱
+			ObjectMapper objectMapper = new ObjectMapper();
+			objectMapper.configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+			objectMapper.configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
+			
+			// JSON 배열로 파싱 시도
+			JsonNode jsonNode = objectMapper.readTree(jsonStr);
+			
+			if (jsonNode.isArray()) {
+				for (JsonNode node : jsonNode) {
+					if (node.isObject()) {
+						@SuppressWarnings("unchecked")
+						Map<String, Object> map = objectMapper.convertValue(node, Map.class);
+						if (map != null) {
+							list.add(map);
+						}
+					}
+				}
+			} else if (jsonNode.isObject()) {
+				// 단일 객체인 경우 배열로 변환
+				@SuppressWarnings("unchecked")
+				Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
+				if (map != null) {
+					list.add(map);
+				}
+			}
+			
+			logger.debug("JSON 파싱 성공 - 파싱된 객체 수: {}", list.size());
+			
+		} catch (Exception e) {
+			logger.error("JSON 파싱 실패 - jsonStr: {}, 오류: {}", jsonStr, e.getMessage(), e);
+			
+			// 기존 방식으로 폴백 시도
+			try {
+				JSONArray jsonArray = new JSONArray();
+				JSONParser jsonParser = new JSONParser();
+				jsonArray = (JSONArray) jsonParser.parse(jsonStr);
+				
+				if (jsonArray != null) {
+					int jsonSize = jsonArray.size();
+					for (int i = 0; i < jsonSize; i++) {
+						try {
+							Map<String, Object> map = getMapFromJsonObject((JSONObject) jsonArray.get(i));
+							if (map != null) {
+								list.add(map);
+							}
+						} catch (Exception ex) {
+							logger.error("JSON 객체 처리 중 오류 (인덱스 {}): {}", i, ex.getMessage());
+						}
+					}
+				}
+				logger.debug("기존 방식으로 JSON 파싱 성공 - 파싱된 객체 수: {}", list.size());
+			} catch (Exception fallbackEx) {
+				logger.error("기존 방식 JSON 파싱도 실패: {}", fallbackEx.getMessage());
 			}
 		}
 
@@ -913,19 +436,26 @@ public class Common {
 	}
 
 	public static Map<String, Object> getMapFromJsonObject(JSONObject jsonObject) {
+		// null 체크
+		if (jsonObject == null) {
+			logger.debug("JSONObject가 null입니다.");
+			return null;
+		}
 
 		Map<String, Object> map = null;
 
 		try {
-
-			map = new ObjectMapper().readValue(jsonObject.toJSONString(), Map.class);
-
+			@SuppressWarnings("unchecked")
+			Map<String, Object> tempMap = new ObjectMapper().readValue(jsonObject.toJSONString(), Map.class);
+			map = tempMap;
 		} catch (JsonParseException e) {
-			e.printStackTrace();
+			logger.error("JSON 파싱 오류: {}", e.getMessage());
 		} catch (JsonMappingException e) {
-			e.printStackTrace();
+			logger.error("JSON 매핑 오류: {}", e.getMessage());
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger.error("JSON 처리 중 I/O 오류: {}", e.getMessage());
+		} catch (Exception e) {
+			logger.error("JSON 객체 처리 중 예상치 못한 오류: {}", e.getMessage());
 		}
 
 		return map;
@@ -949,29 +479,7 @@ public class Common {
 		this.system_properties = system_properties;
 	}
 
-	public String getConnectionPath() {
-		return ConnectionPath;
-	}
 
-	public void setConnectionPath(String connectionPath) {
-		ConnectionPath = connectionPath;
-	}
-
-	public void setUserPath(String userPath) {
-		UserPath = userPath;
-	}
-
-	public String getUserPath() {
-		return UserPath;
-	}
-
-	public String getSrcPath() {
-		return SrcPath;
-	}
-
-	public static void setSrcPath(String srcPath) {
-		SrcPath = srcPath;
-	}
 
 	public static String getRootPath() {
 		return RootPath;
@@ -979,6 +487,291 @@ public class Common {
 
 	public static void setRootPath(String rootPath) {
 		RootPath = rootPath;
+	}
+
+	public String getDriverByDbType(String dbType) {
+		switch (dbType.toUpperCase()) {
+		case "ORACLE":
+			return "oracle.jdbc.driver.OracleDriver";
+		case "POSTGRESQL":
+			return "org.postgresql.Driver";
+		case "TIBERO":
+			return "com.tmax.tibero.jdbc.TbDriver";
+		case "DB2":
+			return "com.ibm.db2.jcc.DB2Driver";
+		case "MYSQL":
+			return "com.mysql.jdbc.Driver";
+		default:
+			return "oracle.jdbc.driver.OracleDriver";
+		}
+	}
+
+	public String getTestQueryByDbType(String dbType) {
+		switch (dbType.toUpperCase()) {
+		case "ORACLE":
+			return "SELECT 1 FROM DUAL";
+		case "POSTGRESQL":
+			return "SELECT current_database(), current_user, version()"; // 더 엄격한 테스트
+		case "TIBERO":
+			return "SELECT 1 FROM DUAL";
+		case "DB2":
+			return "SELECT 1 FROM SYSIBM.SYSDUMMY1";
+		case "MYSQL":
+			return "SELECT DATABASE(), USER(), VERSION()"; // 더 엄격한 테스트
+		default:
+			return "SELECT 1 FROM DUAL";
+		}
+	}
+
+	/**
+	 * DB2 연결 정리를 위한 메서드
+	 */
+	public static void cleanupDB2Connections() {
+		try {
+			logger.info("DB2 연결 정리 시작...");
+
+			// DB2 드라이버의 정적 리소스 정리
+			System.gc();
+
+			// 잠시 대기하여 정리 완료 확인
+			Thread.sleep(2000);
+
+			logger.info("DB2 연결 정리 완료");
+
+		} catch (Exception e) {
+			logger.error("DB2 연결 정리 중 오류 발생", e);
+		}
+	}
+
+	/**
+	 * 애플리케이션 종료 시 전체 정리 작업
+	 */
+	public static void cleanupOnShutdown() {
+		try {
+			logger.info("애플리케이션 종료 시 정리 작업 시작...");
+			
+			// DB2 연결 정리
+			logger.info("DB2 연결 정리 시작...");
+			cleanupDB2Connections();
+			logger.info("DB2 연결 정리 완료");
+
+			// 정적 변수 정리
+			logger.info("정적 변수 정리 시작...");
+			system_properties = "";
+			tempPath = "";
+			JdbcPath = "";
+			RootPath = "";
+			LogCOL = "";
+			logger.info("정적 변수 정리 완료");
+
+			logger.info("애플리케이션 종료 시 정리 작업 완료");
+
+		} catch (Exception e) {
+			logger.error("애플리케이션 종료 시 정리 작업 중 오류 발생", e);
+		}
+	}
+
+	/**
+	 * JDBC 드라이버 목록을 반환합니다.
+	 */
+	public static List<String> getJdbcDriverList() {
+		List<String> driverList = new ArrayList<>();
+		File jdbcDir = new File(JdbcPath);
+
+		if (jdbcDir.exists() && jdbcDir.isDirectory()) {
+			File[] files = jdbcDir.listFiles((dir, name) -> name.toLowerCase().endsWith(".jar"));
+
+			if (files != null) {
+				for (File file : files) {
+					driverList.add(file.getName());
+				}
+			}
+		}
+
+		return driverList;
+	}
+
+	/**
+	 * JDBC 드라이버 파일의 경로를 반환합니다.
+	 */
+	public static String getJdbcDriverPath(String driverFileName) {
+		return JdbcPath + driverFileName;
+	}
+
+	/**
+	 * JDBC 드라이버 파일이 존재하는지 확인합니다.
+	 */
+	public static boolean isJdbcDriverExists(String driverFileName) {
+		if (driverFileName == null || driverFileName.trim().isEmpty()) {
+			return false;
+		}
+		File driverFile = new File(getJdbcDriverPath(driverFileName));
+		return driverFile.exists() && driverFile.isFile();
+	}
+
+	/**
+	 * JDBC 드라이버 파일에서 정보를 추출합니다.
+	 */
+	public Map<String, String> extractDriverInfo(String driverFileName) {
+		Map<String, String> driverInfo = new HashMap<>();
+
+		if (driverFileName == null || driverFileName.trim().isEmpty()) {
+			driverInfo.put("error", "드라이버 파일명이 지정되지 않았습니다.");
+			return driverInfo;
+		}
+
+		try {
+			String driverClass = getDriverClassFromFileName(driverFileName);
+			String version = getVersionFromFileName(driverFileName);
+			String description = getDescriptionFromFileName(driverFileName);
+
+			driverInfo.put("driverClass", driverClass);
+			driverInfo.put("version", version);
+			driverInfo.put("description", description);
+
+		} catch (Exception e) {
+			logger.error("드라이버 정보 추출 실패: " + driverFileName, e);
+			driverInfo.put("error", "드라이버 정보를 추출할 수 없습니다: " + e.getMessage());
+		}
+
+		return driverInfo;
+	}
+
+	/**
+	 * 파일명에서 드라이버 클래스명을 추출합니다.
+	 */
+	private String getDriverClassFromFileName(String fileName) {
+		String lowerFileName = fileName.toLowerCase();
+
+		if (lowerFileName.contains("db2")) {
+			return "com.ibm.db2.jcc.DB2Driver";
+		} else if (lowerFileName.contains("oracle") || lowerFileName.contains("ojdbc")) {
+			return "oracle.jdbc.driver.OracleDriver";
+		} else if (lowerFileName.contains("postgresql") || lowerFileName.contains("postgres")) {
+			return "org.postgresql.Driver";
+		} else if (lowerFileName.contains("tibero")) {
+			return "com.tmax.tibero.jdbc.TbDriver";
+		} else if (lowerFileName.contains("mysql")) {
+			return "com.mysql.cj.jdbc.Driver";
+		} else if (lowerFileName.contains("mariadb")) {
+			return "org.mariadb.jdbc.Driver";
+		} else if (lowerFileName.contains("sqlserver") || lowerFileName.contains("mssql")) {
+			return "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+		} else {
+			// 기본값
+			return "com.ibm.db2.jcc.DB2Driver";
+		}
+	}
+
+	/**
+	 * 파일명에서 버전 정보를 추출합니다.
+	 */
+	private String getVersionFromFileName(String fileName) {
+		// 파일명에서 버전 패턴 찾기 (예: ojdbc8-12.2.0.1.jar -> 12.2.0.1)
+		java.util.regex.Pattern versionPattern = java.util.regex.Pattern.compile("(\\d+\\.\\d+\\.\\d+(\\.\\d+)?)");
+		java.util.regex.Matcher matcher = versionPattern.matcher(fileName);
+
+		if (matcher.find()) {
+			return matcher.group(1);
+		}
+
+		return "Unknown";
+	}
+
+	/**
+	 * 파일명에서 설명을 추출합니다.
+	 */
+	private String getDescriptionFromFileName(String fileName) {
+		String lowerFileName = fileName.toLowerCase();
+
+		if (lowerFileName.contains("db2")) {
+			return "IBM DB2 JDBC Driver";
+		} else if (lowerFileName.contains("oracle") || lowerFileName.contains("ojdbc")) {
+			return "Oracle JDBC Driver";
+		} else if (lowerFileName.contains("postgresql") || lowerFileName.contains("postgres")) {
+			return "PostgreSQL JDBC Driver";
+		} else if (lowerFileName.contains("tibero")) {
+			return "Tibero JDBC Driver";
+		} else if (lowerFileName.contains("mysql")) {
+			return "MySQL JDBC Driver";
+		} else if (lowerFileName.contains("mariadb")) {
+			return "MariaDB JDBC Driver";
+		} else if (lowerFileName.contains("sqlserver") || lowerFileName.contains("mssql")) {
+			return "SQL Server JDBC Driver";
+		} else {
+			return "Unknown JDBC Driver";
+		}
+	}
+
+	// RootPath 유효성 검증 로그 중복 방지를 위한 플래그
+	private static String lastInvalidRootPath = null;
+	
+	/**
+	 * RootPath가 유효한지 확인합니다.
+	 */
+	public static boolean isRootPathValid() {
+		if (RootPath == null || RootPath.isEmpty() || RootPath.contains("${system.root.path}")) {
+			// 이전에 로그한 경로와 다른 경우에만 로그
+			if (!RootPath.equals(lastInvalidRootPath)) {
+				logger.error("RootPath가 유효하지 않습니다: {}", RootPath);
+				lastInvalidRootPath = RootPath;
+			}
+			return false;
+		}
+		
+		File rootDir = new File(RootPath);
+		if (!rootDir.exists()) {
+			// 이전에 로그한 경로와 다른 경우에만 로그
+			if (!RootPath.equals(lastInvalidRootPath)) {
+				logger.error("Root 디렉토리가 존재하지 않습니다: {}", RootPath);
+				lastInvalidRootPath = RootPath;
+			}
+			return false;
+		}
+		
+		if (!rootDir.isDirectory()) {
+			// 이전에 로그한 경로와 다른 경우에만 로그
+			if (!RootPath.equals(lastInvalidRootPath)) {
+				logger.error("Root 경로가 디렉토리가 아닙니다: {}", RootPath);
+				lastInvalidRootPath = RootPath;
+			}
+			return false;
+		}
+		
+		if (!rootDir.canRead()) {
+			// 이전에 로그한 경로와 다른 경우에만 로그
+			if (!RootPath.equals(lastInvalidRootPath)) {
+				logger.error("Root 디렉토리에 읽기 권한이 없습니다: {}", RootPath);
+				lastInvalidRootPath = RootPath;
+			}
+			return false;
+		}
+		
+		// 유효한 경로인 경우 플래그 초기화
+		if (lastInvalidRootPath != null) {
+			logger.info("RootPath가 유효해졌습니다: {}", RootPath);
+			lastInvalidRootPath = null;
+		}
+		
+		return true;
+	}
+
+	private static void createJdbcDirectory() {
+		// RootPath 유효성 검증
+		if (!isRootPathValid()) {
+			logger.error("RootPath가 유효하지 않아 JDBC 폴더를 생성할 수 없습니다: {}", RootPath);
+			return;
+		}
+		
+		File jdbcDir = new File(JdbcPath);
+		if (!jdbcDir.exists()) {
+			try {
+				boolean created = jdbcDir.mkdirs();
+				logger.info("JDBC 폴더 생성 여부: " + created + " - " + JdbcPath);
+			} catch (Exception e) {
+				logger.error("JDBC 폴더 생성 실패: " + JdbcPath, e);
+			}
+		}
 	}
 
 }

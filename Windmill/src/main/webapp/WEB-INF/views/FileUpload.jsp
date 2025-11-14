@@ -1,4 +1,7 @@
 <%@include file="common/common.jsp"%>
+<!-- Ace Editor CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ace.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ext-language_tools.js"></script>
 <script>
 	$(document).ready(function() {
 
@@ -9,15 +12,85 @@
 				TYPE : "HOST"
 			},
 			success : function(result) {
-				for (var i = 0; i < result.length; i++) {
-					$('#connectionlist').append("<option value='" + result[i].split('.')[0] + "'>" + result[i].split('.')[0] + "</option>");
-				}
-			},
-			error : function() {
-				alert("시스템 에러");
+				if (result.success && result.data) {
+					for (var i = 0; i < result.data.length; i++) {
+						$('#connectionlist').append("<option value='" + result.data[i] + "'>" + result.data[i] + "</option>");
+					}
+				} else {
+				// SFTP 연결 목록을 가져올 수 없습니다
 			}
+		},
+		error : function(xhr, status, error) {
+			showSystemError("SFTP 연결 목록 조회 실패", {
+				error: xhr.responseText,
+				status: xhr.status,
+				url: '/FileUpload/sftpList'
+			});
+		}
 		});
+		
+		// Ace Editor 초기화
+		initAceEditor();
 	});
+	
+	// Ace Editor 초기화 함수
+	function initAceEditor() {
+		try {
+			// Ace Editor가 로드되었는지 확인
+			if (typeof ace !== 'undefined') {
+				
+				var selectedFont = localStorage.getItem('selectedFont') || 'D2Coding';
+				
+				ace.require("ace/ext/language_tools");
+				window.contentEditor = ace.edit("contentEditor");
+				window.contentEditor.setTheme("ace/theme/chrome");
+				window.contentEditor.session.setMode("ace/mode/text");
+				window.contentEditor.setShowPrintMargin(false);
+				window.contentEditor.setFontSize(14);
+				window.contentEditor.setOptions({
+					fontFamily: selectedFont,
+					enableBasicAutocompletion: true,
+					enableSnippets: true,
+					enableLiveAutocompletion: true,
+					showPrintMargin: false,
+					showGutter: true,
+					showInvisibles: false
+				});
+				
+				window.contentEditor.resize();
+				
+				
+			} else {
+				initTextareaEditor();
+			}
+		} catch (e) {
+			initTextareaEditor();
+		}
+	}
+	
+	// Textarea 기반 에디터 초기화 (fallback)
+	function initTextareaEditor() {
+		var editorDiv = document.getElementById("contentEditor");
+		editorDiv.innerHTML = '<textarea id="contentTextarea" style="width: 100%; height: 100%; font-family: monospace; font-size: 14px; border: none; resize: none; outline: none;"></textarea>';
+	}
+	
+	// 에디터에서 값 가져오기
+	function getEditorValue() {
+		if (window.contentEditor) {
+			return window.contentEditor.getValue();
+		} else {
+			return document.getElementById("contentTextarea").value;
+		}
+	}
+	
+	// 에디터에 값 설정하기
+	function setEditorValue(value) {
+		if (window.contentEditor) {
+			window.contentEditor.setValue(value || '');
+		} else {
+			document.getElementById("contentTextarea").value = value || '';
+		}
+	}
 
 	function uploadfile() {
 		if ($("#connectionlist option:selected").val() == '') {
@@ -30,21 +103,25 @@
 			url : '/FILE/uploadfile',
 			data : {
 				FilePath : $("#FilePath").val(),
-				Connection : $("#connectionlist").val(),
-				Content : $("#Content").val()
+				connectionId : $("#connectionlist").val(),
+				Content : getEditorValue()
 			},
 			success : function(result) {
 				if (result == 'success') {
 					alert("업로드 완료")
-					$("#Content").val("");
+					setEditorValue("");
 
 				} else {
 					alert(result)
 				}
 
 			},
-			error : function() {
-				alert("시스템 에러");
+			error : function(xhr, status, error) {
+				showSystemError("파일 업로드 실패", {
+					error: xhr.responseText,
+					status: xhr.status,
+					url: '/FileUpload/upload'
+				});
 			}
 		});
 
@@ -81,8 +158,7 @@
 		</div>
 		<div class="box box-default" id="resultbox">
 			<div class="box-body">
-				<!-- <pre id="result" style="border: none; background: 0, 0, 0, 0; min-height: 450px; overflow: auto"></pre> -->
-				<textarea id="Content" style="border: none; background: 0, 0, 0, 0; height: calc(100vh - 320px); width: 100%; overflow: auto"></textarea>
+				<div id="contentEditor" style="height: calc(100vh - 320px); width: 100%; border: 1px solid #ddd; border-radius: 4px;"></div>
 			</div>
 		</div>
 	</section>

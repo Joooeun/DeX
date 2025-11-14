@@ -1,0 +1,357 @@
+/* 연결 상태 카드 스타일 */
+.connection-card {
+    border: none;
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    opacity: 0.9;
+}
+
+.connection-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.connection-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+}
+
+.connection-card:hover::before {
+    opacity: 1;
+}
+
+.connection-card.connected {
+    background: #28a745;
+}
+
+.connection-card.disconnected {
+    background: #dc3545;
+}
+
+.connection-card.error {
+    background: #dc3545;
+}
+
+.connection-card.checking {
+    background: #ffc107;
+}
+
+/* 선택된 카드 스타일 */
+.connection-card.selected {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    border: 4px solid rgb(0, 0, 0, 0.3);
+    position: relative;
+    opacity: 1
+}
+
+.connection-card .fa-database,
+.connection-card .fa-server {
+    font-size: 28px;
+    margin-bottom: 3px;
+    color: rgba(255,255,255,0.9);
+    position: relative;
+    z-index: 1;
+}
+
+/* 도넛 차트 컨테이너 스타일 */
+.doughnut-charts-container {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
+    height: 150px;
+}
+
+.doughnut-chart-item {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.doughnut-chart-item .doughnut-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.doughnut-chart-item canvas {
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 5px;
+}
+
+.doughnut-chart-item .doughnut-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .doughnut-charts-container {
+        flex-direction: column;
+        gap: 15px;
+        height: auto;
+        padding: 20px;
+    }
+}
+
+.connection-card .connection-name {
+    font-weight: 600;
+    margin-bottom: 1px;
+    color: rgba(255,255,255,0.95);
+    font-size: 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.connection-card .status-text {
+    font-size: 11px;
+    margin-bottom: 6px;
+    color: rgba(255,255,255,0.8);
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+}
+
+.connection-card .last-checked {
+    font-size: 9px;
+    color: rgba(255,255,255,0.7);
+    margin-top: 2px;
+    position: relative;
+    z-index: 1;
+}
+
+/* DEX 상태 모니터링 스타일 */
+.dex-status-row {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 20px;
+}
+
+.dex-status-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.dex-status-card {
+    border: none;
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-width: 120px;
+    position: relative;
+    overflow: hidden;
+}
+
+.dex-status-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.dex-status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+
+.dex-status-card:hover::before {
+    opacity: 1;
+}
+
+.dex-status-card.connected {
+    background: #28a745;
+}
+
+.dex-status-card.disconnected {
+    background: #dc3545;
+}
+
+.dex-status-card.error {
+    background: #dc3545;
+}
+
+.dex-status-card.checking {
+    background: #ffc107;
+}
+
+.dex-status-card .fa-server {
+    font-size: 20px;
+    margin-bottom: 5px;
+    color: rgba(255,255,255,0.9);
+    position: relative;
+    z-index: 1;
+}
+
+.dex-status-card .dex-status-name {
+    font-weight: 600;
+    margin-bottom: 3px;
+    color: rgba(255,255,255,0.95);
+    font-size: 12px;
+    position: relative;
+    z-index: 1;
+}
+
+.dex-status-card .status-text {
+    font-size: 10px;
+    color: rgba(255,255,255,0.8);
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+}
+
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .dex-status-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .dex-status-item {
+        width: 100%;
+    }
+    
+}
+
+/* DEX 상태 카드 스타일 */
+.dex-status-card {
+    border: none;
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    /* 마우스 오버 효과 완전 제거 */
+    transition: none !important;
+    transform: none !important;
+    cursor: default !important;
+}
+
+/* DEX 상태 카드 호버 효과 완전 제거 */
+.dex-status-card.connected {
+    border: 5px #28a745 solid;
+}
+
+.dex-status-card.disconnected {
+    border: 5px #dc3545 solid;
+}
+
+.dex-status-card.error {
+     border: 5px #dc3545 solid;
+}
+
+.dex-status-card.checking {
+    border: 5px #ffc107 solid;
+}
+
+.dex-status-card .fa-server {
+    font-size: 28px;
+    margin-bottom: 3px;
+    color: inherit;
+    position: relative;
+    z-index: 1;
+}
+
+.dex-status-card .dex-status-name {
+    margin-bottom: 1px;
+    color: inherit;
+    font-size: 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.dex-status-card .status-text {
+    font-size: 11px;
+    margin-bottom: 3px;
+    color: inherit;
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+}
+
+.dex-status-card .status-message {
+    font-size: 9px;
+    color:inherit;
+    margin-bottom: 2px;
+    position: relative;
+    z-index: 1;
+}
+
+.dex-status-card .last-checked {
+    font-size: 8px;
+    color: inherit;
+    position: relative;
+    z-index: 1;
+}
+
+
+.process-info {
+    font-size: 9px;
+    color: inherit;
+    text-align: center;
+    margin-top: 8px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dex-status-info {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}

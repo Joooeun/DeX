@@ -11,16 +11,23 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ComponentScan.Filter;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DelegatingDataSource;
 import org.springframework.jndi.JndiTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.scheduling.annotation.EnableScheduling;
+
+
 
 @Configuration
 @ComponentScan( basePackages = { "kr.Windmill" },
                 excludeFilters = @Filter({ org.springframework.stereotype.Controller.class }))
 @EnableTransactionManagement
+@EnableScheduling
 @MapperScan("kr.Windmill.mapper")
 public class AppConfig {
 
@@ -28,19 +35,26 @@ public class AppConfig {
     
     @Bean
     public DataSource dataSource() {
+        // JNDI 데이터소스 사용
         JndiTemplate jndiTemplate = new JndiTemplate();
-        DataSource dataSource = null;
         try {
-           dataSource = (DataSource) jndiTemplate.lookup("java:comp/env/jdbc/appdb");
+           DataSource dataSource = (DataSource) jndiTemplate.lookup("java:comp/env/jdbc/appdb");
+           logger.info("JNDI 데이터소스 사용: java:comp/env/jdbc/appdb");
+           return new DelegatingDataSource(dataSource);
         } catch (NamingException e) {
-            logger.error("Failed to lookup JNDI datasource", e);
+            logger.error("JNDI 데이터소스를 찾을 수 없습니다: {}", e.getMessage());
+            throw new RuntimeException("데이터소스 설정이 필요합니다. context.xml을 확인해주세요.", e);
         }
-        return new DelegatingDataSource(dataSource);
     }
 
     @Bean
     public PlatformTransactionManager transactionManager() {
         return new DataSourceTransactionManager(dataSource());
+    }
+
+    @Bean
+    public JdbcTemplate jdbcTemplate() {
+        return new JdbcTemplate(dataSource());
     }
 
     @Bean
@@ -51,9 +65,20 @@ public class AppConfig {
         
         SqlSessionFactoryBean sessionFactoryBean = new SqlSessionFactoryBean();
         sessionFactoryBean.setDataSource(dataSource());
-        sessionFactoryBean.setTypeAliasesPackage("kr.Windmill.vo");
+        sessionFactoryBean.setTypeAliasesPackage("kr.Windmill.dto");
         sessionFactoryBean.setConfiguration(mybatisConfig);        
         return sessionFactoryBean;
+    }
+    
+    @Bean
+    public TaskScheduler taskScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(10); // 스케줄러 스레드 풀 크기
+        scheduler.setThreadNamePrefix("dashboard-scheduler-");
+        scheduler.setWaitForTasksToCompleteOnShutdown(true);
+        scheduler.setAwaitTerminationSeconds(60);
+        scheduler.initialize();
+        return scheduler;
     }
 
 }

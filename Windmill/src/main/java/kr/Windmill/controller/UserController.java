@@ -1,12 +1,6 @@
 package kr.Windmill.controller;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -14,174 +8,692 @@ import javax.servlet.http.HttpSession;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
+import kr.Windmill.service.PermissionService;
+import kr.Windmill.service.UserService;
 import kr.Windmill.util.Common;
+import kr.Windmill.util.Log;
 
 @Controller
+@RequestMapping("/User")
 public class UserController {
 
-	private static final Logger logger = LoggerFactory.getLogger(UserController.class);
+	private static final Logger logger = LoggerFactory.getLogger(LoginController.class);
+	private final Common com;
+	private final Log cLog;
 
-	Common com = new Common();
+	@Autowired
+	public UserController(Common common, Log log, UserService userService) {
+		this.com = common;
+		this.cLog = log;
+		this.userService = userService;
+	}
 
-	@RequestMapping(path = "/User", method = RequestMethod.GET)
+	@Autowired
+	private UserService userService;
+
+	@Autowired
+	private PermissionService permissionService;
+
+	// 사용자 관리 화면
+	@RequestMapping(path = "", method = RequestMethod.GET)
 	public ModelAndView User(HttpServletRequest request, ModelAndView mv, HttpSession session) {
+		try {
+			String userId = (String) session.getAttribute("memberId");
 
-		String memberId = (String) session.getAttribute("memberId");
+			// 관리자 권한 확인
+			boolean isAdmin = permissionService.isAdmin(userId);
 
-		if (!memberId.equals("admin")) {
+			if (!isAdmin) {
+				
+				mv.setViewName("redirect:/index");
+				return mv;
+			}
 
-			mv.addObject("params", com.showMessageAndRedirect("권한이 없습니다.", "index", "GET"));
-			mv.setViewName("common/messageRedirect");
+			mv.setViewName("User");
+			return mv;
+		} catch (Exception e) {
+			mv.setViewName("redirect:/index");
 			return mv;
 		}
-
-		List<Map<String, ?>> list = getfiles(Common.SrcPath, 0);
-		mv.addObject("MENU", list);
-
-		return mv;
 	}
 
-	@RequestMapping(path = "/common/messageRedirect")
-	public ModelAndView MessageRedirect(HttpServletRequest request, ModelAndView mv, HttpSession session) {
-//		mv.addObject("Path", request.getParameter("Path"));
-		return mv;
-	}
-
+	// 사용자 목록 조회
 	@ResponseBody
-	@RequestMapping(path = "/User/detail")
-	public Map<String, String> detail(HttpServletRequest request, Model model, HttpSession session) {
-
-		Map<String, String> map = com.UserConf(request.getParameter("ID"));
-
-		return map;
-	}
-
-	@ResponseBody
-	@RequestMapping(path = "/User/list")
-	public List<Map<String, String>> User_list(HttpServletRequest request, Model model, HttpSession session) {
-
-		List<Map<String, String>> userList = com.UserList();
-
-		return userList;
-	}
-
-	@ResponseBody
-	@RequestMapping("/User/sessionCon")
-	public void sessionCon(HttpServletRequest request, HttpSession session) {
-
-		session.setAttribute("User", request.getParameter("User"));
-
-		return;
-	}
-
-	@ResponseBody
-	@RequestMapping(path = "/User/save")
-	public void save(HttpServletRequest request, HttpSession session) {
-
-		String propFile = com.UserPath + request.getParameter("file");
-		File file = new File(propFile);
+	@RequestMapping("/list")
+	public Map<String, Object> getUserList(@RequestParam(required = false) String searchKeyword, 
+										  @RequestParam(required = false) String groupFilter,
+										  @RequestParam(defaultValue = "1") int page, 
+										  @RequestParam(defaultValue = "5") int pageSize, 
+										  HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
 
 		try {
-			String str = "#" + request.getParameter("ID") + "\n";
-			FileWriter fw = new FileWriter(file);
-			str += "NAME=" + request.getParameter("NAME") + "\n";
-			str += "IP=" + request.getParameter("IP") + "\n";
-			str += "PW=" + request.getParameter("PW") + "\n";
-			str += "MENU=" + request.getParameter("MENU") + "\n";
-			str += "CONNECTION=" + request.getParameter("CONNECTION") + "\n";
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
 
-			fw.write(com.cryptStr(str));
-			fw.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(userId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			Map<String, Object> userData = userService.getUserList(searchKeyword, groupFilter, page, pageSize);
+			result.put("success", true);
+			result.put("data", userData.get("userList"));
+			result.put("pagination", userData);
+
+		} catch (Exception e) {
+			logger.error("사용자 목록 조회 중 오류 발생", e);
+			result.put("success", false);
+			result.put("message", "사용자 목록 조회 중 오류가 발생했습니다.");
 		}
 
-		return;
+		return result;
 	}
 
+	// 사용자 상세 조회
 	@ResponseBody
-	@RequestMapping(path = "/User/checkPW")
-	public boolean checkW(HttpServletRequest request, HttpSession session) {
+	@RequestMapping("/detail")
+	public Map<String, Object> getUserDetail(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
 
-		Map<String, String> map = com.UserConf(session.getAttribute("memberId").toString());
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
 
-		if (map.get("PW").equals(request.getParameter("PW"))) {
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
 
-			return true;
-		} else {
+			Map<String, Object> userDetail = userService.getUserDetail(userId);
+			if (userDetail == null) {
+				result.put("success", false);
+				result.put("message", "사용자를 찾을 수 없습니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", userDetail);
+
+		} catch (Exception e) {
+			logger.error("사용자 상세 조회 중 오류 발생", e);
+			result.put("success", false);
+			result.put("message", "사용자 상세 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 사용자 생성
+	@ResponseBody
+	@RequestMapping(value = "/create", method = RequestMethod.POST)
+	public Map<String, Object> createUser(@RequestBody Map<String, Object> userData, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			userData.put("createdBy", currentUserId);
+
+			boolean success = userService.createUser(userData);
+			if (success) {
+				// 그룹 할당 처리
+				String groupId = (String) userData.get("groupId");
+				if (groupId != null && !groupId.trim().isEmpty()) {
+					userService.assignUserToGroup((String) userData.get("userId"), groupId, currentUserId);
+				}
+				
+				result.put("success", true);
+				result.put("message", "사용자가 생성되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "사용자 생성에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			logger.error("사용자 생성 중 오류 발생", e);
+			result.put("success", false);
+			result.put("message", "사용자 생성 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 사용자 수정
+	@ResponseBody
+	@RequestMapping(value = "/update", method = RequestMethod.POST)
+	public Map<String, Object> updateUser(@RequestParam String userId, @RequestBody Map<String, Object> userData, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			userData.put("modifiedBy", currentUserId);
+
+			boolean success = userService.updateUser(userId, userData);
+			if (success) {
+				// 그룹 할당 처리
+				String groupId = (String) userData.get("groupId");
+				if (groupId != null && !groupId.trim().isEmpty()) {
+					userService.assignUserToGroup(userId, groupId, currentUserId);
+				}
+				
+				result.put("success", true);
+				result.put("message", "사용자 정보가 수정되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "사용자 정보 수정에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			logger.error("사용자 정보 수정 중 오류 발생", e);
+			result.put("success", false);
+			result.put("message", "사용자 정보 수정 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 사용자 삭제
+	@ResponseBody
+	@RequestMapping(value = "/delete", method = RequestMethod.POST)
+	public Map<String, Object> deleteUser(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			// 자기 자신 삭제 방지
+			if (userId.equals(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "자기 자신은 삭제할 수 없습니다.");
+				return result;
+			}
+
+			boolean success = userService.deleteUser(userId);
+			if (success) {
+				result.put("success", true);
+				result.put("message", "사용자가 삭제되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "사용자 삭제에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			logger.error("사용자 삭제 중 오류 발생", e);
+			result.put("success", false);
+			result.put("message", "사용자 삭제 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 그룹 목록 조회
+	@ResponseBody
+	@RequestMapping("/groups")
+	public Map<String, Object> getGroupList(HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", userService.getGroupList());
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "그룹 목록 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 사용자 그룹 매핑
+	@ResponseBody
+	@RequestMapping(value = "/assignGroup", method = RequestMethod.POST)
+	public Map<String, Object> assignUserToGroup(@RequestParam String userId, @RequestParam String groupId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			boolean success = userService.assignUserToGroup(userId, groupId, currentUserId);
+			if (success) {
+				result.put("success", true);
+				result.put("message", "그룹이 할당되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "그룹 할당에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "그룹 할당 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// SQL 템플릿 카테고리 권한 조회
+	@ResponseBody
+	@RequestMapping("/sqlTemplateCategoryPermissions")
+	public Map<String, Object> getSqlTemplateCategoryPermissions(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", userService.getSqlTemplateCategoryPermissions(userId));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "SQL 템플릿 카테고리 권한 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 연결 정보 권한 조회
+	@ResponseBody
+	@RequestMapping("/connectionPermissions")
+	public Map<String, Object> getConnectionPermissions(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", userService.getConnectionPermissions(userId));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "연결 정보 권한 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 권한 저장
+	@ResponseBody
+	@RequestMapping(value = "/savePermissions", method = RequestMethod.POST)
+	public Map<String, Object> saveUserPermissions(@RequestBody Map<String, Object> requestData, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			String userId = (String) requestData.get("userId");
+			Map<String, Object> permissions = (Map<String, Object>) requestData.get("permissions");
+
+			boolean success = userService.saveUserPermissions(userId, permissions, currentUserId);
+			if (success) {
+				result.put("success", true);
+				result.put("message", "권한이 저장되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "권한 저장에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "권한 저장 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 사용자 활동 로그 조회
+	@ResponseBody
+	@RequestMapping("/activityLogs")
+	public Map<String, Object> getUserActivityLogs(@RequestParam String userId, @RequestParam(required = false) String dateRange, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", userService.getUserActivityLogs(userId, dateRange));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "활동 로그 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 사용자 비밀번호 초기화
+	@ResponseBody
+	@RequestMapping(value = "/resetPassword", method = RequestMethod.POST)
+	public Map<String, Object> resetUserPassword(@RequestParam String userId, @RequestParam(required = false) String defaultPassword, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			// 기본 비밀번호 설정 (제공되지 않은 경우 "1234" 사용)
+			String password = (defaultPassword != null && !defaultPassword.trim().isEmpty()) ? defaultPassword : "1234";
+
+			boolean success = userService.resetUserPassword(userId, password, currentUserId);
+			if (success) {
+				result.put("success", true);
+				result.put("message", "비밀번호가 초기화되었습니다. (새 비밀번호: " + password + ")");
+			} else {
+				result.put("success", false);
+				result.put("message", "비밀번호 초기화에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "비밀번호 초기화 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 사용자 계정 초기화
+	@ResponseBody
+	@RequestMapping(value = "/resetAccount", method = RequestMethod.POST)
+	public Map<String, Object> resetUserAccount(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			boolean success = userService.resetUserAccount(userId, currentUserId);
+			if (success) {
+				result.put("success", true);
+				result.put("message", "사용자 계정이 초기화되었습니다. (새 비밀번호: 1234)");
+			} else {
+				result.put("success", false);
+				result.put("message", "계정 초기화에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "계정 초기화 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 사용자 계정 잠금 해제
+	@ResponseBody
+	@RequestMapping(value = "/unlockAccount", method = RequestMethod.POST)
+	public Map<String, Object> unlockUserAccount(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			boolean success = userService.unlockUserAccount(userId, currentUserId);
+			if (success) {
+				result.put("success", true);
+				result.put("message", "사용자 계정 잠금이 해제되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "계정 잠금 해제에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "계정 잠금 해제 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 사용자의 현재 그룹 조회
+	@ResponseBody
+	@RequestMapping("/currentGroup")
+	public Map<String, Object> getCurrentUserGroup(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			result.put("success", true);
+			result.put("data", userService.getCurrentUserGroup(userId));
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "사용자 그룹 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+	
+	// 현재 비밀번호 확인
+	@ResponseBody
+	@RequestMapping(value = "/checkPW", method = RequestMethod.POST)
+	public boolean checkPassword(@RequestParam String PW, HttpSession session) {
+		try {
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				return false;
+			}
+			
+			// UserService의 validateTemporaryPassword 메서드를 사용하여 비밀번호 확인
+			return userService.validateTemporaryPassword(userId, PW);
+		} catch (Exception e) {
+			logger.error("비밀번호 확인 중 오류 발생", e);
 			return false;
 		}
-
 	}
-
+	
+	// 비밀번호 변경 (임시 비밀번호에서 새 비밀번호로)
 	@ResponseBody
-	@RequestMapping(path = "/User/changePW")
-	public void changePW(HttpServletRequest request, HttpSession session) {
-
-		Map<String, String> map = com.UserConf(session.getAttribute("memberId").toString());
-
-		String propFile = com.UserPath + session.getAttribute("memberId");
-		File file = new File(propFile);
-
+	@RequestMapping(value = "/changePW", method = RequestMethod.POST)
+	public Map<String, Object> changePassword(@RequestParam String PW, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+		
 		try {
-
-			String str = "#" + session.getAttribute("memberId") + "\n";
-			FileWriter fw = new FileWriter(file);
-			str += "IP=" + map.get("IP") + "\n";
-			str += "PW=" + request.getParameter("PW") + "\n";
-			str += "MENU=" + map.get("MENU") + "\n";
-			str += "CONNECTION=" + map.get("CONNECTION") + "\n";
-
-			fw.write(com.cryptStr(str));
-			fw.close();
-
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		return;
-	}
-
-	public static List<Map<String, ?>> getfiles(String root, int depth) {
-
-		List<Map<String, ?>> list = new ArrayList<>();
-
-		File dirFile = new File(root);
-		File[] fileList = dirFile.listFiles();
-		Arrays.sort(fileList);
-		for (File tempFile : fileList) {
-			if (tempFile.isFile()) {
-
-				if (tempFile.getName().substring(tempFile.getName().indexOf(".")).equals(".sql")) {
-					Map<String, Object> element = new HashMap<>();
-					element.put("Name", tempFile.getName());
-					element.put("Path", tempFile.getPath());
-
-					list.add(element);
-				}
-
-			} else if (tempFile.isDirectory()) {
-				Map<String, Object> element = new HashMap<>();
-
-				element.put("Name", tempFile.getName());
-				element.put("Path", "Path" + depth);
-				element.put("list", getfiles(tempFile.getPath(), depth + 1));
-
-				list.add(element);
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
 			}
+			
+			// 임시 비밀번호를 새 비밀번호로 변경하고 임시 비밀번호 플래그 해제
+			boolean success = userService.changePasswordFromTemp(userId, PW);
+			if (success) {
+				// 세션에서 changePW 플래그 제거
+				session.removeAttribute("changePW");
+				result.put("success", true);
+				result.put("message", "비밀번호가 성공적으로 변경되었습니다.");
+			} else {
+				result.put("success", false);
+				result.put("message", "비밀번호 변경에 실패했습니다.");
+			}
+			
+		} catch (Exception e) {
+			logger.error("비밀번호 변경 중 오류 발생", e);
+			result.put("success", false);
+			result.put("message", "비밀번호 변경 중 오류가 발생했습니다.");
 		}
-
-		return list;
-
+		
+		return result;
 	}
-
 }

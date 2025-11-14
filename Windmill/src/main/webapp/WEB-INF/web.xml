@@ -1,9 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:jsp="http://java.sun.com/xml/ns/javaee/jsp" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd" version="3.0">
   <display-name>Windmill</display-name>
+  
+  <!-- 세션 타임아웃 설정 (30분) -->
+  <session-config>
+    <session-timeout>30</session-timeout>
+  </session-config>
+  
   <listener>
     <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
   </listener>
+  
+  <!-- 애플리케이션 종료 시 정리 작업을 위한 리스너 -->
+  <listener>
+    <listener-class>kr.Windmill.config.ApplicationShutdownListener</listener-class>
+  </listener>
+  
   <context-param>
     <param-name>contextClass</param-name>
     <param-value>org.springframework.web.context.support.AnnotationConfigWebApplicationContext</param-value>
@@ -12,6 +24,13 @@
     <param-name>contextConfigLocation</param-name>
     <param-value>kr.Windmill.config.AppConfig</param-value>
   </context-param>
+  
+  <!-- 애플리케이션 종료 시 대기 시간 설정 -->
+  <context-param>
+    <param-name>shutdownTimeout</param-name>
+    <param-value>30</param-value>
+  </context-param>
+  
   <servlet>
     <servlet-name>default</servlet-name>
     <servlet-class>org.apache.catalina.servlets.DefaultServlet</servlet-class>

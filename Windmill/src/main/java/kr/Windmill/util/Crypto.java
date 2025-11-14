@@ -5,9 +5,12 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.binary.Hex;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Crypto {
 
+	private static final Logger logger = LoggerFactory.getLogger(Crypto.class);
 	private static String privateKey_256 = "DEX_PRIVATE_KEY_THIS_TEST_32BYTE";
 
 	public static String crypt(String plainText) {
@@ -24,7 +27,7 @@ public class Crypto {
 
 			return Hex.encodeHexString(encrpytionByte);
 		} catch (Exception e) {
-			System.out.println("[암호화 에러] " + e.getMessage());
+			logger.error("[암호화 에러] {}", e.getMessage(), e);
 			return plainText;
 		}
 
@@ -44,7 +47,7 @@ public class Crypto {
 
 			return new String(c.doFinal(decodeByte), "UTF-8");
 		} catch (Exception e) {
-			System.out.println("[복호화 에러] " + e.getMessage());
+			logger.error("[복호화 에러] {}", e.getMessage(), e);
 			return "";
 		}
 	}
