@@ -656,14 +656,16 @@ let ondate;
 			await $.ajax({
 				type: 'post',
 				url: '/SQLTemplate/execute',
-				data: {
+				contentType: "application/json",
+				dataType: "json",
+				data: JSON.stringify({
 					templateId: '${templateId}',
 					connectionId: $("#connectionlist").val(),
 					sqlContent: $("#sql_text").val(),
 					parameters: JSON.stringify(params),  // 일반 파라미터만
 					log: JSON.stringify(log),            // LOG 파라미터만 (예전 소스와 동일)
 					limit: $("#limit").val() == 0 ? (limit ? 20000 : 0) : (limit ?  Math.min(20000,  $("#limit").val()) : $("#limit").val())
-				},
+				}),
 				success: function(result, status, jqXHR) {
 
 					// 에러 응답인지 확인하여 error 쪽으로 넘기기

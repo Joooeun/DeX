@@ -14,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -925,7 +924,7 @@ public class SQLTemplateController {
 
 	@ResponseBody
 	@RequestMapping(path = "/SQLTemplate/execute", method = RequestMethod.POST)
-	public Map<String, Object> executeTemplate(@ModelAttribute SqlTemplateExecuteDto executeDto, HttpServletRequest request, HttpSession session) {
+	public Map<String, Object> executeTemplate(@RequestBody SqlTemplateExecuteDto executeDto, HttpServletRequest request, HttpSession session) {
 		String userId = (String) session.getAttribute("memberId");
 		Map<String, Object> result = new HashMap<>();
 
