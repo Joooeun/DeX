@@ -62,9 +62,6 @@
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fa fa-save"></i> 설정 저장
                                 </button>
-                                <button type="button" class="btn btn-default" onclick="location.reload()">
-                                    <i class="fa fa-refresh"></i> 새로고침
-                                </button>
                             </div>
                         </form>
                         

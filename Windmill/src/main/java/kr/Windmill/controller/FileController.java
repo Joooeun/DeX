@@ -141,10 +141,11 @@ public class FileController {
 			sftpChannel = (ChannelSftp) channel;
 			logger.debug("SFTP 채널 연결 성공");
 
-			// 파일 경로 처리
-			String fileName = filePath;
-			String cdDir = fileName.substring(0, fileName.lastIndexOf("/"));
-			String fileNameOnly = fileName.substring(fileName.lastIndexOf("/") + 1);
+			// 파일 경로 처리 (Windows 경로와 Unix 경로 모두 지원)
+			String fileName = filePath.replace("\\", "/"); // Windows 경로를 Unix 경로로 변환
+			int lastSeparatorIndex = fileName.lastIndexOf("/");
+			String cdDir = lastSeparatorIndex >= 0 ? fileName.substring(0, lastSeparatorIndex) : "/";
+			String fileNameOnly = lastSeparatorIndex >= 0 ? fileName.substring(lastSeparatorIndex + 1) : fileName;
 			
 			logger.debug("파일 디렉토리: {}, 파일명: {}", cdDir, fileNameOnly);
 			
@@ -291,11 +292,15 @@ public class FileController {
 			logger.debug("SFTP 채널 연결 성공");
 
 			// 메모리에서 직접 파일 업로드 (temp 폴더 사용하지 않음)
-			String fileName = filePath.substring(filePath.lastIndexOf("/") + 1);
+			// Windows 경로와 Unix 경로 모두 지원
+			String normalizedPath = filePath.replace("\\", "/"); // Windows 경로를 Unix 경로로 변환
+			int lastSeparatorIndex = normalizedPath.lastIndexOf("/");
+			String fileName = lastSeparatorIndex >= 0 ? normalizedPath.substring(lastSeparatorIndex + 1) : normalizedPath;
+			String targetDir = lastSeparatorIndex >= 0 ? normalizedPath.substring(0, lastSeparatorIndex) : "/";
+			
 			byte[] contentBytes = content.getBytes("UTF-8");
 			in = new ByteArrayInputStream(contentBytes);
 			logger.debug("메모리에서 직접 파일 업로드 준비 완료 - 파일명: {}, 크기: {} bytes", fileName, contentBytes.length);
-			String targetDir = filePath.substring(0, filePath.lastIndexOf("/"));
 			sftpChannel.cd("/");
 			sftpChannel.cd(targetDir);
 			sftpChannel.put(in, fileName);
