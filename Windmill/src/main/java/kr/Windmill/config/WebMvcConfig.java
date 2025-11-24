@@ -34,12 +34,12 @@ public class WebMvcConfig extends WebMvcConfigurerAdapter {
 
 	@Override
 	public void addResourceHandlers(ResourceHandlerRegistry registry) {
-		registry.addResourceHandler("/resources/**").addResourceLocations("classpath:/resources/");
+		registry.addResourceHandler("/resources/**").addResourceLocations("/resources/");
 	}
 
 	@Override
 	public void addInterceptors(InterceptorRegistry registry) {
 		registry.addInterceptor(loginInterceptor).addPathPatterns("/**").excludePathPatterns("/Login", "/index/login",
-				"/Setting", "/", "/index","/index/setting", "userRemove", "image");
+				"/Setting", "/", "/index","/index/setting", "userRemove", "image", "/resources/**");
 	}
 }

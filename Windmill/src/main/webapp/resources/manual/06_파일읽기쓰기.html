@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>파일읽기/쓰기</title>
+    <link rel="stylesheet" href="manual.css">
+</head>
+<body>
+    <div class="container">
+        <div class="section">
+            <h2>6. 파일읽기/쓰기</h2>
+            
+            <h3 id="6.1">6.1 파일 읽기 화면</h3>
+            
+            <h4>화면 구성</h4>
+            
+            <!-- 파일 읽기 화면 스크린샷 -->
+            <div class="screenshot-wrapper">
+                <img src="screenshots/06_파일읽기_메인.png" alt="파일 읽기 화면" class="screenshot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <div class="screenshot-placeholder" style="display:none;">파일 읽기 화면 스크린샷</div>
+                <!-- 동그라미 마커는 여기에 추가: <div class="screenshot-marker" style="top: 10%; left: 20%;">1</div> -->
+            </div>
+            
+            <h4>기능 설명</h4>
+            
+            <p><strong>1. 파일 읽기</strong></p>
+            <ol>
+                <li>SFTP 연결 선택</li>
+                <li>파일 경로 입력 (예: <code>/home/user/file.txt</code>)</li>
+                <li>Submit 버튼 클릭</li>
+                <li>파일 내용이 에디터에 표시됨</li>
+            </ol>
+            
+            <p><strong>2. 에디터 기능</strong></p>
+            <ul>
+                <li>Ace Editor 사용</li>
+                <li>구문 강조 지원</li>
+                <li>줄 번호 표시</li>
+                <li>읽기 전용 모드</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h3 id="6.2">6.2 파일 쓰기 화면</h3>
+            
+            <h4>화면 구성</h4>
+            
+            <!-- 파일 쓰기 화면 스크린샷 -->
+            <div class="screenshot-wrapper">
+                <img src="screenshots/06_파일쓰기_메인.png" alt="파일 쓰기 화면" class="screenshot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <div class="screenshot-placeholder" style="display:none;">파일 쓰기 화면 스크린샷</div>
+                <!-- 동그라미 마커는 여기에 추가: <div class="screenshot-marker" style="top: 10%; left: 20%;">1</div> -->
+            </div>
+            
+            <h4>기능 설명</h4>
+            
+            <p><strong>1. 파일 쓰기</strong></p>
+            <ol>
+                <li>SFTP 연결 선택</li>
+                <li>파일 경로 입력 (예: <code>/home/user/file.txt</code>)</li>
+                <li>에디터에 파일 내용 입력/편집</li>
+                <li>Submit 버튼 클릭</li>
+                <li>파일이 SFTP 서버에 업로드됨</li>
+            </ol>
+            
+            <p><strong>2. 에디터 기능</strong></p>
+            <ul>
+                <li>Ace Editor 사용</li>
+                <li>구문 강조 지원</li>
+                <li>줄 번호 표시</li>
+                <li>편집 가능 모드</li>
+                <li>자동 완성 기능</li>
+            </ul>
+            
+            <p><strong>3. 업로드 완료</strong></p>
+            <ul>
+                <li>업로드 성공 시 알림 메시지 표시</li>
+                <li>에디터 내용 자동 초기화</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>© Copyright 2025 by DeX. All Rights Reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+

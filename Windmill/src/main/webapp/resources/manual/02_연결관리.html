@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>연결관리</title>
+    <link rel="stylesheet" href="manual.css">
+</head>
+<body>
+    <div class="container">
+        <div class="section">
+            <h2>2. 연결관리</h2>
+            
+            <h3 id="2.1">2.1 화면 구성</h3>
+            <p>연결관리 화면은 데이터베이스 연결(DB)과 SFTP/SSH 연결(HOST)을 관리하는 화면입니다.</p>
+            
+            <!-- 메인 화면 스크린샷 -->
+            <div class="screenshot-wrapper">
+                <img src="screenshots/02_연결관리_메인.png" alt="연결관리 화면" class="screenshot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <div class="screenshot-placeholder" style="display:none;">연결관리 화면 스크린샷</div>
+                <!-- 동그라미 마커는 여기에 추가: <div class="screenshot-marker" style="top: 10%; left: 20%;">1</div> -->
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 id="2.2">2.2 기능 설명</h3>
+            
+            <p><strong>1. 검색 기능</strong></p>
+            <ul>
+                <li>연결명 또는 IP 주소로 검색 가능</li>
+                <li>실시간 검색 지원 (입력 후 500ms 대기)</li>
+                <li>Enter 키로도 검색 가능</li>
+            </ul>
+            
+            <p><strong>2. 타입 필터</strong></p>
+            <ul>
+                <li>전체: 모든 연결 표시</li>
+                <li>DB: 데이터베이스 연결만 표시</li>
+                <li>HOST: SFTP/SSH 연결만 표시</li>
+            </ul>
+            
+            <p><strong>3. 연결 생성/수정</strong></p>
+            <p>새 연결 버튼 또는 수정 버튼 클릭 시 연결 생성/수정 모달이 표시됩니다.</p>
+            
+            <p><strong>4. 연결 삭제</strong></p>
+            <ul>
+                <li>연결 목록에서 삭제 버튼 클릭</li>
+                <li>확인 메시지 후 삭제 수행</li>
+                <li>삭제된 연결은 더 이상 사용할 수 없습니다</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <div class="modal-section">
+                <h3 id="2.3">2.3 모달</h3>
+                
+                <h4>연결 생성/수정 모달</h4>
+                
+                <!-- 모달 스크린샷 -->
+                <div class="screenshot-wrapper">
+                    <img src="screenshots/02_연결관리_모달_DB.png" alt="DB 연결 모달" class="screenshot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div class="screenshot-placeholder" style="display:none;">DB 연결 모달 스크린샷</div>
+                    <!-- 동그라미 마커는 여기에 추가: <div class="screenshot-marker" style="top: 10%; left: 20%;">1</div> -->
+                </div>
+                
+                <p><strong>DB 연결 모달 필드</strong></p>
+                <ol>
+                    <li><strong>연결 ID</strong>: 연결의 고유 식별자 (영문, 숫자, 언더스코어만 사용 가능)</li>
+                    <li><strong>타입</strong>: DB 또는 HOST 선택</li>
+                    <li><strong>IP</strong>: 서버 IP 주소 또는 호스트명</li>
+                    <li><strong>포트</strong>: 연결 포트 번호</li>
+                    <li><strong>상태</strong>: 활성/비활성/점검중</li>
+                    <li><strong>데이터베이스명</strong>: Oracle SID/Service Name, DB2 Database Name, PostgreSQL Database Name</li>
+                    <li><strong>DB 타입</strong>: ORACLE, DB2, TIBERO, POSTGRESQL, MYSQL 중 선택</li>
+                    <li><strong>사용자명</strong>: 데이터베이스 접속 사용자</li>
+                    <li><strong>비밀번호</strong>: 데이터베이스 접속 비밀번호 (암호화 저장)</li>
+                    <li><strong>JDBC 드라이버 파일</strong>: 기본 드라이버 외 특정 버전 드라이버 선택 (선택사항)</li>
+                    <li><strong>테스트 SQL</strong>: 연결 테스트 시 실행할 SQL (선택사항, 비워두면 기본 쿼리 사용)</li>
+                    <li><strong>모니터링 활성화</strong>: 대시보드에서 연결 상태 모니터링 여부</li>
+                    <li><strong>모니터링 간격</strong>: 연결 상태 확인 간격 (60-3600초, 기본값 300초)</li>
+                    <li><strong>연결 테스트 버튼</strong>: 입력한 연결 정보로 실제 연결을 테스트합니다. 테스트 결과가 모달 하단에 표시됩니다.</li>
+                    <li><strong>저장 버튼</strong>: 연결 정보를 저장합니다. 수정 모드에서는 기존 연결 정보가 업데이트됩니다.</li>
+                    <li><strong>취소 버튼</strong>: 모달을 닫고 변경사항을 저장하지 않습니다.</li>
+                </ol>
+                
+                <div class="screenshot-wrapper">
+                    <img src="screenshots/02_연결관리_모달_HOST.png" alt="HOST 연결 모달" class="screenshot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div class="screenshot-placeholder" style="display:none;">HOST 연결 모달 스크린샷</div>
+                    <!-- 동그라미 마커는 여기에 추가: <div class="screenshot-marker" style="top: 10%; left: 20%;">1</div> -->
+                </div>
+                
+                <p><strong>HOST 연결 모달 필드</strong></p>
+                <ol>
+                    <li><strong>연결 ID</strong>: 연결의 고유 식별자 (영문, 숫자, 언더스코어만 사용 가능)</li>
+                    <li><strong>타입</strong>: DB 또는 HOST 선택</li>
+                    <li><strong>IP</strong>: 서버 IP 주소 또는 호스트명</li>
+                    <li><strong>포트</strong>: 연결 포트 번호</li>
+                    <li><strong>상태</strong>: 활성/비활성/점검중</li>
+                    <li><strong>사용자명</strong>: SFTP/SSH 접속 사용자</li>
+                    <li><strong>비밀번호</strong>: SFTP/SSH 접속 비밀번호 (암호화 저장)</li>
+                    <li><strong>저장 버튼</strong>: 연결 정보를 저장합니다. 수정 모드에서는 기존 연결 정보가 업데이트됩니다.</li>
+                    <li><strong>취소 버튼</strong>: 모달을 닫고 변경사항을 저장하지 않습니다.</li>
+                </ol>
+                
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>© Copyright 2025 by DeX. All Rights Reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>환경설정</title>
+    <link rel="stylesheet" href="manual.css">
+</head>
+<body>
+    <div class="container">
+        <div class="section">
+            <h2>1. 환경설정</h2>
+            
+            <h3 id="1.1">1.1 화면 구성</h3>
+            <p>환경설정 화면은 시스템의 전반적인 설정을 관리하는 화면입니다. 관리자 권한이 있는 사용자만 접근할 수 있습니다.</p>
+            
+            <!-- 스크린샷 삽입 위치 -->
+            <div class="screenshot-wrapper">
+                <img src="screenshots/01_환경설정_메인.png" alt="환경설정 화면" class="screenshot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <div class="screenshot-placeholder" style="display:none;">환경설정 화면 스크린샷</div>
+                <!-- 동그라미 마커는 여기에 추가: <div class="screenshot-marker" style="top: 10%; left: 20%;">1</div> -->
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 id="1.2">1.2 기능 설명</h3>
+            
+            <p><strong>1. 세션 타임아웃 (분)</strong></p>
+            <ul>
+                <li>사용자 세션이 유지되는 시간을 설정합니다</li>
+                <li>범위: 1-1440분</li>
+                <li>기본값: 시스템 기본값</li>
+                <li>설명: 사용자가 일정 시간 동안 활동이 없으면 자동으로 로그아웃됩니다</li>
+            </ul>
+            
+            <p><strong>2. 다운로드 허용 IP 패턴</strong></p>
+            <ul>
+                <li>SQL 실행 결과 다운로드를 허용할 IP 주소 패턴을 설정합니다</li>
+                <li>와일드카드(*) 사용 가능</li>
+                <li>예시: <code>10.240.13.*</code> (10.240.13.x 대역 전체 허용), <code>*</code> (모든 IP 허용)</li>
+                <li>설명: 보안을 위해 특정 IP 대역에서만 다운로드를 허용할 수 있습니다</li>
+            </ul>
+            
+            <p><strong>3. 공지사항 설정</strong></p>
+            <ul>
+                <li>공지사항 활성화/비활성화 체크박스</li>
+                <li>공지사항 내용 입력란</li>
+                <li>설명: 공지사항이 활성화되면 화면 상단에 공지사항이 표시됩니다</li>
+            </ul>
+            
+            <p><strong>4. 설정 저장 버튼</strong></p>
+            <ul>
+                <li>변경된 설정을 저장합니다</li>
+                <li>저장 성공 시 성공 메시지가 표시됩니다</li>
+            </ul>
+            
+            <p><strong>5. 차트 추가</strong></p>
+            <ul>
+                <li>최대 12개까지 차트를 추가할 수 있습니다</li>
+                <li>템플릿 선택: 드롭다운에서 SQL 템플릿을 선택합니다</li>
+                <li>차트 타입 선택: 도넛차트, 텍스트, 게이지, 가로막대 중 선택</li>
+                <li>순서 조정: 위/아래 화살표 버튼으로 차트 표시 순서를 변경합니다</li>
+            </ul>
+            
+            <p><strong>차트 타입별 설명</strong></p>
+            <ul>
+                <li><strong>도넛차트</strong>: 원형 차트로 데이터 비율 표시, 색상별 범례 표시</li>
+                <li><strong>텍스트 차트</strong>: 숫자 값만 텍스트로 표시, 큰 글씨로 강조 표시</li>
+                <li><strong>게이지 차트</strong>: 게이지 형태로 값 표시, 최소값, 최대값 범위 설정 가능</li>
+                <li><strong>가로막대 차트</strong>: 가로 막대 그래프로 데이터 표시, 여러 항목 비교 가능</li>
+            </ul>
+            
+            <p><strong>6. 차트 설정 저장</strong></p>
+            <ul>
+                <li>설정한 차트 구성을 저장합니다</li>
+                <li>저장 후 대시보드에 차트가 표시됩니다</li>
+            </ul>
+            
+            <p><strong>7. 에러 상태 리셋</strong></p>
+            <ul>
+                <li>차트 실행 중 에러가 발생하여 중단된 경우, 에러 상태를 리셋하여 재시작할 수 있습니다</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>© Copyright 2025 by DeX. All Rights Reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+

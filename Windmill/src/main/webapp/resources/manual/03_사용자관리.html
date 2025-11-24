@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사용자관리</title>
+    <link rel="stylesheet" href="manual.css">
+</head>
+<body>
+    <div class="container">
+        <div class="section">
+            <h2>3. 사용자관리</h2>
+            
+            <h3 id="3.1">3.1 화면 구성</h3>
+            <p>사용자관리 화면은 시스템 사용자와 그룹을 관리하는 화면입니다. 관리자 권한이 있는 사용자만 접근할 수 있습니다.</p>
+            
+            <!-- 메인 화면 스크린샷 -->
+            <div class="screenshot-wrapper">
+                <img src="screenshots/03_사용자관리_메인.png" alt="사용자관리 화면" class="screenshot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <div class="screenshot-placeholder" style="display:none;">사용자관리 화면 스크린샷</div>
+                <!-- 동그라미 마커는 여기에 추가: <div class="screenshot-marker" style="top: 10%; left: 20%;">1</div> -->
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3 id="3.2">3.2 기능 설명</h3>
+            
+            <p><strong>1. 검색 기능</strong></p>
+            <ul>
+                <li>사용자 ID 또는 이름으로 검색</li>
+                <li>검색 버튼 클릭 또는 Enter 키로 검색</li>
+            </ul>
+            
+            <p><strong>2. 그룹 필터</strong></p>
+            <ul>
+                <li>전체 그룹 또는 특정 그룹 선택</li>
+                <li>선택한 그룹에 속한 사용자만 표시</li>
+            </ul>
+            
+            <p><strong>3. 사용자 목록 테이블</strong></p>
+            <ul>
+                <li>사용자 ID, 이름, 상태, 그룹, IP 제한, 마지막 로그인, 로그인 실패 횟수, 생성일 표시</li>
+                <li>각 사용자별 수정/로그/삭제 버튼</li>
+                <li>페이징: 한 페이지에 5명씩 표시</li>
+            </ul>
+            
+            <p><strong>4. 사용자 생성/수정</strong></p>
+            <p>새 사용자 버튼 또는 수정 버튼 클릭 시 사용자 생성/수정 모달이 표시됩니다.</p>
+            
+            <p><strong>5. 사용자 삭제</strong></p>
+            <ul>
+                <li>사용자 목록에서 삭제 버튼 클릭</li>
+                <li>확인 메시지 후 삭제 수행</li>
+                <li>삭제된 사용자는 더 이상 로그인할 수 없습니다</li>
+            </ul>
+            
+            <p><strong>6. 그룹 관리</strong></p>
+            <p>그룹 추가 버튼 또는 수정 버튼 클릭 시 그룹 관리 모달이 표시됩니다.</p>
+        </div>
+        
+        <div class="section">
+            <div class="modal-section">
+                <h3 id="3.3">3.3 모달</h3>
+                
+                <h4>사용자 생성/수정 모달</h4>
+                
+                <!-- 사용자 모달 스크린샷 -->
+                <div class="screenshot-wrapper">
+                    <img src="screenshots/03_사용자관리_모달_사용자.png" alt="사용자 생성/수정 모달" class="screenshot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div class="screenshot-placeholder" style="display:none;">사용자 생성/수정 모달 스크린샷</div>
+                    <!-- 동그라미 마커는 여기에 추가: <div class="screenshot-marker" style="top: 10%; left: 20%;">1</div> -->
+                </div>
+                
+                <p><strong>사용자 생성/수정 모달 필드</strong></p>
+                <ol>
+                    <li><strong>사용자 ID</strong>: 고유 식별자 (영문, 숫자, 언더스코어만 사용 가능)</li>
+                    <li><strong>이름</strong>: 사용자의 실제 이름</li>
+                    <li><strong>그룹</strong>: 사용자가 속할 그룹 (필수)</li>
+                    <li><strong>비밀번호</strong>: 로그인 비밀번호 (수정 시 비워두면 변경하지 않음)</li>
+                    <li><strong>상태</strong>: 활성/비활성/잠금</li>
+                    <li><strong>IP 제한</strong>: 로그인 허용 IP 주소 (비워두면 모든 IP 허용, 예시: <code>192.168.1.*</code> 또는 <code>192.168.1.*,10.0.0.100</code>)</li>
+                    <li><strong>저장 버튼</strong>: 사용자 정보를 저장합니다.</li>
+                    <li><strong>취소 버튼</strong>: 모달을 닫고 변경사항을 저장하지 않습니다.</li>
+                </ol>
+                
+                <div class="highlight">
+                    <p><strong>비밀번호 설정 안내</strong></p>
+                    <ul>
+                        <li>수정 시 비워두면 기존 비밀번호 유지</li>
+                        <li>비밀번호를 입력하면 임시 비밀번호로 설정되며, 사용자는 다음 로그인 시 비밀번호 변경이 강제됨</li>
+                    </ul>
+                </div>
+                
+                <h4>그룹 관리 모달</h4>
+                
+                <!-- 그룹 관리 모달 스크린샷 -->
+                <div class="screenshot-wrapper">
+                    <img src="screenshots/03_사용자관리_모달_그룹.png" alt="그룹 관리 모달" class="screenshot" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div class="screenshot-placeholder" style="display:none;">그룹 관리 모달 스크린샷</div>
+                    <!-- 동그라미 마커는 여기에 추가: <div class="screenshot-marker" style="top: 10%; left: 20%;">1</div> -->
+                </div>
+                
+                <p><strong>그룹 관리 모달 필드</strong></p>
+                <ol>
+                    <li><strong>탭 네비게이션</strong>: 그룹 정보 / 권한 관리 탭 전환</li>
+                    <li><strong>그룹명</strong>: 고유 이름 (필수)</li>
+                    <li><strong>설명</strong>: 그룹에 대한 설명</li>
+                    <li><strong>상태</strong>: 활성/비활성</li>
+                    <li><strong>메뉴 권한</strong>: 각 메뉴에 대한 접근 권한 설정 (체크박스)</li>
+                    <li><strong>연결 권한</strong>: 각 데이터베이스/SFTP 연결에 대한 접근 권한 설정 (체크박스)</li>
+                    <li><strong>그룹 멤버 목록</strong>: 그룹에 속한 사용자 목록 표시 및 사용자 추가/제거</li>
+                    <li><strong>저장 버튼</strong>: 그룹 정보를 저장합니다.</li>
+                    <li><strong>취소 버튼</strong>: 모달을 닫고 변경사항을 저장하지 않습니다.</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>© Copyright 2025 by DeX. All Rights Reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+
