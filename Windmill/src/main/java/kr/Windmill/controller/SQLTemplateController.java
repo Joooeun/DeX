@@ -286,12 +286,11 @@ public class SQLTemplateController {
 				String templateName = request.getTemplate().getTemplateName();
 				
 				// 중복 체크
-				if (isTemplateIdExists(templateName)) {
+				if (sqlTemplateService.isTemplateNameExists(templateName)) {
 					return ResponseEntity.badRequest()
 						.body(createErrorResponse("이미 존재하는 템플릿 이름입니다: " + templateName, "DUPLICATE_TEMPLATE_NAME"));
 				}
 				
-				// 템플릿 이름을 그대로 템플릿 ID로 사용
 				request.getTemplate().setTemplateId(String.valueOf(System.currentTimeMillis()));
 			}
 			

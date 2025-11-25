@@ -793,7 +793,7 @@ public class SqlTemplateService {
 	/**
 	 * 템플릿 이름 중복 체크
 	 */
-	private boolean isTemplateNameExists(String templateName) {
+	public boolean isTemplateNameExists(String templateName) {
 		try {
 			String sql = "SELECT COUNT(*) FROM SQL_TEMPLATE WHERE TEMPLATE_NAME = ? AND STATUS != 'DELETED'";
 			Integer count = jdbcTemplate.queryForObject(sql, Integer.class, templateName);
