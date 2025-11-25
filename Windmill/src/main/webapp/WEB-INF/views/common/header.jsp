@@ -814,6 +814,11 @@ var changePW
 			  </a>
 				<div class="navbar-custom-menu">
 					<ul class="nav navbar-nav">
+						<li>
+							<a href="/Manual" target="_blank" title="도움말">
+								<i class="fa fa-question-circle"></i> 도움말 
+							</a>
+						</li>
 						<li class="dropdown">
 							<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
 								<i class="fa fa-font"></i> <span class="caret"></span>
@@ -828,7 +833,7 @@ var changePW
 								<li><a href="javascript:changeFont('JetBrains Mono')">JetBrains Mono</a></li>
 							</ul>
 						</li>
-						<li><a href="javascript:checkPWModal()">${memberId}</a></li>
+						<li><a href="javascript:checkPWModal()"><i class="fa fa-user"></i> ${memberId}</a></li>
 						<li><a href="/userRemove"><i class="fa fa-sign-out"></i></a></li>
 					</ul>
 				</div>

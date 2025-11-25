@@ -1036,6 +1036,36 @@ function saveGroup() {
 
 // 모든 권한 목록 로드 (단순화)
 function loadAllPermissions() {
+    // 메뉴 권한 목록 로드 (그룹 추가 모달용 - groupId 없음)
+    $.ajax({
+        url: '/UserGroup/menuPermissions',
+        type: 'GET',
+        data: { groupId: '' }, // 빈 문자열 전달하여 모든 메뉴 목록만 가져옴
+        success: function(response) {
+            console.log('메뉴 권한 로드 응답:', response);
+            if (response.success && response.data) {
+                var container = $('#groupMenuPermissions');
+                container.empty();
+                
+                response.data.forEach(function(menu) {
+                    var item = '<div class="permission-item">' +
+                        '<label>' +
+                        '<input type="checkbox" id="group_menu_' + menu.MENU_ID + '" class="permission-checkbox">' +
+                        menu.MENU_NAME +
+                        '</label>' +
+                        '<small class="text-muted">' + (menu.MENU_DESCRIPTION || '') + '</small>' +
+                        '</div>';
+                    container.append(item);
+                });
+            } else {
+                console.error('메뉴 권한 로드 실패:', response.message);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('메뉴 권한 로드 중 오류:', error);
+        }
+    });
+    
     // SQL 템플릿 카테고리 권한 목록 로드
     $.ajax({
         url: '/UserGroup/categories',
@@ -1106,110 +1136,6 @@ function loadAllPermissions() {
         },
         error: function() {
             console.error('연결 정보 목록 로드 실패');
-        }
-    });
-}
-
-// 그룹 권한 저장
-function saveGroupPermissions(groupId) {
-    console.log('권한 저장 시작 - groupId:', groupId);
-    
-    // 메뉴 권한 수집
-    var selectedMenus = [];
-    $('#groupMenuPermissions input[type="checkbox"]:checked').each(function() {
-        var menuId = $(this).attr('id').replace('group_menu_', '');
-        selectedMenus.push(menuId);
-    });
-    console.log('선택된 메뉴 권한:', selectedMenus);
-    
-    // 카테고리 권한 수집
-    var selectedCategories = [];
-    $('#groupSqlTemplatePermissions input[type="checkbox"]:checked').each(function() {
-        var categoryId = $(this).attr('id').replace('group_category_', '');
-        selectedCategories.push(categoryId);
-    });
-    console.log('선택된 카테고리 권한:', selectedCategories);
-    
-    // 연결정보 권한 수집
-    var selectedConnections = [];
-    $('#groupConnectionPermissions input[type="checkbox"]:checked').each(function() {
-        var connectionId = $(this).attr('id').replace('group_conn_', '');
-        selectedConnections.push(connectionId);
-    });
-    console.log('선택된 연결정보 권한:', selectedConnections);
-    
-    // 메뉴 권한 저장
-    $.ajax({
-        url: '/UserGroup/grantMenuPermissions',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            groupId: groupId,
-            menuIds: selectedMenus
-        }),
-        success: function(response) {
-            console.log('메뉴 권한 저장 응답:', response);
-            if (!response.success) {
-                console.error('메뉴 권한 저장 실패:', response.message);
-                showToast('메뉴 권한 저장 실패: ' + response.message, 'error');
-            } else {
-                console.log('메뉴 권한 저장 성공');
-                showToast('메뉴 권한이 저장되었습니다.', 'success');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('메뉴 권한 저장 중 오류:', error);
-            showToast('메뉴 권한 저장 중 오류가 발생했습니다.', 'error');
-        }
-    });
-    
-    // 카테고리 권한 저장
-    $.ajax({
-        url: '/UserGroup/grantCategoryPermissions',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            groupId: groupId,
-            categoryIds: selectedCategories
-        }),
-        success: function(response) {
-            console.log('카테고리 권한 저장 응답:', response);
-            if (!response.success) {
-                console.error('카테고리 권한 저장 실패:', response.message);
-                showToast('카테고리 권한 저장 실패: ' + response.message, 'error');
-            } else {
-                console.log('카테고리 권한 저장 성공');
-                showToast('카테고리 권한이 저장되었습니다.', 'success');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('카테고리 권한 저장 중 오류:', error);
-            showToast('카테고리 권한 저장 중 오류가 발생했습니다.', 'error');
-        }
-    });
-    
-    // 연결정보 권한 저장
-    $.ajax({
-        url: '/UserGroup/grantConnectionPermissions',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            groupId: groupId,
-            connectionIds: selectedConnections
-        }),
-        success: function(response) {
-            console.log('연결정보 권한 저장 응답:', response);
-            if (!response.success) {
-                console.error('연결정보 권한 저장 실패:', response.message);
-                showToast('연결정보 권한 저장 실패: ' + response.message, 'error');
-            } else {
-                console.log('연결정보 권한 저장 성공');
-                showToast('연결정보 권한이 저장되었습니다.', 'success');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('연결정보 권한 저장 중 오류:', error);
-            showToast('연결정보 권한 저장 중 오류가 발생했습니다.', 'error');
         }
     });
 }
@@ -1532,8 +1458,6 @@ function saveGroupPermissions(groupId) {
         }
     });
 }
-
-
 
 // UserGroup 관리 페이지 열기
 function openUserGroupManagement() {
