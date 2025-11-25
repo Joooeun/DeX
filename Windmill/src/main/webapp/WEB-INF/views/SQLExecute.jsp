@@ -65,6 +65,10 @@
 .tabulator .tabulator-header .tabulator-col .tabulator-col-content .tabulator-col-title
 	{
 	white-space: normal;
+	user-select: text;
+	-webkit-user-select: text;
+	-moz-user-select: text;
+	-ms-user-select: text;
 }
 
 .tabulator-tableholder {
@@ -369,7 +373,8 @@ let ondate;
 				
 				setTimeout(() => {
 					table.redraw();
-					
+					// 컬럼 헤더 우클릭 복사 기능 추가
+					addColumnHeaderCopyFeature();
 				}, 100); 
 				
 				
@@ -389,6 +394,11 @@ let ondate;
 					...tableoption,
 					height: $('#expenda i').hasClass('fa-chevron-up') ? "85vh" : (tableHeight > 0 ? tableHeight + "px" : "400px"),
 				});
+				
+				// 컬럼 헤더 우클릭 복사 기능 추가
+				setTimeout(() => {
+					addColumnHeaderCopyFeature();
+				}, 100);
 			}
 		});
 
@@ -476,6 +486,11 @@ let ondate;
 							return it
 					})
 				});
+				
+				// 컬럼 헤더 우클릭 복사 기능 추가
+				setTimeout(() => {
+					addColumnHeaderCopyFeature();
+				}, 100);
 				
 				// 결과 정보 표시
 				$("#result-text").text('total : ' + lastExecutionData.length + ' records, on ' + dateFormat2(ondate));
@@ -857,6 +872,9 @@ let ondate;
 					if ($("#newline").prop('checked')) {
 						$("#newline").trigger('change');
 					}
+					
+					// 컬럼 헤더 우클릭 복사 기능 추가
+					addColumnHeaderCopyFeature();
 				}, 100);
 
 				
@@ -1133,6 +1151,35 @@ let ondate;
 		if (limit.value == '') {
 			$(limit).val(0)
 		}
+	}
+	
+	// ========================================
+	// 컬럼 헤더 우클릭 시 텍스트 선택 기능 추가 함수
+	// ========================================
+	function addColumnHeaderCopyFeature() {
+		if (!table) {
+			return;
+		}
+		
+		// 기존 이벤트 리스너 제거 (중복 방지)
+		$("#result_table").off("mousedown", ".tabulator-col");
+		
+		// 컬럼 헤더 우클릭 감지를 위한 mousedown 이벤트 추가
+		$("#result_table").on("mousedown", ".tabulator-col", function(e) {
+			// 우클릭(버튼 2) 또는 컨텍스트 메뉴 키 감지
+			if (e.button === 2 || e.which === 3) {
+				var titleElement = $(this).find(".tabulator-col-content .tabulator-col-title");
+				
+				if (titleElement.length > 0) {
+					// 텍스트 선택
+					var range = document.createRange();
+					range.selectNodeContents(titleElement[0]);
+					var selection = window.getSelection();
+					selection.removeAllRanges();
+					selection.addRange(range);
+				}
+			}
+		});
 	}
 	
 </script>
