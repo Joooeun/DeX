@@ -398,11 +398,37 @@
             // chartId가 이미 chart_ 접두사를 가지고 있는지 확인
             var elementId = chartId.startsWith('chart_') ? chartId : 'chart_' + chartId;
             
+            // 차트 데이터 형식 검증
+            var validationResult = validateChartDataFormat(data);
+            if (!validationResult.isValid) {
+                // validation 실패 시 에러 차트로 변경
+                var existingChart = $('#' + elementId);
+                if (existingChart.length > 0) {
+                    var chartElement = existingChart.closest('.col-md-3');
+                    if (window.chartInstances && window.chartInstances[elementId]) {
+                        window.chartInstances[elementId].destroy();
+                        delete window.chartInstances[elementId];
+                    }
+                    chartElement.remove();
+                }
+                
+                // 에러 차트 생성
+                var chartsContainer = $('#dynamicChartsContainer');
+                var chartIndex = chartsContainer.find('.col-md-3').length;
+                var chartHtml = createErrorChartHtml(chartId, chartIndex, validationResult.message);
+                var $newErrorChart = $(chartHtml);
+                chartsContainer.append($newErrorChart);
+                return;
+            }
+            
             if (chartType === 'text') {
                 // 텍스트 차트 업데이트
                 var container = document.getElementById(elementId);
                 if (container) {
                     var chartData = parseChartData(data);
+                    if (chartData.error) {
+                        return; // 에러가 있으면 업데이트하지 않음
+                    }
                     var value = chartData.values[0];
                     var color = chartData.colors[0];
                     container.innerHTML = '<div class="text-center" style="padding: 20px;">' +
@@ -416,6 +442,9 @@
                 var chartInstance = window.chartInstances && window.chartInstances[elementId];
                 if (chartInstance) {
                     var chartData = parseChartData(data);
+                    if (chartData.error) {
+                        return; // 에러가 있으면 업데이트하지 않음
+                    }
                     
                     if (chartType === 'gauge') {
                         // 게이지 차트는 특별한 데이터 구조 사용
@@ -549,6 +578,47 @@
                         
                         // 새 에러 차트 생성
                         var chartHtml = createErrorChartHtml(chartId, chartIndex, data.error);
+                        var $newErrorChart = $(chartHtml);
+                        chartsContainer.append($newErrorChart);
+                        chartElementsInOrder.push($newErrorChart);
+                    }
+                    chartIndex++;
+                    return;
+                }
+                
+                // 차트 데이터 형식 검증
+                var validationResult = validateChartDataFormat(data);
+                if (!validationResult.isValid) {
+                    var existingErrorChart = $('#error_' + chartId);
+                    
+                    if (existingErrorChart.length > 0) {
+                        // 기존 에러 차트가 있으면 내용만 업데이트하고 순서에 추가
+                        var errorMessage = validationResult.message;
+                        var $boxBody = existingErrorChart.find('.box-body');
+                        $boxBody.css({
+                            'height': '249px',
+                            'align-items': 'top',
+                            'justify-content': 'center'
+                        });
+                        $boxBody.html(
+                            '<div class="alert alert-danger" style="margin: 0;line-break: anywhere;height: 100%;">' +
+                            '<i class="fa fa-exclamation-circle"></i> ' + errorMessage +
+                            '</div>'
+                        );
+                        chartElementsInOrder.push(existingErrorChart.closest('.col-md-3'));
+                    } else {
+                        // 기존 차트가 있으면 제거
+                        if (existingChart.length > 0) {
+                            var chartElement = existingChart.closest('.col-md-3');
+                            if (window.chartInstances && window.chartInstances[elementId]) {
+                                window.chartInstances[elementId].destroy();
+                                delete window.chartInstances[elementId];
+                            }
+                            chartElement.remove();
+                        }
+                        
+                        // 새 에러 차트 생성
+                        var chartHtml = createErrorChartHtml(chartId, chartIndex, validationResult.message);
                         var $newErrorChart = $(chartHtml);
                         chartsContainer.append($newErrorChart);
                         chartElementsInOrder.push($newErrorChart);
@@ -750,6 +820,10 @@
             }
             
             var chartData = parseChartData(data);
+            if (chartData.error) {
+                console.error('Chart data validation failed:', chartData.errorMessage);
+                return null;
+            }
             var chartInstance = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
@@ -824,6 +898,10 @@
             container.innerHTML = '';
             
             var chartData = parseChartData(data);
+            if (chartData.error) {
+                console.error('Chart data validation failed:', chartData.errorMessage);
+                return;
+            }
             var html = '<div class="text-center" style="padding: 20px;">';
             
             var value = chartData.values[0];
@@ -851,6 +929,10 @@
             }
             
             var chartData = parseChartData(data);
+            if (chartData.error) {
+                console.error('Chart data validation failed:', chartData.errorMessage);
+                return null;
+            }
             var value = chartData.values[0] || 0;
             
             var chartInstance = new Chart(ctx, {
@@ -918,6 +1000,10 @@
             }
             
             var chartData = parseChartData(data);
+            if (chartData.error) {
+                console.error('Chart data validation failed:', chartData.errorMessage);
+                return null;
+            }
             var chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -1005,8 +1091,11 @@
             // 데이터 형식 검증
             var validationResult = validateChartDataFormat(data);
             if (!validationResult.isValid) {
-                showToast(validationResult.templateId + "<br>" + validationResult.message, 'error');
-
+                // validation 실패 시 에러 정보 반환
+                return {
+                    error: true,
+                    errorMessage: validationResult.message
+                };
             }
             
             var labels = [];
