@@ -1093,6 +1093,8 @@
 			if (prevRow.length > 0) {
 				row.insertBefore(prevRow);
 				reorderParameters();
+				// 변경사항 표시
+				markTemplateChanged();
 			}
 		}
 
@@ -1102,6 +1104,8 @@
 			if (nextRow.length > 0) {
 				row.insertAfter(nextRow);
 				reorderParameters();
+				// 변경사항 표시
+				markTemplateChanged();
 			}
 		}
 
@@ -1121,6 +1125,20 @@
 					$('#parameterTableBody').find('[data-toggle="tooltip"]').tooltip({
 						placement: 'top',
 						trigger: 'hover'
+					});
+					
+					// 순서 변경 버튼 이벤트 리스너 추가
+					$('#parameterTableBody').find('.move-up').off('click').on('click', function () {
+						moveParameterUp($(this).closest('tr'));
+					});
+					
+					$('#parameterTableBody').find('.move-down').off('click').on('click', function () {
+						moveParameterDown($(this).closest('tr'));
+					});
+					
+					// 파라미터 이름 변경 시 자동완성 업데이트
+					$('#parameterTableBody').find('.parameter-name').off('input').on('input', function () {
+						updateAllEditorsCompleters();
 					});
 				}
 			});
