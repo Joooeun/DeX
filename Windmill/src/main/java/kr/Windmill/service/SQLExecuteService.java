@@ -1520,7 +1520,8 @@ public class SQLExecuteService {
 					// 정규식을 사용하여 정확한 매칭 (단어 경계 고려)
 					String paramPlaceholder = "\\$\\{" + Pattern.quote(title) + "\\}";
 					String paramValue = formatParameterValue(value, type);
-					processedSql = processedSql.replaceAll(paramPlaceholder, paramValue);
+					// Matcher.quoteReplacement()를 사용하여 $, \ 등의 특수문자를 리터럴로 처리
+					processedSql = processedSql.replaceAll(paramPlaceholder, Matcher.quoteReplacement(paramValue));
 				}
 			}
 

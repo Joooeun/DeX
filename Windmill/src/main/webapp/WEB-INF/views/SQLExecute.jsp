@@ -362,7 +362,7 @@ let ondate;
 					if (item.hozAlign === "right") {
 						return item;
 					}
-					return {...item, formatter : "textarea", width:undefined}
+					return {...item, formatter : "textarea"}
 				});
 				table = new Tabulator("#result_table", {
 					data: data,
@@ -470,9 +470,6 @@ let ondate;
 				// 저장된 데이터로 테이블 다시 생성
 				table = new Tabulator("#result_table", {
 					data: lastExecutionData,
-					columns: $("#newline").prop('checked') ? lastExecutionColumns.map((item)=>{
-						return {...item, width:undefined}
-					}):lastExecutionColumns,
 					...lastExecutionTableOption,
 					height: $('#expenda i').hasClass('fa-chevron-up') ? "85vh" : (tableHeight > 0 ? tableHeight + "px" : "400px"),
 				});
@@ -839,9 +836,7 @@ let ondate;
 				// Tabulator 테이블 생성
 			    table = new Tabulator("#result_table", {
 					data: data,
-					columns: $("#newline").prop('checked') ? column.map((item)=>{
-						return {...item, width:undefined}
-					}):column,
+					columns: column,
 					...tableoption,
 					height: $('#expenda i').hasClass('fa-chevron-up') ? "85vh" : (tableHeight > 0 ? tableHeight + "px" : "400px"),
 				});
