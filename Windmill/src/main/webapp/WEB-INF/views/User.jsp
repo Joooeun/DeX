@@ -616,7 +616,7 @@ function editUser(userId) {
         success: function(response) {
             if (response.success) {
                 var user = response.data;
-                $('#userModalTitle').text('사용자 수정');
+                $('#userModalTitle').text('사용자 관리');
                 $('#editUserId').val(user.USER_ID);
                 $('#userId').val(user.USER_ID).prop('readonly', true);
                 $('#userName').val(user.USER_NAME);
@@ -976,7 +976,7 @@ function editGroup(groupId) {
         success: function(response) {
             if (response.success) {
                 var group = response.data;
-                $('#groupModalTitle').text('그룹 수정');
+                $('#groupModalTitle').text('그룹 관리');
                 $('#editGroupId').val(group.GROUP_ID);
                 $('#groupName').val(group.GROUP_NAME);
                 $('#groupDescription').val(group.GROUP_DESCRIPTION);

@@ -469,7 +469,7 @@
 			success : function(response) {
 				if (response.success) {
 					var connection = response.data;
-					$('#connectionModalTitle').text('연결 수정');
+					$('#connectionModalTitle').text('연결 관리');
 					$('#editConnectionId').val(connectionId);
 
 					// 폼 필드 설정

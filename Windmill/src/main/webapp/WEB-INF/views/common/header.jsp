@@ -267,7 +267,7 @@ var changePW
 			{ text: 'Connection', href: '/Connection', icon: 'fa-database', type: 'admin' },
 			{ text: 'User', href: '/User', icon: 'fa-user', type: 'admin' },
 			{ text: 'SQL 템플릿 관리', href: '/SQLTemplate', icon: 'fa-code', type: 'admin' },
-			{ text: '환경설정', href: '/SystemConfig', icon: 'fa-cog', type: 'admin' },
+			{ text: '환경설정 관리', href: '/SystemConfig', icon: 'fa-cog', type: 'admin' },
 			{ text: 'FileRead', href: '/FileRead', icon: 'fa-file-text-o', type: 'all' },
 			{ text: 'FileUpload', href: '/FileUpload', icon: 'fa-file-text-o', type: 'all' }
 		];
@@ -861,7 +861,7 @@ var changePW
 				<!-- sidebar menu: : style can be found in sidebar.less -->
 				<ul class="sidebar-menu" data-widget="tree" id="tree">
 					<c:if test="${isAdmin}">
-						<li><a href="javascript:void(0)" onclick="addTemplateTab('systemconfig', '환경설정', '/SystemConfig')"> <i class="fa fa-cog"></i> <span>환경설정</span></a></li>
+						<li><a href="javascript:void(0)" onclick="addTemplateTab('systemconfig', '환경설정 관리', '/SystemConfig')"> <i class="fa fa-cog"></i> <span>환경설정 관리</span></a></li>
 						<li><a href="javascript:void(0)" onclick="addTemplateTab('connection', '연결 관리', '/Connection')"> <i class="fa fa-database"></i> <span>연결 관리</span></a></li>
 						<li><a href="javascript:void(0)" onclick="addTemplateTab('user', '사용자 관리', '/User')"> <i class="fa fa-user"></i> <span>사용자 관리</span></a></li>
 						<li><a href="javascript:void(0)" onclick="addTemplateTab('sqltemplate', 'SQL 템플릿 관리', '/SQLTemplate')"> <i class="fa fa-code"></i> <span>SQL 템플릿 관리</span></a></li>
