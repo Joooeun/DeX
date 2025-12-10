@@ -738,8 +738,8 @@ let ondate;
 										headerTooltip: resultData.rowhead[title].desc
 									}
 
-									if (resultData.rowhead[title].rowlength >= 50) {
-										culmnitem.width = 4 * resultData.rowhead[title].rowlength / 10 + 'vw';
+									if (resultData.rowlength[title] >= 50) {
+										culmnitem.width = 4 * resultData.rowlength[title] / 10 + 'vw';
 									}
 
 									
@@ -836,7 +836,7 @@ let ondate;
 				    }
 				}
 			    
-							    				// Tabulator 테이블 생성
+				// Tabulator 테이블 생성
 			    table = new Tabulator("#result_table", {
 					data: data,
 					columns: $("#newline").prop('checked') ? column.map((item)=>{
