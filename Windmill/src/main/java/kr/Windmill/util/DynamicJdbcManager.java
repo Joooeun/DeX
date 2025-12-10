@@ -415,7 +415,19 @@ public class DynamicJdbcManager implements Closeable {
 		Integer port = (Integer) connInfo.get("PORT");
 		String databaseName = (String) connInfo.get("DATABASE_NAME");
 		String username = (String) connInfo.get("USERNAME");
-		String password = (String) connInfo.get("PASSWORD");
+		String encryptedPassword = (String) connInfo.get("PASSWORD");
+		
+		// 패스워드 복호화 (평문 호환)
+		String password = decryptPassword(encryptedPassword);
+		
+		// 평문이면 암호화하여 저장 (자동 마이그레이션)
+		if (password != null && password.equals(encryptedPassword)) {
+			logger.info("평문 패스워드 발견, 자동 암호화 저장: {}", connectionId);
+			String newEncrypted = Crypto.crypt(password);
+			String updateSql = "UPDATE DATABASE_CONNECTION SET PASSWORD = ? WHERE CONNECTION_ID = ?";
+			jdbcTemplate.update(updateSql, newEncrypted, connectionId);
+		}
+		
 		String jdbcDriverFile = (String) connInfo.get("JDBC_DRIVER_FILE");
 
 		// JDBC URL 생성
@@ -470,9 +482,21 @@ public class DynamicJdbcManager implements Closeable {
 		String sql = "SELECT * FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ?";
 		Map<String, Object> connInfo = jdbcTemplate.queryForMap(sql, connectionId);
 
+		// 패스워드 복호화 (평문 호환)
+		String encryptedPassword = (String) connInfo.get("PASSWORD");
+		String password = decryptPassword(encryptedPassword);
+		
+		// 평문이면 암호화하여 저장 (자동 마이그레이션)
+		if (password != null && password.equals(encryptedPassword)) {
+			logger.info("평문 패스워드 발견, 자동 암호화 저장: {}", connectionId);
+			String newEncrypted = Crypto.crypt(password);
+			String updateSql = "UPDATE DATABASE_CONNECTION SET PASSWORD = ? WHERE CONNECTION_ID = ?";
+			jdbcTemplate.update(updateSql, newEncrypted, connectionId);
+		}
+
 		String jdbcUrl = createJdbcUrl((String) connInfo.get("DB_TYPE"), (String) connInfo.get("HOST_IP"), String.valueOf(connInfo.get("PORT")), (String) connInfo.get("DATABASE_NAME"));
 
-		Properties props = createConnectionProperties((String) connInfo.get("DB_TYPE"), (String) connInfo.get("USERNAME"), (String) connInfo.get("PASSWORD"));
+		Properties props = createConnectionProperties((String) connInfo.get("DB_TYPE"), (String) connInfo.get("USERNAME"), password);
 
 		return pool.borrow(jdbcUrl, props);
 	}
@@ -564,7 +588,7 @@ public class DynamicJdbcManager implements Closeable {
 		String sql = "SELECT * FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
 		Map<String, Object> connInfo = jdbcTemplate.queryForMap(sql, connectionId);
 		
-		// 새 풀 초기화
+		// 새 풀 초기화 (내부에서 패스워드 복호화 및 마이그레이션 처리)
 		initializePoolForConnection(connInfo);
 		logger.info("풀 재초기화 완료: {}", connectionId);
 	}
@@ -744,10 +768,27 @@ public class DynamicJdbcManager implements Closeable {
 
 	/**
 	 * 연결 ID로 연결 정보를 조회합니다.
+	 * 패스워드는 복호화되어 반환됩니다.
 	 */
 	private Map<String, Object> getConnectionInfo(String connectionId) {
 		String sql = "SELECT * FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
-		return jdbcTemplate.queryForMap(sql, connectionId);
+		Map<String, Object> connInfo = jdbcTemplate.queryForMap(sql, connectionId);
+		
+		// 패스워드 복호화 (평문 호환)
+		String encryptedPassword = (String) connInfo.get("PASSWORD");
+		String password = decryptPassword(encryptedPassword);
+		
+		// 평문이면 암호화하여 저장 (자동 마이그레이션)
+		if (password != null && password.equals(encryptedPassword)) {
+			logger.info("평문 패스워드 발견, 자동 암호화 저장: {}", connectionId);
+			String newEncrypted = Crypto.crypt(password);
+			String updateSql = "UPDATE DATABASE_CONNECTION SET PASSWORD = ? WHERE CONNECTION_ID = ?";
+			jdbcTemplate.update(updateSql, newEncrypted, connectionId);
+		}
+		
+		// 복호화된 패스워드로 교체
+		connInfo.put("PASSWORD", password);
+		return connInfo;
 	}
 
 	// JDBC URL 생성 메서드
@@ -777,6 +818,30 @@ public class DynamicJdbcManager implements Closeable {
 
 
 		return jdbcUrl;
+	}
+
+	/**
+	 * 패스워드를 복호화합니다. 평문인 경우 그대로 반환합니다 (기존 데이터 호환).
+	 * 
+	 * @param encryptedPassword 암호화된 패스워드 또는 평문 패스워드
+	 * @return 복호화된 패스워드 또는 평문 패스워드
+	 */
+	private String decryptPassword(String encryptedPassword) {
+		if (encryptedPassword == null || encryptedPassword.trim().isEmpty()) {
+			return encryptedPassword;
+		}
+		
+		try {
+			String decrypted = Crypto.deCrypt(encryptedPassword);
+			// 복호화 실패 시 빈 문자열이 반환되므로, 원본이 평문인 것으로 간주
+			if (decrypted == null || decrypted.isEmpty()) {
+				return encryptedPassword; // 평문으로 간주
+			}
+			return decrypted;
+		} catch (Exception e) {
+			logger.debug("패스워드 복호화 실패 (평문으로 간주): {}", e.getMessage());
+			return encryptedPassword; // 평문으로 간주
+		}
 	}
 
 	/**

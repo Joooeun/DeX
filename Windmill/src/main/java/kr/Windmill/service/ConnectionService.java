@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import kr.Windmill.dto.connection.ConnectionStatusDto;
 import kr.Windmill.util.Common;
+import kr.Windmill.util.Crypto;
 import kr.Windmill.util.DynamicJdbcManager;
 import kr.Windmill.util.Log;
 
@@ -579,9 +580,13 @@ public class ConnectionService {
 			String driver = com.getDriverByDbType(dbType);
 
 			// 연결 테스트는 항상 새로운 연결 정보로 생성 (캐시 사용 안함)
+			// 패스워드 복호화 (평문 호환)
+			String password = connConfig.get("PW");
+			String decryptedPassword = decryptPassword(password);
+			
 			String url = dynamicJdbcManager.createJdbcUrl(dbType, connConfig.get("IP"), connConfig.get("PORT"), connConfig.get("DB"));
 			// 공통 연결 속성 생성
-			Properties prop = dynamicJdbcManager.createConnectionProperties(dbType, connConfig.get("USER"), connConfig.get("PW"));
+			Properties prop = dynamicJdbcManager.createConnectionProperties(dbType, connConfig.get("USER"), decryptedPassword);
 
 			// 공통 JDBC 연결 메서드 사용
 			try {
@@ -682,7 +687,9 @@ public class ConnectionService {
 			String host = connConfig.get("IP");
 			int port = Integer.parseInt(connConfig.get("PORT"));
 			String username = connConfig.get("USER");
-			String password = connConfig.get("PW");
+			// 패스워드 복호화 (평문 호환)
+			String encryptedPassword = connConfig.get("PW");
+			String password = decryptPassword(encryptedPassword);
 
 			// JSch를 사용한 SFTP 연결 테스트
 			com.jcraft.jsch.JSch jsch = new com.jcraft.jsch.JSch();
@@ -773,6 +780,44 @@ public class ConnectionService {
 	public Map<String, String> extractDriverInfo(String driverFileName) {
 		return com.extractDriverInfo(driverFileName);
 	}
+
+	/**
+	 * 패스워드를 복호화합니다. 평문인 경우 그대로 반환합니다 (기존 데이터 호환).
+	 * 
+	 * @param encryptedPassword 암호화된 패스워드 또는 평문 패스워드
+	 * @return 복호화된 패스워드 또는 평문 패스워드
+	 */
+	private String decryptPassword(String encryptedPassword) {
+		if (encryptedPassword == null || encryptedPassword.trim().isEmpty()) {
+			return encryptedPassword;
+		}
+		
+		try {
+			String decrypted = Crypto.deCrypt(encryptedPassword);
+			// 복호화 실패 시 빈 문자열이 반환되므로, 원본이 평문인 것으로 간주
+			if (decrypted == null || decrypted.isEmpty()) {
+				return encryptedPassword; // 평문으로 간주
+			}
+			return decrypted;
+		} catch (Exception e) {
+			logger.debug("패스워드 복호화 실패 (평문으로 간주): {}", e.getMessage());
+			return encryptedPassword; // 평문으로 간주
+		}
+	}
+
+	/**
+	 * 패스워드를 암호화합니다.
+	 * 
+	 * @param plainPassword 평문 패스워드
+	 * @return 암호화된 패스워드
+	 */
+	private String encryptPassword(String plainPassword) {
+		if (plainPassword == null || plainPassword.trim().isEmpty()) {
+			return plainPassword;
+		}
+		return Crypto.crypt(plainPassword);
+	}
+
 
 	/**
 	 * 연결 캐시에서 특정 연결을 제거합니다.
@@ -1010,11 +1055,49 @@ public class ConnectionService {
 		if ("DB".equals(connectionType)) {
 			String sql = "SELECT * FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ?";
 			List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, connectionId);
-			return result.isEmpty() ? null : result.get(0);
+			if (result.isEmpty()) {
+				return null;
+			}
+			Map<String, Object> detail = result.get(0);
+			
+			// 패스워드 복호화 및 자동 마이그레이션
+			String password = (String) detail.get("PASSWORD");
+			if (password != null && !password.trim().isEmpty()) {
+				String decrypted = decryptPassword(password);
+				// 평문이면 암호화하여 저장
+				if (decrypted.equals(password)) {
+					logger.info("평문 패스워드 발견, 자동 암호화 저장: {} (DB)", connectionId);
+					String encrypted = encryptPassword(password);
+					String updateSql = "UPDATE DATABASE_CONNECTION SET PASSWORD = ? WHERE CONNECTION_ID = ?";
+					jdbcTemplate.update(updateSql, encrypted, connectionId);
+				}
+				// 상세 조회 시에는 패스워드를 반환하지 않음 (보안)
+				detail.remove("PASSWORD");
+			}
+			return detail;
 		} else {
 			String sql = "SELECT SFTP_CONNECTION_ID AS CONNECTION_ID, HOST_IP, PORT, USERNAME, PASSWORD, STATUS, CREATED_BY, CREATED_TIMESTAMP, MODIFIED_BY, MODIFIED_TIMESTAMP FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ?";
 			List<Map<String, Object>> result = jdbcTemplate.queryForList(sql, connectionId);
-			return result.isEmpty() ? null : result.get(0);
+			if (result.isEmpty()) {
+				return null;
+			}
+			Map<String, Object> detail = result.get(0);
+			
+			// 패스워드 복호화 및 자동 마이그레이션
+			String password = (String) detail.get("PASSWORD");
+			if (password != null && !password.trim().isEmpty()) {
+				String decrypted = decryptPassword(password);
+				// 평문이면 암호화하여 저장
+				if (decrypted.equals(password)) {
+					logger.info("평문 패스워드 발견, 자동 암호화 저장: {} (SFTP)", connectionId);
+					String encrypted = encryptPassword(password);
+					String updateSql = "UPDATE SFTP_CONNECTION SET PASSWORD = ? WHERE SFTP_CONNECTION_ID = ?";
+					jdbcTemplate.update(updateSql, encrypted, connectionId);
+				}
+				// 상세 조회 시에는 패스워드를 반환하지 않음 (보안)
+				detail.remove("PASSWORD");
+			}
+			return detail;
 		}
 	}
 
@@ -1091,6 +1174,10 @@ public class ConnectionService {
 
 		if (isNew) {
 			// 새 연결 생성
+			// 패스워드 암호화
+			String password = (String) connectionData.get("PASSWORD");
+			String encryptedPassword = encryptPassword(password);
+			
 			String sql = "INSERT INTO DATABASE_CONNECTION (CONNECTION_ID, DB_TYPE, HOST_IP, PORT, "
 					+ "DATABASE_NAME, USERNAME, PASSWORD, JDBC_DRIVER_FILE, CONNECTION_POOL_SETTINGS, "
 					+ "CONNECTION_TIMEOUT, QUERY_TIMEOUT, MAX_POOL_SIZE, MIN_POOL_SIZE, STATUS, "
@@ -1098,7 +1185,7 @@ public class ConnectionService {
 					+ "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
 			jdbcTemplate.update(sql, connectionData.get("CONNECTION_ID"), connectionData.get("DB_TYPE"), connectionData.get("HOST_IP"), connectionData.get("PORT"),
-					connectionData.get("DATABASE_NAME"), connectionData.get("USERNAME"), connectionData.get("PASSWORD"),
+					connectionData.get("DATABASE_NAME"), connectionData.get("USERNAME"), encryptedPassword,
 					connectionData.get("JDBC_DRIVER_FILE"), connectionData.get("CONNECTION_POOL_SETTINGS"), connectionData.get("CONNECTION_TIMEOUT"),
 					connectionData.get("QUERY_TIMEOUT"), connectionData.get("MAX_POOL_SIZE"), connectionData.get("MIN_POOL_SIZE"), 
 					connectionData.get("STATUS"), connectionData.get("MONITORING_ENABLED"), connectionData.get("MONITORING_INTERVAL"), 
@@ -1120,6 +1207,10 @@ public class ConnectionService {
 			String targetConnectionId = connectionIdChanged ? newConnectionId : connectionId;
 			
 			// 기존 연결 수정
+			// 패스워드 암호화 (패스워드가 제공된 경우에만)
+			String password = (String) connectionData.get("PASSWORD");
+			String encryptedPassword = password != null && !password.trim().isEmpty() ? encryptPassword(password) : null;
+			
 			String sql = "UPDATE DATABASE_CONNECTION SET CONNECTION_ID = ?, DB_TYPE = ?, HOST_IP = ?, PORT = ?, "
 					+ "DATABASE_NAME = ?, USERNAME = ?, PASSWORD = ?, JDBC_DRIVER_FILE = ?, "
 					+ "CONNECTION_POOL_SETTINGS = ?, CONNECTION_TIMEOUT = ?, QUERY_TIMEOUT = ?, "
@@ -1127,7 +1218,7 @@ public class ConnectionService {
 					+ "MONITORING_INTERVAL = ?, TEST_SQL = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " + "WHERE CONNECTION_ID = ?";
 
 			jdbcTemplate.update(sql, connectionData.get("CONNECTION_ID"), connectionData.get("DB_TYPE"), connectionData.get("HOST_IP"), connectionData.get("PORT"),
-					connectionData.get("DATABASE_NAME"), connectionData.get("USERNAME"), connectionData.get("PASSWORD"),
+					connectionData.get("DATABASE_NAME"), connectionData.get("USERNAME"), encryptedPassword != null ? encryptedPassword : connectionData.get("PASSWORD"),
 					connectionData.get("JDBC_DRIVER_FILE"), connectionData.get("CONNECTION_POOL_SETTINGS"), connectionData.get("CONNECTION_TIMEOUT"),
 					connectionData.get("QUERY_TIMEOUT"), connectionData.get("MAX_POOL_SIZE"), connectionData.get("MIN_POOL_SIZE"), 
 					connectionData.get("STATUS"), connectionData.get("MONITORING_ENABLED"), connectionData.get("MONITORING_INTERVAL"), 
@@ -1390,18 +1481,27 @@ public class ConnectionService {
 				connectionId = "SFTP_" + System.currentTimeMillis();
 			}
 			connectionData.put("CONNECTION_ID", connectionId); // ID를 connectionData에 설정
+			
+			// 패스워드 암호화
+			String password = (String) connectionData.get("PASSWORD");
+			String encryptedPassword = encryptPassword(password);
+			
 			String sql = "INSERT INTO SFTP_CONNECTION (SFTP_CONNECTION_ID, HOST_IP, PORT, "
 					+ "USERNAME, PASSWORD, STATUS, CREATED_BY) " + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
 			jdbcTemplate.update(sql, connectionId, connectionData.get("HOST_IP"), connectionData.get("PORT"), connectionData.get("USERNAME"),
-					connectionData.get("PASSWORD"), connectionData.get("STATUS"), userId);
+					encryptedPassword, connectionData.get("STATUS"), userId);
 		} else {
 			// 기존 연결 수정 - editConnectionId 사용
+			// 패스워드 암호화 (패스워드가 제공된 경우에만)
+			String password = (String) connectionData.get("PASSWORD");
+			String encryptedPassword = password != null && !password.trim().isEmpty() ? encryptPassword(password) : null;
+			
 			String sql = "UPDATE SFTP_CONNECTION SET SFTP_CONNECTION_ID = ?, HOST_IP = ?, PORT = ?, " + "USERNAME = ?, PASSWORD = ?, STATUS = ?, "
 					+ "MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " + "WHERE SFTP_CONNECTION_ID = ?";
 
 			jdbcTemplate.update(sql, connectionId, connectionData.get("HOST_IP"), connectionData.get("PORT"), connectionData.get("USERNAME"),
-					connectionData.get("PASSWORD"), connectionData.get("STATUS"), userId, editConnectionId);
+					encryptedPassword != null ? encryptedPassword : connectionData.get("PASSWORD"), connectionData.get("STATUS"), userId, editConnectionId);
 		}
 
 		return true;

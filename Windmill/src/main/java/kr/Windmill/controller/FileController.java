@@ -34,6 +34,7 @@ import com.jcraft.jsch.Session;
 
 import kr.Windmill.service.PermissionService;
 import kr.Windmill.util.Common;
+import kr.Windmill.util.Crypto;
 import kr.Windmill.util.Log;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -102,10 +103,22 @@ public class FileController {
 			String sql = "SELECT * FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
 			Map<String, Object> connInfo = jdbcTemplate.queryForMap(sql, connectionId);
 			
+			// 패스워드 복호화 (평문 호환)
+			String encryptedPassword = (String) connInfo.get("PASSWORD");
+			String password = decryptPassword(encryptedPassword);
+			
+			// 평문이면 암호화하여 저장 (자동 마이그레이션)
+			if (password != null && password.equals(encryptedPassword)) {
+				logger.info("평문 패스워드 발견, 자동 암호화 저장: {} (SFTP)", connectionId);
+				String newEncrypted = Crypto.crypt(password);
+				String updateSql = "UPDATE SFTP_CONNECTION SET PASSWORD = ? WHERE SFTP_CONNECTION_ID = ?";
+				jdbcTemplate.update(updateSql, newEncrypted, connectionId);
+			}
+			
 			map.put("USER", (String) connInfo.get("USERNAME"));
 			map.put("IP", (String) connInfo.get("HOST_IP"));
 			map.put("PORT", String.valueOf(connInfo.get("PORT")));
-			map.put("PW", (String) connInfo.get("PASSWORD"));
+			map.put("PW", password); // 복호화된 패스워드 사용
 			
 			logger.debug("SFTP 연결 정보 조회 성공 - IP: {}, PORT: {}", map.get("IP"), map.get("PORT"));
 		} catch (Exception e) {
@@ -220,6 +233,30 @@ public class FileController {
 		return "done";
 	}
 
+	/**
+	 * 패스워드를 복호화합니다. 평문인 경우 그대로 반환합니다 (기존 데이터 호환).
+	 * 
+	 * @param encryptedPassword 암호화된 패스워드 또는 평문 패스워드
+	 * @return 복호화된 패스워드 또는 평문 패스워드
+	 */
+	private String decryptPassword(String encryptedPassword) {
+		if (encryptedPassword == null || encryptedPassword.trim().isEmpty()) {
+			return encryptedPassword;
+		}
+		
+		try {
+			String decrypted = Crypto.deCrypt(encryptedPassword);
+			// 복호화 실패 시 빈 문자열이 반환되므로, 원본이 평문인 것으로 간주
+			if (decrypted == null || decrypted.isEmpty()) {
+				return encryptedPassword; // 평문으로 간주
+			}
+			return decrypted;
+		} catch (Exception e) {
+			logger.debug("패스워드 복호화 실패 (평문으로 간주): {}", e.getMessage());
+			return encryptedPassword; // 평문으로 간주
+		}
+	}
+
 	@ResponseBody
 	@RequestMapping(path = "/FILE/uploadfile")
 	public String uploadfile(HttpServletRequest request, Model model, HttpSession session1) throws ClassNotFoundException, JSchException, IOException {
@@ -254,10 +291,22 @@ public class FileController {
 			String sql = "SELECT * FROM SFTP_CONNECTION WHERE SFTP_CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
 			Map<String, Object> connInfo = jdbcTemplate.queryForMap(sql, connectionId);
 			
+			// 패스워드 복호화 (평문 호환)
+			String encryptedPassword = (String) connInfo.get("PASSWORD");
+			String password = decryptPassword(encryptedPassword);
+			
+			// 평문이면 암호화하여 저장 (자동 마이그레이션)
+			if (password != null && password.equals(encryptedPassword)) {
+				logger.info("평문 패스워드 발견, 자동 암호화 저장: {} (SFTP)", connectionId);
+				String newEncrypted = Crypto.crypt(password);
+				String updateSql = "UPDATE SFTP_CONNECTION SET PASSWORD = ? WHERE SFTP_CONNECTION_ID = ?";
+				jdbcTemplate.update(updateSql, newEncrypted, connectionId);
+			}
+			
 			map.put("USER", (String) connInfo.get("USERNAME"));
 			map.put("IP", (String) connInfo.get("HOST_IP"));
 			map.put("PORT", String.valueOf(connInfo.get("PORT")));
-			map.put("PW", (String) connInfo.get("PASSWORD"));
+			map.put("PW", password); // 복호화된 패스워드 사용
 			
 			logger.debug("SFTP 연결 정보 조회 성공 - IP: {}, PORT: {}", map.get("IP"), map.get("PORT"));
 		} catch (Exception e) {
