@@ -102,6 +102,77 @@ public class SQLExecuteService {
 		return mapping;
 	}
 
+	/**
+	 * 연결 ID로 DB 타입을 조회합니다.
+	 * @param connectionId 연결 ID
+	 * @return DB 타입 (예: "POSTGRESQL", "ORACLE", "DB2" 등), 조회 실패 시 null
+	 */
+	private String getDbType(String connectionId) {
+		if (connectionId == null || connectionId.trim().isEmpty()) {
+			return null;
+		}
+		try {
+			String sql = "SELECT DB_TYPE FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
+			return jdbcTemplate.queryForObject(sql, String.class, connectionId);
+		} catch (Exception e) {
+			logger.debug("DB_TYPE 조회 실패: {} - {}", connectionId, e.getMessage());
+			return null;
+		}
+	}
+
+	/**
+	 * 메타데이터 조회를 스킵해야 하는지 판단합니다.
+	 * 1. 모니터링 조회인 경우 (skipMetadata 플래그가 true)
+	 * 2. PostgreSQL인 경우
+	 * @param executeDto SQL 실행 DTO
+	 * @return true면 getColumns() 호출을 스킵해야 함
+	 */
+	private boolean shouldSkipMetadata(SqlTemplateExecuteDto executeDto) {
+		if (executeDto == null) {
+			return false;
+		}
+		
+		// 모니터링 플래그 확인
+		if (executeDto.getSkipMetadata() != null && executeDto.getSkipMetadata()) {
+			return true;
+		}
+		
+		// PostgreSQL 체크
+		try {
+			String dbType = getDbType(executeDto.getConnectionId());
+			if (dbType != null && "POSTGRESQL".equalsIgnoreCase(dbType)) {
+				return true;
+			}
+		} catch (Exception e) {
+			logger.debug("DB 타입 확인 실패, 기존 동작 유지: {}", e.getMessage());
+		}
+		
+		return false;
+	}
+
+	/**
+	 * LogInfoDto를 사용하는 경우의 메타데이터 스킵 판단 (레거시 메서드용)
+	 * @param connectionId 연결 ID
+	 * @return true면 getColumns() 호출을 스킵해야 함
+	 */
+	private boolean shouldSkipMetadataForLegacy(String connectionId) {
+		if (connectionId == null || connectionId.trim().isEmpty()) {
+			return false;
+		}
+		
+		// PostgreSQL 체크
+		try {
+			String dbType = getDbType(connectionId);
+			if (dbType != null && "POSTGRESQL".equalsIgnoreCase(dbType)) {
+				return true;
+			}
+		} catch (Exception e) {
+			logger.debug("DB 타입 확인 실패, 기존 동작 유지: {}", e.getMessage());
+		}
+		
+		return false;
+	}
+
 	public Map<String, List> excutequery(String sql, LogInfoDto data, int limit, List<Map<String, String>> mapping) throws SQLException, Exception {
 		Connection con = null;
 		PreparedStatement pstmt = null;
@@ -142,17 +213,27 @@ public class SQLExecuteService {
 			List<Integer> rowlength = new ArrayList<>();
 			String column;
 
+			// 메타데이터 조회 스킵 여부 확인 (PostgreSQL 최적화)
+			boolean skipMetadata = shouldSkipMetadataForLegacy(data.getConnectionId());
+
 			for (int index = 0; index < colcnt; index++) {
 
 				Map head = new HashMap();
 
-				ResultSet resultSet = con.getMetaData().getColumns(null, rsmd.getSchemaName(index + 1), rsmd.getTableName(index + 1), rsmd.getColumnName(index + 1));
-
 				String desc = rsmd.getColumnTypeName(index + 1) + "(" + rsmd.getColumnDisplaySize(index + 1) + ")";
 
-				if (resultSet.next()) {
-					String REMARKS = resultSet.getString("REMARKS") == null ? "" : "\n" + resultSet.getString("REMARKS");
-					desc += REMARKS;
+				// 메타데이터 조회 스킵하지 않는 경우에만 REMARKS 조회
+				if (!skipMetadata) {
+					try (ResultSet resultSet = con.getMetaData().getColumns(null, rsmd.getSchemaName(index + 1), rsmd.getTableName(index + 1), rsmd.getColumnName(index + 1))) {
+						if (resultSet.next()) {
+							String REMARKS = resultSet.getString("REMARKS");
+							if (REMARKS != null && !REMARKS.trim().isEmpty()) {
+								desc += "\n" + REMARKS;
+							}
+						}
+					} catch (Exception e) {
+						logger.debug("컬럼 메타데이터 조회 실패, REMARKS 없이 진행: {}", e.getMessage());
+					}
 				}
 
 				head.put("title", rsmd.getColumnLabel(index + 1));
@@ -1119,6 +1200,9 @@ public class SQLExecuteService {
 			List<Map<String, Object>> rowhead = new ArrayList<>();
 			List<Integer> rowlength = new ArrayList<>();
 			
+			// 메타데이터 조회 스킵 여부 확인 (모니터링/PostgreSQL 최적화)
+			boolean skipMetadata = shouldSkipMetadata(executeDto);
+			
 			for (int i = 0; i < colCount; i++) {
 				Map<String, Object> head = new HashMap<>();
 				head.put("title", rsmd.getColumnLabel(i + 1));
@@ -1126,15 +1210,22 @@ public class SQLExecuteService {
 				
 				// 컬럼 설명 정보 조회
 				String desc = rsmd.getColumnTypeName(i + 1) + "(" + rsmd.getColumnDisplaySize(i + 1) + ")";
-				try (ResultSet colRs = con.getMetaData().getColumns(null, rsmd.getSchemaName(i + 1), 
-						rsmd.getTableName(i + 1), rsmd.getColumnName(i + 1))) {
-					if (colRs.next()) {
-						String remarks = colRs.getString("REMARKS");
-						if (remarks != null && !remarks.trim().isEmpty()) {
-							desc += "\n" + remarks;
+				
+				// 메타데이터 조회 스킵하지 않는 경우에만 REMARKS 조회
+				if (!skipMetadata) {
+					try (ResultSet colRs = con.getMetaData().getColumns(null, rsmd.getSchemaName(i + 1), 
+							rsmd.getTableName(i + 1), rsmd.getColumnName(i + 1))) {
+						if (colRs.next()) {
+							String remarks = colRs.getString("REMARKS");
+							if (remarks != null && !remarks.trim().isEmpty()) {
+								desc += "\n" + remarks;
+							}
 						}
+					} catch (Exception e) {
+						logger.debug("컬럼 메타데이터 조회 실패, REMARKS 없이 진행: {}", e.getMessage());
 					}
 				}
+				
 				head.put("desc", desc);
 				
 				rowhead.add(head);

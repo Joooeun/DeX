@@ -301,6 +301,7 @@ public class DashboardSchedulerService {
             executeDto.setTemplateId(templateId);
             executeDto.setConnectionId(connectionId);
             executeDto.setLimit(1000);
+            executeDto.setSkipMetadata(true);  // 모니터링 조회 시 메타데이터 조회 스킵
             
             @SuppressWarnings("rawtypes")
             Map<String, List> sqlResult = sqlExecuteService.executeTemplateSQL(executeDto);
