@@ -203,7 +203,6 @@ public class DashboardSchedulerService {
             
             // 연결된 DB가 없으면 조회 시도하지 않음
             if (connectionIds.isEmpty()) {
-                System.out.println("⚠️ " + chartId + " 연결된 DB가 없어 조회를 건너뜁니다.");
                 return;
             }
             

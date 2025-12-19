@@ -48,9 +48,9 @@
 
 				parent.append(folder);
 			} else if (list.type === 'sql') {
-				// SQL 템플릿인 경우
-				var childItem = $('<li><a href="/SQL?templateId='
-						+ list.templateId + '" target="iframe" id="'
+				// SQL 템플릿인 경우 - 사이드 메뉴와 동일하게 addTemplateTab 사용
+				var href = "/Template/execute?templateId=" + list.templateId;
+				var childItem = $('<li><a href="javascript:void(0)" onclick="parent.addTemplateTab(\'' + list.templateId + '\', \'' + list.Name.split('.')[0] + '\', \'' + href + '\')" id="'
 						+ list.Name.split('.')[0] + '">'
 						+ list.Name.split('.')[0] + '</a></li>');
 				parent.append(childItem);

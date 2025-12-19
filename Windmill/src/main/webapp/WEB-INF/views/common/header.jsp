@@ -553,8 +553,9 @@ var changePW
 		initDashboardTab: function() {
 			addTemplateTab('home', '<i class="fa fa-home"></i>', '/index2');
 			
-			var isAdmin = '${isAdmin}' === 'true';
-			if (isAdmin) {
+			// 대시보드 메뉴 접근 권한 확인
+			var hasDashboardPermission = '${hasDashboardPermission}' === 'true';
+			if (hasDashboardPermission) {
 				addTemplateTab('dashboard', '대시보드', '/Dashboard');
 			}
 		}
@@ -887,19 +888,9 @@ var changePW
 			<ul id="pageTab" class="nav nav-tabs">
 			</ul>
 			<div id="pageTabContent" class="tab-content">
-				<c:if test="${isAdmin}">
-					<div class="tab-pane" id="home">
-						<iframe name="iframe_home" id="iframe_home" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/index2"></iframe>
-					</div>
-					<div class="tab-pane active" id="dashboard">
-						<iframe name="iframe_dashboard" id="iframe_dashboard" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/Dashboard"></iframe>
-					</div>
-				</c:if>
-				<c:if test="${!isAdmin}">
-					<div class="tab-pane active" id="page1">
-						<iframe name="iframe_home" id="iframe_home" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/index2"></iframe>
-					</div>
-				</c:if>
+				<div class="tab-pane active" id="page1">
+					<iframe name="iframe_home" id="iframe_home" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/index2"></iframe>
+				</div>
 				<div class="tab-pane" id="newpage">
 					<iframe name="iframe" id="iframe" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;"></iframe>
 				</div>

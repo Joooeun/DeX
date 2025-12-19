@@ -432,7 +432,7 @@
                     var value = chartData.values[0];
                     var color = chartData.colors[0];
                     container.innerHTML = '<div class="text-center" style="padding: 20px;">' +
-                        '<div style="margin: 10px 0; font-size: 96px;">' +
+                        '<div style="margin: 10px 0; font-size: 96px; cursor: pointer;" onclick="handleChartElementClick(\'' + elementId + '\', null)">' +
                         '<span style="color: ' + color + '; font-weight: bold;">' + value + '</span> ' +
                         '</div>' +
                         '</div>';
