@@ -771,18 +771,47 @@ var changePW
 				}
 			});
 			
-			// 드롭다운 메뉴 닫기
-			$('.dropdown-toggle').dropdown('hide');
+			// 드롭다운 메뉴 닫기 (안전하게 처리)
+			try {
+				// 부모 창의 dropdown이 있는 경우 (iframe 내부에서 호출되는 경우)
+				if (window.parent && window.parent !== window) {
+					var parentDropdown = window.parent.$('.dropdown-toggle');
+					if (parentDropdown.length > 0 && typeof parentDropdown.dropdown === 'function') {
+						parentDropdown.dropdown('hide');
+					}
+				} else {
+					// 현재 창의 dropdown
+					var dropdownToggle = $('.dropdown-toggle');
+					if (dropdownToggle.length > 0 && typeof dropdownToggle.dropdown === 'function') {
+						dropdownToggle.dropdown('hide');
+					}
+				}
+			} catch (e) {
+				// 드롭다운 닫기 실패 시 무시 (iframe 내부에서 호출되는 경우 등)
+				console.debug('드롭다운 닫기 실패:', e);
+			}
 		}
 		
 		// 드롭다운 버튼 텍스트 업데이트 함수
 		function updateFontDropdownText(fontFamily) {
-			var dropdownToggle = $('.dropdown-toggle');
-			var currentText = dropdownToggle.html();
-			
-			// 기존 아이콘과 caret은 유지하고 텍스트만 변경
-			var newText = '<i class="fa fa-font"></i> ' + fontFamily + ' <span class="caret"></span>';
-			dropdownToggle.html(newText);
+			try {
+				// 부모 창의 dropdown이 있는 경우 (iframe 내부에서 호출되는 경우)
+				var dropdownToggle;
+				if (window.parent && window.parent !== window) {
+					dropdownToggle = window.parent.$('.dropdown-toggle');
+				} else {
+					dropdownToggle = $('.dropdown-toggle');
+				}
+				
+				if (dropdownToggle.length > 0) {
+					// 기존 아이콘과 caret은 유지하고 텍스트만 변경
+					var newText = '<i class="fa fa-font"></i> ' + fontFamily + ' <span class="caret"></span>';
+					dropdownToggle.html(newText);
+				}
+			} catch (e) {
+				// 드롭다운 텍스트 업데이트 실패 시 무시
+				console.debug('드롭다운 텍스트 업데이트 실패:', e);
+			}
 		}
 		
 		// 페이지 로드 시 저장된 글꼴 복원

@@ -17,7 +17,7 @@
                         <h3 class="box-title">연결 목록</h3>
                        
                         <div class="row" style="margin-top: 10px;">
-							<div class="col-sm-3">
+							<div class="col-sm-2">
 								<div class="input-group input-group-sm">
 									<input type="text" class="form-control" id="searchKeyword"
 										placeholder="연결명 또는 IP로 검색..."> <span
@@ -29,7 +29,7 @@
 									</span>
 								</div>
 							</div>
-							<div class="col-sm-3">
+							<div class="col-sm-2">
 								<div class="input-group input-group-sm">
 									<span class="input-group-addon">타입</span> <select
 										class="form-control" id="typeFilter"
@@ -37,6 +37,20 @@
 										<option value="">전체</option>
 										<option value="DB">DB</option>
 										<option value="HOST">HOST</option>
+									</select>
+								</div>
+							</div>
+							<div class="col-sm-2">
+								<div class="input-group input-group-sm">
+									<span class="input-group-addon">DB 타입</span> <select
+										class="form-control" id="dbTypeFilter"
+										onchange="filterByDbType()">
+										<option value="">전체</option>
+										<option value="ORACLE">Oracle</option>
+										<option value="POSTGRESQL">PostgreSQL</option>
+										<option value="DB2">DB2</option>
+										<option value="MYSQL">MySQL</option>
+										<option value="TIBERO">Tibero</option>
 									</select>
 								</div>
 							</div>
@@ -274,6 +288,7 @@
 
 		var searchKeyword = $('#searchKeyword').val();
 		var typeFilter = $('#typeFilter').val();
+		var dbTypeFilter = $('#dbTypeFilter').val();
 
 		$.ajax({
 			url : '/Connection/list',
@@ -281,6 +296,7 @@
 			data : {
 				searchKeyword : searchKeyword,
 				typeFilter : typeFilter,
+				dbTypeFilter : dbTypeFilter,
 				page : currentPage,
 				pageSize : 10
 			},
@@ -310,6 +326,7 @@
 							+ '</td>'
 							+ '<td>'
 							+ getTypeBadge(connection.TYPE)
+							+ "&nbsp;"+connection.DB_TYPE_NAME
 							+ '</td>'
 							+ '<td>'
 							+ connection.HOST_IP
@@ -388,6 +405,12 @@
 
 	// 타입별 필터링
 	function filterByType() {
+		currentPage = 1;
+		loadConnectionTable();
+	}
+
+	// DB 타입 필터 적용
+	function filterByDbType() {
 		currentPage = 1;
 		loadConnectionTable();
 	}

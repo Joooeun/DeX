@@ -865,12 +865,13 @@ public class ConnectionService {
 	 * 
 	 * @param userId        사용자 ID
 	 * @param searchKeyword 검색 키워드
-	 * @param typeFilter    타입 필터
+	 * @param typeFilter    타입 필터 (DB/HOST)
+	 * @param dbTypeFilter  DB 타입 필터 (ORACLE, POSTGRESQL, DB2, MYSQL, TIBERO)
 	 * @param page          현재 페이지
 	 * @param pageSize      페이지 크기
 	 * @return 연결 목록과 페이징 정보
 	 */
-	public Map<String, Object> getConnectionListWithPagination(String userId, String searchKeyword, String typeFilter, int page, int pageSize) {
+	public Map<String, Object> getConnectionListWithPagination(String userId, String searchKeyword, String typeFilter, String dbTypeFilter, int page, int pageSize) {
 		Map<String, Object> result = new HashMap<>();
 
 		try {
@@ -878,7 +879,7 @@ public class ConnectionService {
 			List<Map<String, Object>> allConnections = getAllConnections(userId);
 
 			// 검색 및 필터링 적용
-			List<Map<String, Object>> filteredConnections = filterConnections(allConnections, searchKeyword, typeFilter);
+			List<Map<String, Object>> filteredConnections = filterConnections(allConnections, searchKeyword, typeFilter, dbTypeFilter);
 
 			// 페이징 계산
 			int totalCount = filteredConnections.size();
@@ -890,6 +891,16 @@ public class ConnectionService {
 			List<Map<String, Object>> pageData = new ArrayList<>();
 			if (startIndex < totalCount) {
 				pageData = filteredConnections.subList(startIndex, endIndex);
+			}
+
+			// DB 타입 이름 추가 (DB 연결에만)
+			for (Map<String, Object> conn : pageData) {
+				if ("DB".equals(conn.get("TYPE"))) {
+					String dbType = (String) conn.get("DB_TYPE");
+					conn.put("DB_TYPE_NAME", getDbTypeName(dbType));
+				} else {
+					conn.put("DB_TYPE_NAME", "-");
+				}
 			}
 
 			// 페이징 정보 구성
@@ -918,11 +929,25 @@ public class ConnectionService {
 	 * 
 	 * @param connections   전체 연결 목록
 	 * @param searchKeyword 검색 키워드
-	 * @param typeFilter    타입 필터
+	 * @param typeFilter    타입 필터 (DB/HOST)
+	 * @param dbTypeFilter DB 타입 필터 (ORACLE, POSTGRESQL, DB2, MYSQL, TIBERO)
 	 * @return 필터링된 연결 목록
 	 */
-	private List<Map<String, Object>> filterConnections(List<Map<String, Object>> connections, String searchKeyword, String typeFilter) {
+	private List<Map<String, Object>> filterConnections(List<Map<String, Object>> connections, String searchKeyword, String typeFilter, String dbTypeFilter) {
 		return connections.stream().filter(conn -> {
+			// DB 타입 필터가 있으면 HOST 연결은 제외
+			if (dbTypeFilter != null && !dbTypeFilter.isEmpty()) {
+				String type = (String) conn.get("TYPE");
+				if (!"DB".equals(type)) {
+					return false; // DB 타입 필터가 있으면 HOST 연결은 제외
+				}
+				// DB 타입 필터 적용
+				String dbType = (String) conn.get("DB_TYPE");
+				if (dbType == null || !dbTypeFilter.equalsIgnoreCase(dbType)) {
+					return false;
+				}
+			}
+
 			// 타입 필터 적용
 			if (typeFilter != null && !typeFilter.isEmpty()) {
 				String type = (String) conn.get("TYPE");
@@ -946,6 +971,33 @@ public class ConnectionService {
 
 			return true;
 		}).collect(Collectors.toList());
+	}
+	
+	/**
+	 * DB 타입 코드를 읽기 쉬운 이름으로 변환합니다.
+	 * 
+	 * @param dbType DB 타입 코드
+	 * @return DB 타입 이름
+	 */
+	private String getDbTypeName(String dbType) {
+		if (dbType == null || dbType.trim().isEmpty()) {
+			return "-";
+		}
+		
+		switch (dbType.toUpperCase()) {
+			case "ORACLE":
+				return "Oracle";
+			case "POSTGRESQL":
+				return "PostgreSQL";
+			case "DB2":
+				return "DB2";
+			case "MYSQL":
+				return "MySQL";
+			case "TIBERO":
+				return "Tibero";
+			default:
+				return dbType;
+		}
 	}
 
 	/**

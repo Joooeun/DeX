@@ -105,10 +105,11 @@ public class ConnectionController {
 				// 관리화면에서 사용: 모든 연결 목록 (페이징 포함)
 				String searchKeyword = request.getParameter("searchKeyword");
 				String typeFilter = request.getParameter("typeFilter");
+				String dbTypeFilter = request.getParameter("dbTypeFilter");
 				int page = Integer.parseInt(request.getParameter("page") != null ? request.getParameter("page") : "1");
 				int pageSize = Integer.parseInt(request.getParameter("pageSize") != null ? request.getParameter("pageSize") : "10");
 
-				Map<String, Object> data = connectionService.getConnectionListWithPagination(userId, searchKeyword, typeFilter, page, pageSize);
+				Map<String, Object> data = connectionService.getConnectionListWithPagination(userId, searchKeyword, typeFilter, dbTypeFilter, page, pageSize);
 
 				result.put("success", true);
 				result.put("data", data.get("connections"));
