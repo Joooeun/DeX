@@ -1,9 +1,12 @@
 package kr.Windmill.service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,11 +29,14 @@ public class UserService {
     public Map<String, Object> getUserList(String searchKeyword, String groupFilter, int page, int pageSize) {
         Map<String, Object> result = new HashMap<>();
         
-        // 전체 개수 조회
+        // 전체 개수 조회 (중복 제거)
         StringBuilder countSqlBuilder = new StringBuilder();
-        countSqlBuilder.append("SELECT COUNT(*) FROM USERS u ");
-        countSqlBuilder.append("LEFT JOIN USER_GROUP_MAPPING ugm ON u.USER_ID = ugm.USER_ID ");
-        countSqlBuilder.append("LEFT JOIN USER_GROUPS ug ON ugm.GROUP_ID = ug.GROUP_ID ");
+        countSqlBuilder.append("SELECT COUNT(DISTINCT u.USER_ID) FROM USERS u ");
+        
+        // 그룹 필터가 있는 경우에만 JOIN 추가
+        if (groupFilter != null && !groupFilter.trim().isEmpty()) {
+            countSqlBuilder.append("INNER JOIN USER_GROUP_MAPPING ugm ON u.USER_ID = ugm.USER_ID ");
+        }
         
         List<Object> countParams = new ArrayList<>();
         List<String> whereConditions = new ArrayList<>();
@@ -58,15 +64,17 @@ public class UserService {
             totalCount = jdbcTemplate.queryForObject(countSqlBuilder.toString(), countParams.toArray(), Integer.class);
         }
         
-        // 페이징된 데이터 조회 - DB2 표준 문법 사용
+        // 페이징된 데이터 조회 - DB2 표준 문법 사용 (중복 제거)
         StringBuilder sqlBuilder = new StringBuilder();
         sqlBuilder.append("SELECT * FROM (");
         sqlBuilder.append("SELECT ROW_NUMBER() OVER (ORDER BY u.CREATED_TIMESTAMP DESC) AS RN, ");
         sqlBuilder.append("u.USER_ID, u.USER_NAME, u.STATUS, u.IP_RESTRICTION, u.LAST_LOGIN_TIMESTAMP, u.LOGIN_FAIL_COUNT, u.CREATED_TIMESTAMP, ");
-        sqlBuilder.append("ug.GROUP_NAME ");
+        // 여러 그룹명을 쉼표로 구분하여 합치기 (DB2 LISTAGG 사용)
+        sqlBuilder.append("(SELECT LISTAGG(ug2.GROUP_NAME, ', ') WITHIN GROUP (ORDER BY ug2.GROUP_NAME) ");
+        sqlBuilder.append("FROM USER_GROUP_MAPPING ugm2 ");
+        sqlBuilder.append("INNER JOIN USER_GROUPS ug2 ON ugm2.GROUP_ID = ug2.GROUP_ID ");
+        sqlBuilder.append("WHERE ugm2.USER_ID = u.USER_ID) AS GROUP_NAME ");
         sqlBuilder.append("FROM USERS u ");
-        sqlBuilder.append("LEFT JOIN USER_GROUP_MAPPING ugm ON u.USER_ID = ugm.USER_ID ");
-        sqlBuilder.append("LEFT JOIN USER_GROUPS ug ON ugm.GROUP_ID = ug.GROUP_ID ");
         
         List<Object> params = new ArrayList<>();
         List<String> dataWhereConditions = new ArrayList<>();
@@ -78,8 +86,9 @@ public class UserService {
             params.add(likePattern);
         }
         
+        // 그룹 필터가 있는 경우에만 서브쿼리로 필터링
         if (groupFilter != null && !groupFilter.trim().isEmpty()) {
-            dataWhereConditions.add("ugm.GROUP_ID = ?");
+            dataWhereConditions.add("EXISTS (SELECT 1 FROM USER_GROUP_MAPPING ugm WHERE ugm.USER_ID = u.USER_ID AND ugm.GROUP_ID = ?)");
             params.add(groupFilter);
         }
         
@@ -372,28 +381,63 @@ public class UserService {
         return jdbcTemplate.queryForList(sql);
     }
     
-    // 사용자 그룹 매핑 (단일 그룹)
+    // 사용자의 그룹 목록 조회 (다중 그룹 지원)
+    public List<Map<String, Object>> getUserGroups(String userId) {
+        String sql = "SELECT ugm.GROUP_ID, ug.GROUP_NAME, ug.GROUP_DESCRIPTION " +
+                    "FROM USER_GROUP_MAPPING ugm " +
+                    "INNER JOIN USER_GROUPS ug ON ugm.GROUP_ID = ug.GROUP_ID " +
+                    "WHERE ugm.USER_ID = ? " +
+                    "ORDER BY ug.GROUP_NAME";
+        return jdbcTemplate.queryForList(sql, userId);
+    }
+    
+    // 사용자 그룹 매핑 (단일 그룹) - 하위 호환성 유지
     @Transactional
     public boolean assignUserToGroup(String userId, String groupId, String assignedBy) {
+        return assignUserToGroups(userId, Collections.singletonList(groupId), assignedBy);
+    }
+    
+    // 사용자 그룹 매핑 (다중 그룹)
+    @Transactional
+    public boolean assignUserToGroups(String userId, List<String> groupIds, String assignedBy) {
         try {
-            // 기존 그룹 매핑 삭제 (단일 그룹 정책)
+            if (userId == null || userId.trim().isEmpty()) {
+                logger.error("사용자 ID가 없습니다.");
+                return false;
+            }
+            
+            if (groupIds == null || groupIds.isEmpty()) {
+                // 그룹이 없으면 기존 매핑만 삭제
+                String deleteSql = "DELETE FROM USER_GROUP_MAPPING WHERE USER_ID = ?";
+                jdbcTemplate.update(deleteSql, userId);
+                return true;
+            }
+            
+            // 기존 그룹 매핑 삭제
             String deleteSql = "DELETE FROM USER_GROUP_MAPPING WHERE USER_ID = ?";
             jdbcTemplate.update(deleteSql, userId);
             
-            // 새로운 그룹 매핑 추가
+            // 새로운 그룹 매핑 추가 (중복 제거)
+            Set<String> uniqueGroupIds = new HashSet<>(groupIds);
             String insertSql = "INSERT INTO USER_GROUP_MAPPING (USER_ID, GROUP_ID, ASSIGNED_BY, ASSIGNED_TIMESTAMP) VALUES (?, ?, ?, CURRENT TIMESTAMP)";
-            jdbcTemplate.update(insertSql, userId, groupId, assignedBy);
+            for (String groupId : uniqueGroupIds) {
+                if (groupId != null && !groupId.trim().isEmpty()) {
+                    jdbcTemplate.update(insertSql, userId, groupId, assignedBy);
+                }
+            }
             
+            logger.debug("사용자 그룹 매핑 완료: userId={}, groupIds={}", userId, uniqueGroupIds);
             return true;
         } catch (Exception e) {
-            logger.error("사용자 그룹 매핑 중 오류 발생", e);
+            logger.error("사용자 그룹 매핑 중 오류 발생: userId={}, groupIds={}", userId, groupIds, e);
             return false;
         }
     }
     
-    // SQL 템플릿 카테고리 권한 조회
+    // SQL 템플릿 카테고리 권한 조회 (다중 그룹 지원)
     public List<Map<String, Object>> getSqlTemplateCategoryPermissions(String userId) {
-        String sql = "SELECT gcm.CATEGORY_ID, stc.CATEGORY_NAME, stc.CATEGORY_DESCRIPTION " +
+        // DISTINCT를 사용하여 여러 그룹에 속한 경우 중복 제거
+        String sql = "SELECT DISTINCT gcm.CATEGORY_ID, stc.CATEGORY_NAME, stc.CATEGORY_DESCRIPTION " +
                     "FROM GROUP_CATEGORY_MAPPING gcm " +
                     "INNER JOIN USER_GROUP_MAPPING ugm ON gcm.GROUP_ID = ugm.GROUP_ID " +
                     "LEFT JOIN SQL_TEMPLATE_CATEGORY stc ON gcm.CATEGORY_ID = stc.CATEGORY_ID " +
@@ -402,9 +446,10 @@ public class UserService {
         return jdbcTemplate.queryForList(sql, userId);
     }
     
-    // 연결 정보 권한 조회
+    // 연결 정보 권한 조회 (다중 그룹 지원)
     public List<Map<String, Object>> getConnectionPermissions(String userId) {
-        String sql = "SELECT gcm.CONNECTION_ID, dc.DB_TYPE " +
+        // DISTINCT를 사용하여 여러 그룹에 속한 경우 중복 제거
+        String sql = "SELECT DISTINCT gcm.CONNECTION_ID, dc.DB_TYPE " +
                     "FROM GROUP_CONNECTION_MAPPING gcm " +
                     "INNER JOIN USER_GROUP_MAPPING ugm ON gcm.GROUP_ID = ugm.GROUP_ID " +
                     "LEFT JOIN DATABASE_CONNECTION dc ON gcm.CONNECTION_ID = dc.CONNECTION_ID " +

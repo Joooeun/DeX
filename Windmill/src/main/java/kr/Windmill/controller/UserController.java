@@ -1,6 +1,8 @@
 package kr.Windmill.controller;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
@@ -170,10 +172,18 @@ public class UserController {
 
 			boolean success = userService.createUser(userData);
 			if (success) {
-				// 그룹 할당 처리
-				String groupId = (String) userData.get("groupId");
-				if (groupId != null && !groupId.trim().isEmpty()) {
-					userService.assignUserToGroup((String) userData.get("userId"), groupId, currentUserId);
+				// 그룹 할당 처리 (다중 그룹 지원)
+				@SuppressWarnings("unchecked")
+				List<String> groupIds = (List<String>) userData.get("groupIds");
+				if (groupIds == null || groupIds.isEmpty()) {
+					// 하위 호환성: groupId도 지원
+					String groupId = (String) userData.get("groupId");
+					if (groupId != null && !groupId.trim().isEmpty()) {
+						groupIds = Collections.singletonList(groupId);
+					}
+				}
+				if (groupIds != null && !groupIds.isEmpty()) {
+					userService.assignUserToGroups((String) userData.get("userId"), groupIds, currentUserId);
 				}
 				
 				result.put("success", true);
@@ -217,10 +227,21 @@ public class UserController {
 
 			boolean success = userService.updateUser(userId, userData);
 			if (success) {
-				// 그룹 할당 처리
-				String groupId = (String) userData.get("groupId");
-				if (groupId != null && !groupId.trim().isEmpty()) {
-					userService.assignUserToGroup(userId, groupId, currentUserId);
+				// 그룹 할당 처리 (다중 그룹 지원)
+				@SuppressWarnings("unchecked")
+				List<String> groupIds = (List<String>) userData.get("groupIds");
+				if (groupIds == null || groupIds.isEmpty()) {
+					// 하위 호환성: groupId도 지원
+					String groupId = (String) userData.get("groupId");
+					if (groupId != null && !groupId.trim().isEmpty()) {
+						groupIds = Collections.singletonList(groupId);
+					}
+				}
+				if (groupIds != null && !groupIds.isEmpty()) {
+					userService.assignUserToGroups(userId, groupIds, currentUserId);
+				} else {
+					// 그룹이 없으면 모든 그룹 할당 해제
+					userService.assignUserToGroups(userId, Collections.emptyList(), currentUserId);
 				}
 				
 				result.put("success", true);
@@ -304,6 +325,41 @@ public class UserController {
 
 		} catch (Exception e) {
 			e.printStackTrace();
+			result.put("success", false);
+			result.put("message", "그룹 목록 조회 중 오류가 발생했습니다.");
+		}
+
+		return result;
+	}
+
+	// 사용자의 현재 그룹 목록 조회 (다중 그룹 지원)
+	@ResponseBody
+	@RequestMapping("/currentGroups")
+	public Map<String, Object> getCurrentGroups(@RequestParam String userId, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String currentUserId = (String) session.getAttribute("memberId");
+			if (currentUserId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(currentUserId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			// 사용자의 그룹 목록 조회
+			List<Map<String, Object>> groups = userService.getUserGroups(userId);
+			
+			result.put("success", true);
+			result.put("data", groups);
+		} catch (Exception e) {
+			logger.error("사용자 그룹 목록 조회 실패: userId={}", userId, e);
 			result.put("success", false);
 			result.put("message", "그룹 목록 조회 중 오류가 발생했습니다.");
 		}

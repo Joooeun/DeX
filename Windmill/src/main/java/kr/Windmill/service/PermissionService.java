@@ -85,10 +85,11 @@ public class PermissionService {
         }
     }
     
-    // 사용자의 SQL 템플릿 카테고리 권한 상세 목록 조회
+    // 사용자의 SQL 템플릿 카테고리 권한 상세 목록 조회 (다중 그룹 지원)
     public List<Map<String, Object>> getUserSqlTemplateCategoryPermissions(String userId) {
         try {
-            String sql = "SELECT gcm.CATEGORY_ID, ug.GROUP_NAME, stc.CATEGORY_NAME, stc.CATEGORY_DESCRIPTION " +
+            // DISTINCT를 사용하여 여러 그룹에 속한 경우 중복 제거
+            String sql = "SELECT DISTINCT gcm.CATEGORY_ID, ug.GROUP_NAME, stc.CATEGORY_NAME, stc.CATEGORY_DESCRIPTION " +
                         "FROM USER_GROUP_MAPPING ugm " +
                         "INNER JOIN GROUP_CATEGORY_MAPPING gcm ON ugm.GROUP_ID = gcm.GROUP_ID " +
                         "INNER JOIN USER_GROUPS ug ON gcm.GROUP_ID = ug.GROUP_ID " +
@@ -105,10 +106,11 @@ public class PermissionService {
     
 
     
-    // 사용자의 연결 정보 권한 목록 조회
+    // 사용자의 연결 정보 권한 목록 조회 (다중 그룹 지원)
     public List<Map<String, Object>> getUserConnectionPermissions(String userId) {
         try {
-            String sql = "SELECT gcm.CONNECTION_ID, ug.GROUP_NAME " +
+            // DISTINCT를 사용하여 여러 그룹에 속한 경우 중복 제거
+            String sql = "SELECT DISTINCT gcm.CONNECTION_ID, ug.GROUP_NAME " +
                         "FROM USER_GROUP_MAPPING ugm " +
                         "INNER JOIN GROUP_CONNECTION_MAPPING gcm ON ugm.GROUP_ID = gcm.GROUP_ID " +
                         "INNER JOIN USER_GROUPS ug ON gcm.GROUP_ID = ug.GROUP_ID " +

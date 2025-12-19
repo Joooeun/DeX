@@ -151,9 +151,13 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="groupId" data-toggle="tooltip" data-placement="top" title="사용자가 속할 그룹을 선택합니다. 그룹별로 접근 권한과 연결 권한이 설정되며, 사용자의 역할을 결정합니다.">그룹 <span class="text-danger">*</span></label>
-                        <select class="form-control" id="groupId" required>
-                            <option value="">그룹을 선택하세요</option>
+                        <label for="groupId" data-toggle="tooltip" data-placement="top" 
+                            title="사용자가 속할 그룹을 선택합니다. 여러 그룹을 선택할 수 있으며, 선택된 모든 그룹의 권한을 합집합으로 사용합니다. 그룹별로 접근 권한과 연결 권한이 설정되며, 사용자의 역할을 결정합니다."
+                            style="font-size: 12px; font-weight: 500;">
+                            그룹 <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-control" id="groupId" multiple required>
+                            <!-- 그룹 목록이 동적으로 로드됩니다 -->
                         </select>
                     </div>
                     <div class="form-group">
@@ -339,6 +343,52 @@
 </style>
 
 <script>
+// Select 옵션 렌더링 함수 (템플릿 관리와 동일)
+function renderSelectOptions(config) {
+    // 기본 설정
+    var defaults = {
+        valueField: 'id',
+        textField: 'name',
+        placeholder: '선택하세요',
+        allowClear: true,
+        width: '100%',
+        initSelect2: true
+    };
+    
+    // 설정 병합
+    var options = Object.assign({}, defaults, config);
+    
+    // Select 요소 비우기
+    options.select.empty();
+    
+    // 데이터가 있는 경우 옵션 추가
+    if (options.data && options.data.length > 0) {
+        options.data.forEach(function(item) {
+            var value = item[options.valueField];
+            var text;
+            
+            // textField가 함수인 경우와 문자열인 경우 처리
+            if (typeof options.textField === 'function') {
+                text = options.textField(item);
+            } else {
+                text = item[options.textField];
+            }
+            
+            var option = $('<option value="' + value + '">' + text + '</option>');
+            options.select.append(option);
+        });
+    }
+    
+    // Select2 초기화
+    if (options.initSelect2) {
+        options.select.select2({
+            placeholder: options.placeholder,
+            allowClear: options.allowClear,
+            width: options.width
+        });
+    }
+}
+
 $(document).ready(function() {
     loadUserList();
     loadGroupList();
@@ -552,19 +602,20 @@ function formatDate(dateStr) {
     return new Date(dateStr).toLocaleString('ko-KR');
 }
 
-// 그룹 목록 로드
+// 그룹 목록 로드 (템플릿 관리와 동일한 방식)
 function loadGroupList() {
     $.ajax({
         url: '/User/groups',
         type: 'GET',
         success: function(response) {
             if (response.success) {
-                var select = $('#groupId');
-                select.empty();
-                select.append('<option value="">그룹 선택</option>');
-                
-                response.data.forEach(function(group) {
-                    select.append('<option value="' + group.GROUP_ID + '">' + group.GROUP_NAME + '</option>');
+                // renderSelectOptions 함수 사용 (Select2 자동 초기화)
+                renderSelectOptions({
+                    select: $('#groupId'),
+                    data: response.data,
+                    valueField: 'GROUP_ID',
+                    textField: 'GROUP_NAME',
+                    placeholder: '그룹을 선택하세요'
                 });
             }
         }
@@ -603,7 +654,13 @@ function showCreateUserModal() {
     $('#editUserId').val('');
     $('#userId').prop('readonly', false);
     $('#password').attr('required', true);
-    $('#passwordDescription').hide();
+    $('#passwordDescription').show();
+    // 그룹 선택 초기화 (Select2)
+    if ($('#groupId').hasClass('select2-hidden-accessible')) {
+        $('#groupId').val(null).trigger('change');
+    } else {
+        $('#groupId').val(null);
+    }
     $('#userModal').modal('show');
 }
 
@@ -625,7 +682,7 @@ function editUser(userId) {
                 $('#password').attr('required', false);
                 $('#passwordDescription').show();
                 
-                // 사용자의 현재 그룹 정보 로드
+                // 사용자의 현재 그룹 정보 로드 (Select2 업데이트 포함)
                 loadUserGroup(userId);
                 
                 $('#userModal').modal('show');
@@ -636,21 +693,25 @@ function editUser(userId) {
     });
 }
 
-// 사용자의 현재 그룹 정보 로드
+// 사용자의 현재 그룹 정보 로드 (다중 그룹 지원)
 function loadUserGroup(userId) {
     $.ajax({
-        url: '/User/currentGroup',
+        url: '/User/currentGroups',
         type: 'GET',
         data: { userId: userId },
         success: function(response) {
-            if (response.success && response.data) {
-                $('#groupId').val(response.data.GROUP_ID);
+            if (response.success && response.data && response.data.length > 0) {
+                // 여러 그룹 ID를 배열로 변환하여 선택
+                var groupIds = response.data.map(function(group) {
+                    return group.GROUP_ID;
+                });
+                $('#groupId').val(groupIds).trigger('change'); // Select2 업데이트
             } else {
-                $('#groupId').val('');
+                $('#groupId').val([]).trigger('change'); // Select2 업데이트
             }
         },
         error: function() {
-            $('#groupId').val('');
+            $('#groupId').val([]).trigger('change'); // Select2 업데이트
         }
     });
 }
@@ -658,20 +719,25 @@ function loadUserGroup(userId) {
 // 사용자 저장
 function saveUser() {
     var editUserId = $('#editUserId').val();
-    var groupId = $('#groupId').val();
+    var groupIds = $('#groupId').val(); // Select2 다중 선택이므로 배열 반환
     
     // 그룹 선택 필수 검증
-    if (!groupId || groupId.trim() === '') {
-        showToast('그룹을 선택해주세요.', 'error');
+    if (!groupIds || (Array.isArray(groupIds) && groupIds.length === 0) || (!Array.isArray(groupIds) && !groupIds)) {
+        showToast('그룹을 최소 1개 이상 선택해주세요.', 'error');
         $('#groupId').focus();
         return;
+    }
+    
+    // Select2에서 단일 값이 문자열로 반환되는 경우 배열로 변환
+    if (!Array.isArray(groupIds)) {
+        groupIds = [groupIds];
     }
     
     var userData = {
         userId: $('#userId').val(),
         userName: $('#userName').val(),
         status: $('#status').val(),
-        groupId: groupId,
+        groupIds: groupIds, // 여러 그룹 ID 배열
         ipRestriction: $('#ipRestriction').val()
     };
     
