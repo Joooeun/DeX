@@ -661,8 +661,25 @@ let ondate;
 				}
 			});
 		} else {
-			// 2025-04-29 limit 2만으로 제한
-			var limit = 1000;
+			// 템플릿의 실행제한 값 (0이면 제한 없음, 0이 아니면 해당 값으로 제한)
+			var limit = ${not empty limit ? limit : 0};
+			var userLimit = parseInt($("#limit").val()) || 0;
+			var finalLimit;
+			
+			if (limit === 0) {
+				// 템플릿 실행제한이 0이면 제한 없음
+				finalLimit = userLimit === 0 ? 0 : userLimit;
+			} else {
+				// 템플릿 실행제한이 0이 아니면
+				if (userLimit === 0) {
+					// 사용자가 0으로 변경했으면 20000으로 제한
+					finalLimit = 20000;
+				} else {
+					// 사용자가 값을 입력했으면 템플릿 제한과 사용자 입력 중 작은 값 사용, 최대 20000
+					var calculatedLimit = Math.min(20000, userLimit);
+					finalLimit = calculatedLimit;
+				}
+			}
 			
 			// SQL 템플릿 실행 AJAX 요청
 			await $.ajax({
@@ -676,7 +693,7 @@ let ondate;
 					sqlContent: $("#sql_text").val(),
 					parameters: JSON.stringify(params),  // 일반 파라미터만
 					log: JSON.stringify(log),            // LOG 파라미터만 (예전 소스와 동일)
-					limit: $("#limit").val() == 0 ? (limit ? 20000 : 0) : (limit ?  Math.min(20000,  $("#limit").val()) : $("#limit").val())
+					limit: finalLimit
 				}),
 				success: function(result, status, jqXHR) {
 
