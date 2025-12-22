@@ -347,9 +347,6 @@
                             chartConfigData = null;
                         }
                         
-                        // 연결 상태 업데이트
-                        updateConnectionStatusDisplay(response.connections);
-                        
                         // 모든 연결의 신호등 다시 생성
                         response.connections.forEach(function(conn) {
                             createDynamicTrafficLights(conn.connectionId);
@@ -874,9 +871,6 @@
                                 value: chartInstance.data.datasets[element.datasetIndex].data[dataIndex],
                                 backgroundColor: chartInstance.data.datasets[element.datasetIndex].backgroundColor[dataIndex]
                             };
-                            
-                            console.log(getChartDataFromCache(canvasId))
-                            
                             
                             handleChartElementClick(canvasId, clickedData);
                         }
@@ -1652,7 +1646,6 @@
             
             // 원본 차트 데이터에서 해당 행의 전체 데이터 가져오기
             var chartData = getChartDataFromCache(canvasId);
-            console.log(chartData)
             if (chartData && chartData.result && rowIndex !== undefined) {
                 if (chartData.result[rowIndex] && Array.isArray(chartData.result[rowIndex])) {
                     var originalRow = chartData.result[rowIndex];
