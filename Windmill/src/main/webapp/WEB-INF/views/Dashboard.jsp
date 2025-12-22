@@ -118,6 +118,18 @@
                 connections.forEach(function(conn) {
                     createDynamicTrafficLights(conn.connectionId);
                 });
+                
+                // 초기 로드 시 "연결됨" 상태인 첫 번째 연결 자동 선택
+                var connectedConnection = connections.find(function(conn) {
+                    return conn.status === 'connected';
+                });
+                
+                if (connectedConnection) {
+                    // 연결됨 상태인 연결이 있으면 자동 선택
+                    setTimeout(function() {
+                        selectConnection(connectedConnection.connectionId);
+                    }, 100); // 약간의 지연을 두어 카드가 완전히 렌더링된 후 선택
+                }
             } else {
                 // 업데이트: 추가/삭제/업데이트 처리
                 var currentConnectionIds = [];
@@ -362,10 +374,16 @@
                                 createChartsFromServerData(selectedConnection.charts);
                             }
                         } else if (response.connections.length > 0) {
-                            // 선택된 연결이 없으면 첫 번째 연결을 기본으로 선택
-                            var firstConnection = response.connections[0];
-                            if (firstConnection && firstConnection.charts) {
-                                selectConnection(firstConnection.connectionId);
+                            // 선택된 연결이 없으면 "연결됨" 상태인 첫 번째 연결을 기본으로 선택
+                            var connectedConnection = response.connections.find(function(conn) {
+                                return conn.status === 'connected';
+                            });
+                            
+                            if (connectedConnection && connectedConnection.charts) {
+                                selectConnection(connectedConnection.connectionId);
+                            } else if (connectedConnection) {
+                                // 연결됨 상태이지만 차트가 없는 경우에도 선택
+                                selectConnection(connectedConnection.connectionId);
                             }
                         }
                         
