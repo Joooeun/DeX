@@ -1122,9 +1122,12 @@ public class ConnectionService {
 					String encrypted = encryptPassword(password);
 					String updateSql = "UPDATE DATABASE_CONNECTION SET PASSWORD = ? WHERE CONNECTION_ID = ?";
 					jdbcTemplate.update(updateSql, encrypted, connectionId);
+					// 복호화된 비밀번호를 반환 (수정 화면에서 표시하기 위해)
+					detail.put("PASSWORD", decrypted);
+				} else {
+					// 복호화된 비밀번호를 반환 (수정 화면에서 표시하기 위해)
+					detail.put("PASSWORD", decrypted);
 				}
-				// 상세 조회 시에는 패스워드를 반환하지 않음 (보안)
-				detail.remove("PASSWORD");
 			}
 			return detail;
 		} else {
@@ -1145,9 +1148,12 @@ public class ConnectionService {
 					String encrypted = encryptPassword(password);
 					String updateSql = "UPDATE SFTP_CONNECTION SET PASSWORD = ? WHERE SFTP_CONNECTION_ID = ?";
 					jdbcTemplate.update(updateSql, encrypted, connectionId);
+					// 복호화된 비밀번호를 반환 (수정 화면에서 표시하기 위해)
+					detail.put("PASSWORD", decrypted);
+				} else {
+					// 복호화된 비밀번호를 반환 (수정 화면에서 표시하기 위해)
+					detail.put("PASSWORD", decrypted);
 				}
-				// 상세 조회 시에는 패스워드를 반환하지 않음 (보안)
-				detail.remove("PASSWORD");
 			}
 			return detail;
 		}

@@ -158,10 +158,15 @@
 									<label for="dbUsername" data-toggle="tooltip" data-placement="top" title="데이터베이스에 접속할 사용자 계정명을 입력합니다. 해당 사용자는 필요한 권한을 가지고 있어야 합니다.">사용자명</label> <input type="text"
 										class="form-control" id="dbUsername">
 								</div>
-								<div class="col-md-6">
-									<label for="dbPassword" data-toggle="tooltip" data-placement="top" title="데이터베이스 사용자 계정의 비밀번호를 입력합니다. 보안을 위해 암호화되어 저장됩니다.">비밀번호</label> <input type="password"
-										class="form-control" id="dbPassword">
+							<div class="col-md-6">
+								<label for="dbPassword" data-toggle="tooltip" data-placement="top" title="데이터베이스 사용자 계정의 비밀번호를 입력합니다. 보안을 위해 암호화되어 저장됩니다.">비밀번호</label>
+								<div class="input-group">
+									<input type="password" class="form-control" id="dbPassword">
+									<span class="input-group-addon" style="cursor: pointer;" onclick="togglePasswordVisibility('dbPassword', this)">
+										<i class="fa fa-eye" id="dbPasswordToggleIcon"></i>
+									</span>
 								</div>
+							</div>
 							</div>
 							<div class="form-group row">
 								<div class="col-md-12">
@@ -191,10 +196,15 @@
 									<label for="sftpUsername" data-toggle="tooltip" data-placement="top" title="SFTP 서버에 접속할 사용자 계정명을 입력합니다. SSH 키 인증을 사용하는 경우 비밀번호는 비워둘 수 있습니다.">사용자명</label> <input type="text"
 										class="form-control" id="sftpUsername">
 								</div>
-								<div class="col-md-6">
-									<label for="sftpPassword" data-toggle="tooltip" data-placement="top" title="SFTP 사용자 계정의 비밀번호를 입력합니다. SSH 키 인증을 사용하는 경우 비워둘 수 있으며, 보안을 위해 암호화되어 저장됩니다.">비밀번호</label> <input type="password"
-										class="form-control" id="sftpPassword">
+							<div class="col-md-6">
+								<label for="sftpPassword" data-toggle="tooltip" data-placement="top" title="SFTP 사용자 계정의 비밀번호를 입력합니다. SSH 키 인증을 사용하는 경우 비워둘 수 있으며, 보안을 위해 암호화되어 저장됩니다.">비밀번호</label>
+								<div class="input-group">
+									<input type="password" class="form-control" id="sftpPassword">
+									<span class="input-group-addon" style="cursor: pointer;" onclick="togglePasswordVisibility('sftpPassword', this)">
+										<i class="fa fa-eye" id="sftpPasswordToggleIcon"></i>
+									</span>
 								</div>
+							</div>
 							</div>
 						</div>
 
@@ -255,6 +265,20 @@
 
 
 <script>
+	// 비밀번호 보이기/숨기기 토글 함수
+	function togglePasswordVisibility(inputId, toggleElement) {
+		var input = $('#' + inputId);
+		var icon = $(toggleElement).find('i');
+		
+		if (input.attr('type') === 'password') {
+			input.attr('type', 'text');
+			icon.removeClass('fa-eye').addClass('fa-eye-slash');
+		} else {
+			input.attr('type', 'password');
+			icon.removeClass('fa-eye-slash').addClass('fa-eye');
+		}
+	}
+	
 	$(document).ready(function() {
 		loadConnectionTable();
 		loadJdbcDrivers();
@@ -497,7 +521,6 @@
 
 					// 폼 필드 설정
 					$('#connectionId').val(connection.CONNECTION_ID);
-					console.log(connection)
 					$('#connectionType').val(connectionType);
 					$('#connectionIP').val(connection.HOST_IP);
 					$('#connectionPort').val(connection.PORT);
