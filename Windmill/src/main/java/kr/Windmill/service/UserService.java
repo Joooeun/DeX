@@ -29,14 +29,9 @@ public class UserService {
     public Map<String, Object> getUserList(String searchKeyword, String groupFilter, int page, int pageSize) {
         Map<String, Object> result = new HashMap<>();
         
-        // 전체 개수 조회 (중복 제거)
+        // 전체 개수 조회 (중복 제거) - 데이터 조회 쿼리와 동일한 조건 사용
         StringBuilder countSqlBuilder = new StringBuilder();
         countSqlBuilder.append("SELECT COUNT(DISTINCT u.USER_ID) FROM USERS u ");
-        
-        // 그룹 필터가 있는 경우에만 JOIN 추가
-        if (groupFilter != null && !groupFilter.trim().isEmpty()) {
-            countSqlBuilder.append("INNER JOIN USER_GROUP_MAPPING ugm ON u.USER_ID = ugm.USER_ID ");
-        }
         
         List<Object> countParams = new ArrayList<>();
         List<String> whereConditions = new ArrayList<>();
@@ -48,8 +43,9 @@ public class UserService {
             countParams.add(likePattern);
         }
         
+        // 그룹 필터가 있는 경우 EXISTS 서브쿼리 사용 (데이터 조회 쿼리와 동일)
         if (groupFilter != null && !groupFilter.trim().isEmpty()) {
-            whereConditions.add("ugm.GROUP_ID = ?");
+            whereConditions.add("EXISTS (SELECT 1 FROM USER_GROUP_MAPPING ugm WHERE ugm.USER_ID = u.USER_ID AND ugm.GROUP_ID = ?)");
             countParams.add(groupFilter);
         }
         

@@ -521,15 +521,53 @@ function displayPagination(pagination) {
     }
     
     // 페이지 번호 버튼들
-    var startPage = Math.max(1, currentPage - 2);
-    var endPage = Math.min(totalPages, currentPage + 2);
+    // 최대 5개 페이지를 보여주되, 항상 첫 페이지와 마지막 페이지를 포함
+    var startPage, endPage;
     
+    if (totalPages <= 5) {
+        // 전체 페이지가 5개 이하면 모두 표시
+        startPage = 1;
+        endPage = totalPages;
+    } else {
+        // 현재 페이지를 중심으로 표시하되, 첫 페이지와 마지막 페이지를 포함
+        if (currentPage <= 3) {
+            // 앞쪽에 있을 때: 1, 2, 3, 4, ... totalPages
+            startPage = 1;
+            endPage = 4;
+        } else if (currentPage >= totalPages - 2) {
+            // 뒤쪽에 있을 때: 1, ..., totalPages-3, totalPages-2, totalPages-1, totalPages
+            startPage = totalPages - 3;
+            endPage = totalPages;
+        } else {
+            // 중간에 있을 때: 1, ..., currentPage-1, currentPage, currentPage+1, ..., totalPages
+            startPage = currentPage - 1;
+            endPage = currentPage + 1;
+        }
+    }
+    
+    // 첫 페이지 표시
+    if (startPage > 1) {
+        paginationContainer.append('<li><a href="#" onclick="loadUserList(1)">1</a></li>');
+        if (startPage > 2) {
+            paginationContainer.append('<li class="disabled"><a href="#">...</a></li>');
+        }
+    }
+    
+    // 페이지 번호 버튼들
     for (var i = startPage; i <= endPage; i++) {
         if (i === currentPage) {
             paginationContainer.append('<li class="active"><a href="#">' + i + '</a></li>');
         } else {
             paginationContainer.append('<li><a href="#" onclick="loadUserList(' + i + ')">' + i + '</a></li>');
         }
+    }
+    
+    // 마지막 페이지 표시
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            paginationContainer.append('<li class="disabled"><a href="#">...</a></li>');
+        }
+        paginationContainer.append('<li><a href="#" onclick="loadUserList(' + totalPages + ')">' + totalPages + '</a></li>');
     }
     
     // 다음 페이지 버튼
