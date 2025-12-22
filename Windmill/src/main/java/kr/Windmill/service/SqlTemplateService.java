@@ -22,6 +22,7 @@ import kr.Windmill.dto.SqlTemplateParameter;
 import kr.Windmill.dto.SqlTemplateSaveRequest;
 import kr.Windmill.dto.SqlTemplateShortcut;
 import kr.Windmill.util.Common;
+import kr.Windmill.util.Crypto;
 
 @Service
 public class SqlTemplateService {
@@ -1272,8 +1273,27 @@ public class SqlTemplateService {
 			List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql, connectionId);
 			
 			if (!connections.isEmpty()) {
+				Map<String, Object> connectionData = connections.get(0);
+				
+				// 패스워드 복호화 (평문 호환)
+				String encryptedPassword = (String) connectionData.get("PASSWORD");
+				if (encryptedPassword != null && !encryptedPassword.trim().isEmpty()) {
+					String decryptedPassword = decryptPassword(encryptedPassword);
+					
+					// 평문이면 암호화하여 저장 (자동 마이그레이션)
+					if (decryptedPassword != null && decryptedPassword.equals(encryptedPassword)) {
+						logger.info("평문 패스워드 발견, 자동 암호화 저장: {} (SFTP - Shell)", connectionId);
+						String newEncrypted = Crypto.crypt(decryptedPassword);
+						String updateSql = "UPDATE SFTP_CONNECTION SET PASSWORD = ? WHERE SFTP_CONNECTION_ID = ?";
+						jdbcTemplate.update(updateSql, newEncrypted, connectionId);
+					}
+					
+					// 복호화된 비밀번호로 교체
+					connectionData.put("PASSWORD", decryptedPassword);
+				}
+				
 				result.put("success", true);
-				result.put("data", connections.get(0));
+				result.put("data", connectionData);
 			} else {
 				result.put("success", false);
 				result.put("error", "SFTP 연결을 찾을 수 없습니다: " + connectionId);
@@ -1285,6 +1305,30 @@ public class SqlTemplateService {
 		}
 		
 		return result;
+	}
+	
+	/**
+	 * 패스워드를 복호화합니다. 평문인 경우 그대로 반환합니다 (기존 데이터 호환).
+	 * 
+	 * @param encryptedPassword 암호화된 패스워드 또는 평문 패스워드
+	 * @return 복호화된 패스워드 또는 평문 패스워드
+	 */
+	private String decryptPassword(String encryptedPassword) {
+		if (encryptedPassword == null || encryptedPassword.trim().isEmpty()) {
+			return encryptedPassword;
+		}
+		
+		try {
+			String decrypted = Crypto.deCrypt(encryptedPassword);
+			// 복호화 실패 시 빈 문자열이 반환되므로, 원본이 평문인 것으로 간주
+			if (decrypted == null || decrypted.isEmpty()) {
+				return encryptedPassword; // 평문으로 간주
+			}
+			return decrypted;
+		} catch (Exception e) {
+			logger.debug("패스워드 복호화 실패 (평문으로 간주): {}", e.getMessage());
+			return encryptedPassword; // 평문으로 간주
+		}
 	}
 	
 }
