@@ -904,7 +904,7 @@ public class SQLTemplateController {
 				connections = jdbcTemplate.queryForList(sql);
 			} else {
 				String sql = "SELECT CONNECTION_ID, DB_TYPE, HOST_IP, PORT, DATABASE_NAME, USERNAME, STATUS "
-						+ "FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY DB_TYPE, CONNECTION_ID";
+						+ "FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_ID";
 				connections = jdbcTemplate.queryForList(sql);
 			}
 

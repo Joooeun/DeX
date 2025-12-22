@@ -326,7 +326,7 @@ public class SqlTemplateService {
 			} else {
 				// DB 연결 조회
 				String dbSql = "SELECT CONNECTION_ID, DB_TYPE, HOST_IP, PORT, DATABASE_NAME, USERNAME, STATUS " +
-							 "FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY DB_TYPE, CONNECTION_ID";
+							 "FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_ID";
 				allConnections = jdbcTemplate.queryForList(dbSql);
 			}
 			
