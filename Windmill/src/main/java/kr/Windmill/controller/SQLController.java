@@ -220,7 +220,7 @@ public class SQLController {
 				mv.addObject("limit", templateData.get("executionLimit"));
 				mv.addObject("refreshtimeout", templateData.get("refreshTimeout"));
 				mv.addObject("newline", templateData.get("newline"));
-				mv.addObject("Connection", session.getAttribute("connectionId"));
+				mv.addObject("Connection", request.getParameter("connectionId") != null ? request.getParameter("connectionId") : session.getAttribute("connectionId"));
 				
 				
 				// DownloadEnable 설정 (IP 기반)

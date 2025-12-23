@@ -123,7 +123,7 @@ $(document).ready(function() {
 		}
 	}
 
-	function sendSql(value) {
+	function sendSql(value, connectionId) {
 		if (value == null) {
 			return;
 		}
@@ -242,6 +242,17 @@ $(document).ready(function() {
 			var url = "/Template/execute?templateId=" + templateId + "&Excute=" + excuteParam;
 			if (sendvalue && sendvalue.trim() !== '') {
 				url += "&sendvalue=" + encodeURIComponent(sendvalue);
+			}
+			
+			// 연결 ID 파라미터 추가 (전달된 경우)
+			if (!connectionId) {
+				// SQLExecute.jsp에서 호출된 경우 현재 선택된 연결 ID 가져오기
+				if (typeof $("#connectionlist") !== 'undefined' && $("#connectionlist").length > 0) {
+					connectionId = $("#connectionlist").val();
+				}
+			}
+			if (connectionId && connectionId.trim() !== '' && connectionId !== '====Connection====' && connectionId !== '====SFTP Connection====') {
+				url += "&connectionId=" + encodeURIComponent(connectionId);
 			}
 			
 			// 템플릿 정보를 가져와서 탭 추가

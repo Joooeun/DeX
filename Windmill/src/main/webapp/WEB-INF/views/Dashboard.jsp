@@ -189,7 +189,7 @@
             var formattedTime = formatDateTime(conn.lastChecked);
             
             var connectionCard = 
-                '<div class="col-md-2 col-sm-3 col-xs-4" style="margin-bottom: 15px;" >' +
+                '<div class="col-md-2 col-sm-3 col-xs-4" >' +
                     '<div class="card connection-card ' + statusClass + '" data-connection-id="' + conn.connectionId + '"' + 
                     (conn.status === 'connected' ? ' onclick="selectConnection(\'' + conn.connectionId + '\')"' : '') + '>' +
                         '<div class="connection-name">' +
@@ -1560,6 +1560,14 @@
     <script>
         // 차트 요소 클릭 처리 함수
         function handleChartElementClick(canvasId, rowIndex) {
+            // rowIndex가 객체인 경우 (도넛차트에서 전달된 경우) index 추출
+            var actualRowIndex = rowIndex;
+            if (rowIndex && typeof rowIndex === 'object' && rowIndex.index !== undefined) {
+                actualRowIndex = rowIndex.index;
+            } else if (rowIndex === null || rowIndex === undefined) {
+                // 텍스트 차트는 첫 번째 행(인덱스 0) 사용
+                actualRowIndex = 0;
+            }
             
             // 차트 설정에서 해당 차트의 템플릿 ID 찾기
             var templateId = null;
@@ -1580,7 +1588,7 @@
             }
             
             // 클릭한 행의 데이터를 파라미터로 변환
-            var parameters = convertRowIndexToParameters(canvasId, rowIndex);
+            var parameters = convertRowIndexToParameters(canvasId, actualRowIndex);
             
             // 단축키 정보 조회
             $.ajax({
@@ -1640,7 +1648,10 @@
                        
                             // SQLExecute.jsp의 sendSql 함수 호출 방식과 동일
                             // common.jsp의 sendSql 함수 사용
-                            sendSql(firstActiveShortcut.TARGET_TEMPLATE_ID + "&" + parameterString + "&" + firstActiveShortcut.AUTO_EXECUTE);
+                            // 선택된 연결 ID 가져오기
+                            var selectedConnectionId = getSelectedConnectionId();
+                            
+                            sendSql(firstActiveShortcut.TARGET_TEMPLATE_ID + "&" + parameterString + "&" + firstActiveShortcut.AUTO_EXECUTE, selectedConnectionId);
                             
                         } else {
                             console.log('활성화된 단축키가 없습니다.');
@@ -1664,13 +1675,17 @@
             
             // 원본 차트 데이터에서 해당 행의 전체 데이터 가져오기
             var chartData = getChartDataFromCache(canvasId);
-            if (chartData && chartData.result && rowIndex !== undefined) {
-                if (chartData.result[rowIndex] && Array.isArray(chartData.result[rowIndex])) {
-                    var originalRow = chartData.result[rowIndex];
-                    // 원본 데이터의 모든 컬럼을 파라미터로 추가
-                    originalRow.forEach(function(value, index) {
-                        parameters['param' + (index + 1)] = value;
-                    });
+            
+            if (chartData && chartData.result) {
+                if (rowIndex !== undefined && rowIndex !== null) {
+                    if (chartData.result[rowIndex] && Array.isArray(chartData.result[rowIndex])) {
+                        var originalRow = chartData.result[rowIndex];
+                        
+                        // 원본 데이터의 모든 컬럼을 파라미터로 추가
+                        originalRow.forEach(function(value, index) {
+                            parameters['param' + (index + 1)] = value;
+                        });
+                    }
                 }
             }
             

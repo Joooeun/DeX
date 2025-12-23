@@ -158,7 +158,9 @@ let ondate;
 		$(document).on('click', '.shortcut-btn', function() {
 			var shortcutValue = $(this).data('shortcut-value');
 			if (shortcutValue) {
-				sendSql(shortcutValue);
+				// 현재 선택된 연결 ID 가져오기
+				var connectionId = $("#connectionlist").val();
+				sendSql(shortcutValue, connectionId);
 			}
 		});
 
@@ -224,6 +226,8 @@ let ondate;
 			
 			// 기본 선택: 세션에 값이 있거나 연결이 하나만 가능할 때만
 			var selectedConnection = '${Connection}';
+			
+			console.log("-=-0-=",selectedConnection)
 			var allOptions = $(selectId + ' option');
 			var connectionOptions = allOptions.filter(function() {
 				return $(this).val() !== '' && $(this).val() !== '====Connection====' && $(this).val() !== '====SFTP Connection====';
@@ -300,42 +304,45 @@ let ondate;
 		// 키보드 단축키 이벤트 처리 (F1~F12)
 		// ========================================
 		$(document).keydown(function(event) {
+			// 현재 선택된 연결 ID 가져오기
+			var connectionId = $("#connectionlist").val();
+			
 			if (event.keyCode == 112) {
 				event.preventDefault();
-				sendSql($("#F1").val());
+				sendSql($("#F1").val(), connectionId);
 			} else if (event.keyCode == 113) {
 				event.preventDefault();
-				sendSql($("#F2").val());
+				sendSql($("#F2").val(), connectionId);
 			} else if (event.keyCode == 114) {
 				event.preventDefault();
-				sendSql($("#F3").val());
+				sendSql($("#F3").val(), connectionId);
 			} else if (event.keyCode == 115) {
 				event.preventDefault();
-				sendSql($("#F4").val());
+				sendSql($("#F4").val(), connectionId);
 			} else if (event.keyCode == 116) {
 				event.preventDefault();
-				sendSql($("#F5").val());
+				sendSql($("#F5").val(), connectionId);
 			} else if (event.keyCode == 117) {
 				event.preventDefault();
-				sendSql($("#F6").val());
+				sendSql($("#F6").val(), connectionId);
 			} else if (event.keyCode == 118) {
 				event.preventDefault();
-				sendSql($("#F7").val());
+				sendSql($("#F7").val(), connectionId);
 			} else if (event.keyCode == 119) {
 				event.preventDefault();
-				sendSql($("#F8").val());
+				sendSql($("#F8").val(), connectionId);
 			} else if (event.keyCode == 120) {
 				event.preventDefault();
-				sendSql($("#F9").val());
+				sendSql($("#F9").val(), connectionId);
 			} else if (event.keyCode == 121) {
 				event.preventDefault();
-				sendSql($("#F10").val());
+				sendSql($("#F10").val(), connectionId);
 			} else if (event.keyCode == 122) {
 				event.preventDefault();
-				sendSql($("#F11").val());
+				sendSql($("#F11").val(), connectionId);
 			} else if (event.keyCode == 123) {
 				event.preventDefault();
-				sendSql($("#F12").val());
+				sendSql($("#F12").val(), connectionId);
 			}
 		});
 

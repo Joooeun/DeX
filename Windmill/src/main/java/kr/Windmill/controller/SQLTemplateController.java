@@ -93,6 +93,12 @@ public class SQLTemplateController {
 		String userId = (String) session.getAttribute("memberId");
 
 		try {
+			// Connection 파라미터가 있으면 세션에 설정
+			String connectionParam = request.getParameter("Connection");
+			if (connectionParam != null && !connectionParam.trim().isEmpty()) {
+				session.setAttribute("connectionId", connectionParam);
+			}
+			
 			// 템플릿 정보 조회
 			Map<String, Object> templateResult = sqlTemplateService.getSqlTemplateDetail(templateId);
 
