@@ -672,11 +672,11 @@ let ondate;
 			} else {
 				// 템플릿 실행제한이 0이 아니면
 				if (userLimit === 0) {
-					// 사용자가 0으로 변경했으면 20000으로 제한
-					finalLimit = 20000;
+					// 사용자가 0으로 변경했으면 80000으로 제한
+					finalLimit = 80000;
 				} else {
 					// 사용자가 값을 입력했으면 템플릿 제한과 사용자 입력 중 작은 값 사용, 최대 20000
-					var calculatedLimit = Math.min(20000, userLimit);
+					var calculatedLimit = Math.min(80000, userLimit);
 					finalLimit = calculatedLimit;
 				}
 			}
