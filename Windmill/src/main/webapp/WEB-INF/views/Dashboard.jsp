@@ -91,6 +91,60 @@
             });
         }
 
+        // 연결 순서 캐시 저장
+        function saveConnectionOrder(connectionIds) {
+            try {
+                localStorage.setItem('dashboard_connection_order', JSON.stringify(connectionIds));
+            } catch (e) {
+                console.error('연결 순서 저장 실패:', e);
+            }
+        }
+        
+        // 연결 순서 캐시 로드
+        function loadConnectionOrder() {
+            try {
+                var savedOrder = localStorage.getItem('dashboard_connection_order');
+                if (savedOrder) {
+                    return JSON.parse(savedOrder);
+                }
+            } catch (e) {
+                console.error('연결 순서 로드 실패:', e);
+            }
+            return null;
+        }
+        
+        // 연결 목록을 저장된 순서로 정렬
+        function sortConnectionsBySavedOrder(connections) {
+            var savedOrder = loadConnectionOrder();
+            if (!savedOrder || !Array.isArray(savedOrder)) {
+                return connections;
+            }
+            
+            // 저장된 순서를 기준으로 정렬
+            var sorted = [];
+            var connectionMap = {};
+            
+            // 연결을 맵으로 변환
+            connections.forEach(function(conn) {
+                connectionMap[conn.connectionId] = conn;
+            });
+            
+            // 저장된 순서대로 추가
+            savedOrder.forEach(function(connectionId) {
+                if (connectionMap[connectionId]) {
+                    sorted.push(connectionMap[connectionId]);
+                    delete connectionMap[connectionId];
+                }
+            });
+            
+            // 저장된 순서에 없는 새로운 연결 추가
+            for (var connectionId in connectionMap) {
+                sorted.push(connectionMap[connectionId]);
+            }
+            
+            return sorted;
+        }
+        
         // 연결 상태 표시 업데이트 함수
         function updateConnectionStatusDisplay(connections) {
             var container = $('#connectionStatusContainer');
@@ -103,6 +157,9 @@
                     '</div></div>');
                 return;
             }
+            
+            // 저장된 순서로 정렬
+            connections = sortConnectionsBySavedOrder(connections);
             
             // 초기 로드인지 확인 (컨테이너가 비어있거나 alert가 있으면 초기 로드)
             var isInitialLoad = container.children().length === 0 || container.find('.alert').length > 0;
@@ -130,6 +187,12 @@
                         selectConnection(connectedConnection.connectionId);
                     }, 100); // 약간의 지연을 두어 카드가 완전히 렌더링된 후 선택
                 }
+                
+                // 현재 순서 저장
+                var currentOrder = connections.map(function(conn) {
+                    return conn.connectionId;
+                });
+                saveConnectionOrder(currentOrder);
             } else {
                 // 업데이트: 추가/삭제/업데이트 처리
                 var currentConnectionIds = [];
@@ -144,7 +207,7 @@
                 // 삭제된 연결 제거
                 currentConnectionIds.forEach(function(connectionId) {
                     if (newConnectionIds.indexOf(connectionId) === -1) {
-                        $('.connection-card[data-connection-id="' + connectionId + '"]').closest('.col-md-2, .col-sm-3, .col-xs-4').remove();
+                        $('.connection-card-wrapper[data-connection-id="' + connectionId + '"]').remove();
                     }
                 });
                 
@@ -159,6 +222,18 @@
                         createConnectionCard(conn);
                     }
                 });
+                
+                // 저장된 순서로 재정렬
+                var savedOrder = loadConnectionOrder();
+                if (savedOrder && Array.isArray(savedOrder)) {
+                    var cardWrappers = container.find('.connection-card-wrapper');
+                    savedOrder.forEach(function(connectionId) {
+                        var cardWrapper = container.find('.connection-card-wrapper[data-connection-id="' + connectionId + '"]');
+                        if (cardWrapper.length > 0) {
+                            container.append(cardWrapper);
+                        }
+                    });
+                }
             }
         }
         
@@ -188,10 +263,20 @@
             
             var formattedTime = formatDateTime(conn.lastChecked);
             
+            // 좌우 화살표 링크 HTML (양 끝에 배치, 아이콘만 표시)
+            var arrowButtons = 
+                '<a href="javascript:void(0);" class="btn-order btn-order-left" onclick="event.stopPropagation(); moveConnectionCard(\'' + conn.connectionId + '\', -1); return false;" title="왼쪽으로 이동">' +
+                    '<i class="fa fa-chevron-left"></i>' +
+                '</a>' +
+                '<a href="javascript:void(0);" class="btn-order btn-order-right" onclick="event.stopPropagation(); moveConnectionCard(\'' + conn.connectionId + '\', 1); return false;" title="오른쪽으로 이동">' +
+                    '<i class="fa fa-chevron-right"></i>' +
+                '</a>';
+            
             var connectionCard = 
-                '<div class="col-md-2 col-sm-3 col-xs-4" >' +
+                '<div class="col-md-2 col-sm-3 col-xs-4 connection-card-wrapper" data-connection-id="' + conn.connectionId + '">' +
                     '<div class="card connection-card ' + statusClass + '" data-connection-id="' + conn.connectionId + '"' + 
                     (conn.status === 'connected' ? ' onclick="selectConnection(\'' + conn.connectionId + '\')"' : '') + '>' +
+                        arrowButtons +
                         '<div class="connection-name">' +
                             conn.connectionId +
                         '</div>' +
@@ -200,13 +285,11 @@
                         '</div>' +
                         '<div class="last-checked" id="lastChecked-' + conn.connectionId + '">' +
                             formattedTime +
-
-
                         '</div>' +
                         '<div class="card-footer">' +
                             '<div class="traffic-light-container" id="traffic-light-' + conn.connectionId + '">' +
-                '<div class="traffic-light" id="traffic-lights-' + conn.connectionId + '">' +
-                '<!-- 동적으로 신호등이 생성됩니다 -->' +
+                                '<div class="traffic-light" id="traffic-lights-' + conn.connectionId + '">' +
+                                    '<!-- 동적으로 신호등이 생성됩니다 -->' +
                                 '</div>' +
                             '</div>' +
                         '</div>' +
@@ -217,6 +300,41 @@
             
             // 동적 신호등 생성
             createDynamicTrafficLights(conn.connectionId);
+        }
+        
+        // 연결 카드 순서 변경
+        function moveConnectionCard(connectionId, direction) {
+            var container = $('#connectionStatusContainer');
+            var cardWrapper = container.find('.connection-card-wrapper[data-connection-id="' + connectionId + '"]');
+            
+            if (cardWrapper.length === 0) {
+                return;
+            }
+            
+            var allCards = container.find('.connection-card-wrapper');
+            var currentIndex = allCards.index(cardWrapper);
+            var newIndex = currentIndex + direction;
+            
+            // 범위 체크
+            if (newIndex < 0 || newIndex >= allCards.length) {
+                return;
+            }
+            
+            // DOM에서 이동
+            if (direction < 0) {
+                // 왼쪽으로 이동
+                cardWrapper.insertBefore(allCards.eq(newIndex));
+            } else {
+                // 오른쪽으로 이동
+                cardWrapper.insertAfter(allCards.eq(newIndex));
+            }
+            
+            // 현재 순서 저장
+            var currentOrder = [];
+            container.find('.connection-card-wrapper').each(function() {
+                currentOrder.push($(this).data('connection-id'));
+            });
+            saveConnectionOrder(currentOrder);
         }
         
         // 연결 카드 업데이트
@@ -1502,14 +1620,66 @@
     
     <style>
         /* 연결 카드 스타일 */
+        .connection-card-wrapper {
+            position: relative;
+        }
+        
         .connection-card {
-    transition: all 0.3s ease;
-}
+            transition: all 0.3s ease;
+            position: relative;
+        }
 
-.connection-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
+        .connection-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        /* 순서 변경 컨트롤 */
+        .connection-card {
+            position: relative;
+        }
+        
+        .connection-card .btn-order {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #666;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+        
+        .connection-card:hover .btn-order {
+            display: flex;
+        }
+        
+        .connection-card .btn-order-left {
+            left: 0px;
+        }
+        
+        .connection-card .btn-order-right {
+            right: 0px;
+        }
+        
+        .connection-card .btn-order:hover {
+            color: #333;
+            transform: translateY(-50%) scale(1.2);
+        }
+        
+        .connection-card .btn-order:active {
+            transform: translateY(-50%) scale(0.9);
+        }
+        
+        .connection-card .btn-order i {
+            font-size: 16px;
+        }
 
 /* 신호등 스타일 */
 .traffic-light {
