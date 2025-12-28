@@ -1283,7 +1283,7 @@ let ondate;
 														<div id="container" class="textcontainer">
 
 															<div id="line-numbers" class="container__lines"></div>
-															<textarea class="paramvalue col-xs-12 formtextarea" maxlength="${textlimit}" paramtitle="${item.PARAMETER_NAME}" rows="5" paramtype="${item.PARAMETER_TYPE}" style="padding: 0 2px;" wrap="off">${item.PARAMETER_NAME=='memberId' ? memberId : item.DEFAULT_VALUE}</textarea>
+															<textarea class="paramvalue col-xs-12 formtextarea" maxlength="${textlimit}" paramtitle="${item.PARAMETER_NAME}" rows="5" paramtype="${item.PARAMETER_TYPE}" style="padding: 0 2px;" wrap="off">${item.PARAMETER_NAME == 'memberId' ? memberId : (not empty sendvalue.split('&')[status.count-1]?sendvalue.split('&')[status.count-1]:item.DEFAULT_VALUE)}</textarea>
 														</div>
 														<span id="textcount">0</span> / <span>${textlimit}</span>
 													</div>
