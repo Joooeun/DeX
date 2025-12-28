@@ -114,17 +114,31 @@ var changePW
 		var isAdmin = '${isAdmin}' === 'true';
 
 		/* ------------------------------공지사항 start------------------------------ */
-		var checkCookie = getCookie("mycookie");
+		try {
+			var checkNotice = localStorage.getItem("noticeClosed");
+			var closedDate = localStorage.getItem("noticeClosedDate");
+			var today = new Date().toDateString();
 			
-		if(checkCookie == 'popupEnd') {
-			$("#NoticeModal").modal("hide");
-		} else {
-			$('#NoticeModal').modal("show");	
+			// 오늘 날짜에 닫았는지 확인
+			if(checkNotice == 'popupEnd' && closedDate == today) {
+				$("#NoticeModal").modal("hide");
+			} else {
+				$('#NoticeModal').modal("show");	
+			}
+		} catch (e) {
+			// localStorage 오류 시 모달 표시
+			$('#NoticeModal').modal("show");
 		}
 		
 		$("#modal-today-close").click(function() {
 			$("#NoticeModal").modal("hide");
-			setCookie("mycookie", 'popupEnd', 1);
+			try {
+				var today = new Date().toDateString();
+				localStorage.setItem("noticeClosed", 'popupEnd');
+				localStorage.setItem("noticeClosedDate", today);
+			} catch (e) {
+				console.error('공지사항 닫기 정보 저장 실패:', e);
+			}
 		})
 		/* ------------------------------공지사항 end------------------------------ */
 
@@ -226,34 +240,6 @@ var changePW
 		tabManager.initDashboardTab();
 
 	});
-		
-	/* ------------------------------공지사항 start------------------------------ */
-	function setCookie(name, value, expiredays){
-		var today = new Date();
-	
-	
-		today.setDate(today.getDate() + expiredays); // 현재시간에 하루를 더함 
-	
-		document.cookie = name + '=' + escape(value) + '; expires=' + today.toGMTString();
-	
-	}
-		
-	function getCookie(name) {
-	
-		var cookie = document.cookie;
-		
-		if (document.cookie != "") {
-			var cookie_array = cookie.split("; ");
-			for ( var index in cookie_array) {
-				var cookie_name = cookie_array[index].split("=");
-				if (cookie_name[0] == "mycookie") {
-					return cookie_name[1];
-				}
-			}
-		}
-		return;
-	}
-	/* ------------------------------공지사항 end------------------------------ */
 
 	// 메뉴 데이터를 저장할 변수
 	var allMenuItems = [];

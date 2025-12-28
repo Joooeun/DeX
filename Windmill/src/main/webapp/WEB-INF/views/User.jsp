@@ -62,11 +62,21 @@
                         </table>
                         
                         <!-- 페이징 컨트롤 -->
-                        <div class="text-center">
-                            <ul class="pagination" id="pagination">
-                            </ul>
-                            <div class="pagination-info">
-                                <span id="paginationInfo"></span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 10px">
+                            <div style="flex: 1; text-align: center;">
+                                <ul class="pagination" id="pagination" style="margin: 0; display: inline-block;">
+                                </ul>
+                                <div class="pagination-info">
+                                    <span id="paginationInfo"></span>
+                                </div>
+                            </div>
+                            <div style="margin-left: 15px;" class="input-group-sm">
+                                <select id="pageSizeSelect" class="form-control" style="display: inline-block; width: auto;">
+                                    <option value="5">5줄 보기</option>
+                                    <option value="10">10줄 보기</option>
+                                    <option value="20">20줄 보기</option>
+                                    <option value="30">30줄 보기</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -445,8 +455,37 @@ function showToast(message, type = 'info', duration = 3000) {
     }, duration);
 }
 
-// 전역 변수로 현재 페이지 관리
+// 전역 변수로 현재 페이지 및 페이지 사이즈 관리
 var currentPage = 1;
+var currentPageSize = 5;
+
+// 페이지 사이즈 변경 이벤트
+$(document).ready(function() {
+    // localStorage에서 페이지 사이즈 로드
+    try {
+        var savedPageSize = localStorage.getItem('userPageSize');
+        if (savedPageSize) {
+            currentPageSize = parseInt(savedPageSize);
+        }
+    } catch (e) {
+        console.error('페이지 사이즈 로드 실패:', e);
+    }
+    
+    // 초기 페이지 사이즈 설정
+    $('#pageSizeSelect').val(currentPageSize);
+    
+    // 페이지 사이즈 변경 시
+    $('#pageSizeSelect').on('change', function() {
+        currentPageSize = parseInt($(this).val());
+        try {
+            localStorage.setItem('userPageSize', currentPageSize);
+        } catch (e) {
+            console.error('페이지 사이즈 저장 실패:', e);
+        }
+        currentPage = 1; // 페이지 사이즈 변경 시 첫 페이지로 이동
+        loadUserList();
+    });
+});
 
 // 사용자 목록 로드
 function loadUserList(page) {
@@ -464,7 +503,7 @@ function loadUserList(page) {
             searchKeyword: searchKeyword,
             groupFilter: groupFilter,
             page: currentPage,
-            pageSize: 5
+            pageSize: currentPageSize
         },
         success: function(response) {
             if (response.success) {
@@ -494,6 +533,18 @@ function filterByGroup() {
 
 // 페이징 UI 표시
 function displayPagination(pagination) {
+    // 현재 페이지 사이즈를 셀렉트 박스에 반영
+    if (pagination.pageSize) {
+        $('#pageSizeSelect').val(pagination.pageSize);
+        currentPageSize = pagination.pageSize;
+        // localStorage에 저장
+        try {
+            localStorage.setItem('userPageSize', currentPageSize);
+        } catch (e) {
+            console.error('페이지 사이즈 저장 실패:', e);
+        }
+    }
+    
     var paginationContainer = $('#pagination');
     var paginationInfo = $('#paginationInfo');
     
