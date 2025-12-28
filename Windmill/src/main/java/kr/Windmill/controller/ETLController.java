@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
 import kr.Windmill.service.SqlTemplateService;
+import kr.Windmill.service.PermissionService;
 
 @Controller
 public class ETLController {
@@ -33,6 +34,9 @@ public class ETLController {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
+	@Autowired
+	private PermissionService permissionService;
+
 	/**
 	 * ETL 작업 목록 화면
 	 */
@@ -40,8 +44,8 @@ public class ETLController {
 	public ModelAndView etlJobList(HttpServletRequest request, ModelAndView mv, HttpSession session) {
 		String userId = (String) session.getAttribute("memberId");
 
-		// 로그인 확인
-		if (userId == null) {
+		// 관리자 권한 확인
+		if (userId == null || !permissionService.isAdmin(userId)) {
 			mv.setViewName("redirect:/index");
 			return mv;
 		}
@@ -58,8 +62,8 @@ public class ETLController {
 		String userId = (String) session.getAttribute("memberId");
 		String jobId = request.getParameter("jobId");
 
-		// 로그인 확인
-		if (userId == null) {
+		// 관리자 권한 확인
+		if (userId == null || !permissionService.isAdmin(userId)) {
 			mv.setViewName("redirect:/index");
 			return mv;
 		}
@@ -80,6 +84,14 @@ public class ETLController {
 	@RequestMapping(path = "/ETL/jobs", method = RequestMethod.GET)
 	public Map<String, Object> getETLJobs(HttpSession session) {
 		Map<String, Object> result = new HashMap<>();
+		String userId = (String) session.getAttribute("memberId");
+		
+		// 관리자 권한 확인
+		if (userId == null || !permissionService.isAdmin(userId)) {
+			result.put("success", false);
+			result.put("message", "관리자 권한이 필요합니다.");
+			return result;
+		}
 		
 		try {
 			// 데모용 더미 데이터
@@ -131,6 +143,14 @@ public class ETLController {
 	@RequestMapping(path = "/ETL/preview", method = RequestMethod.POST)
 	public Map<String, Object> previewSourceData(HttpSession session) {
 		Map<String, Object> result = new HashMap<>();
+		String userId = (String) session.getAttribute("memberId");
+		
+		// 관리자 권한 확인
+		if (userId == null || !permissionService.isAdmin(userId)) {
+			result.put("success", false);
+			result.put("message", "관리자 권한이 필요합니다.");
+			return result;
+		}
 		
 		try {
 			// 데모용 더미 데이터
@@ -185,6 +205,14 @@ public class ETLController {
 	@RequestMapping(path = "/ETL/target-templates", method = RequestMethod.GET)
 	public Map<String, Object> getTargetTemplates(HttpSession session) {
 		Map<String, Object> result = new HashMap<>();
+		String userId = (String) session.getAttribute("memberId");
+		
+		// 관리자 권한 확인
+		if (userId == null || !permissionService.isAdmin(userId)) {
+			result.put("success", false);
+			result.put("message", "관리자 권한이 필요합니다.");
+			return result;
+		}
 		
 		try {
 			// INSERT, UPDATE, 또는 타입이 없는 템플릿 조회 (ETL용)
@@ -214,6 +242,15 @@ public class ETLController {
 	@RequestMapping(path = "/ETL/target-template/detail", method = RequestMethod.GET)
 	public Map<String, Object> getTargetTemplateDetail(HttpServletRequest request, HttpSession session) {
 		Map<String, Object> result = new HashMap<>();
+		String userId = (String) session.getAttribute("memberId");
+		
+		// 관리자 권한 확인
+		if (userId == null || !permissionService.isAdmin(userId)) {
+			result.put("success", false);
+			result.put("message", "관리자 권한이 필요합니다.");
+			return result;
+		}
+		
 		String templateId = request.getParameter("templateId");
 		
 		if (templateId == null || templateId.trim().isEmpty()) {
@@ -224,7 +261,7 @@ public class ETLController {
 		
 		try {
 			// 템플릿 상세 조회
-			Map<String, Object> templateResult = sqlTemplateService.getSqlTemplateDetail(templateId);
+			Map<String, Object> templateResult = sqlTemplateService.getSqlTemplateDetail(templateId, userId);
 			if (!(Boolean) templateResult.get("success")) {
 				result.put("success", false);
 				result.put("message", "템플릿을 찾을 수 없습니다.");

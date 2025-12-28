@@ -92,8 +92,16 @@ public class DashboardController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            // 1. 연결 상태 조회
-            List<ConnectionStatusDto> connections = connectionService.getAllConnectionStatuses();
+            // 사용자 ID 가져오기
+            String userId = (String) session.getAttribute("memberId");
+            if (userId == null) {
+                result.put("success", false);
+                result.put("error", "로그인이 필요합니다.");
+                return result;
+            }
+            
+            // 1. 연결 상태 조회 (사용자 권한에 따라 필터링)
+            List<ConnectionStatusDto> connections = connectionService.getConnectionStatusesForUser(userId);
             
             // 2. 차트 설정 조회
             String chartConfig = systemConfigService.getDashboardChartConfig();

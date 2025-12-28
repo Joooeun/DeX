@@ -196,14 +196,53 @@ public class SqlTemplateService {
 	}
 
 	/**
-	 * 템플릿 상세 조회
+	 * 템플릿 상세 조회 (권한 확인 포함)
 	 */
-	public Map<String, Object> getSqlTemplateDetail(String templateId) {
+	public Map<String, Object> getSqlTemplateDetail(String templateId, String userId) {
+		return getSqlTemplateDetailWithPermission(templateId, userId);
+	}
+	
+	/**
+	 * 템플릿 상세 조회 (권한 확인 포함 - 내부 메서드)
+	 */
+	private Map<String, Object> getSqlTemplateDetailWithPermission(String templateId, String userId) {
 		Map<String, Object> result = new HashMap<>();
 		if (templateId == null || templateId.trim().isEmpty()) {
 			result.put("success", false);
 			result.put("error", "템플릿 ID가 지정되지 않았습니다.");
 			return result;
+		}
+
+		// 관리자가 아닌 경우 권한 확인
+		if (userId != null && !permissionService.isAdmin(userId)) {
+			// 템플릿이 속한 카테고리 조회
+			String categorySql = "SELECT DISTINCT m.CATEGORY_ID " +
+							   "FROM SQL_TEMPLATE_CATEGORY_MAPPING m " +
+							   "WHERE m.TEMPLATE_ID = ?";
+			List<Map<String, Object>> templateCategories = jdbcTemplate.queryForList(categorySql, templateId);
+			
+			// 템플릿이 카테고리에 속하지 않은 경우 (미분류 템플릿) 접근 불가
+			if (templateCategories.isEmpty()) {
+				result.put("success", false);
+				result.put("error", "접근 권한이 없습니다.");
+				return result;
+			}
+			
+			// 사용자가 템플릿이 속한 카테고리 중 하나라도 권한이 있는지 확인 (다중 그룹 지원)
+			boolean hasPermission = false;
+			for (Map<String, Object> category : templateCategories) {
+				String categoryId = (String) category.get("CATEGORY_ID");
+				if (categoryId != null && permissionService.checkSqlTemplateCategoryPermission(userId, categoryId)) {
+					hasPermission = true;
+					break;
+				}
+			}
+			
+			if (!hasPermission) {
+				result.put("success", false);
+				result.put("error", "접근 권한이 없습니다.");
+				return result;
+			}
 		}
 
 		String sql = "SELECT TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, ACCESSIBLE_CONNECTION_IDS, TEMPLATE_TYPE, VERSION, STATUS, EXECUTION_LIMIT, REFRESH_TIMEOUT, NEWLINE, AUDIT FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ?";
@@ -301,6 +340,7 @@ public class SqlTemplateService {
 
 	/**
 	 * 템플릿에 접근 가능한 연결 목록 조회 (DB 또는 SFTP)
+	 * 템플릿에 설정된 연결과 사용자 권한의 교집합을 반환 (다중 그룹 지원)
 	 */
 	public List<Map<String, Object>> getAccessibleConnections(String templateId, String userId) {
 		try {
@@ -316,35 +356,85 @@ public class SqlTemplateService {
 			String templateType = (String) templateData.get("TEMPLATE_TYPE");
 			String accessibleConnectionIds = (String) templateData.get("ACCESSIBLE_CONNECTION_IDS");
 			
-			List<Map<String, Object>> allConnections = new ArrayList<>();
-			
-			// 템플릿 타입에 따라 연결 조회
-			if ("SHELL".equals(templateType)) {
-				// SFTP 연결 조회
-				String sftpSql = "SELECT SFTP_CONNECTION_ID as CONNECTION_ID, HOST_IP, PORT, USERNAME, STATUS " +
-							   "FROM SFTP_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_ID";
-				allConnections = jdbcTemplate.queryForList(sftpSql);
-			} else {
-				// DB 연결 조회
-				String dbSql = "SELECT CONNECTION_ID, DB_TYPE, HOST_IP, PORT, DATABASE_NAME, USERNAME, STATUS " +
-							 "FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_ID";
-				allConnections = jdbcTemplate.queryForList(dbSql);
-			}
-			
 			// 접근 가능한 연결 ID가 설정되지 않았으면 빈 리스트 반환 (템플릿 관리에서 선택한 연결이 없으면 연결 목록을 보여주지 않음)
 			if (accessibleConnectionIds == null || accessibleConnectionIds.trim().isEmpty()) {
 				return new ArrayList<>();
 			}
 			
-			// 설정된 연결 ID만 필터링
-			List<String> allowedConnectionIds = Arrays.asList(accessibleConnectionIds.split(","));
+			// 템플릿에 설정된 연결 ID 목록
+			List<String> templateConnectionIds = Arrays.asList(accessibleConnectionIds.split(","));
+			
+			// 사용자가 권한을 가진 연결 ID 목록 조회 (다중 그룹 지원 - 합집합)
+			List<String> userAuthorizedConnectionIds = new ArrayList<>();
+			
+			if (permissionService.isAdmin(userId)) {
+				// 관리자는 모든 연결에 접근 가능
+				userAuthorizedConnectionIds = templateConnectionIds;
+			} else {
+				// 일반 사용자는 권한이 있는 연결만 조회
+				try {
+					String permissionSql;
+					if ("SHELL".equals(templateType)) {
+						// SFTP 연결 권한 조회 (다중 그룹 지원)
+						permissionSql = "SELECT DISTINCT sc.SFTP_CONNECTION_ID AS CONNECTION_ID " 
+							+ "FROM SFTP_CONNECTION sc "
+							+ "INNER JOIN GROUP_CONNECTION_MAPPING gcm ON sc.SFTP_CONNECTION_ID = gcm.CONNECTION_ID "
+							+ "INNER JOIN USER_GROUP_MAPPING ugm ON gcm.GROUP_ID = ugm.GROUP_ID "
+							+ "WHERE sc.STATUS = 'ACTIVE' "
+							+ "AND ugm.USER_ID = ? "
+							+ "ORDER BY sc.SFTP_CONNECTION_ID";
+					} else {
+						// DB 연결 권한 조회 (다중 그룹 지원)
+						permissionSql = "SELECT DISTINCT dc.CONNECTION_ID " 
+							+ "FROM DATABASE_CONNECTION dc "
+							+ "INNER JOIN GROUP_CONNECTION_MAPPING gcm ON dc.CONNECTION_ID = gcm.CONNECTION_ID "
+							+ "INNER JOIN USER_GROUP_MAPPING ugm ON gcm.GROUP_ID = ugm.GROUP_ID "
+							+ "WHERE dc.STATUS = 'ACTIVE' "
+							+ "AND ugm.USER_ID = ? "
+							+ "ORDER BY dc.CONNECTION_ID";
+					}
+					
+					List<Map<String, Object>> authorizedConnectionsFromDB = jdbcTemplate.queryForList(permissionSql, userId);
+					
+					for (Map<String, Object> connection : authorizedConnectionsFromDB) {
+						String connectionId = (String) connection.get("CONNECTION_ID");
+						if (connectionId != null) {
+							userAuthorizedConnectionIds.add(connectionId);
+						}
+					}
+				} catch (Exception e) {
+					logger.warn("사용자 연결 권한 조회 실패, 빈 목록 반환: {} - {}", userId, e.getMessage());
+					return new ArrayList<>();
+				}
+			}
+			
+			// 템플릿에 설정된 연결과 사용자 권한 연결의 교집합
+			List<String> finalConnectionIds = new ArrayList<>();
+			for (String templateConnId : templateConnectionIds) {
+				if (userAuthorizedConnectionIds.contains(templateConnId.trim())) {
+					finalConnectionIds.add(templateConnId.trim());
+				}
+			}
+			
+			if (finalConnectionIds.isEmpty()) {
+				return new ArrayList<>();
+			}
+			
+			// 최종 연결 정보 조회
 			List<Map<String, Object>> accessibleConnections = new ArrayList<>();
 			
-			for (Map<String, Object> connection : allConnections) {
-				String connectionId = (String) connection.get("CONNECTION_ID");
-				if (allowedConnectionIds.contains(connectionId)) {
-					accessibleConnections.add(connection);
-				}
+			if ("SHELL".equals(templateType)) {
+				// SFTP 연결 조회
+				String placeholders = String.join(",", java.util.Collections.nCopies(finalConnectionIds.size(), "?"));
+				String sftpSql = "SELECT SFTP_CONNECTION_ID as CONNECTION_ID, HOST_IP, PORT, USERNAME, STATUS " +
+							   "FROM SFTP_CONNECTION WHERE STATUS = 'ACTIVE' AND SFTP_CONNECTION_ID IN (" + placeholders + ") ORDER BY CONNECTION_ID";
+				accessibleConnections = jdbcTemplate.queryForList(sftpSql, finalConnectionIds.toArray());
+			} else {
+				// DB 연결 조회
+				String placeholders = String.join(",", java.util.Collections.nCopies(finalConnectionIds.size(), "?"));
+				String dbSql = "SELECT CONNECTION_ID, DB_TYPE, HOST_IP, PORT, DATABASE_NAME, USERNAME, STATUS " +
+							 "FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' AND CONNECTION_ID IN (" + placeholders + ") ORDER BY CONNECTION_ID";
+				accessibleConnections = jdbcTemplate.queryForList(dbSql, finalConnectionIds.toArray());
 			}
 			
 			return accessibleConnections;
@@ -399,8 +489,8 @@ public class SqlTemplateService {
 	 */
 	public Map<String, Object> getTemplateDataForAudit(String templateId) {
 		try {
-			// getFullTemplateDetail과 동일한 구조로 데이터 조회
-			Map<String, Object> templateResult = getSqlTemplateDetail(templateId);
+			// getFullTemplateDetail과 동일한 구조로 데이터 조회 (audit 로그용이므로 권한 확인 없이 조회)
+			Map<String, Object> templateResult = getSqlTemplateDetailWithPermission(templateId, null);
 			if (!(Boolean) templateResult.get("success")) {
 				return null;
 			}
@@ -704,8 +794,8 @@ public class SqlTemplateService {
 		}
 		
 		try {
-			// 1. 기본 템플릿 정보 조회
-			Map<String, Object> templateResult = getSqlTemplateDetail(templateId);
+			// 1. 기본 템플릿 정보 조회 (관리자용이므로 권한 확인 없이 조회)
+			Map<String, Object> templateResult = getSqlTemplateDetailWithPermission(templateId, null);
 			if (!(Boolean) templateResult.get("success")) {
 				result.put("success", false);
 				result.put("error", "템플릿 기본 정보 조회 실패: " + templateResult.get("error"));

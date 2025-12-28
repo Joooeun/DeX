@@ -198,7 +198,7 @@ public class SQLController {
 		
 		try {
 			// 템플릿 정보 조회
-			Map<String, Object> templateResult = sqlTemplateService.getSqlTemplateDetail(templateId);
+			Map<String, Object> templateResult = sqlTemplateService.getSqlTemplateDetail(templateId, userId);
 			
 			if (templateResult != null && (Boolean) templateResult.get("success")) {
 				@SuppressWarnings("unchecked")
@@ -278,6 +278,7 @@ public class SQLController {
 	@ResponseBody
 	public Map<String, Object> runShell(HttpServletRequest request, HttpSession session) {
 		Map<String, Object> result = new HashMap<>();
+		String userId = (String) session.getAttribute("memberId");
 		
 		try {
 			String templateId = request.getParameter("templateId");
@@ -285,7 +286,7 @@ public class SQLController {
 			String parametersJson = request.getParameter("parameters");
 			
 			// 템플릿에서 스크립트 내용 조회 (SQL 처리와 동일한 방식)
-			Map<String, Object> templateResult = sqlTemplateService.getSqlTemplateDetail(templateId);
+			Map<String, Object> templateResult = sqlTemplateService.getSqlTemplateDetail(templateId, userId);
 			if (templateResult == null || !(Boolean) templateResult.get("success")) {
 				result.put("success", false);
 				result.put("error", "템플릿을 찾을 수 없습니다: " + templateId);
@@ -377,8 +378,9 @@ public class SQLController {
 	}
 	
 	@RequestMapping(path = "/Template/execute")
-	public void executeTemplate(HttpServletRequest request, HttpServletResponse response) throws IOException {
+	public void executeTemplate(HttpServletRequest request, HttpServletResponse response, HttpSession session) throws IOException {
 		String templateId = request.getParameter("templateId");
+		String userId = (String) session.getAttribute("memberId");
 		
 		if (templateId == null || templateId.trim().isEmpty()) {
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "템플릿 ID가 필요합니다.");
@@ -387,7 +389,7 @@ public class SQLController {
 		
 		try {
 			// DB에서 템플릿 조회
-			Map<String, Object> template = sqlTemplateService.getSqlTemplateDetail(templateId);
+			Map<String, Object> template = sqlTemplateService.getSqlTemplateDetail(templateId, userId);
 			
 			if (template == null || !(Boolean) template.get("success")) {
 				response.sendError(HttpServletResponse.SC_NOT_FOUND, "템플릿을 찾을 수 없습니다.");

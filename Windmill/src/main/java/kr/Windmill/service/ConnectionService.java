@@ -1627,7 +1627,7 @@ public class ConnectionService {
 	}
 
 	/**
-	 * 사용자 권한에 따라 연결을 필터링합니다
+	 * 사용자 권한에 따라 연결을 필터링합니다 (다중 그룹 지원)
 	 * 
 	 * @param userId         사용자 ID
 	 * @param connections    연결 목록
@@ -1640,14 +1640,46 @@ public class ConnectionService {
 			return connections;
 		}
 
-		// 사용자의 그룹 조회
-		String groupId = getUserGroup(userId);
-		if (groupId == null) {
+		// 사용자가 권한을 가진 연결 ID 목록 조회 (다중 그룹 지원 - 합집합)
+		final Set<String> allowedConnections;
+		
+		try {
+			String sql;
+			if ("SFTP".equals(connectionType)) {
+				// SFTP 연결 권한 조회 (다중 그룹 지원)
+				sql = "SELECT DISTINCT sc.SFTP_CONNECTION_ID AS CONNECTION_ID " 
+					+ "FROM SFTP_CONNECTION sc "
+					+ "INNER JOIN GROUP_CONNECTION_MAPPING gcm ON sc.SFTP_CONNECTION_ID = gcm.CONNECTION_ID "
+					+ "INNER JOIN USER_GROUP_MAPPING ugm ON gcm.GROUP_ID = ugm.GROUP_ID "
+					+ "WHERE sc.STATUS = 'ACTIVE' "
+					+ "AND ugm.USER_ID = ? "
+					+ "ORDER BY sc.SFTP_CONNECTION_ID";
+			} else {
+				// DB 연결 권한 조회 (다중 그룹 지원)
+				sql = "SELECT DISTINCT dc.CONNECTION_ID " 
+					+ "FROM DATABASE_CONNECTION dc "
+					+ "INNER JOIN GROUP_CONNECTION_MAPPING gcm ON dc.CONNECTION_ID = gcm.CONNECTION_ID "
+					+ "INNER JOIN USER_GROUP_MAPPING ugm ON gcm.GROUP_ID = ugm.GROUP_ID "
+					+ "WHERE dc.STATUS = 'ACTIVE' "
+					+ "AND ugm.USER_ID = ? "
+					+ "ORDER BY dc.CONNECTION_ID";
+			}
+			
+			List<Map<String, Object>> authorizedConnectionsFromDB = jdbcTemplate.queryForList(sql, userId);
+			Set<String> authorizedConnectionIds = new HashSet<>();
+			
+			for (Map<String, Object> connection : authorizedConnectionsFromDB) {
+				String connectionId = (String) connection.get("CONNECTION_ID");
+				if (connectionId != null) {
+					authorizedConnectionIds.add(connectionId);
+				}
+			}
+			
+			allowedConnections = authorizedConnectionIds;
+		} catch (Exception e) {
+			logger.warn("사용자 연결 권한 조회 실패, 빈 목록 반환: {} - {}", userId, e.getMessage());
 			return new ArrayList<>();
 		}
-
-		// 그룹의 연결 권한 조회
-		List<String> allowedConnections = getGroupConnectionPermissions(groupId, connectionType);
 
 		// 권한이 있는 연결만 반환
 		return connections.stream().filter(conn -> {

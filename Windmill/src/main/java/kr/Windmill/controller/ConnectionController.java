@@ -20,6 +20,7 @@ import org.springframework.web.servlet.ModelAndView;
 
 import kr.Windmill.dto.connection.ConnectionStatusDto;
 import kr.Windmill.service.ConnectionService;
+import kr.Windmill.service.PermissionService;
 import kr.Windmill.util.Common;
 
 @Controller
@@ -33,9 +34,19 @@ public class ConnectionController {
 	@Autowired
 	private Common com;
 
+	@Autowired
+	private PermissionService permissionService;
+
 	@RequestMapping(path = "/Connection", method = RequestMethod.GET)
 	public ModelAndView Connection(HttpServletRequest request, ModelAndView mv, HttpSession session) {
-
+		String userId = (String) session.getAttribute("memberId");
+		
+		// 관리자 권한 확인
+		if (userId == null || !permissionService.isAdmin(userId)) {
+			mv.setViewName("redirect:/index");
+			return mv;
+		}
+		
 		return mv;
 	}
 
@@ -46,9 +57,9 @@ public class ConnectionController {
 
 		try {
 			String userId = (String) session.getAttribute("memberId");
-			if (userId == null) {
+			if (userId == null || !permissionService.isAdmin(userId)) {
 				result.put("success", false);
-				result.put("message", "로그인이 필요합니다.");
+				result.put("message", "관리자 권한이 필요합니다.");
 				return result;
 			}
 
@@ -141,9 +152,9 @@ public class ConnectionController {
 
 		try {
 			String userId = (String) session.getAttribute("memberId");
-			if (userId == null) {
+			if (userId == null || !permissionService.isAdmin(userId)) {
 				result.put("success", false);
-				result.put("message", "로그인이 필요합니다.");
+				result.put("message", "관리자 권한이 필요합니다.");
 				return result;
 			}
 
@@ -215,9 +226,9 @@ public class ConnectionController {
 
 		try {
 			String userId = (String) session.getAttribute("memberId");
-			if (userId == null) {
+			if (userId == null || !permissionService.isAdmin(userId)) {
 				result.put("success", false);
-				result.put("message", "로그인이 필요합니다.");
+				result.put("message", "관리자 권한이 필요합니다.");
 				return result;
 			}
 

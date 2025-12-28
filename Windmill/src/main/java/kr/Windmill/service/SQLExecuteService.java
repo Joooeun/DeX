@@ -1534,9 +1534,9 @@ public class SQLExecuteService {
 		// audit 설정 (템플릿에서 가져오거나 DTO에서 설정)
 		Boolean audit = executeDto.getAudit();
 		if (audit == null) {
-			// 템플릿에서 audit 설정 조회
+			// 템플릿에서 audit 설정 조회 (실행 시에는 이미 권한 확인이 완료된 상태이므로 null 전달)
 			try {
-				Map<String, Object> templateInfo = sqlTemplateService.getSqlTemplateDetail(executeDto.getTemplateId());
+				Map<String, Object> templateInfo = sqlTemplateService.getSqlTemplateDetail(executeDto.getTemplateId(), null);
 				if (templateInfo.get("success").equals(true)) {
 					@SuppressWarnings("unchecked")
 					Map<String, Object> templateData = (Map<String, Object>) templateInfo.get("data");

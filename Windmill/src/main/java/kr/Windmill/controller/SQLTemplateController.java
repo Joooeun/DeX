@@ -75,9 +75,9 @@ public class SQLTemplateController {
 			return executeSqlTemplate(request, mv, session, templateId);
 		}
 
-		// SQL 템플릿 메뉴 권한 확인
-		if (!permissionService.checkMenuPermission(userId, "MENU_SQL_TEMPLATE")) {
-			logger.warn("SQL 템플릿 메뉴 권한 없음 - userId: {}", userId);
+		// 관리자 권한 확인
+		if (!permissionService.isAdmin(userId)) {
+			logger.warn("SQL 템플릿 관리 화면 접근 권한 없음 - userId: {}", userId);
 			mv.setViewName("redirect:/index");
 			return mv;
 		}
@@ -100,7 +100,7 @@ public class SQLTemplateController {
 			}
 			
 			// 템플릿 정보 조회
-			Map<String, Object> templateResult = sqlTemplateService.getSqlTemplateDetail(templateId);
+			Map<String, Object> templateResult = sqlTemplateService.getSqlTemplateDetail(templateId, userId);
 
 			if (templateResult == null || !(Boolean) templateResult.get("success")) {
 				mv.addObject("error", "템플릿을 찾을 수 없습니다.");
@@ -215,7 +215,7 @@ public class SQLTemplateController {
 		String userId = (String) session.getAttribute("memberId");
 
 		try {
-			Map<String, Object> result = sqlTemplateService.getSqlTemplateDetail(templateId);
+			Map<String, Object> result = sqlTemplateService.getSqlTemplateDetail(templateId, userId);
 			
 			// 조회 성공 시 audit_log 기록 (24시간 체크 포함)
 			if (result != null && Boolean.TRUE.equals(result.get("success"))) {
@@ -950,9 +950,9 @@ public class SQLTemplateController {
 				executeDto.setLimit(1000);
 			}
 
-			// 템플릿에서 audit 설정 조회
+			// 템플릿에서 audit 설정 조회 (실행 시에는 이미 권한 확인이 완료된 상태이므로 null 전달)
 			try {
-				Map<String, Object> templateInfo = sqlTemplateService.getSqlTemplateDetail(executeDto.getTemplateId());
+				Map<String, Object> templateInfo = sqlTemplateService.getSqlTemplateDetail(executeDto.getTemplateId(), userId);
 				if (templateInfo.get("success").equals(true)) {
 					@SuppressWarnings("unchecked")
 					Map<String, Object> templateData = (Map<String, Object>) templateInfo.get("data");
