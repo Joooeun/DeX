@@ -152,26 +152,32 @@ public class SqlTemplateService {
 
 			List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, userId);
 
-			// 카테고리별로 그룹화
-			Map<String, Map<String, Object>> categoryMap = new HashMap<>();
+			// 카테고리별로 그룹화 (리스트로 관리하여 순서 보장)
+			List<Map<String, Object>> categoryList = new ArrayList<>();
+			Map<String, Integer> categoryIndexMap = new HashMap<>(); // 카테고리 ID -> 리스트 인덱스 매핑
 			
 			for (Map<String, Object> row : rows) {
 				String categoryId = (String) row.get("CATEGORY_ID");
+				Integer categoryIndex = categoryIndexMap.get(categoryId);
+				Map<String, Object> category;
 				
 				// 카테고리 정보 추가
-				if (!categoryMap.containsKey(categoryId)) {
-					Map<String, Object> category = new HashMap<>();
+				if (categoryIndex == null) {
+					category = new HashMap<>();
 					category.put("type", "folder");
 					category.put("id", categoryId);
 					category.put("Name", row.get("CATEGORY_NAME"));
 					category.put("Path", categoryId + "Path");
 					category.put("list", new ArrayList<Map<String, Object>>());
-					categoryMap.put(categoryId, category);
+					categoryList.add(category);
+					categoryIndexMap.put(categoryId, categoryList.size() - 1);
+				} else {
+					category = categoryList.get(categoryIndex);
 				}
 				
 				// 템플릿 정보 추가
 				@SuppressWarnings("unchecked")
-				List<Map<String, Object>> children = (List<Map<String, Object>>) categoryMap.get(categoryId).get("list");
+				List<Map<String, Object>> children = (List<Map<String, Object>>) category.get("list");
 				
 				Map<String, Object> template = new HashMap<>();
 				String templateType = (String) row.get("TEMPLATE_TYPE");
@@ -184,8 +190,8 @@ public class SqlTemplateService {
 				children.add(template);
 			}
 			
-			// 카테고리 순서대로 정렬하여 트리 구성
-			tree.addAll(categoryMap.values());
+			// 쿼리 결과가 이미 정렬되어 있으므로 리스트 순서 그대로 사용
+			tree.addAll(categoryList);
 			
 
 		} catch (Exception e) {
