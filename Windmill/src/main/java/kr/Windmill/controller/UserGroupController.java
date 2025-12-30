@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
+import org.springframework.transaction.annotation.Transactional;
 
 import kr.Windmill.service.PermissionService;
 import kr.Windmill.service.UserGroupService;
@@ -340,6 +341,16 @@ public class UserGroupController {
 
 			groupData.put("createdBy", currentUserId);
 
+			// 그룹명 중복 체크
+			String groupName = (String) groupData.get("groupName");
+			if (groupName != null && !groupName.trim().isEmpty()) {
+				if (userGroupService.isGroupNameExists(groupName, null)) {
+					result.put("success", false);
+					result.put("message", "이미 존재하는 그룹명입니다.");
+					return result;
+				}
+			}
+
 			// groupId가 없으면 자동 생성
 			String groupId = (String) groupData.get("groupId");
 			if (groupId == null || groupId.trim().isEmpty()) {
@@ -390,6 +401,16 @@ public class UserGroupController {
 			}
 
 			groupData.put("modifiedBy", currentUserId);
+
+			// 그룹명 중복 체크 (자기 자신 제외)
+			String groupName = (String) groupData.get("groupName");
+			if (groupName != null && !groupName.trim().isEmpty()) {
+				if (userGroupService.isGroupNameExists(groupName, groupId)) {
+					result.put("success", false);
+					result.put("message", "이미 존재하는 그룹명입니다.");
+					return result;
+				}
+			}
 
 			boolean success = userGroupService.updateGroup(groupId, groupData);
 			if (success) {
@@ -800,9 +821,73 @@ public class UserGroupController {
 		return result;
 	}
 
-	// 메뉴 권한 부여 (기존 테이블 활용)
+	// 통합 권한 저장 (메뉴, 카테고리, 연결정보를 한 번에 저장)
+	@ResponseBody
+	@RequestMapping(value = "/saveAllPermissions", method = RequestMethod.POST)
+	@Transactional
+	public Map<String, Object> saveAllPermissions(@RequestBody Map<String, Object> requestData, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String userId = (String) session.getAttribute("memberId");
+			if (userId == null) {
+				result.put("success", false);
+				result.put("message", "로그인이 필요합니다.");
+				return result;
+			}
+
+			// 관리자 권한 확인
+			if (!permissionService.isAdmin(userId)) {
+				result.put("success", false);
+				result.put("message", "관리자 권한이 필요합니다.");
+				return result;
+			}
+
+			String groupId = (String) requestData.get("groupId");
+			@SuppressWarnings("unchecked")
+			java.util.List<String> menuIds = (java.util.List<String>) requestData.get("menuIds");
+			@SuppressWarnings("unchecked")
+			java.util.List<String> categoryIds = (java.util.List<String>) requestData.get("categoryIds");
+			@SuppressWarnings("unchecked")
+			java.util.List<String> connectionIds = (java.util.List<String>) requestData.get("connectionIds");
+
+			logger.info("통합 권한 저장 요청 - groupId: {}, menuCount: {}, categoryCount: {}, connectionCount: {}", 
+					groupId, 
+					menuIds != null ? menuIds.size() : 0,
+					categoryIds != null ? categoryIds.size() : 0,
+					connectionIds != null ? connectionIds.size() : 0);
+
+			if (groupId == null || groupId.trim().isEmpty()) {
+				result.put("success", false);
+				result.put("message", "그룹 ID가 필요합니다.");
+				return result;
+			}
+
+			// 통합 권한 저장
+			boolean success = userGroupService.saveAllPermissions(groupId, menuIds, categoryIds, connectionIds, userId);
+			
+			if (success) {
+				result.put("success", true);
+				result.put("message", "모든 권한이 성공적으로 저장되었습니다.");
+				logger.info("통합 권한 저장 완료 - groupId: {}", groupId);
+			} else {
+				result.put("success", false);
+				result.put("message", "권한 저장에 실패했습니다.");
+			}
+
+		} catch (Exception e) {
+			logger.error("통합 권한 저장 중 오류 발생", e);
+			result.put("success", false);
+			result.put("message", "권한 저장 중 오류가 발생했습니다: " + e.getMessage());
+		}
+
+		return result;
+	}
+
+	// 메뉴 권한 부여 (기존 테이블 활용) - 하위 호환성 유지
 	@ResponseBody
 	@RequestMapping(value = "/grantMenuPermissions", method = RequestMethod.POST)
+	@Transactional
 	public Map<String, Object> grantMenuPermissions(@RequestBody Map<String, Object> requestData, HttpSession session) {
 		Map<String, Object> result = new HashMap<>();
 

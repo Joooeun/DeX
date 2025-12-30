@@ -1510,7 +1510,7 @@ function editGroupPermissions(groupId) {
     });
 }
 
-// 그룹 권한 저장
+// 그룹 권한 저장 (통합 - 메뉴, 카테고리, 연결정보를 한 번에 저장)
 function saveGroupPermissions(groupId) {
     console.log('권한 저장 시작 - groupId:', groupId);
     
@@ -1538,78 +1538,29 @@ function saveGroupPermissions(groupId) {
     });
     console.log('선택된 연결정보 권한:', selectedConnections);
     
-    // 메뉴 권한 저장
+    // 통합 권한 저장 (한 번에 처리)
     $.ajax({
-        url: '/UserGroup/grantMenuPermissions',
+        url: '/UserGroup/saveAllPermissions',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify({
             groupId: groupId,
-            menuIds: selectedMenus
-        }),
-        success: function(response) {
-            console.log('메뉴 권한 저장 응답:', response);
-            if (!response.success) {
-                console.error('메뉴 권한 저장 실패:', response.message);
-                showToast('메뉴 권한 저장 실패: ' + response.message, 'error');
-            } else {
-                console.log('메뉴 권한 저장 성공');
-                showToast('메뉴 권한이 저장되었습니다.', 'success');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('메뉴 권한 저장 중 오류:', error);
-            showToast('메뉴 권한 저장 중 오류가 발생했습니다.', 'error');
-        }
-    });
-    
-    // 카테고리 권한 저장
-    $.ajax({
-        url: '/UserGroup/grantCategoryPermissions',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            groupId: groupId,
-            categoryIds: selectedCategories
-        }),
-        success: function(response) {
-            console.log('카테고리 권한 저장 응답:', response);
-            if (!response.success) {
-                console.error('카테고리 권한 저장 실패:', response.message);
-                showToast('카테고리 권한 저장 실패: ' + response.message, 'error');
-            } else {
-                console.log('카테고리 권한 저장 성공');
-                showToast('카테고리 권한이 저장되었습니다.', 'success');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('카테고리 권한 저장 중 오류:', error);
-            showToast('카테고리 권한 저장 중 오류가 발생했습니다.', 'error');
-        }
-    });
-    
-    // 연결정보 권한 저장
-    $.ajax({
-        url: '/UserGroup/grantConnectionPermissions',
-        type: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            groupId: groupId,
+            menuIds: selectedMenus,
+            categoryIds: selectedCategories,
             connectionIds: selectedConnections
         }),
         success: function(response) {
-            console.log('연결정보 권한 저장 응답:', response);
-            if (!response.success) {
-                console.error('연결정보 권한 저장 실패:', response.message);
-                showToast('연결정보 권한 저장 실패: ' + response.message, 'error');
+            console.log('통합 권한 저장 응답:', response);
+            if (response.success) {
+                showToast('모든 권한이 성공적으로 저장되었습니다.', 'success');
             } else {
-                console.log('연결정보 권한 저장 성공');
-                showToast('연결정보 권한이 저장되었습니다.', 'success');
+                console.error('권한 저장 실패:', response.message);
+                showToast('권한 저장 실패: ' + response.message, 'error');
             }
         },
         error: function(xhr, status, error) {
-            console.error('연결정보 권한 저장 중 오류:', error);
-            showToast('연결정보 권한 저장 중 오류가 발생했습니다.', 'error');
+            console.error('권한 저장 중 오류:', error);
+            showToast('권한 저장 중 오류가 발생했습니다.', 'error');
         }
     });
 }
