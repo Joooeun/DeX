@@ -175,16 +175,6 @@ $(document).ready(function() {
 		if (value.includes("FileRead")) {
 			var myForm = document.popForm;
 			var url = "/FileRead";
-			//var dualScreenLeft = window.screenLeft != undefined ? window.screenLeft : screen.left;
-			//var dualScreenTop = window.screenTop != undefined ? window.screenTop : screen.top;
-			//var width = window.innerWidth ? window.innerWidth : document.documentElement.clientWidth ? document.documentElement.clientWidth : screen.width;
-			//var height = window.innerHeight ? window.innerHeight : document.documentElement.clientHeight ? document.documentElement.clientHeight : screen.height;
-			//var left = ((width / 2) - (800 / 2)) + dualScreenLeft;
-			//var top = ((height / 2) - (700 / 2)) + dualScreenTop;
-
-			//var w = window.open("", "FileRead",
-			//	"width=800, height=700, top=" + top + ", left=" + left + ",  toolbar=no, menubar=no, scrollbars=no, resizable=yes");
-			//w.document.title = "FileRead";
 			myForm.action = url;
 			myForm.method = "post";
 			myForm.target = target;
@@ -316,7 +306,6 @@ $(document).ready(function() {
 			success: function(result) {
 
 				var sidebar = $('#sqltree');
-				//var parent = $('<li class="active treeview menu-open"><a class="addtree" href="#"> <i class="fa fa-code"></i> <span>SQL</span> <i class="fa fa-angle-left pull-right"></a></i>');
 				var child = $('<ul class="treeview-menu" id="sidemenu"></ul>');
 				child.append(setMenu(result, child));
 				sidebar.empty();

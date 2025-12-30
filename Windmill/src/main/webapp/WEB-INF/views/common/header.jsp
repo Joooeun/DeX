@@ -196,23 +196,23 @@ var changePW
 			}
 		});
 		
-		// 자동완성 아이템 클릭 이벤트
-		$(document).on('click', '.autocomplete-item', function() {
-			var menuType = $(this).data('menu-type');
-			var onclick = $(this).data('onclick');
-			
-			if (menuType === 'sql' && onclick) {
-				// SQL 메뉴의 경우 onclick 함수 직접 실행
-				eval(onclick);
-			} else {
-				// 일반 메뉴의 경우 기존 방식 사용
-				var href = $(this).data('href');
-				navigateToMenu(href);
-			}
-			
-			hideAutocomplete();
-			$('#search').val('');
-		});
+	// 자동완성 아이템 클릭 이벤트
+	$(document).on('click', '.autocomplete-item', function() {
+		var menuType = $(this).data('menu-type');
+		var onclick = $(this).data('onclick');
+		
+		if (onclick) {
+			// onclick이 있으면 탭 추가 (SQL 메뉴 및 관리자 메뉴 모두)
+			executeTemplateTabFunction(onclick);
+		} else {
+			// onclick이 없는 경우 기존 방식 사용 (하위 호환성)
+			var href = $(this).data('href');
+			navigateToMenu(href);
+		}
+		
+		hideAutocomplete();
+		$('#search').val('');
+	});
 		
 		// 검색 버튼 클릭 이벤트
 		$('#search-btn').on('click', function() {
@@ -248,21 +248,57 @@ var changePW
 	function collectMenuItems() {
 		allMenuItems = [];
 		
-		// 고정 메뉴들 추가
+		// 고정 메뉴들 추가 (사이드바 메뉴 이름과 일치하도록 수정)
 		var fixedMenus = [
-			{ text: 'Connection', href: '/Connection', icon: 'fa-database', type: 'admin' },
-			{ text: 'User', href: '/User', icon: 'fa-user', type: 'admin' },
-			{ text: 'SQL 템플릿 관리', href: '/SQLTemplate', icon: 'fa-code', type: 'admin' },
-			{ text: '환경설정 관리', href: '/SystemConfig', icon: 'fa-cog', type: 'admin' },
-			{ text: 'FileRead', href: '/FileRead', icon: 'fa-file-text-o', type: 'all' },
-			{ text: 'FileUpload', href: '/FileUpload', icon: 'fa-file-text-o', type: 'all' }
+			{ text: '환경설정 관리', href: '/SystemConfig', icon: 'fa-cog', type: 'admin', templateId: 'systemconfig' },
+			{ text: '연결 관리', href: '/Connection', icon: 'fa-database', type: 'admin', templateId: 'connection' },
+			{ text: '사용자 관리', href: '/User', icon: 'fa-user', type: 'admin', templateId: 'user' },
+			{ text: 'SQL 템플릿 관리', href: '/SQLTemplate', icon: 'fa-code', type: 'admin', templateId: 'sqltemplate' },
+			{ text: 'ETL 관리', href: '/ETL', icon: 'fa-exchange', type: 'admin', templateId: 'etl' },
+			{ text: '대시보드', href: '/Dashboard', icon: 'fa-dashboard', type: 'dashboard', templateId: 'dashboard' },
+			{ text: '파일 읽기', href: '/FileRead', icon: 'fa-file-text-o', type: 'all', templateId: 'fileread' },
+			{ text: '파일 쓰기', href: '/FileUpload', icon: 'fa-file-text-o', type: 'all', templateId: 'fileupload' }
 		];
 		
-		// 관리자 메뉴만 필터링
+		// 권한에 따라 메뉴 필터링
 		var isAdmin = '${isAdmin}' === 'true';
+		var hasDashboardPermission = '${hasDashboardPermission}' === 'true';
+		var hasFileReadPermission = '${hasFileReadPermission}' === 'true';
+		var hasFileWritePermission = '${hasFileWritePermission}' === 'true';
+		
 		fixedMenus.forEach(function(menu) {
-			if (menu.type === 'all' || (menu.type === 'admin' && isAdmin)) {
-				allMenuItems.push(menu);
+			var shouldInclude = false;
+			
+			// 타입별 권한 체크
+			if (menu.type === 'admin') {
+				shouldInclude = isAdmin;
+			} else if (menu.type === 'dashboard') {
+				shouldInclude = hasDashboardPermission;
+			} else if (menu.type === 'all') {
+				// 'all' 타입은 추가 권한 체크 필요
+				if (menu.templateId === 'fileread') {
+					shouldInclude = hasFileReadPermission;
+				} else if (menu.templateId === 'fileupload') {
+					shouldInclude = hasFileWritePermission;
+				} else {
+					shouldInclude = true;
+				}
+			}
+			
+			if (shouldInclude) {
+				// 관리자 메뉴와 일반 메뉴 모두 onclick 문자열 생성하여 탭 추가 가능하도록 함
+				var menuItem = {
+					text: menu.text,
+					href: menu.href,
+					icon: menu.icon,
+					type: menu.type,
+					templateId: menu.templateId
+				};
+				
+				// onclick 문자열 생성: addTemplateTab('templateId', 'title', 'url')
+				menuItem.onclick = "addTemplateTab('" + menu.templateId + "', '" + menu.text + "', '" + menu.href + "')";
+				
+				allMenuItems.push(menuItem);
 			}
 		});
 		
@@ -363,6 +399,32 @@ var changePW
 		}
 	}
 	
+	// eval() 대체: addTemplateTab 함수 호출을 안전하게 처리
+	// onclick 문자열에서 파라미터를 추출하여 함수를 직접 호출
+	function executeTemplateTabFunction(onclickString) {
+		if (!onclickString || typeof onclickString !== 'string') {
+			console.error('executeTemplateTabFunction: 유효하지 않은 onclick 문자열');
+			return;
+		}
+		
+		// addTemplateTab('templateId', 'title', 'url') 형태의 문자열 파싱
+		var match = onclickString.match(/addTemplateTab\s*\(\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*\)/);
+		if (match && match.length === 4) {
+			var templateId = match[1];
+			var title = match[2];
+			var url = match[3];
+			
+			// 전역 함수 addTemplateTab 직접 호출
+			if (typeof window.addTemplateTab === 'function') {
+				window.addTemplateTab(templateId, title, url);
+			} else {
+				console.error('executeTemplateTabFunction: addTemplateTab 함수를 찾을 수 없습니다');
+			}
+		} else {
+			console.error('executeTemplateTabFunction: 올바르지 않은 함수 형식:', onclickString);
+		}
+	}
+	
 	// 기존 Search 함수 (호환성을 위해 유지)
 	function Search() {
 		var searchTerm = $("#search").val().trim();
@@ -378,11 +440,11 @@ var changePW
 		
 		// 첫 번째 결과로 이동
 		var firstItem = filtered[0];
-		if (firstItem.type === 'sql' && firstItem.onclick) {
-			// SQL 메뉴의 경우 onclick 함수 직접 실행
-			eval(firstItem.onclick);
+		if (firstItem.onclick) {
+			// onclick이 있으면 탭 추가 (SQL 메뉴 및 관리자 메뉴 모두)
+			executeTemplateTabFunction(firstItem.onclick);
 		} else {
-			// 일반 메뉴의 경우 기존 방식 사용
+			// onclick이 없는 경우 기존 방식 사용 (하위 호환성)
 			navigateToMenu(firstItem.href);
 		}
 		
@@ -523,7 +585,6 @@ var changePW
 		removeTab: function(templateId) {
 			// home 탭은 제거할 수 없음
 			if (templateId === 'home') {
-				console.log('home 탭은 제거할 수 없습니다.');
 				return false;
 			}
 			
@@ -587,7 +648,6 @@ var changePW
 				}
 				// 마지막에 추가
 				this.tabOrder.push(templateId);
-				console.log('탭 순서 변경:', templateId, '-> 마지막 순서');
 			}
 		},
 		
@@ -605,7 +665,6 @@ var changePW
 
 	// 새로운 탭 추가 함수 (템플릿용) - 전역 함수로 등록
 	window.addTemplateTab = function(templateId, title, url) {
-		console.log('addTemplateTab 호출:', templateId, title, url);
 		tabManager.addTab(templateId, title, url);
 	};
 
