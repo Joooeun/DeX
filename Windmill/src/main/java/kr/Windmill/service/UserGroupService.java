@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.Set;
+import java.util.HashSet;
 
 @Service
 public class UserGroupService {
@@ -35,10 +37,41 @@ public class UserGroupService {
         return result.isEmpty() ? null : result.get(0);
     }
     
+    // 그룹명 중복 체크
+    public boolean isGroupNameExists(String groupName, String excludeGroupId) {
+        try {
+            String sql;
+            if (excludeGroupId != null && !excludeGroupId.trim().isEmpty()) {
+                sql = "SELECT COUNT(*) FROM USER_GROUPS WHERE GROUP_NAME = ? AND GROUP_ID != ?";
+                Integer count = jdbcTemplate.queryForObject(sql, Integer.class, groupName, excludeGroupId);
+                return count != null && count > 0;
+            } else {
+                sql = "SELECT COUNT(*) FROM USER_GROUPS WHERE GROUP_NAME = ?";
+                Integer count = jdbcTemplate.queryForObject(sql, Integer.class, groupName);
+                return count != null && count > 0;
+            }
+        } catch (Exception e) {
+            logger.error("그룹명 중복 체크 중 오류 발생", e);
+            return false;
+        }
+    }
+    
     // 그룹 생성
     @Transactional
     public boolean createGroup(Map<String, Object> groupData) {
         try {
+            String groupName = (String) groupData.get("groupName");
+            if (groupName == null || groupName.trim().isEmpty()) {
+                logger.error("그룹명이 없습니다.");
+                return false;
+            }
+            
+            // 그룹명 중복 체크
+            if (isGroupNameExists(groupName, null)) {
+                logger.error("그룹명이 이미 존재합니다: {}", groupName);
+                return false;
+            }
+            
             // groupId가 없으면 자동 생성
             String groupId = (String) groupData.get("groupId");
             if (groupId == null || groupId.trim().isEmpty()) {
@@ -48,7 +81,7 @@ public class UserGroupService {
             String sql = "INSERT INTO USER_GROUPS (GROUP_ID, GROUP_NAME, GROUP_DESCRIPTION, STATUS, CREATED_BY) VALUES (?, ?, ?, ?, ?)";
             jdbcTemplate.update(sql, 
                 groupId,
-                groupData.get("groupName"),
+                groupName,
                 groupData.get("description"),
                 groupData.get("status"),
                 groupData.get("createdBy")
@@ -64,9 +97,21 @@ public class UserGroupService {
     @Transactional
     public boolean updateGroup(String groupId, Map<String, Object> groupData) {
         try {
+            String groupName = (String) groupData.get("groupName");
+            if (groupName == null || groupName.trim().isEmpty()) {
+                logger.error("그룹명이 없습니다.");
+                return false;
+            }
+            
+            // 그룹명 중복 체크 (자기 자신 제외)
+            if (isGroupNameExists(groupName, groupId)) {
+                logger.error("그룹명이 이미 존재합니다: {}", groupName);
+                return false;
+            }
+            
             String sql = "UPDATE USER_GROUPS SET GROUP_NAME = ?, GROUP_DESCRIPTION = ?, STATUS = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP WHERE GROUP_ID = ?";
             jdbcTemplate.update(sql,
-                groupData.get("groupName"),
+                groupName,
                 groupData.get("description"),
                 groupData.get("status"),
                 groupData.get("modifiedBy"),
@@ -230,6 +275,7 @@ public class UserGroupService {
     
     // 그룹 권한 저장 (단순화)
     @Transactional
+    @SuppressWarnings("unchecked")
     public boolean saveGroupPermissions(String groupId, Map<String, Object> permissions, String modifiedBy) {
         try {
             // SQL 템플릿 카테고리 권한 저장
@@ -294,6 +340,202 @@ public class UserGroupService {
         } catch (Exception e) {
             logger.error("그룹 권한 저장 중 오류 발생", e);
             return false;
+        }
+    }
+    
+    // 비교 기반 메뉴 권한 저장 (DELETE 후 INSERT 대신 추가/삭제만 수행)
+    @Transactional
+    public boolean saveMenuPermissions(String groupId, List<String> newMenuIds, String modifiedBy) {
+        try {
+            logger.info("메뉴 권한 저장 시작 - groupId: {}, newMenuCount: {}", groupId, newMenuIds != null ? newMenuIds.size() : 0);
+            
+            // 중복 제거
+            Set<String> newMenuSet = new HashSet<>();
+            if (newMenuIds != null) {
+                for (String menuId : newMenuIds) {
+                    if (menuId != null && !menuId.trim().isEmpty()) {
+                        newMenuSet.add(menuId.trim());
+                    }
+                }
+            }
+            
+            // 기존 메뉴 권한 조회
+            String selectSql = "SELECT CATEGORY_ID FROM GROUP_CATEGORY_MAPPING WHERE GROUP_ID = ? AND CATEGORY_ID LIKE 'MENU_%'";
+            List<String> existingMenuIds = jdbcTemplate.queryForList(selectSql, String.class, groupId);
+            Set<String> existingMenuSet = new HashSet<>(existingMenuIds);
+            
+            // 삭제할 권한 (기존에는 있지만 새로는 없는 것)
+            Set<String> toDelete = new HashSet<>(existingMenuSet);
+            toDelete.removeAll(newMenuSet);
+            
+            // 추가할 권한 (새로는 있지만 기존에는 없는 것)
+            Set<String> toAdd = new HashSet<>(newMenuSet);
+            toAdd.removeAll(existingMenuSet);
+            
+            logger.info("메뉴 권한 변경 내역 - 추가: {}, 삭제: {}", toAdd.size(), toDelete.size());
+            
+            // 삭제 수행
+            if (!toDelete.isEmpty()) {
+                String deleteSql = "DELETE FROM GROUP_CATEGORY_MAPPING WHERE GROUP_ID = ? AND CATEGORY_ID = ?";
+                for (String menuId : toDelete) {
+                    jdbcTemplate.update(deleteSql, groupId, menuId);
+                    logger.info("메뉴 권한 삭제 - groupId: {}, menuId: {}", groupId, menuId);
+                }
+            }
+            
+            // 추가 수행
+            if (!toAdd.isEmpty()) {
+                String insertSql = "INSERT INTO GROUP_CATEGORY_MAPPING (GROUP_ID, CATEGORY_ID, GRANTED_BY, GRANTED_TIMESTAMP) VALUES (?, ?, ?, CURRENT TIMESTAMP)";
+                for (String menuId : toAdd) {
+                    jdbcTemplate.update(insertSql, groupId, menuId, modifiedBy);
+                    logger.info("메뉴 권한 추가 - groupId: {}, menuId: {}", groupId, menuId);
+                }
+            }
+            
+            logger.info("메뉴 권한 저장 완료 - groupId: {}", groupId);
+            return true;
+        } catch (Exception e) {
+            logger.error("메뉴 권한 저장 중 오류 발생 - groupId: {}", groupId, e);
+            throw new RuntimeException("메뉴 권한 저장 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+    }
+    
+    // 비교 기반 카테고리 권한 저장
+    @Transactional
+    public boolean saveCategoryPermissions(String groupId, List<String> newCategoryIds, String modifiedBy) {
+        try {
+            logger.info("카테고리 권한 저장 시작 - groupId: {}, newCategoryCount: {}", groupId, newCategoryIds != null ? newCategoryIds.size() : 0);
+            
+            // 중복 제거
+            Set<String> newCategorySet = new HashSet<>();
+            if (newCategoryIds != null) {
+                for (String categoryId : newCategoryIds) {
+                    if (categoryId != null && !categoryId.trim().isEmpty() && !categoryId.startsWith("MENU_")) {
+                        newCategorySet.add(categoryId.trim());
+                    }
+                }
+            }
+            
+            // 기존 카테고리 권한 조회 (MENU_로 시작하는 것 제외)
+            String selectSql = "SELECT CATEGORY_ID FROM GROUP_CATEGORY_MAPPING WHERE GROUP_ID = ? AND CATEGORY_ID NOT LIKE 'MENU_%'";
+            List<String> existingCategoryIds = jdbcTemplate.queryForList(selectSql, String.class, groupId);
+            Set<String> existingCategorySet = new HashSet<>(existingCategoryIds);
+            
+            // 삭제할 권한
+            Set<String> toDelete = new HashSet<>(existingCategorySet);
+            toDelete.removeAll(newCategorySet);
+            
+            // 추가할 권한
+            Set<String> toAdd = new HashSet<>(newCategorySet);
+            toAdd.removeAll(existingCategorySet);
+            
+            logger.info("카테고리 권한 변경 내역 - 추가: {}, 삭제: {}", toAdd.size(), toDelete.size());
+            
+            // 삭제 수행
+            if (!toDelete.isEmpty()) {
+                String deleteSql = "DELETE FROM GROUP_CATEGORY_MAPPING WHERE GROUP_ID = ? AND CATEGORY_ID = ?";
+                for (String categoryId : toDelete) {
+                    jdbcTemplate.update(deleteSql, groupId, categoryId);
+                }
+            }
+            
+            // 추가 수행
+            if (!toAdd.isEmpty()) {
+                String insertSql = "INSERT INTO GROUP_CATEGORY_MAPPING (GROUP_ID, CATEGORY_ID, GRANTED_BY, GRANTED_TIMESTAMP) VALUES (?, ?, ?, CURRENT TIMESTAMP)";
+                for (String categoryId : toAdd) {
+                    jdbcTemplate.update(insertSql, groupId, categoryId, modifiedBy);
+                }
+            }
+            
+            logger.info("카테고리 권한 저장 완료 - groupId: {}", groupId);
+            return true;
+        } catch (Exception e) {
+            logger.error("카테고리 권한 저장 중 오류 발생 - groupId: {}", groupId, e);
+            throw new RuntimeException("카테고리 권한 저장 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+    }
+    
+    // 비교 기반 연결정보 권한 저장
+    @Transactional
+    public boolean saveConnectionPermissions(String groupId, List<String> newConnectionIds, String modifiedBy) {
+        try {
+            logger.info("연결정보 권한 저장 시작 - groupId: {}, newConnectionCount: {}", groupId, newConnectionIds != null ? newConnectionIds.size() : 0);
+            
+            // 중복 제거
+            Set<String> newConnectionSet = new HashSet<>();
+            if (newConnectionIds != null) {
+                for (String connectionId : newConnectionIds) {
+                    if (connectionId != null && !connectionId.trim().isEmpty()) {
+                        newConnectionSet.add(connectionId.trim());
+                    }
+                }
+            }
+            
+            // 기존 연결정보 권한 조회
+            String selectSql = "SELECT CONNECTION_ID FROM GROUP_CONNECTION_MAPPING WHERE GROUP_ID = ?";
+            List<String> existingConnectionIds = jdbcTemplate.queryForList(selectSql, String.class, groupId);
+            Set<String> existingConnectionSet = new HashSet<>(existingConnectionIds);
+            
+            // 삭제할 권한
+            Set<String> toDelete = new HashSet<>(existingConnectionSet);
+            toDelete.removeAll(newConnectionSet);
+            
+            // 추가할 권한
+            Set<String> toAdd = new HashSet<>(newConnectionSet);
+            toAdd.removeAll(existingConnectionSet);
+            
+            logger.info("연결정보 권한 변경 내역 - 추가: {}, 삭제: {}", toAdd.size(), toDelete.size());
+            
+            // 삭제 수행
+            if (!toDelete.isEmpty()) {
+                String deleteSql = "DELETE FROM GROUP_CONNECTION_MAPPING WHERE GROUP_ID = ? AND CONNECTION_ID = ?";
+                for (String connectionId : toDelete) {
+                    jdbcTemplate.update(deleteSql, groupId, connectionId);
+                }
+            }
+            
+            // 추가 수행
+            if (!toAdd.isEmpty()) {
+                String insertSql = "INSERT INTO GROUP_CONNECTION_MAPPING (GROUP_ID, CONNECTION_ID, GRANTED_BY, GRANTED_TIMESTAMP) VALUES (?, ?, ?, CURRENT TIMESTAMP)";
+                for (String connectionId : toAdd) {
+                    jdbcTemplate.update(insertSql, groupId, connectionId, modifiedBy);
+                }
+            }
+            
+            logger.info("연결정보 권한 저장 완료 - groupId: {}", groupId);
+            return true;
+        } catch (Exception e) {
+            logger.error("연결정보 권한 저장 중 오류 발생 - groupId: {}", groupId, e);
+            throw new RuntimeException("연결정보 권한 저장 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+    }
+    
+    // 통합 권한 저장 (메뉴, 카테고리, 연결정보를 한 번에)
+    @Transactional
+    public boolean saveAllPermissions(String groupId, List<String> menuIds, List<String> categoryIds, List<String> connectionIds, String modifiedBy) {
+        try {
+            logger.info("통합 권한 저장 시작 - groupId: {}", groupId);
+            
+            // 메뉴 권한 저장
+            if (menuIds != null) {
+                saveMenuPermissions(groupId, menuIds, modifiedBy);
+            }
+            
+            // 카테고리 권한 저장
+            if (categoryIds != null) {
+                saveCategoryPermissions(groupId, categoryIds, modifiedBy);
+            }
+            
+            // 연결정보 권한 저장
+            if (connectionIds != null) {
+                saveConnectionPermissions(groupId, connectionIds, modifiedBy);
+            }
+            
+            logger.info("통합 권한 저장 완료 - groupId: {}", groupId);
+            return true;
+        } catch (Exception e) {
+            logger.error("통합 권한 저장 중 오류 발생 - groupId: {}", groupId, e);
+            throw e;
         }
     }
 }
