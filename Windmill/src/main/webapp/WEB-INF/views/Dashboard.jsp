@@ -1789,12 +1789,14 @@
                                 var columnParts = sourceColumns.split(',');
                                 var paramValues = [];
                                 
-                                columnParts.forEach(function(part) {
-                                    var trimmedPart = part.trim();
+                                // 인덱스를 유지하기 위해 for 루프 사용
+                                for (var i = 0; i < columnParts.length; i++) {
+                                    var trimmedPart = columnParts[i].trim();
                                     
-                                    // 빈 값은 무시
+                                    // 빈 값은 빈 문자열로 추가 (위치 유지)
                                     if (trimmedPart === '') {
-                                        return;
+                                        paramValues.push('');
+                                        continue;
                                     }
                                     
                                     // 작은따옴표로 감싼 값은 상수값으로 처리
@@ -1808,10 +1810,17 @@
                                             var paramKeys = Object.keys(parameters);
                                             if (paramKeys[columnIndex] !== undefined) {
                                                 paramValues.push(parameters[paramKeys[columnIndex]]);
+                                            } else {
+                                                paramValues.push('');
                                             }
+                                        } else {
+                                            paramValues.push('');
                                         }
+                                    } else {
+                                        // 기타 경우 빈 문자열
+                                        paramValues.push('');
                                     }
-                                });
+                                }
                                 
                                 parameterString = paramValues.join(',');
                             }
