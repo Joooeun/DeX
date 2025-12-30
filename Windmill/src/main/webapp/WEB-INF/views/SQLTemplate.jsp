@@ -3656,9 +3656,6 @@
 			sendSql(templateId+"&");
 		}
 
-
-
-
 		// 단축키 입력 필드에 키 이벤트 리스너 추가 (테이블 범위로 최적화)
 		$('#shortcutTableBody').on('focus', '.shortcut-key', function () {
 			$(this).attr('data-listening', 'true');

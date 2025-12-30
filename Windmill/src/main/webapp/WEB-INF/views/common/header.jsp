@@ -401,7 +401,7 @@ var changePW
 		tabOrder: ['home'], // 탭 순서 추적
 		
 		// 탭 추가
-		addTab: function(templateId, title, url) {
+		addTab: function(templateId, title, url, data) {
 			
 			// 중복 탭 체크
 			if (!this.tabs.has(templateId)) {
@@ -428,21 +428,77 @@ var changePW
 				var tabHtml = '<li><a href="#' + tabId + '" data-toggle="tab" data-template-id="' + templateId + '">' + 
 					title + closeButton + '</a></li>';
 				
-				var contentHtml = '<div class="tab-pane" id="' + tabId + '">' +
-					'<iframe name="' + iframeId + '" id="' + iframeId + '" class="tab_frame" ' +
-					'style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" ' +
-					'src="' + url + '"></iframe></div>';
+				// data가 있으면 POST form 생성, 없으면 GET 방식으로 iframe src 설정
+				var contentHtml = '';
+				if (data && Object.keys(data).length > 0) {
+					// POST 방식: form 생성
+					var formId = 'form_' + templateId;
+					contentHtml = '<div class="tab-pane" id="' + tabId + '">' +
+						'<form id="' + formId + '" name="' + formId + '" method="POST" action="' + url + '" target="' + iframeId + '" style="display:none;">' +
+						'</form>' +
+						'<iframe name="' + iframeId + '" id="' + iframeId + '" class="tab_frame" ' +
+						'style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;"></iframe></div>';
+				} else {
+					// GET 방식: 기존 방식
+					contentHtml = '<div class="tab-pane" id="' + tabId + '">' +
+						'<iframe name="' + iframeId + '" id="' + iframeId + '" class="tab_frame" ' +
+						'style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" ' +
+						'src="' + url + '"></iframe></div>';
+				}
 				
 				// DOM에 추가
 				$('#pageTab').append(tabHtml);
 				$('#pageTabContent').append(contentHtml);
+				
+				// data가 있으면 form에 데이터 추가하고 submit
+				if (data && Object.keys(data).length > 0) {
+					var form = document.getElementById(formId);
+					if (form) {
+						// form에 데이터 추가
+						for (var key in data) {
+							if (data.hasOwnProperty(key)) {
+								var input = document.createElement('input');
+								input.type = 'hidden';
+								input.name = key;
+								input.value = data[key];
+								form.appendChild(input);
+							}
+						}
+						// form submit
+						form.submit();
+					}
+				}
 			}else{
 				var tabInfo = this.tabs.get(templateId);
 			    if (tabInfo) {
 			        // iframe URL 업데이트
 			        var iframe = document.getElementById(tabInfo.iframeId);
 			        if (iframe) {
-			            iframe.src = url;
+			            if (data && Object.keys(data).length > 0) {
+			                // POST 방식: form 다시 submit
+			                var formId = 'form_' + templateId;
+			                var form = document.getElementById(formId);
+			                if (form) {
+			                    // 기존 input 제거
+			                    while (form.firstChild) {
+			                        form.removeChild(form.firstChild);
+			                    }
+			                    // 새로운 데이터 추가
+			                    for (var key in data) {
+			                        if (data.hasOwnProperty(key)) {
+			                            var input = document.createElement('input');
+			                            input.type = 'hidden';
+			                            input.name = key;
+			                            input.value = data[key];
+			                            form.appendChild(input);
+			                        }
+			                    }
+			                    form.submit();
+			                }
+			            } else {
+			                // GET 방식: iframe src 업데이트
+			                iframe.src = url;
+			            }
 			        }
 			    }
 			}

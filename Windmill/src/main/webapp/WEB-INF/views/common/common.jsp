@@ -235,16 +235,18 @@ $(document).ready(function() {
 		} else {
 			// 템플릿 실행 - 부모 창의 tabManager 사용
 			var templateId = value.split('&')[0];
-			var excuteParam = value.split('&')[2];
+			var excuteParam = value.split('&')[2] || false; // excuteParam이 없으면 false 기본값
 			
-			// sendvalue를 URL 파라미터로 포함
+			// POST로 전송할 데이터를 JSON 객체로 구성
+			var postData = {};
+			
+			// sendvalue는 POST 데이터로 전송
 			var sendvalue = $("#sendvalue").val();
-			var url = "/Template/execute?templateId=" + templateId + "&Excute=" + excuteParam;
 			if (sendvalue && sendvalue.trim() !== '') {
-				url += "&sendvalue=" + encodeURIComponent(sendvalue);
+				postData.sendvalue = sendvalue;
 			}
 			
-			// 연결 ID 파라미터 추가 (전달된 경우)
+			// 연결 ID는 POST 데이터로 전송
 			if (!connectionId) {
 				// SQLExecute.jsp에서 호출된 경우 현재 선택된 연결 ID 가져오기
 				if (typeof $("#connectionlist") !== 'undefined' && $("#connectionlist").length > 0) {
@@ -252,7 +254,7 @@ $(document).ready(function() {
 				}
 			}
 			if (connectionId && connectionId.trim() !== '' && connectionId !== '====Connection====' && connectionId !== '====SFTP Connection====') {
-				url += "&connectionId=" + encodeURIComponent(connectionId);
+				postData.connectionId = connectionId;
 			}
 			
 			// 템플릿 정보를 가져와서 탭 추가
@@ -261,15 +263,44 @@ $(document).ready(function() {
 				url: '/SQLTemplate/detail',
 				data: { templateId: templateId },
 				success: function(templateResult) {
+					var finalUrl;
+					var title = templateId;
+					
 					if (templateResult.success && templateResult.data) {
-						var title = templateResult.data.sqlName || templateId;
-						parent.tabManager.addTab(templateId, title, url);
+						title = templateResult.data.sqlName || templateId;
+						var templateType = templateResult.data.templateType || 'SQL';
+						
+						// HTML 타입이면 /Template/execute로, 아니면 /SQLExecute로
+						if (templateType.toUpperCase() === 'HTML') {
+							finalUrl = "/Template/execute?templateId=" + templateId;
+							if (excuteParam !== false) {
+								finalUrl += "&Excute=" + excuteParam;
+							}
+						} else {
+							finalUrl = "/SQLExecute?templateId=" + templateId + "&templateType=" + templateType;
+							if (excuteParam !== false) {
+								finalUrl += "&Excute=" + excuteParam;
+							}
+						}
+					} else {
+						// 템플릿 정보 조회 실패 시 기본 URL 사용
+						finalUrl = "/SQLExecute?templateId=" + templateId;
+						if (excuteParam !== false) {
+							finalUrl += "&Excute=" + excuteParam;
+						}
 					}
+					
+					parent.tabManager.addTab(templateId, title, finalUrl, Object.keys(postData).length > 0 ? postData : null);
 				},
 				error: function() {
-					// 에러 시 기본 탭 추가
+					// 에러 시 기본 탭 추가 (SQLExecute 사용)
 					var title = templateId;
-					parent.tabManager.addTab(templateId, title, url);
+					var url = "/SQLExecute?templateId=" + templateId;
+					if (excuteParam !== false) {
+						url += "&Excute=" + excuteParam;
+					}
+					// POST 데이터가 있으면 data 파라미터로 전달, 없으면 GET 방식
+					parent.tabManager.addTab(templateId, title, url, Object.keys(postData).length > 0 ? postData : null);
 				}
 			});
 			

@@ -227,7 +227,6 @@ let ondate;
 			// 기본 선택: 세션에 값이 있거나 연결이 하나만 가능할 때만
 			var selectedConnection = '${Connection}';
 			
-			console.log("-=-0-=",selectedConnection)
 			var allOptions = $(selectId + ' option');
 			var connectionOptions = allOptions.filter(function() {
 				return $(this).val() !== '' && $(this).val() !== '====Connection====' && $(this).val() !== '====SFTP Connection====';

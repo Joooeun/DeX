@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -220,7 +221,13 @@ public class SQLController {
 				mv.addObject("limit", templateData.get("executionLimit"));
 				mv.addObject("refreshtimeout", templateData.get("refreshTimeout"));
 				mv.addObject("newline", templateData.get("newline"));
-				mv.addObject("Connection", request.getParameter("connectionId") != null ? request.getParameter("connectionId") : session.getAttribute("connectionId"));
+				
+				// connectionId는 POST 또는 GET 파라미터에서 가져오기
+				String connectionId = request.getParameter("connectionId");
+				if (connectionId == null || connectionId.trim().isEmpty()) {
+					connectionId = (String) session.getAttribute("connectionId");
+				}
+				mv.addObject("Connection", connectionId);
 				
 				
 				// DownloadEnable 설정 (IP 기반)
@@ -401,31 +408,20 @@ public class SQLController {
 			String templateType = (String) templateData.get("templateType");
 			if (templateType == null) templateType = "SQL";
 			
-			// 디버깅 로그 추가
-			logger.info("템플릿 실행 요청 - templateId: {}, templateType: {}", templateId, templateType);
-			
-			// 기존 URL을 그대로 사용하고 templateType만 추가/수정
-			String originalQueryString = request.getQueryString();
-			String redirectUrl = "/SQLExecute?" + originalQueryString + "&templateType=" + templateType;
-			// 타입별 처리
-			switch (templateType.toUpperCase()) {
-				case "HTML":
-					// HTML 직접 출력
-					logger.info("HTML 템플릿 처리 시작 - templateId: {}", templateId);
-					response.setContentType("text/html; charset=UTF-8");
-					PrintWriter out = response.getWriter();
-					out.println(templateData.get("sqlContent"));
-					out.flush();
-					logger.info("HTML 템플릿 처리 완료 - templateId: {}", templateId);
-					break;
-					
-				case "SHELL":
-				case "SQL":
-				default:
-					response.sendRedirect(redirectUrl);
-					break; 
+			// HTML 타입만 처리
+			if ("HTML".equalsIgnoreCase(templateType)) {
+				logger.info("HTML 템플릿 처리 시작 - templateId: {}", templateId);
+				response.setContentType("text/html; charset=UTF-8");
+				PrintWriter out = response.getWriter();
+				out.println(templateData.get("sqlContent"));
+				out.flush();
+				logger.info("HTML 템플릿 처리 완료 - templateId: {}", templateId);
+			} else {
+				// HTML이 아니면 SQLExecute로 리다이렉트
+				String originalQueryString = request.getQueryString();
+				String redirectUrl = "/SQLExecute?" + originalQueryString + "&templateType=" + templateType;
+				response.sendRedirect(redirectUrl);
 			}
-			
 		} catch (Exception e) {
 			logger.error("템플릿 실행 중 오류 발생: " + templateId, e);
 			response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "템플릿 실행 중 오류가 발생했습니다.");
