@@ -1,18 +1,10 @@
 package kr.Windmill.util;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -26,15 +18,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import javax.servlet.http.HttpServletRequest;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,19 +34,12 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import crypt.AES256Cipher;
-import kr.Windmill.dto.log.LogInfoDto;
-import kr.Windmill.service.UserService;
-
 @Component
 public class Common {
 	private static final Logger logger = LoggerFactory.getLogger(Common.class);
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
-	
-	@Autowired
-	private UserService userService;
 
 	public static String system_properties = "";
 	public static String tempPath = "";
@@ -190,45 +171,6 @@ public class Common {
 		return str;
 	}
 
-	public String FileReadDec(File file) throws IOException {
-		String str = "";
-
-		BufferedReader bufReader = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"));
-		String line = "";
-
-		while ((line = bufReader.readLine()) != null) {
-			str += line + "\r\n";
-		}
-		bufReader.close();
-
-		AES256Cipher a256 = AES256Cipher.getInstance();
-
-		try {
-			str = a256.AES_Decode(str);
-
-		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
-
-			logger.error("파일 복호화 실패: {}", file.getPath(), e);
-			e.printStackTrace();
-		}
-		return str;
-	}
-
-	public String cryptStr(String str) throws IOException {
-
-		String crtStr = "";
-
-		AES256Cipher a256 = AES256Cipher.getInstance();
-
-		try {
-			crtStr = a256.AES_Encode(str);
-
-		} catch (InvalidKeyException | UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | BadPaddingException | IllegalBlockSizeException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return crtStr;
-	}
 
 	// 사용자에게 메시지를 전달하고, 페이지를 리다이렉트 한다.
 	public Map<String, String> showMessageAndRedirect(String str1, String str2, String str3) {
@@ -291,79 +233,6 @@ public class Common {
 		return i;
 	}
 
-	public List<List<String>> updatequery(String sql, String dbtype, String jdbc, Properties prop, LogInfoDto data, List<Map<String, String>> mapping) throws SQLException {
-
-		Connection con = null;
-		PreparedStatement pstmt = null;
-		try {
-			// 동적 드라이버 로딩 사용 (ConnectionDto 정보가 없는 경우 기본 방식)
-			con = DriverManager.getConnection(jdbc, prop);
-
-			con.setAutoCommit(false);
-
-			List<List<String>> list = new ArrayList<List<String>>();
-
-			int rowcnt = 0;
-
-			pstmt = con.prepareStatement(sql);
-			for (int i = 0; i < mapping.size(); i++) {
-				switch (mapping.get(i).get("type")) {
-				case "string":
-				case "text":
-				case "varchar":
-
-					pstmt.setString(i + 1, mapping.get(i).get("value"));
-					break;
-
-				default:
-					pstmt.setInt(i + 1, Integer.parseInt(mapping.get(i).get("value")));
-					break;
-				}
-			}
-
-			if (data != null) {
-
-				List<Object> logparams = Arrays.asList(data.getId(), data.getIp(), data.getConnectionId(), data.getTitle(), data.getSqlType(), data.getRows(), data.getLogsql(), data.getResult(), data.getDuration(), data.getStart(), data.getXmlLog(), data.getLogId());
-
-				mapParams(pstmt, logparams);
-			}
-
-			rowcnt = pstmt.executeUpdate();
-
-			List<String> row;
-
-			row = new ArrayList<>();
-			row.add("success");
-			row.add(Integer.toString(rowcnt));
-			row.add(sql);
-
-			list.add(row);
-
-			return list;
-
-		} finally {
-			if (pstmt != null) {
-				try {
-					pstmt.close();
-				} catch (Exception e) {
-				}
-			}
-
-			if (con != null) {
-
-				try {
-					con.commit();
-					con.close();
-
-				} catch (SQLException ex) {
-					logger.error(ex.toString());
-				}
-			} else {
-
-			}
-		}
-
-	}
 
 	public List<Map<String, Object>> getListFromString(String jsonStr) {
 		List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
@@ -461,23 +330,6 @@ public class Common {
 		return map;
 	}
 
-	public String bytetostr(String str) throws UnsupportedEncodingException {
-
-		String resultstr = "";
-		if (str != null) {
-			resultstr = new String(str.getBytes("ISO-8859-1"), "utf-8");
-		}
-
-		return resultstr;
-	}
-
-	public String getSystem_properties() {
-		return system_properties;
-	}
-
-	public void setSystem_properties(String system_properties) {
-		this.system_properties = system_properties;
-	}
 
 
 

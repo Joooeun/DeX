@@ -93,17 +93,17 @@ body {
 }
 
 </style>
+<!-- JavaScript 모듈 로드 -->
+<script src="/resources/js/tabManager.js"></script>
+<script src="/resources/js/menuSearch.js"></script>
+<script src="/resources/js/headerUtils.js"></script>
 </head>
 
 <script>
-
-var changePW
-			$(document).ready(function() {
-		
-		changePW = '${changePW}' === 'true';
-		
-		if(changePW){
-			
+	$(document).ready(function() {
+		// 비밀번호 변경 모달 처리
+		var changePW = '${changePW}' === 'true';
+		if (changePW) {
 			$('#changePWModal').modal({backdrop: 'static', keyboard: false});
 			$('#changePWModal').modal('show');
 		}
@@ -143,13 +143,11 @@ var changePW
 		/* ------------------------------공지사항 end------------------------------ */
 
 		$(document).on("click", ".addtree", function() {
-
 			if ($(this).parent().attr('class').includes('active')) {
 				$(this).parent().removeClass('active');
 			} else {
 				$(this).parent().addClass('active');
 			}
-
 		});
 
 		$('#pageTab').on('click', ' li a .close', function() {
@@ -160,7 +158,7 @@ var changePW
 					return false;
 				}
 				// 새로운 탭 관리 시스템 사용
-				tabManager.removeTab(templateId);
+				window.tabManager.removeTab(templateId);
 			} else {
 				// 기존 방식 (기본 탭들)
 				var tabId = $(this).parents('li').children('a').attr('href');
@@ -188,743 +186,97 @@ var changePW
 		$('#search').on('input', function() {
 			var searchTerm = $(this).val().trim();
 			if (searchTerm.length >= 1) {
-				collectMenuItems(); // 메뉴 아이템 수집
-				var filtered = filterMenus(searchTerm);
-				showAutocomplete(filtered);
+				// 권한 정보 전달하여 메뉴 아이템 수집
+				var permissions = {
+					isAdmin: '${isAdmin}' === 'true',
+					hasDashboardPermission: '${hasDashboardPermission}' === 'true',
+					hasFileReadPermission: '${hasFileReadPermission}' === 'true',
+					hasFileWritePermission: '${hasFileWritePermission}' === 'true'
+				};
+				window.MenuSearch.collectMenuItems(permissions);
+				var filtered = window.MenuSearch.filterMenus(searchTerm);
+				window.MenuSearch.showAutocomplete(filtered);
 			} else {
-				hideAutocomplete();
+				window.MenuSearch.hideAutocomplete();
 			}
 		});
 		
-	// 자동완성 아이템 클릭 이벤트
-	$(document).on('click', '.autocomplete-item', function() {
-		var menuType = $(this).data('menu-type');
-		var onclick = $(this).data('onclick');
-		
-		if (onclick) {
-			// onclick이 있으면 탭 추가 (SQL 메뉴 및 관리자 메뉴 모두)
-			executeTemplateTabFunction(onclick);
-		} else {
-			// onclick이 없는 경우 기존 방식 사용 (하위 호환성)
-			var href = $(this).data('href');
-			navigateToMenu(href);
-		}
-		
-		hideAutocomplete();
-		$('#search').val('');
-	});
+		// 자동완성 아이템 클릭 이벤트
+		$(document).on('click', '.autocomplete-item', function() {
+			var menuType = $(this).data('menu-type');
+			var onclick = $(this).data('onclick');
+			
+			if (onclick) {
+				// onclick이 있으면 탭 추가 (SQL 메뉴 및 관리자 메뉴 모두)
+				window.MenuSearch.executeTemplateTabFunction(onclick);
+			} else {
+				// onclick이 없는 경우 기존 방식 사용 (하위 호환성)
+				var href = $(this).data('href');
+				window.MenuSearch.navigateToMenu(href);
+			}
+			
+			window.MenuSearch.hideAutocomplete();
+			$('#search').val('');
+		});
 		
 		// 검색 버튼 클릭 이벤트
 		$('#search-btn').on('click', function() {
-			Search();
+			window.MenuSearch.Search();
 		});
 		
 		// 검색 입력창에서 Enter 키 이벤트
 		$('#search').on('keydown', function(e) {
 			if (e.keyCode === 13) { // Enter 키
 				e.preventDefault();
-				Search();
+				window.MenuSearch.Search();
 			} else if (e.keyCode === 27) { // Escape 키
-				hideAutocomplete();
+				window.MenuSearch.hideAutocomplete();
 			}
 		});
 		
 		// 다른 곳 클릭 시 자동완성 숨기기
 		$(document).on('click', function(e) {
 			if (!$(e.target).closest('.search-autocomplete').length) {
-				hideAutocomplete();
+				window.MenuSearch.hideAutocomplete();
 			}
 		});
 
-		// 대시보드 탭 초기화
-		tabManager.initDashboardTab();
-
-	});
-
-	// 메뉴 데이터를 저장할 변수
-	var allMenuItems = [];
-	
-	// 모든 메뉴 아이템을 수집하는 함수
-	function collectMenuItems() {
-		allMenuItems = [];
-		
-		// 고정 메뉴들 추가 (사이드바 메뉴 이름과 일치하도록 수정)
-		var fixedMenus = [
-			{ text: '환경설정 관리', href: '/SystemConfig', icon: 'fa-cog', type: 'admin', templateId: 'systemconfig' },
-			{ text: '연결 관리', href: '/Connection', icon: 'fa-database', type: 'admin', templateId: 'connection' },
-			{ text: '사용자 관리', href: '/User', icon: 'fa-user', type: 'admin', templateId: 'user' },
-			{ text: 'SQL 템플릿 관리', href: '/SQLTemplate', icon: 'fa-code', type: 'admin', templateId: 'sqltemplate' },
-			{ text: 'ETL 관리', href: '/ETL', icon: 'fa-exchange', type: 'admin', templateId: 'etl' },
-			{ text: '대시보드', href: '/Dashboard', icon: 'fa-dashboard', type: 'dashboard', templateId: 'dashboard' },
-			{ text: '파일 읽기', href: '/FileRead', icon: 'fa-file-text-o', type: 'all', templateId: 'fileread' },
-			{ text: '파일 쓰기', href: '/FileUpload', icon: 'fa-file-text-o', type: 'all', templateId: 'fileupload' }
-		];
-		
-		// 권한에 따라 메뉴 필터링
-		var isAdmin = '${isAdmin}' === 'true';
+		// 대시보드 탭 초기화 (권한 정보 전달)
 		var hasDashboardPermission = '${hasDashboardPermission}' === 'true';
-		var hasFileReadPermission = '${hasFileReadPermission}' === 'true';
-		var hasFileWritePermission = '${hasFileWritePermission}' === 'true';
-		
-		fixedMenus.forEach(function(menu) {
-			var shouldInclude = false;
-			
-			// 타입별 권한 체크
-			if (menu.type === 'admin') {
-				shouldInclude = isAdmin;
-			} else if (menu.type === 'dashboard') {
-				shouldInclude = hasDashboardPermission;
-			} else if (menu.type === 'all') {
-				// 'all' 타입은 추가 권한 체크 필요
-				if (menu.templateId === 'fileread') {
-					shouldInclude = hasFileReadPermission;
-				} else if (menu.templateId === 'fileupload') {
-					shouldInclude = hasFileWritePermission;
-				} else {
-					shouldInclude = true;
-				}
-			}
-			
-			if (shouldInclude) {
-				// 관리자 메뉴와 일반 메뉴 모두 onclick 문자열 생성하여 탭 추가 가능하도록 함
-				var menuItem = {
-					text: menu.text,
-					href: menu.href,
-					icon: menu.icon,
-					type: menu.type,
-					templateId: menu.templateId
-				};
-				
-				// onclick 문자열 생성: addTemplateTab('templateId', 'title', 'url')
-				menuItem.onclick = "addTemplateTab('" + menu.templateId + "', '" + menu.text + "', '" + menu.href + "')";
-				
-				allMenuItems.push(menuItem);
-			}
-		});
-		
-		// 동적으로 생성된 SQL 메뉴들 추가
-		$('#sidemenu a').each(function() {
-			var $this = $(this);
-			var text = $this.text().trim();
-			var onclick = $this.attr('onclick');
-			
-			if (text && onclick) {
-				// onclick에서 templateId와 href 추출
-				var templateIdMatch = onclick.match(/addTemplateTab\('([^']+)'/);
-				var hrefMatch = onclick.match(/addTemplateTab\('[^']+',\s*'[^']+',\s*'([^']+)'/);
-				
-				if (templateIdMatch && hrefMatch) {
-					var templateId = templateIdMatch[1];
-					var href = hrefMatch[1];
-					
-					allMenuItems.push({
-						text: text,
-						href: href,
-						icon: 'fa-code',
-						type: 'sql',
-						templateId: templateId,
-						onclick: onclick
-					});
-				}
-			}
-		});
-	}
-	
-	// 검색어에 따라 메뉴를 필터링하는 함수
-	function filterMenus(searchTerm) {
-		if (!searchTerm || searchTerm.length < 1) {
-			return [];
-		}
-		
-		var filtered = allMenuItems.filter(function(menu) {
-			return menu.text.toLowerCase().includes(searchTerm.toLowerCase());
-		});
-		
-		// 최대 10개까지만 표시
-		return filtered.slice(0, 10);
-	}
-	
-	// 자동완성 드롭다운을 표시하는 함수
-	function showAutocomplete(items) {
-		var dropdown = $('#autocompleteDropdown');
-		dropdown.empty();
-		
-		if (items.length === 0) {
-			dropdown.hide();
-			return;
-		}
-		
-		items.forEach(function(item) {
-			var itemHtml = '<div class="autocomplete-item" ' +
-				'data-href="' + item.href + '" ' +
-				'data-menu-type="' + item.type + '" ' +
-				'data-template-id="' + (item.templateId || '') + '" ' +
-				'data-onclick="' + (item.onclick || '') + '">' +
-				'<i class="fa ' + item.icon + ' menu-icon"></i>' +
-				'<span class="menu-text">' + item.text + '</span>' +
-				'</div>';
-			dropdown.append(itemHtml);
-		});
-		
-		// 검색 입력창의 위치를 기준으로 드롭다운 위치 설정
-		var searchInput = $('#search');
-		var inputOffset = searchInput.offset();
-		var inputHeight = searchInput.outerHeight();
-		
-		// 스타일을 직접 설정
-		dropdown[0].style.display = 'block';
-		dropdown[0].style.position = 'fixed';
-		dropdown[0].style.zIndex = '9999';
-		dropdown[0].style.background = 'white';
-		dropdown[0].style.border = '1px solid #ddd';
-		dropdown[0].style.borderTop = 'none';
-		dropdown[0].style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-		dropdown[0].style.top = (inputOffset.top + inputHeight) + 'px';
-		dropdown[0].style.left = inputOffset.left + 'px';
-		dropdown[0].style.width = searchInput.outerWidth()+40 + 'px';
-		dropdown[0].style.maxHeight = '200px';
-		dropdown[0].style.overflowY = 'auto';
-	}
-	
-	// 자동완성 드롭다운을 숨기는 함수
-	function hideAutocomplete() {
-		$('#autocompleteDropdown').hide();
-	}
-	
-	// 메뉴로 이동하는 함수
-	function navigateToMenu(href) {
-		const iframe = document.querySelector('#pageTabContent > div:last-child > iframe');
-		if (iframe && iframe.contentWindow) {
-			iframe.contentWindow.location.href = href;
-		}
-	}
-	
-	// eval() 대체: addTemplateTab 함수 호출을 안전하게 처리
-	// onclick 문자열에서 파라미터를 추출하여 함수를 직접 호출
-	function executeTemplateTabFunction(onclickString) {
-		if (!onclickString || typeof onclickString !== 'string') {
-			console.error('executeTemplateTabFunction: 유효하지 않은 onclick 문자열');
-			return;
-		}
-		
-		// addTemplateTab('templateId', 'title', 'url') 형태의 문자열 파싱
-		var match = onclickString.match(/addTemplateTab\s*\(\s*'([^']+)'\s*,\s*'([^']+)'\s*,\s*'([^']+)'\s*\)/);
-		if (match && match.length === 4) {
-			var templateId = match[1];
-			var title = match[2];
-			var url = match[3];
-			
-			// 전역 함수 addTemplateTab 직접 호출
-			if (typeof window.addTemplateTab === 'function') {
-				window.addTemplateTab(templateId, title, url);
-			} else {
-				console.error('executeTemplateTabFunction: addTemplateTab 함수를 찾을 수 없습니다');
-			}
-		} else {
-			console.error('executeTemplateTabFunction: 올바르지 않은 함수 형식:', onclickString);
-		}
-	}
-	
-	// 기존 Search 함수 (호환성을 위해 유지)
-	function Search() {
-		var searchTerm = $("#search").val().trim();
-		if (!searchTerm) {
-			return false;
-		}
-		
-		var filtered = filterMenus(searchTerm);
-		if (filtered.length === 0) {
-			alert("검색 결과가 없습니다.");
-			return false;
-		}
-		
-		// 첫 번째 결과로 이동
-		var firstItem = filtered[0];
-		if (firstItem.onclick) {
-			// onclick이 있으면 탭 추가 (SQL 메뉴 및 관리자 메뉴 모두)
-			executeTemplateTabFunction(firstItem.onclick);
-		} else {
-			// onclick이 없는 경우 기존 방식 사용 (하위 호환성)
-			navigateToMenu(firstItem.href);
-		}
-		
-		hideAutocomplete();
-		$('#search').val('');
-		return false;
-	}
-
-	var pageImages = [];
-	var pageNum = 1;
-	
-	// 새로운 탭 관리 시스템 - 전역 객체로 등록
-	window.tabManager = {
-		tabs: new Map(), // 탭 정보 저장
-		activeTab: null,
-		tabOrder: ['home'], // 탭 순서 추적
-		
-		// 탭 추가
-		addTab: function(templateId, title, url, data) {
-			
-			// 중복 탭 체크
-			if (!this.tabs.has(templateId)) {
-				// 새 탭 생성
-				var tabId = 'tab_' + templateId;
-				var iframeId = 'iframe_' + templateId;
-				
-				// 탭 정보 저장
-				this.tabs.set(templateId, {
-					id: tabId,
-					iframeId: iframeId,
-					title: title,
-					url: url
-				});
-				
-				// 탭 순서에 추가
-				this.tabOrder.push(templateId);
-				
-				// 탭 HTML 생성
-				var closeButton = '';
-				if (templateId !== 'home') {
-					closeButton = '<button class="close" type="button" title="Remove this page" style="padding-left:4px; display:inline-flex; align-items:center; justify-content:center; height:18px;"><i class="fa fa-close" style="font-size:16px;"></i></button>';
-				}
-				var tabHtml = '<li><a href="#' + tabId + '" data-toggle="tab" data-template-id="' + templateId + '">' + 
-					title + closeButton + '</a></li>';
-				
-				// data가 있으면 POST form 생성, 없으면 GET 방식으로 iframe src 설정
-				var contentHtml = '';
-				if (data && Object.keys(data).length > 0) {
-					// POST 방식: form 생성
-					var formId = 'form_' + templateId;
-					contentHtml = '<div class="tab-pane" id="' + tabId + '">' +
-						'<form id="' + formId + '" name="' + formId + '" method="POST" action="' + url + '" target="' + iframeId + '" style="display:none;">' +
-						'</form>' +
-						'<iframe name="' + iframeId + '" id="' + iframeId + '" class="tab_frame" ' +
-						'style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;"></iframe></div>';
-				} else {
-					// GET 방식: 기존 방식
-					contentHtml = '<div class="tab-pane" id="' + tabId + '">' +
-						'<iframe name="' + iframeId + '" id="' + iframeId + '" class="tab_frame" ' +
-						'style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" ' +
-						'src="' + url + '"></iframe></div>';
-				}
-				
-				// DOM에 추가
-				$('#pageTab').append(tabHtml);
-				$('#pageTabContent').append(contentHtml);
-				
-				// data가 있으면 form에 데이터 추가하고 submit
-				if (data && Object.keys(data).length > 0) {
-					var form = document.getElementById(formId);
-					if (form) {
-						// form에 데이터 추가
-						for (var key in data) {
-							if (data.hasOwnProperty(key)) {
-								var input = document.createElement('input');
-								input.type = 'hidden';
-								input.name = key;
-								input.value = data[key];
-								form.appendChild(input);
-							}
-						}
-						// form submit
-						form.submit();
-					}
-				}
-			}else{
-				var tabInfo = this.tabs.get(templateId);
-			    if (tabInfo) {
-			        // iframe URL 업데이트
-			        var iframe = document.getElementById(tabInfo.iframeId);
-			        if (iframe) {
-			            if (data && Object.keys(data).length > 0) {
-			                // POST 방식: form 다시 submit
-			                var formId = 'form_' + templateId;
-			                var form = document.getElementById(formId);
-			                if (form) {
-			                    // 기존 input 제거
-			                    while (form.firstChild) {
-			                        form.removeChild(form.firstChild);
-			                    }
-			                    // 새로운 데이터 추가
-			                    for (var key in data) {
-			                        if (data.hasOwnProperty(key)) {
-			                            var input = document.createElement('input');
-			                            input.type = 'hidden';
-			                            input.name = key;
-			                            input.value = data[key];
-			                            form.appendChild(input);
-			                        }
-			                    }
-			                    form.submit();
-			                }
-			            } else {
-			                // GET 방식: iframe src 업데이트
-			                iframe.src = url;
-			            }
-			        }
-			    }
-			}
-			
-			// 탭 활성화
-			this.activateTab(templateId);
-			
-			// 사이드바 링크 타겟 업데이트
-			this.updateSidebarTargets(iframeId);
-		},
-		
-		// 탭 활성화
-		activateTab: function(templateId) {
-			var tabInfo = this.tabs.get(templateId);
-			if (tabInfo) {
-				$('#pageTab a[data-template-id="' + templateId + '"]').tab('show');
-				this.activeTab = templateId;
-			}
-		},
-		
-		// 탭 제거
-		removeTab: function(templateId) {
-			// home 탭은 제거할 수 없음
-			if (templateId === 'home') {
-				return false;
-			}
-			
-			var tabInfo = this.tabs.get(templateId);
-			if (tabInfo) {
-				$('#pageTab a[data-template-id="' + templateId + '"]').parent().remove();
-				$('#' + tabInfo.id).remove();
-				this.tabs.delete(templateId);
-				
-				// 탭 순서에서 제거
-				var index = this.tabOrder.indexOf(templateId);
-				if (index > -1) {
-					this.tabOrder.splice(index, 1);
-				}
-				
-				// 활성 탭이 제거된 경우 다음 탭 활성화
-				if (this.activeTab === templateId) {
-					this.activateNextTab();
-				}
-			}
-		},
-		
-		// 다음 탭 활성화 (LIFO 방식)
-		activateNextTab: function() {
-			// 현재 활성화된 탭의 인덱스 찾기
-			var currentIndex = this.tabOrder.indexOf(this.activeTab);
-			var nextTab = null;
-			
-			// LIFO 방식: 이전 탭(왼쪽) 우선, 없으면 다음 탭(오른쪽)
-			if (currentIndex === -1) {
-				// 현재 탭이 순서에 없는 경우 마지막 탭 (가장 최근)
-				nextTab = this.tabOrder[this.tabOrder.length - 1];
-			} else if (currentIndex > 0) {
-				// 이전 탭이 있는 경우 (왼쪽 탭)
-				nextTab = this.tabOrder[currentIndex - 1];
-			} else if (currentIndex < this.tabOrder.length - 1) {
-				// 이전 탭이 없고 다음 탭이 있는 경우 (오른쪽 탭)
-				nextTab = this.tabOrder[currentIndex + 1];
-			}
-			
-			// 다음 탭이 있으면 활성화
-			if (nextTab && this.tabs.has(nextTab)) {
-				this.activateTab(nextTab);
-			}
-		},
-		
-		// 사이드바 링크 타겟 업데이트
-		updateSidebarTargets: function(iframeId) {
-			$('.sidebar-menu a:not(\'.addtree\')').attr("target", iframeId);
-			$('#iframe_1').contents().find('#menus a').attr("target", iframeId);
-			$('#iframe_1').contents().find('#goToTemplateLink').attr("target", iframeId);
-		},
-		
-		// 탭을 마지막 순서로 이동
-		moveTabToLast: function(templateId) {
-			if (this.tabs.has(templateId)) {
-				// 현재 순서에서 해당 탭 제거
-				var index = this.tabOrder.indexOf(templateId);
-				if (index > -1) {
-					this.tabOrder.splice(index, 1);
-				}
-				// 마지막에 추가
-				this.tabOrder.push(templateId);
-			}
-		},
-		
-		// 대시보드 탭 초기화
-		initDashboardTab: function() {
-			addTemplateTab('home', '<i class="fa fa-home"></i>', '/index2');
-			
-			// 대시보드 메뉴 접근 권한 확인
-			var hasDashboardPermission = '${hasDashboardPermission}' === 'true';
-			if (hasDashboardPermission) {
-				addTemplateTab('dashboard', '대시보드', '/Dashboard');
-			}
-		}
-	};
-
-	// 새로운 탭 추가 함수 (템플릿용) - 전역 함수로 등록
-	window.addTemplateTab = function(templateId, title, url) {
-		tabManager.addTab(templateId, title, url);
-	};
-
-	function checkPWModal() {
-		$('#checkPWModal').modal('show')
-	}
-
-	function save() {
-
-		if ($('#PW').val() != $('#newPW').val()) {
-			alert("비밀번호가 일치하지 않습니다.")
-		} else {
-			var lowerCaseLetters = /[a-z]|[A-Z]/g;
-			var numbers = /[0-9]/g;
-
-			if ($('#PW').val().match(lowerCaseLetters)
-					&& $('#PW').val().match(numbers)) {
-			} else {
-				alert("비밀번호는 영문, 숫자를 포함해야 합니다.");
-				return;
-			}
-
-			if ($('#PW').val().length >= 8) {
-			} else {
-				alert("비밀번호는 최소 8자리 이상입니다.");
-				return;
-			}
-
-			$.ajax({
-				type : 'post',
-				url : '/User/changePW',
-				data : {
-					PW : $('#PW').val(),
-				},
-				success : function(result) {
-					alert("저장 되었습니다.");
-					$('#changePWModal').modal('hide')
-					$('#PW').val("")
-					$('#newPW').val("")
-				},
-				error : function() {
-					alert("저장되지 않았습니다.");
-				}
-			});
-
-		}
-	}
-
-	function checkPW() {
-		$.ajax({
-			type : 'post',
-			url : '/User/checkPW',
-			data : {
-				PW : $('#curPW').val(),
-			},
-			success : function(result) {
-
-				if (result) {
-					$('#checkPWModal').modal('hide')
-					$('#changePWModal').modal('show')
-				} else {
-					alert("잘못된 비밀번호 입니다.");
-				}
-				$('#curPW').val("")
-			},
-			error : function(e) {
-				alert("저장되지 않았습니다." + JSON.stringify(e));
-			}
-		});
-
-	}
-
-
-	
+		window.tabManager.initDashboardTab(hasDashboardPermission);
+	});
 </script>
 
 <script>
-		// 공지사항 관련 함수들
-		function loadNotice() {
-			$.ajax({
-				url: '/SystemConfig/getNotice',
-				type: 'GET',
-				success: function(response) {
-					if (response.success && response.noticeEnabled === 'true' && response.noticeContent) {
-						showNotice(response.noticeContent);
-					}
-				},
-				error: function() {
-					// 에러 시 아무것도 하지 않음
-				}
-			});
+	// 공지사항 관련 초기화
+	$(document).ready(function() {
+		// 오늘 하루 열지 않기 체크
+		var closedDate = localStorage.getItem('noticeClosedDate');
+		var today = new Date().toDateString();
+		if (closedDate !== today) {
+			// 오늘 아직 닫지 않았으면 공지사항 로드
+			window.HeaderUtils.loadNotice();
 		}
 		
-		function showNotice(content) {
-			$('#noticeContent').html(content.replace(/\n/g, '<br>'));
-			$('#noticeModal').modal('show');
-		}
-		
-		// 페이지 로드 시 공지사항 확인 및 이벤트 설정
-		$(document).ready(function() {
-			// 오늘 하루 열지 않기 체크
-			var closedDate = localStorage.getItem('noticeClosedDate');
+		// 오늘 하루 열지 않기 버튼 이벤트
+		$('#modal-today-close').click(function() {
+			// 오늘 날짜를 localStorage에 저장
 			var today = new Date().toDateString();
-			if (closedDate !== today) {
-				// 오늘 아직 닫지 않았으면 공지사항 로드
-				loadNotice();
-			}
-			
-			// 오늘 하루 열지 않기 버튼 이벤트
-			$('#modal-today-close').click(function() {
-				// 오늘 날짜를 localStorage에 저장
-				var today = new Date().toDateString();
-				localStorage.setItem('noticeClosedDate', today);
-				$('#noticeModal').modal('hide');
-			});
+			localStorage.setItem('noticeClosedDate', today);
+			$('#noticeModal').modal('hide');
 		});
-		
-		// 글꼴 변경 함수
-		function changeFont(fontFamily) {
-			// 로컬 스토리지에 선택한 글꼴 저장
-			localStorage.setItem('selectedFont', fontFamily);
-			
-			// 현재 페이지의 모든 요소에 글꼴 적용
-			document.documentElement.style.setProperty('--selected-font', fontFamily);
-			
-			// 드롭다운 버튼 텍스트 업데이트
-			updateFontDropdownText(fontFamily);
-			
-			// 현재 페이지의 Ace Editor들에 폰트 적용
-			if (typeof ace !== 'undefined') {
-				// 전역 에디터들에 폰트 적용
-				if (window.sqlEditors) {
-					Object.values(window.sqlEditors).forEach(function(editor) {
-						if (editor && typeof editor.setOptions === 'function') {
-							editor.setOptions({
-								fontFamily: fontFamily
-							});
-						}
-					});
-				}
-				
-				// SqlTemplateState 에디터들에 폰트 적용
-				if (window.SqlTemplateState && window.SqlTemplateState.sqlEditors) {
-					Object.values(window.SqlTemplateState.sqlEditors).forEach(function(editor) {
-						if (editor && typeof editor.setOptions === 'function') {
-							editor.setOptions({
-								fontFamily: fontFamily
-							});
-						}
-					});
-				}
-			}
-			
-			// 모든 iframe에도 글꼴 적용
-			var iframes = document.querySelectorAll('iframe');
-			iframes.forEach(function(iframe) {
-				try {
-					if (iframe.contentDocument) {
-						iframe.contentDocument.documentElement.style.setProperty('--selected-font', fontFamily);
-						
-						// iframe 내부의 에디터들에 직접 폰트 적용
-						if (iframe.contentWindow) {
-							// FileUpload.jsp의 에디터들
-							if (iframe.contentWindow.contentEditor && typeof iframe.contentWindow.contentEditor.setOptions === 'function') {
-								iframe.contentWindow.contentEditor.setOptions({
-									fontFamily: fontFamily
-								});
-							}
-							$('#contentTextarea', iframe.contentDocument).css('font-family', fontFamily);
-							
-							// FileRead.jsp의 에디터들
-							if (iframe.contentWindow.resultEditor && typeof iframe.contentWindow.resultEditor.setOptions === 'function') {
-								iframe.contentWindow.resultEditor.setOptions({
-									fontFamily: fontFamily
-								});
-							}
-							$('#resultTextarea', iframe.contentDocument).css('font-family', fontFamily);
-							
-							// SQLExecute.jsp의 textarea들
-							$('.formtextarea', iframe.contentDocument).css('font-family', fontFamily);
-							
-							// SQLTemplate.jsp의 에디터들
-							if (iframe.contentWindow.sqlEditors) {
-								Object.values(iframe.contentWindow.sqlEditors).forEach(function(editor) {
-									if (editor && typeof editor.setOptions === 'function') {
-										editor.setOptions({
-											fontFamily: fontFamily
-										});
-									}
-								});
-							}
-							if (iframe.contentWindow.SqlTemplateState && iframe.contentWindow.SqlTemplateState.sqlEditors) {
-								Object.values(iframe.contentWindow.SqlTemplateState.sqlEditors).forEach(function(editor) {
-									if (editor && typeof editor.setOptions === 'function') {
-										editor.setOptions({
-											fontFamily: fontFamily
-										});
-									}
-								});
-							}
-						}
-					}
-				} catch (e) {
-					// Cross-origin 에러 무시
-				}
-			});
-			
-			// 드롭다운 메뉴 닫기 (안전하게 처리)
-			try {
-				// 부모 창의 dropdown이 있는 경우 (iframe 내부에서 호출되는 경우)
-				if (window.parent && window.parent !== window) {
-					var parentDropdown = window.parent.$('.dropdown-toggle');
-					if (parentDropdown.length > 0 && typeof parentDropdown.dropdown === 'function') {
-						parentDropdown.dropdown('hide');
-					}
-				} else {
-					// 현재 창의 dropdown
-					var dropdownToggle = $('.dropdown-toggle');
-					if (dropdownToggle.length > 0 && typeof dropdownToggle.dropdown === 'function') {
-						dropdownToggle.dropdown('hide');
-					}
-				}
-			} catch (e) {
-				// 드롭다운 닫기 실패 시 무시 (iframe 내부에서 호출되는 경우 등)
-				console.debug('드롭다운 닫기 실패:', e);
-			}
+	});
+	
+	// 페이지 로드 시 저장된 글꼴 복원
+	$(document).ready(function() {
+		var savedFont = localStorage.getItem('selectedFont');
+		if (savedFont) {
+			// CSS 변수만 설정하고 드롭다운 텍스트 업데이트
+			document.documentElement.style.setProperty('--selected-font', savedFont);
+			window.HeaderUtils.updateFontDropdownText(savedFont);
 		}
-		
-		// 드롭다운 버튼 텍스트 업데이트 함수
-		function updateFontDropdownText(fontFamily) {
-			try {
-				// 부모 창의 dropdown이 있는 경우 (iframe 내부에서 호출되는 경우)
-				var dropdownToggle;
-				if (window.parent && window.parent !== window) {
-					dropdownToggle = window.parent.$('.dropdown-toggle');
-				} else {
-					dropdownToggle = $('.dropdown-toggle');
-				}
-				
-				if (dropdownToggle.length > 0) {
-					// 기존 아이콘과 caret은 유지하고 텍스트만 변경
-					var newText = '<i class="fa fa-font"></i> ' + fontFamily + ' <span class="caret"></span>';
-					dropdownToggle.html(newText);
-				}
-			} catch (e) {
-				// 드롭다운 텍스트 업데이트 실패 시 무시
-				console.debug('드롭다운 텍스트 업데이트 실패:', e);
-			}
-		}
-		
-		// 페이지 로드 시 저장된 글꼴 복원
-		$(document).ready(function() {
-			var savedFont = localStorage.getItem('selectedFont');
-			if (savedFont) {
-				// CSS 변수만 설정하고 드롭다운 텍스트 업데이트
-				document.documentElement.style.setProperty('--selected-font', savedFont);
-				updateFontDropdownText(savedFont);
-			}
-		});
-		</script>
+	});
+</script>
 <body class="hold-transition skin-purple-light fixed sidebar-mini">
 
 	<div class="wrapper">

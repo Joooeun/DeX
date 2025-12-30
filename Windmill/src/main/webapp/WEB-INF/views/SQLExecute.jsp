@@ -955,22 +955,6 @@ let ondate;
 	// ========================================
 	// 유틸리티 함수들
 	// ========================================
-	function ConvertSystemSourcetoHtml(str) {
-		/* str = str.replace(/</g,"&lt;");
-		str = str.replace(/>/g,"&gt;");
-		str = str.replace(/\"/g,"&quot;");
-		str = str.replace(/\'/g,"&#39;");*/
-		return str;
-	}
-
-	function forxmp(str) {
-		str = str.replace(/\x00/g, "");
-		return str;
-	}
-
-
-
-
 	// ========================================
 	// 차트 생성 함수
 	// ========================================
@@ -1052,18 +1036,6 @@ let ondate;
 		
 		myChart.update('none');
     }
-
-	// ========================================
-	// 랜덤 색상 생성 함수
-	// ========================================
-	function random_rgba() {
-		var o = Math.round,
-			r = Math.random,
-			s = 255;
-		//return 'rgba(' + o(r()*s) + ',' + o(r()*s) + ',' + o(r()*s) + ',' + r().toFixed(1) + ')';
-		return 'rgb(' + o(r() * s) + ',' + o(r() * s) + ',' + o(r() * s) + ')';
-	}
-
 
 	// ========================================
 	// 배열 전치(transpose) 함수
