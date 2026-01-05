@@ -1622,6 +1622,7 @@
         /* 연결 카드 스타일 */
         .connection-card-wrapper {
             position: relative;
+            margin: 5px 0;
         }
         
         .connection-card {
