@@ -47,15 +47,22 @@
 				folder.append(folder2);
 
 				parent.append(folder);
+			} else if (list.templateId) {
+				// 템플릿 타입이 있는 경우 (SQL, HTML, SHELL 등 모든 타입) - 사이드 메뉴와 동일하게 addTemplateTab 사용
+				var href = "/Template/execute?templateId=" + list.templateId;
+				var childItem = $('<li><a href="javascript:void(0)" onclick="parent.addTemplateTab(\'' + list.templateId + '\', \'' + list.Name.split('.')[0] + '\', \'' + href + '\')" id="'
+						+ list.Name.split('.')[0] + '">'
+						+ list.Name.split('.')[0] + '</a></li>');
+				parent.append(childItem);
 			} else if (list.type === 'sql') {
-				// SQL 템플릿인 경우 - 사이드 메뉴와 동일하게 addTemplateTab 사용
+				// 하위 호환성: type이 'sql'이고 templateId가 없는 경우 (기존 코드 유지)
 				var href = "/Template/execute?templateId=" + list.templateId;
 				var childItem = $('<li><a href="javascript:void(0)" onclick="parent.addTemplateTab(\'' + list.templateId + '\', \'' + list.Name.split('.')[0] + '\', \'' + href + '\')" id="'
 						+ list.Name.split('.')[0] + '">'
 						+ list.Name.split('.')[0] + '</a></li>');
 				parent.append(childItem);
 			} else if (list.Name && list.Name.includes('.htm')) {
-				// HTML 파일인 경우
+				// HTML 파일인 경우 (기존 파일 기반)
 				var childItem = $('<li><a href="/HTML?Path='
 						+ encodeURI(list.Path) + '" target="iframe" id="'
 						+ list.Name.split('_')[0] + '">'

@@ -5,94 +5,8 @@
 <meta charset="UTF-8">
 <title>Dex</title>
 <%@include file="common.jsp"%>
-<style type="text/css">
-body {
-	margin: 0;
-}
-/* 자동완성 드롭다운 스타일 */
-.search-autocomplete {
-	position: relative;
-	display: table;
-	width: 100%;
-}
-
-.autocomplete-dropdown {
-	position: absolute;
-	top: 100%;
-	left: 0;
-	right: 0;
-	background: white;
-	border: 1px solid #ddd;
-	border-top: none;
-	max-height: 200px;
-	overflow-y: auto;
-	z-index: 9999;
-	box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-	display: none;
-}
-
-.autocomplete-item {
-	padding: 8px 12px;
-	cursor: pointer;
-	border-bottom: 1px solid #f0f0f0;
-	font-size: 13px;
-}
-
-.autocomplete-item:hover {
-	background-color: #f5f5f5;
-}
-
-.autocomplete-item:last-child {
-	border-bottom: none;
-}
-
-.autocomplete-item .menu-icon {
-	margin-right: 8px;
-	color: #666;
-}
-
-.autocomplete-item .menu-text {
-	font-weight: normal;
-}
-
-.autocomplete-item .menu-path {
-	font-size: 11px;
-	color: #999;
-	margin-left: 5px;
-}
-</style>
-
-<style>
-:root {
-  --selected-font: D2Coding;
-}
-
-* {
-  font-family: var(--selected-font);
-}
-
-/* Google Fonts fallback 설정 */
-.font-noto-sans-mono {
-  font-family: 'Noto Sans Mono', 'D2Coding', monospace;
-}
-
-.font-roboto-mono {
-  font-family: 'Roboto Mono', 'D2Coding', monospace;
-}
-
-.font-source-code-pro {
-  font-family: 'Source Code Pro', 'D2Coding', monospace;
-}
-
-.font-fira-code {
-  font-family: 'Fira Code', 'D2Coding', monospace;
-}
-
-.font-jetbrains-mono {
-  font-family: 'JetBrains Mono', 'D2Coding', monospace;
-}
-
-</style>
+<!-- 공통 CSS 파일 로드 -->
+<link href="/resources/css/common.css" rel="stylesheet" type="text/css" />
 <!-- JavaScript 모듈 로드 -->
 <script src="/resources/js/tabVisibilityManager.js"></script>
 <script src="/resources/js/tabManager.js"></script>
@@ -100,7 +14,7 @@ body {
 <script src="/resources/js/headerUtils.js"></script>
 </head>
 
-<script>
+	<script>
 	$(document).ready(function() {
 		// 비밀번호 변경 모달 처리
 		var changePW = '${changePW}' === 'true';
@@ -131,7 +45,8 @@ body {
 			$('#NoticeModal').modal("show");
 		}
 		
-		$("#modal-today-close").click(function() {
+		// 공지사항 닫기 버튼 - 이벤트 위임 사용
+		$(document).on("click", "#modal-today-close", function() {
 			$("#NoticeModal").modal("hide");
 			try {
 				var today = new Date().toDateString();
@@ -140,7 +55,7 @@ body {
 			} catch (e) {
 				console.error('공지사항 닫기 정보 저장 실패:', e);
 			}
-		})
+		});
 		/* ------------------------------공지사항 end------------------------------ */
 
 		$(document).on("click", ".addtree", function() {
@@ -151,27 +66,10 @@ body {
 			}
 		});
 
-		$('#pageTab').on('click', ' li a .close', function() {
-			var templateId = $(this).parents('li').children('a').attr('data-template-id');
-			if (templateId) {
-				// home 탭은 닫을 수 없음
-				if (templateId === 'home') {
-					return false;
-				}
-				// 새로운 탭 관리 시스템 사용
-				window.tabManager.removeTab(templateId);
-			} else {
-				// 기존 방식 (기본 탭들)
-				var tabId = $(this).parents('li').children('a').attr('href');
-				$(this).parents('li').remove('li');
-				$(tabId).remove();
-				$('#pageTab a:first').tab('show');
-			}
-		});
+		// 탭 닫기 버튼 - 이벤트 위임 사용 (이미 위임 사용 중, tabManager.js에서도 처리)
+		// tabManager.js에서 이미 처리하므로 중복 제거 가능하지만 하위 호환성을 위해 유지
 
-		/**
-		 * Click Tab to show its content 
-		 */
+		// 탭 클릭 - 이벤트 위임 사용 (이미 위임 사용 중)
 		$("#pageTab").on("click", "a", function(e) {
 			e.preventDefault();
 			$(this).tab('show');
@@ -259,13 +157,8 @@ body {
 			window.HeaderUtils.loadNotice();
 		}
 		
-		// 오늘 하루 열지 않기 버튼 이벤트
-		$('#modal-today-close').click(function() {
-			// 오늘 날짜를 localStorage에 저장
-			var today = new Date().toDateString();
-			localStorage.setItem('noticeClosedDate', today);
-			$('#noticeModal').modal('hide');
-		});
+		// 오늘 하루 열지 않기 버튼 이벤트 - 이벤트 위임 사용 (위에서 이미 처리됨)
+		// 중복 제거: 위의 스크립트에서 이미 처리하므로 제거
 	});
 	
 	// 페이지 로드 시 저장된 글꼴 복원
