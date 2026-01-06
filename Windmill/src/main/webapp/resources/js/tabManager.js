@@ -9,6 +9,7 @@
 	window.tabManager = {
 		tabs: new Map(), // 탭 정보 저장
 		activeTab: null,
+		previousActiveTab: null, // 이전 활성 탭
 		tabOrder: ['home'], // 탭 순서 추적
 		
 		// 탭 추가
@@ -59,6 +60,20 @@
 				// DOM에 추가
 				$('#pageTab').append(tabHtml);
 				$('#pageTabContent').append(contentHtml);
+				
+				// iframe 로드 완료 시 현재 활성 탭이면 메시지 전송
+				// (activateTab에서 보낸 메시지는 iframe이 로드되기 전일 수 있으므로 재전송)
+				var iframe = document.getElementById(iframeId);
+				if (iframe) {
+					iframe.addEventListener('load', function() {
+						// iframe이 로드된 후 약간의 지연을 두고 메시지 전송 (내부 스크립트 로드 대기)
+						setTimeout(function() {
+							if (this.activeTab === templateId) {
+								this.notifyTabActivation(templateId);
+							}
+						}.bind(this), 100);
+					}.bind(this));
+				}
 				
 				// data가 있으면 form에 데이터 추가하고 submit
 				if (data && Object.keys(data).length > 0) {
@@ -124,8 +139,39 @@
 		activateTab: function(templateId) {
 			var tabInfo = this.tabs.get(templateId);
 			if (tabInfo) {
+				if (this.activeTab && this.activeTab !== templateId) {
+					this.notifyTabDeactivation(this.activeTab);
+					this.previousActiveTab = this.activeTab;
+				}
 				$('#pageTab a[data-template-id="' + templateId + '"]').tab('show');
 				this.activeTab = templateId;
+				this.notifyTabActivation(templateId);
+			}
+		},
+
+		notifyTabActivation: function(templateId) {
+			var tabInfo = this.tabs.get(templateId);
+			if (!tabInfo) return;
+			var iframe = document.getElementById(tabInfo.iframeId);
+			if (iframe && iframe.contentWindow) {
+				try {
+					iframe.contentWindow.postMessage({ type: 'TAB_ACTIVATION', active: true }, '*');
+				} catch (e) {
+					// cross origin ignore
+				}
+			}
+		},
+
+		notifyTabDeactivation: function(templateId) {
+			var tabInfo = this.tabs.get(templateId);
+			if (!tabInfo) return;
+			var iframe = document.getElementById(tabInfo.iframeId);
+			if (iframe && iframe.contentWindow) {
+				try {
+					iframe.contentWindow.postMessage({ type: 'TAB_ACTIVATION', active: false }, '*');
+				} catch (e) {
+					// cross origin ignore
+				}
 			}
 		},
 		
@@ -218,6 +264,27 @@
 	window.addTemplateTab = function(templateId, title, url) {
 		window.tabManager.addTab(templateId, title, url);
 	};
+
+	// 탭 전환/닫기 이벤트 리스너 등록
+	$(document).ready(function() {
+		// Bootstrap 탭 전환 이벤트 감지
+		$('#pageTab').on('shown.bs.tab', 'a[data-toggle="tab"]', function(e) {
+			var templateId = $(e.target).data('template-id');
+			if (templateId) {
+				window.tabManager.activateTab(templateId);
+			}
+		});
+
+		// 탭 닫기 버튼 이벤트
+		$(document).on('click', '#pageTab .close', function(e) {
+			e.preventDefault();
+			e.stopPropagation();
+			var templateId = $(this).closest('a').data('template-id');
+			if (templateId) {
+				window.tabManager.removeTab(templateId);
+			}
+		});
+	});
 
 })(window);
 

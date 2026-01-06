@@ -53,9 +53,7 @@ window.sentryOnLoad = function () {
 <script src="/resources/plugins/jQuery/jquery.min.js"></script>
 <script src="/resources/bootstrap/js/bootstrap.min.js"></script>
 <script src="/resources/plugins/chartjs/ChartJs.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
-
+<script src="/resources/js/tabVisibilityManager.js"></script>
 
 <link rel="shortcut icon" href="#">
 

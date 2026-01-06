@@ -3,13 +3,30 @@
 
     <script>
         // 전역 변수
-        var dynamicCharts = {}; // 동적 차트 객체들
         var selectedConnectionId = null; // 선택된 연결 ID
         var chartConfig = null; // 차트 설정
         var chartUpdateTimer = null; // 차트 업데이트 타이머
         var cachedApiResponse = null; // API 응답 데이터 캐시
         var chartConfigData = null; // 차트 설정 데이터
         var isAdmin = ${isAdmin}; // 관리자 권한 여부
+        
+        // 타이머 핸들 저장용 변수 (setTimeout 기반)
+        var connectionRefreshTimeout = null;
+        var chartRefreshTimeout = null;
+        var menuExecutionLogTimeout = null;
+
+        // AJAX 요청 취소를 위한 AbortController
+        var connectionStatusAbortController = null;
+        var chartUpdateAbortController = null;
+        var menuExecutionLogAbortController = null;
+
+        // 탭(iframe) 활성 상태는 tabVisibilityManager에서 관리
+
+        // Chart.js 플러그인 로드 상태
+        var chartPluginsLoaded = {
+            datalabels: false,
+            annotation: false
+        };
 
         // 색상 정의
         const COLORS = {
@@ -33,6 +50,115 @@
             red: { min: 90, max: 100 }
         };
 
+        function isDashboardRunning() {
+            // tabVisibilityManager가 로드되지 않았으면 기본적으로 true 반환 (초기 로드 시)
+            if (!window.tabVisibilityManager) {
+                return !document.hidden;
+            }
+            return window.tabVisibilityManager.isActive();
+        }
+
+        function clearConnectionRefreshTimeout() {
+            if (connectionRefreshTimeout) {
+                clearTimeout(connectionRefreshTimeout);
+                connectionRefreshTimeout = null;
+            }
+        }
+
+        function clearChartRefreshTimeout() {
+            if (chartRefreshTimeout) {
+                clearTimeout(chartRefreshTimeout);
+                chartRefreshTimeout = null;
+            }
+        }
+
+        function clearMenuLogTimeout() {
+            if (menuExecutionLogTimeout) {
+                clearTimeout(menuExecutionLogTimeout);
+                menuExecutionLogTimeout = null;
+            }
+        }
+
+        // 진행 중인 AJAX 요청 취소
+        function abortPendingAjaxRequests() {
+            if (connectionStatusAbortController) {
+                connectionStatusAbortController.abort();
+                connectionStatusAbortController = null;
+            }
+            if (chartUpdateAbortController) {
+                chartUpdateAbortController.abort();
+                chartUpdateAbortController = null;
+            }
+            if (menuExecutionLogAbortController) {
+                menuExecutionLogAbortController.abort();
+                menuExecutionLogAbortController = null;
+            }
+        }
+
+        // Chart.js 플러그인 동적 로드 함수
+        function loadChartPlugin(pluginName, callback) {
+            if (pluginName === 'datalabels' && chartPluginsLoaded.datalabels) {
+                if (callback) callback();
+                return;
+            }
+            if (pluginName === 'annotation' && chartPluginsLoaded.annotation) {
+                if (callback) callback();
+                return;
+            }
+
+            var script = document.createElement('script');
+            script.onload = function() {
+                if (pluginName === 'datalabels') {
+                    chartPluginsLoaded.datalabels = true;
+                    // datalabels 플러그인은 자동으로 등록됨
+                } else if (pluginName === 'annotation') {
+                    chartPluginsLoaded.annotation = true;
+                    // annotation 플러그인은 자동으로 등록되지만, 
+                    // 모든 차트에 빈 설정을 추가해야 함
+                }
+                if (callback) callback();
+            };
+            script.onerror = function() {
+                console.error('Chart.js 플러그인 로드 실패: ' + pluginName);
+                if (callback) callback();
+            };
+
+            if (pluginName === 'datalabels') {
+                script.src = '/resources/plugins/chartjs/chartjs-plugin-datalabels.min.js';
+            } else if (pluginName === 'annotation') {
+                script.src = '/resources/plugins/chartjs/chartjs-plugin-annotation.min.js';
+            }
+            document.head.appendChild(script);
+        }
+
+        // 필요한 Chart.js 플러그인들을 동적으로 로드
+        function ensureChartPlugins(chartType, callback) {
+            var pluginsToLoad = [];
+            
+            if (chartType === 'doughnut') {
+                pluginsToLoad.push('datalabels');
+            } else if (chartType === 'gauge') {
+                pluginsToLoad.push('annotation');
+            }
+
+            if (pluginsToLoad.length === 0) {
+                if (callback) callback();
+                return;
+            }
+
+            var loadedCount = 0;
+            var totalCount = pluginsToLoad.length;
+
+            pluginsToLoad.forEach(function(pluginName) {
+                loadChartPlugin(pluginName, function() {
+                    loadedCount++;
+                    if (loadedCount === totalCount) {
+                        if (callback) callback();
+                    }
+                });
+            });
+        }
+
         // 연결 관리 탭 열기 함수
         function openConnectionTab() {
             parent.tabManager.addTab('connection', '연결 관리', '/Connection');
@@ -53,9 +179,60 @@
                 if (chartUpdateTimer) {
                     clearInterval(chartUpdateTimer);
                 }
-            stopConnectionMonitoring();
-            stopMenuExecutionLogMonitoring();
+                stopConnectionMonitoring();
+                stopMenuExecutionLogMonitoring();
+                
+                // 모든 차트 인스턴스 정리
+                if (window.chartInstances) {
+                    for (var chartId in window.chartInstances) {
+                        if (window.chartInstances.hasOwnProperty(chartId)) {
+                            try {
+                                window.chartInstances[chartId].destroy();
+                            } catch (e) {
+                                console.error('차트 인스턴스 정리 중 오류:', e);
+                            }
+                            delete window.chartInstances[chartId];
+                        }
+                    }
+                    window.chartInstances = {};
+                }
             });
+            
+            // 탭 가시성 및 활성화 상태 관리
+            if (window.tabVisibilityManager) {
+                window.tabVisibilityManager.register({
+                    onHidden: function() {
+                        // 브라우저 탭이 숨겨지면 모든 주기적인 작업을 중단
+                        clearConnectionRefreshTimeout();
+                        clearChartRefreshTimeout();
+                        clearMenuLogTimeout();
+                        abortPendingAjaxRequests();
+                    },
+                    onVisible: function(isActive) {
+                        // 브라우저 탭이 다시 활성화되면 (iframe 탭도 활성 상태일 경우) 주기적인 작업 재개
+                        if (isActive) {
+                            refreshConnectionStatus();
+                            updateDynamicCharts();
+                            refreshMenuExecutionLog();
+                        }
+                    },
+                    onTabActivated: function(isActive) {
+                        // iframe 탭이 활성화되면 (브라우저 탭도 활성 상태일 경우) 주기적인 작업 재개
+                        if (isActive) {
+                            refreshConnectionStatus();
+                            updateDynamicCharts();
+                            refreshMenuExecutionLog();
+                        }
+                    },
+                    onTabDeactivated: function() {
+                        // iframe 탭이 비활성화되면 모든 주기적인 작업을 중단
+                        clearConnectionRefreshTimeout();
+                        clearChartRefreshTimeout();
+                        clearMenuLogTimeout();
+                        abortPendingAjaxRequests();
+                    }
+                });
+            }
         });
         
         // 연결 상태 모니터링 시작
@@ -65,15 +242,38 @@
 
         // 연결 상태 새로고침 함수
         function refreshConnectionStatus() {
+            if (!isDashboardRunning()) {
+                clearConnectionRefreshTimeout();
+                return;
+            }
+
+            // 이전 요청이 있으면 취소
+            if (connectionStatusAbortController) {
+                connectionStatusAbortController.abort();
+            }
+            connectionStatusAbortController = new AbortController();
+
             $.ajax({
                 type: 'post',
                 url: '/Connection/status',
+                signal: connectionStatusAbortController.signal,
                 success: function(result) {
+                    if (!isDashboardRunning()) {
+                        return;
+                    }
                     updateConnectionStatusDisplay(result);
                     // 연결 상태 확인 완료 후 다음 타이머 설정
                     scheduleNextRefresh();
+                    connectionStatusAbortController = null;
                 },
                 error: function(xhr, status, error) {
+                    // AbortError는 무시 (요청이 취소된 경우)
+                    if (xhr.statusText === 'abort' || error === 'abort') {
+                        return;
+                    }
+                    if (!isDashboardRunning()) {
+                        return;
+                    }
                     console.error('연결 상태 조회 실패:', error);
                     
                     // 연결 상태 컨테이너에 오류 메시지 표시
@@ -87,6 +287,7 @@
                     
                     // 에러 발생 시에도 다음 타이머 설정
                     scheduleNextRefresh();
+                    connectionStatusAbortController = null;
                 }
             });
         }
@@ -439,33 +640,47 @@
 
         // 다음 새로고침 예약
         function scheduleNextRefresh() {
-            setTimeout(function() {
+            clearConnectionRefreshTimeout();
+            if (!isDashboardRunning()) {
+                return;
+            }
+            connectionRefreshTimeout = setTimeout(function() {
                 refreshConnectionStatus();
             }, 10000); // 10초마다 연결 상태 확인
         }
 
         // 연결 모니터링 중지
         function stopConnectionMonitoring() {
-            // 타이머 정리 로직 (필요시 구현)
+            clearConnectionRefreshTimeout();
         }
         
         // 차트 모니터링 시작
         function startChartMonitoring() {
-            if (chartUpdateTimer) {
-                clearInterval(chartUpdateTimer);
-            }
-            
-            // 즉시 한 번 실행
             updateDynamicCharts();
         }
         
         // 동적 차트 업데이트 (통합 API 사용)
         function updateDynamicCharts() {
+            if (!isDashboardRunning()) {
+                scheduleChartUpdate();
+                return;
+            }
+
+            // 이전 요청이 있으면 취소
+            if (chartUpdateAbortController) {
+                chartUpdateAbortController.abort();
+            }
+            chartUpdateAbortController = new AbortController();
+
             $.ajax({
                 url: '/Dashboard/getIntegratedData',
                 type: 'POST',
+                signal: chartUpdateAbortController.signal,
                 success: function(response) {
-                	
+                    if (!isDashboardRunning()) {
+                        return;
+                    }
+
                     if (response.success && response.connections) {
                         // API 응답 데이터 캐시에 저장
                         cachedApiResponse = response;
@@ -512,19 +727,32 @@
                             }
                         });
                     }
+                    chartUpdateAbortController = null;
                 },
-                error: function() {
+                error: function(xhr, status, error) {
+                    // AbortError는 무시 (요청이 취소된 경우)
+                    if (xhr.statusText === 'abort' || error === 'abort') {
+                        return;
+                    }
                     console.error('통합 데이터 조회 실패');
+                    chartUpdateAbortController = null;
                 },
                 complete: function() {
-                    // API 호출 완료 후 10초 후에 다음 호출 예약
-                    setTimeout(function() {
-                        updateDynamicCharts();
-                    }, 10000);
+                    scheduleChartUpdate();
                 }
             });
         }
 
+        function scheduleChartUpdate() {
+            clearChartRefreshTimeout();
+            if (!isDashboardRunning()) {
+                return;
+            }
+            chartRefreshTimeout = setTimeout(function() {
+                updateDynamicCharts();
+            }, 10000);
+        }
+        
         // 차트 데이터만 업데이트 (기존 차트 유지)
         function updateChartData(chartId, chartType, data) {
 
@@ -591,6 +819,14 @@
                         chartInstance.data.datasets[0].data = chartData.values;
                         chartInstance.data.datasets[0].backgroundColor = chartData.colors2;
                         chartInstance.data.datasets[0].borderColor = chartData.colors;
+                    }
+                    
+                    // annotation 플러그인이 로드되어 있고 gauge 차트가 아니면 비활성화
+                    if (chartPluginsLoaded.annotation && chartType !== 'gauge') {
+                        if (!chartInstance.options.plugins) {
+                            chartInstance.options.plugins = {};
+                        }
+                        chartInstance.options.plugins.annotation = false;
                     }
                     
                     chartInstance.update();
@@ -927,15 +1163,18 @@
                 window.chartInstances = {};
             }
             
-            if (chartType === 'doughnut') {
-                window.chartInstances[canvasId] = initializeDoughnutChart(canvasId, data);
-            } else if (chartType === 'text') {
-                initializeTextChart(canvasId, data);
-            } else if (chartType === 'gauge') {
-                window.chartInstances[canvasId] = initializeGaugeChart(canvasId, data);
-            } else if (chartType === 'bar') {
-                window.chartInstances[canvasId] = initializeBarChart(canvasId, data);
-            }
+            // 필요한 플러그인 로드 후 차트 초기화
+            ensureChartPlugins(chartType, function() {
+                if (chartType === 'doughnut') {
+                    window.chartInstances[canvasId] = initializeDoughnutChart(canvasId, data);
+                } else if (chartType === 'text') {
+                    initializeTextChart(canvasId, data);
+                } else if (chartType === 'gauge') {
+                    window.chartInstances[canvasId] = initializeGaugeChart(canvasId, data);
+                } else if (chartType === 'bar') {
+                    window.chartInstances[canvasId] = initializeBarChart(canvasId, data);
+                }
+            });
         }
         
         // 도넛 차트 초기화
@@ -948,8 +1187,15 @@
             
             var ctx = canvasElement.getContext('2d');
             
-            if (dynamicCharts[canvasId]) {
-                dynamicCharts[canvasId].destroy();
+            // Chart.js 인스턴스를 전역으로 저장
+            if (!window.chartInstances) {
+                window.chartInstances = {};
+            }
+            
+            // 기존 차트 인스턴스가 있으면 정리
+            if (window.chartInstances[canvasId]) {
+                window.chartInstances[canvasId].destroy();
+                delete window.chartInstances[canvasId];
             }
             
             var chartData = parseChartData(data);
@@ -989,7 +1235,8 @@
                             position: 'chartArea',
                             offset:9
                         },
-                       
+                        // annotation 플러그인 비활성화 (doughnut 차트에서는 사용하지 않음)
+                        annotation: false
                     },
                     //aspectRatio: 3 / 4,
                     layout: {
@@ -1014,7 +1261,7 @@
                 }
             });
             
-            dynamicCharts[canvasId] = chartInstance;
+            window.chartInstances[canvasId] = chartInstance;
             return chartInstance;
         }
 
@@ -1054,8 +1301,15 @@
             
             var ctx = canvasElement.getContext('2d');
             
-            if (dynamicCharts[canvasId]) {
-                dynamicCharts[canvasId].destroy();
+            // Chart.js 인스턴스를 전역으로 저장
+            if (!window.chartInstances) {
+                window.chartInstances = {};
+            }
+            
+            // 기존 차트 인스턴스가 있으면 정리
+            if (window.chartInstances[canvasId]) {
+                window.chartInstances[canvasId].destroy();
+                delete window.chartInstances[canvasId];
             }
             
             var chartData = parseChartData(data);
@@ -1111,7 +1365,7 @@
                 }
             });
             
-            dynamicCharts[canvasId] = chartInstance;
+            window.chartInstances[canvasId] = chartInstance;
             return chartInstance;
         }
         
@@ -1125,8 +1379,15 @@
             
             var ctx = canvasElement.getContext('2d');
             
-            if (dynamicCharts[canvasId]) {
-                dynamicCharts[canvasId].destroy();
+            // Chart.js 인스턴스를 전역으로 저장
+            if (!window.chartInstances) {
+                window.chartInstances = {};
+            }
+            
+            // 기존 차트 인스턴스가 있으면 정리
+            if (window.chartInstances[canvasId]) {
+                window.chartInstances[canvasId].destroy();
+                delete window.chartInstances[canvasId];
             }
             
             var chartData = parseChartData(data);
@@ -1151,7 +1412,9 @@
                     plugins: {
                         legend: {
                             display: false
-                        }
+                        },
+                        // annotation 플러그인 비활성화 (bar 차트에서는 사용하지 않음)
+                        annotation: false
                     },
                     onClick: function(evt, elements) {
                         if (elements.length > 0) {
@@ -1167,7 +1430,7 @@
                 }
             });
             
-            dynamicCharts[canvasId] = chartInstance;
+            window.chartInstances[canvasId] = chartInstance;
             return chartInstance;
         }
         
@@ -1480,25 +1743,49 @@
         
         // 메뉴 실행기록 새로고침
         function refreshMenuExecutionLog() {
-        	
+            if (!isDashboardRunning()) {
+                clearMenuLogTimeout();
+                return;
+            }
+
+            // 이전 요청이 있으면 취소
+            if (menuExecutionLogAbortController) {
+                menuExecutionLogAbortController.abort();
+            }
+            menuExecutionLogAbortController = new AbortController();
+
             $.ajax({
                 type: 'POST',
                 url: '/Dashboard/menuExecutionLog',
+                signal: menuExecutionLogAbortController.signal,
                 success: function(result) {
+                    if (!isDashboardRunning()) {
+                        return;
+                    }
                     updateMenuExecutionLogDisplay(result);
-                    // 5초 후 다시 조회
-                    setTimeout(function() {
-                        refreshMenuExecutionLog();
-                    }, 5000);
+                    scheduleMenuLogRefresh();
+                    menuExecutionLogAbortController = null;
                 },
                 error: function(xhr, status, error) {
+                    // AbortError는 무시 (요청이 취소된 경우)
+                    if (xhr.statusText === 'abort' || error === 'abort') {
+                        return;
+                    }
                     console.error('메뉴 실행기록 조회 실패:', error);
-                    // 에러 발생 시에도 5초 후 다시 시도
-                    setTimeout(function() {
-                        refreshMenuExecutionLog();
-                    }, 5000);
+                    scheduleMenuLogRefresh();
+                    menuExecutionLogAbortController = null;
                 }
             });
+        }
+        
+        function scheduleMenuLogRefresh() {
+            clearMenuLogTimeout();
+            if (!isDashboardRunning()) {
+                return;
+            }
+            menuExecutionLogTimeout = setTimeout(function() {
+                refreshMenuExecutionLog();
+            }, 5000);
         }
         
         // 메뉴 실행기록 표시 업데이트
@@ -1545,7 +1832,7 @@
         
         // 메뉴 실행기록 모니터링 중지
         function stopMenuExecutionLogMonitoring() {
-            // 타이머 정리 로직 (필요시 구현)
+            clearMenuLogTimeout();
         }
         
         // 날짜시간 포맷팅

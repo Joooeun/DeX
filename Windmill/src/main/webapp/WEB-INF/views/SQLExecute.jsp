@@ -126,9 +126,10 @@ var lastExecutionColumns = null;
 var lastExecutionTableOption = null;
 
 // 자동 새로고침 관련 변수
-var timeRemain = null;
-var isPaused = false; // 일시정지 상태 변수
-var refreshTimer = null; // 타이머 변수
+	var timeRemain = null;
+	var isPaused = false; // 일시정지 상태 변수
+	var refreshTimer = null; // 타이머 변수
+	// iframe 탭 활성 상태는 tabVisibilityManager에서 관리
 
 // 테이블 관련 변수
 var table;
@@ -194,6 +195,38 @@ let ondate;
 		setTimeout(function() {
 			clearInterval(checkAce);
 		}, 5000);
+
+		// 탭 가시성 및 활성화 상태 관리
+		if (window.tabVisibilityManager) {
+			window.tabVisibilityManager.register({
+				onHidden: function() {
+					// 브라우저 탭이 숨겨지면 자동 새로고침 중단
+					if (refreshTimer) {
+						clearTimeout(refreshTimer);
+						refreshTimer = null;
+					}
+				},
+				onVisible: function(isActive) {
+					// 브라우저 탭이 다시 활성화되면 (iframe 탭도 활성 상태일 경우) 자동 새로고침 재개
+					if (isActive && !isPaused && timeRemain !== null) {
+						refresh();
+					}
+				},
+				onTabActivated: function(isActive) {
+					// iframe 탭이 활성화되면 (브라우저 탭도 활성 상태일 경우) 자동 새로고침 재개
+					if (isActive && !isPaused && timeRemain !== null) {
+						refresh();
+					}
+				},
+				onTabDeactivated: function() {
+					// iframe 탭이 비활성화되면 자동 새로고침 중단
+					if (refreshTimer) {
+						clearTimeout(refreshTimer);
+						refreshTimer = null;
+					}
+				}
+			});
+		}
 
 		// 차트 초기화
 		// SQL 타입일 때만 차트 초기화 처리
@@ -554,13 +587,18 @@ let ondate;
 			return;
 		}
 		
+		// iframe 탭 비활성 또는 페이지 비가시 상태면 중단
+		if (window.tabVisibilityManager && !window.tabVisibilityManager.isActive()) {
+			return;
+		}
+		
 		timeRemain--;
 		$("#excutebtn").val('wait...' + timeRemain + 's')
 		if (timeRemain == 0) {
 			timeRemain = $("#refreshtimeout").val();
 			excute();
 		} else {
-			refreshTimer = setTimeout(() => {
+			refreshTimer = setTimeout(function() {
 				refresh();
 			}, 1000);
 		}
@@ -604,7 +642,13 @@ let ondate;
 			$("#pauseBtn").removeClass('btn-warning').addClass('btn-info');
 			// 자동 재실행 중에는 실행 버튼 비활성화 유지
 			$("#excutebtn").attr('disabled', true);
-			refresh();
+			
+			if (refreshTimer) {
+				clearTimeout(refreshTimer);
+				refreshTimer = null;
+			}
+			
+		refresh();
 		}
 	}
 

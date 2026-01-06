@@ -94,6 +94,7 @@ body {
 
 </style>
 <!-- JavaScript 모듈 로드 -->
+<script src="/resources/js/tabVisibilityManager.js"></script>
 <script src="/resources/js/tabManager.js"></script>
 <script src="/resources/js/menuSearch.js"></script>
 <script src="/resources/js/headerUtils.js"></script>
