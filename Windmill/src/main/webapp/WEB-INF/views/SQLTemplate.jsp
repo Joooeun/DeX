@@ -377,30 +377,44 @@
 
 		// 모든 SQL 에디터의 자동완성 업데이트
 		function updateAllEditorsCompleters() {
-			if (window.SqlTemplateState.sqlEditors) {
-				Object.keys(window.SqlTemplateState.sqlEditors).forEach(function (dbType) {
-					var editor = window.SqlTemplateState.sqlEditors[dbType];
+			if (window.SqlTemplateState && window.SqlTemplateState.sqlEditors) {
+				Object.keys(window.SqlTemplateState.sqlEditors).forEach(function (editorId) {
+					var editor = window.SqlTemplateState.sqlEditors[editorId];
 					if (editor && typeof ace !== 'undefined') {
 						// 자동완성 업데이트
-						var langTools = ace.require("ace/ext/language_tools");
-						langTools.setCompleters([]);
+						setupCustomCompleter(editor);
+					}
+				});
+			}
+			// window.sqlEditors에도 적용 (하위 호환성)
+			if (window.sqlEditors) {
+				Object.keys(window.sqlEditors).forEach(function (editorId) {
+					var editor = window.sqlEditors[editorId];
+					if (editor && typeof ace !== 'undefined') {
+						// 자동완성 업데이트
 						setupCustomCompleter(editor);
 					}
 				});
 			}
 		}
 
-		// 커스텀 자동완성 설정 (하이라이팅 제거)
+		// 커스텀 자동완성 설정 (SQL 키워드 자동완성 유지)
 		function setupCustomCompleter(editor) {
-			// 기존 자동완성 기능 유지하면서 커스텀 추가
 			var langTools = ace.require("ace/ext/language_tools");
+			
+			// 이미 커스텀 제공자가 추가되어 있으면 다시 추가하지 않음
+			// (제공자 함수 내에서 항상 최신 파라미터를 가져오므로 중복 추가해도 문제 없음)
+			if (editor._customParameterCompleterAdded) {
+				return; // 이미 추가된 경우 중복 추가 방지
+			}
 
 			// 커스텀 자동완성 제공자 생성
+			// 함수 내에서 항상 최신 파라미터 목록을 가져오므로 업데이트가 자동으로 반영됨
 			var customCompleter = {
 				getCompletions: function (editor, session, pos, prefix, callback) {
 					var completions = [];
 
-					// 파라미터 목록 가져오기
+					// 파라미터 목록 가져오기 (항상 최신 목록)
 					var parameters = getParameterNames();
 
 					// 파라미터만 자동완성에 추가
@@ -417,8 +431,9 @@
 				}
 			};
 
-			// 기존 자동완성 제공자들에 커스텀 제공자 추가
+			// 기존 자동완성 제공자들(SQL 키워드 포함)을 유지하면서 커스텀 제공자만 추가
 			langTools.addCompleter(customCompleter);
+			editor._customParameterCompleterAdded = true; // 중복 추가 방지 플래그
 		}
 
 		// 현재 파라미터 이름 목록 가져오기
@@ -568,31 +583,41 @@
 			return $(itemHtml)[0]; // jQuery 객체를 DOM 요소로 변환
 		}
 
-		// 템플릿 타입 변경 시 에디터 모드 조정
+		// 템플릿 타입에 따른 ACE Editor 모드 반환
+		function getAceModeForTemplateType(templateType) {
+			switch(templateType) {
+				case 'HTML':
+					return 'ace/mode/html';
+				case 'SHELL':
+					return 'ace/mode/sh';
+				default:
+					return 'ace/mode/sql';
+			}
+		}
+
+		// 템플릿 타입 변경 시 모든 에디터 모드 조정
 		function adjustEditorForTemplateType() {
-			var templateType = $('#sqlTemplateType').val();
-			// window.sqlEditors에서 에디터 가져오기
-			var editor = (window.sqlEditors && window.sqlEditors['sqlEditor_default']) || 
-			             (window.SqlTemplateState && window.SqlTemplateState.sqlEditors && window.SqlTemplateState.sqlEditors['sqlEditor_default']);
+			var templateType = $('#sqlTemplateType').val() || 'SQL';
+			var aceMode = getAceModeForTemplateType(templateType);
 			
-			if (editor && editor.session) {
-				// Ace Editor API 사용
-				switch(templateType) {
-					case 'HTML':
-						editor.session.setMode('ace/mode/html');
-						break;
-					case 'SHELL':
-						editor.session.setMode('ace/mode/sh');
-						break;
-					case 'PYTHON':
-						editor.session.setMode('ace/mode/python');
-						break;
-					case 'JAVASCRIPT':
-						editor.session.setMode('ace/mode/javascript');
-						break;
-					default:
-						editor.session.setMode('ace/mode/sql');
-				}
+			// 모든 에디터에 모드 적용
+			if (window.SqlTemplateState && window.SqlTemplateState.sqlEditors) {
+				Object.keys(window.SqlTemplateState.sqlEditors).forEach(function (editorId) {
+					var editor = window.SqlTemplateState.sqlEditors[editorId];
+					if (editor && editor.session) {
+						editor.session.setMode(aceMode);
+					}
+				});
+			}
+			
+			// window.sqlEditors에도 적용 (하위 호환성)
+			if (window.sqlEditors) {
+				Object.keys(window.sqlEditors).forEach(function (editorId) {
+					var editor = window.sqlEditors[editorId];
+					if (editor && editor.session) {
+						editor.session.setMode(aceMode);
+					}
+				});
 			}
 		}
 
@@ -721,10 +746,6 @@
 						case 'SHELL':
 							badgeClass = 'bg-green';
 							typeBadge = 'SHELL';
-							break;
-						case 'PYTHON':
-							badgeClass = 'bg-red';
-							typeBadge = 'PYTHON';
 							break;
 						default:
 							badgeClass = 'bg-gray';
@@ -2460,6 +2481,11 @@
 
 							// 추가 데이터 로드 (파라미터, 단축키, SQL 내용)
 							loadAdditionalTemplateData(templateId);
+							
+							// 템플릿 로드 후 모든 에디터의 자동완성 재설정
+							setTimeout(function() {
+								updateAllEditorsCompleters();
+							}, 200);
 
 							// 저장 완료 후 실행될 로직
 							$('.template-item').removeClass('selected');
@@ -2510,7 +2536,10 @@
 							window.SqlTemplateState.isLoading = false;
 							updateSaveButtonState();
 							updateCopyButtonState();
-						}, 100);
+							
+							// 모든 에디터의 자동완성 재설정 (템플릿 로드 후)
+							updateAllEditorsCompleters();
+						}, 200);
 
 						// 커스텀 이벤트 트리거
 						$(document).trigger('templateDetailLoaded');
@@ -2733,9 +2762,33 @@
 					var editorElement = document.getElementById(editorId);
 					if (editorElement) {
 						ace.require("ace/ext/language_tools");
-						var editor = ace.edit(editorId);
+						
+						// 에디터가 이미 존재하는지 확인
+						var existingEditor = null;
+						if (window.sqlEditors && window.sqlEditors[editorId]) {
+							existingEditor = window.sqlEditors[editorId];
+						} else if (window.SqlTemplateState && window.SqlTemplateState.sqlEditors && window.SqlTemplateState.sqlEditors[editorId]) {
+							existingEditor = window.SqlTemplateState.sqlEditors[editorId];
+						}
+						
+						var editor;
+						var isNewEditor = false;
+						
+						if (existingEditor && editorElement.classList.contains('ace_editor')) {
+							// 기존 에디터 재사용
+							editor = existingEditor;
+						} else {
+							// 새 에디터 생성
+							editor = ace.edit(editorId);
+							isNewEditor = true;
+						}
+						
 						editor.setTheme("ace/theme/chrome");
-						editor.session.setMode("ace/mode/sql");
+						
+						// 템플릿 타입에 맞는 모드 설정
+						var templateType = $('#sqlTemplateType').val() || 'SQL';
+						var aceMode = getAceModeForTemplateType(templateType);
+						editor.session.setMode(aceMode);
 						
 						// localStorage에서 저장된 폰트 가져오기
 						var selectedFont = localStorage.getItem('selectedFont') || 'D2Coding';
@@ -2751,8 +2804,11 @@
 						});
 
 						// 커스텀 자동완성 설정 추가
-						updateAllEditorsCompleters()
-
+						// 기존 에디터를 재사용할 때도 자동완성을 다시 설정하여 최신 파라미터 반영
+						// 제공자 함수 내에서 항상 최신 파라미터를 가져오므로 중복 추가해도 문제 없음
+						if (isNewEditor || !editor._customParameterCompleterAdded) {
+							setupCustomCompleter(editor);
+						}
 
 						editor.setValue(sqlContent || '');
 

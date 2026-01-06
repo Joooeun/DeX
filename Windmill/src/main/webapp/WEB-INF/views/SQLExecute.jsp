@@ -1,6 +1,10 @@
 <%@include file="common/common.jsp"%>
 <c:set var="textlimit" value="1900000" />
 
+<!-- Ace Editor CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ace.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ext-language_tools.js"></script>
+
 <!-- 기존 SQL 실행 화면 -->
 
 <!-- ======================================== -->
@@ -113,6 +117,9 @@ var graphcolor = ['#FF583A','#4B963E', '#FF9032', '#23439F','#FEDD0F','#561475',
 // SQL 텍스트 저장 변수
 var sql_text = "";
 
+// 텍스트 제한 값
+var textLimit = ${textlimit};
+
 // 실행 결과 저장 변수
 var lastExecutionData = null;
 var lastExecutionColumns = null;
@@ -171,6 +178,22 @@ let ondate;
 				$("#newline").trigger('change');
 			}, 100);
 		}
+
+		// ACE Editor 초기화 (템플릿 타입에 따라 자동완성 설정)
+		// ACE Editor가 로드될 때까지 대기
+		var checkAce = setInterval(function() {
+			if (typeof ace !== 'undefined') {
+				clearInterval(checkAce);
+				setTimeout(function() {
+					initAceEditors();
+				}, 200);
+			}
+		}, 100);
+
+		// 5초 후에도 로드되지 않으면 타임아웃
+		setTimeout(function() {
+			clearInterval(checkAce);
+		}, 5000);
 
 		// 차트 초기화
 		// SQL 타입일 때만 차트 초기화 처리
@@ -1144,6 +1167,234 @@ let ondate;
 	}
 	
 	// ========================================
+	// 템플릿 타입에 따른 ACE Editor 모드 반환
+	// ========================================
+	function getAceModeForTemplateType(templateType, paramType) {
+		// 파라미터 타입이 SQL이면 SQL 모드 사용
+		if (paramType && paramType.toUpperCase() === 'SQL') {
+			return 'ace/mode/sql';
+		}
+		
+		// 템플릿 타입에 따라 모드 설정
+		switch(templateType) {
+			case 'HTML':
+				return 'ace/mode/html';
+			case 'SHELL':
+				return 'ace/mode/sh';
+			default:
+				return 'ace/mode/text';
+		}
+	}
+
+	// ========================================
+	// ACE Editor 초기화 함수
+	// ========================================
+	function initAceEditors() {
+		if (typeof ace === 'undefined') {
+			console.log('ACE Editor가 로드되지 않았습니다.');
+			return;
+		}
+
+		var templateType = '${templateType}' || 'SQL';
+		ace.require("ace/ext/language_tools");
+
+		// SQL 텍스트 영역 초기화 (div로 직접 초기화)
+		var sqlTextDiv = document.getElementById('sql_text');
+		var sqlTextHidden = document.getElementById('sql_text_hidden');
+		if (sqlTextDiv && !sqlTextDiv.classList.contains('ace-initialized')) {
+			initAceEditorForDiv(sqlTextDiv, sqlTextHidden, templateType, null);
+			sqlTextDiv.classList.add('ace-initialized');
+		}
+
+		// TEXT/SQL 타입 파라미터 초기화
+		document.querySelectorAll('textarea.paramvalue.formtextarea').forEach(function(textarea) {
+			if (!textarea.classList.contains('ace-initialized')) {
+				var paramType = textarea.getAttribute('paramtype') || '';
+				initAceEditorForElement(textarea, templateType, paramType);
+				textarea.classList.add('ace-initialized');
+			}
+		});
+	}
+
+	// ========================================
+	// div에 대한 ACE Editor 초기화 (sql_text용)
+	// ========================================
+	function initAceEditorForDiv(editorDiv, hiddenTextarea, templateType, paramType) {
+		try {
+			// ACE Editor 모드 결정
+			var aceMode = getAceModeForTemplateType(templateType, paramType);
+
+			// ACE Editor 생성
+			var editor = ace.edit(editorDiv.id);
+			editor.setTheme("ace/theme/chrome");
+			editor.session.setMode(aceMode);
+			
+			// localStorage에서 저장된 폰트 가져오기
+			var selectedFont = localStorage.getItem('selectedFont') || 'D2Coding';
+			
+			editor.setOptions({
+				fontFamily: selectedFont,
+				enableBasicAutocompletion: true,
+				enableSnippets: true,
+				enableLiveAutocompletion: true,
+				showPrintMargin: false,
+				showGutter: true,
+				showInvisibles: false,
+				fontSize: 14
+			});
+
+			// 초기 값 설정
+			if (hiddenTextarea) {
+				editor.setValue(hiddenTextarea.value || '');
+			}
+
+			// ACE Editor 값 변경 시 hidden textarea 값 동기화
+			editor.session.on('change', function() {
+				if (hiddenTextarea) {
+					hiddenTextarea.value = editor.getValue();
+					
+					// 텍스트 카운트 업데이트
+					var textCount = editor.getValue().length;
+					$("#textcount").text(textCount);
+					
+					// 길이 제한 체크
+					if (textCount > textLimit) {
+						alert('입력가능한 범위를 벗어났습니다. 최대 : ' + textLimit);
+						editor.setValue(editor.getValue().substring(0, textLimit));
+						hiddenTextarea.value = editor.getValue();
+						$("#textcount").text(textLimit);
+					}
+				}
+			});
+
+			// Ctrl+Enter 이벤트 처리
+			editor.commands.addCommand({
+				name: 'submitForm',
+				bindKey: {win: 'Ctrl-Enter', mac: 'Cmd-Enter'},
+				exec: function(editor) {
+					if (document.ParamForm && document.ParamForm.checkValidity()) {
+						document.ParamForm.submit();
+					}
+				}
+			});
+
+			// 에디터 리사이즈
+			setTimeout(function() {
+				editor.resize();
+			}, 100);
+		} catch (e) {
+			console.error('ACE Editor 초기화 실패:', e);
+		}
+	}
+
+	// ========================================
+	// 개별 요소에 대한 ACE Editor 초기화
+	// ========================================
+	function initAceEditorForElement(textareaElement, templateType, paramType) {
+		try {
+			var editorId = textareaElement.id || 'ace_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+			
+			// ID가 없으면 생성
+			if (!textareaElement.id) {
+				textareaElement.id = editorId;
+			}
+
+			// 기존 값 저장
+			var initialValue = textareaElement.value || '';
+
+			// ACE Editor 모드 결정
+			var aceMode = getAceModeForTemplateType(templateType, paramType);
+
+			// textcontainer 구조 확인
+			var textContainer = textareaElement.closest('.textcontainer');
+			var lineNumbersDiv = textContainer ? textContainer.querySelector('.container__lines') : null;
+
+			// 기존 라인 번호 div 숨기기 (ACE Editor가 자체 라인 번호 제공)
+			if (lineNumbersDiv) {
+				lineNumbersDiv.style.display = 'none';
+			}
+
+			// ACE Editor용 div 생성 (textarea 위치에)
+			var aceEditorDiv = document.createElement('div');
+			aceEditorDiv.id = editorId + '_ace';
+			aceEditorDiv.style.width = '100%';
+			aceEditorDiv.style.height = (textareaElement.rows * 20) + 'px';
+			aceEditorDiv.style.minHeight = '100px';
+			aceEditorDiv.style.border = 'none';
+			aceEditorDiv.style.flex = '1';
+			
+			// textarea를 ACE Editor div로 교체
+			textareaElement.parentNode.insertBefore(aceEditorDiv, textareaElement);
+			
+			// textarea 숨기기 (값 동기화를 위해 유지)
+			textareaElement.style.position = 'absolute';
+			textareaElement.style.opacity = '0';
+			textareaElement.style.pointerEvents = 'none';
+			textareaElement.style.zIndex = '-1';
+			textareaElement.style.width = '1px';
+			textareaElement.style.height = '1px';
+
+			// ACE Editor 생성
+			var editor = ace.edit(aceEditorDiv.id);
+			editor.setTheme("ace/theme/chrome");
+			editor.session.setMode(aceMode);
+			
+			// localStorage에서 저장된 폰트 가져오기
+			var selectedFont = localStorage.getItem('selectedFont') || 'D2Coding';
+			
+			editor.setOptions({
+				fontFamily: selectedFont,
+				enableBasicAutocompletion: true,
+				enableSnippets: true,
+				enableLiveAutocompletion: true,
+				showPrintMargin: false,
+				showGutter: true,
+				showInvisibles: false,
+				fontSize: 14
+			});
+
+			// 초기 값 설정
+			editor.setValue(initialValue);
+
+			// ACE Editor 값 변경 시 textarea 값 동기화
+			editor.session.on('change', function() {
+				textareaElement.value = editor.getValue();
+				
+				// 기존 이벤트 트리거 (텍스트 카운트 업데이트 등)
+				var event = new Event('input', { bubbles: true });
+				textareaElement.dispatchEvent(event);
+			});
+
+			// Ctrl+Enter 이벤트 처리
+			editor.commands.addCommand({
+				name: 'submitForm',
+				bindKey: {win: 'Ctrl-Enter', mac: 'Cmd-Enter'},
+				exec: function(editor) {
+					if (document.ParamForm && document.ParamForm.checkValidity()) {
+						document.ParamForm.submit();
+					}
+				}
+			});
+
+			// 길이 제한 체크
+			editor.session.on('change', function() {
+				var value = editor.getValue();
+				if (value.length > textLimit) {
+					alert('입력가능한 범위를 벗어났습니다. 최대 : ' + textLimit);
+					editor.setValue(value.substring(0, textLimit));
+				}
+			});
+
+			// 에디터 리사이즈
+			setTimeout(function() {
+				editor.resize();
+			}, 100);
+		} catch (e) {
+			console.error('ACE Editor 초기화 실패:', e);
+		}
+	}
+	
+	// ========================================
 	// 컬럼 헤더 우클릭 시 텍스트 선택 기능 추가 함수
 	// ========================================
 	function addColumnHeaderCopyFeature() {
@@ -1234,9 +1485,9 @@ let ondate;
 									<c:if test="${empty sqlContent}">
 										<!-- SQL 에디터 -->
 										<div class="form-group" style="margin-bottom: 0">
-											<div id="container" class="textcontainer">
-												<div id="line-numbers" class="container__lines"></div>
-												<textarea class="col-sm-12 col-xs-12 formtextarea" maxlength="${textlimit}" id="sql_text" style="margin: 0 0 10px 0" rows="5" wrap='off' placeholder="SQL을 입력하세요..."></textarea>
+											<div id="container" class="textcontainer" style="display: flex; border: 1px solid rgb(203, 213, 225); border-radius: 0.5rem; overflow: hidden; max-height: none;">
+												<div id="sql_text" style="width: 100%; height: 300px; border: none;"></div>
+												<textarea id="sql_text_hidden" style="display: none;" maxlength="${textlimit}"></textarea>
 											</div>
 											<span id="textcount">0</span> / <span>${textlimit}</span>
 										</div>
