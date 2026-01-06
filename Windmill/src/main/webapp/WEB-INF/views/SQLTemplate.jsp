@@ -3444,7 +3444,7 @@
 			}
 			
 			// 템플릿 이름에 "(복사)" 접미사 추가
-			var newTemplateName = generateCopyName(templateName);
+			var newTemplateName = generateCopyName(templateName, '새 템플릿 (복사)');
 			
 			// 로딩 상태 설정 (초기화 중에는 변경사항으로 간주하지 않음)
 			window.SqlTemplateState.isLoading = true;
@@ -3480,26 +3480,6 @@
 			$('#sqlTemplateName').select();
 		}
 
-		// 복사본 이름 생성 (중복 처리)
-		function generateCopyName(originalName) {
-			if (!originalName || originalName.trim() === '') {
-				return '새 템플릿 (복사)';
-			}
-			
-			// 이미 "(복사)"가 포함되어 있는지 확인
-			var copyPattern = /^(.+?)\s*\(복사(?:\s*(\d+))?\)\s*$/;
-			var match = originalName.match(copyPattern);
-			
-			if (match) {
-				// 이미 "(복사)" 또는 "(복사 N)" 형식인 경우
-				var baseName = match[1].trim();
-				var copyNumber = match[2] ? parseInt(match[2]) : 1;
-				return baseName + ' (복사 ' + (copyNumber + 1) + ')';
-			} else {
-				// 처음 복사하는 경우
-				return originalName + ' (복사)';
-			}
-		}
 
 		// SQL 연결 편집 모달 열기
 		function editSqlConnections(currentConnectionId) {

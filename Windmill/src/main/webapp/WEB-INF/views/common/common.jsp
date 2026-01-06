@@ -356,5 +356,30 @@ $(document).ready(function() {
 
 	}
 
+	// ========================================
+	// 복사본 이름 생성 함수 (공통)
+	// ========================================
+	function generateCopyName(originalName, defaultName) {
+		defaultName = defaultName || '새 항목 (복사)';
+		
+		if (!originalName || originalName.trim() === '') {
+			return defaultName;
+		}
+		
+		// 이미 "(복사)"가 포함되어 있는지 확인
+		var copyPattern = /^(.+?)\s*\(복사(?:\s*(\d+))?\)\s*$/;
+		var match = originalName.match(copyPattern);
+		
+		if (match) {
+			// 이미 "(복사)" 또는 "(복사 N)" 형식인 경우
+			var baseName = match[1].trim();
+			var copyNumber = match[2] ? parseInt(match[2]) : 1;
+			return baseName + ' (복사 ' + (copyNumber + 1) + ')';
+		} else {
+			// 처음 복사하는 경우
+			return originalName + ' (복사)';
+		}
+	}
+
 </script>
 

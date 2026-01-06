@@ -43,7 +43,7 @@
                         </div>
                     </div>
                     <div class="box-body">
-                        <table id="userTable" class="table table-bordered table-striped">
+                        <table id="userTable" class="table table-bordered table-hover table-striped">
                             <thead>
                                 <tr>
                                     <th><div data-toggle="tooltip" data-placement="top" title="사용자의 고유 식별자입니다. 로그인 시 사용되며, 중복되지 않습니다.">사용자 ID</div></th>
@@ -101,7 +101,7 @@
                     </div>
                     <div class="box-body">
                         <div class="table-responsive">
-                            <table class="table table-bordered table-hover" id="groupTable">
+                            <table class="table table-bordered table-hover table-striped" id="groupTable">
                                 <thead>
                                     <tr>
                                         <th><div data-toggle="tooltip" data-placement="top" title="그룹의 고유 이름입니다. 사용자 권한 관리의 기본 단위로 사용되며, 중복되지 않아야 합니다.">그룹명</div></th>
@@ -1079,6 +1079,7 @@ function displayGroupTable(groupList) {
             '<td>' + formatDate(group.CREATED_TIMESTAMP) + '</td>' +
             '<td>' +
                 '<button class="btn btn-sm btn-info" onclick="editGroup(\'' + group.GROUP_ID + '\')">수정</button> ' +
+                '<button class="btn btn-sm btn-warning" onclick="copyGroup(\'' + group.GROUP_ID + '\')">복사</button> ' +
                 '<button class="btn btn-sm btn-danger" onclick="deleteGroup(\'' + group.GROUP_ID + '\')">삭제</button>' +
             '</td>' +
             '</tr>';
@@ -1147,6 +1148,55 @@ function editGroup(groupId) {
         }
     });
 }
+
+// 그룹 복사 함수
+function copyGroup(groupId) {
+    $.ajax({
+        url: '/UserGroup/detail',
+        type: 'GET',
+        data: { groupId: groupId },
+        success: function(response) {
+            if (response.success) {
+                var group = response.data;
+                
+                // 그룹 이름에 "(복사)" 접미사 추가
+                var newGroupName = generateCopyName(group.GROUP_NAME, '새 그룹 (복사)');
+                
+                // 그룹 ID 초기화 (새 그룹으로 만들기)
+                $('#editGroupId').val('');
+                
+                // 그룹 정보 설정
+                $('#groupModalTitle').text('그룹 추가');
+                $('#groupName').val(newGroupName);
+                $('#groupDescription').val(group.GROUP_DESCRIPTION);
+                $('#groupStatus').val(group.STATUS);
+                
+                // 권한 정보 로드 (복사할 그룹의 권한)
+                loadGroupPermissions(groupId);
+                
+                // 권한 목록 로드
+                loadAllPermissions();
+                
+                // 첫 번째 탭으로 이동
+                $('#groupInfoTab-tab').tab('show');
+                
+                $('#groupModal').modal('show');
+                
+                // 그룹 이름 필드에 포커스
+                setTimeout(function() {
+                    $('#groupName').focus();
+                    $('#groupName').select();
+                }, 300);
+            } else {
+                alert(response.message);
+            }
+        },
+        error: function() {
+            alert('그룹 정보를 불러오는데 실패했습니다.');
+        }
+    });
+}
+
 
 // 그룹 저장
 function saveGroup() {
