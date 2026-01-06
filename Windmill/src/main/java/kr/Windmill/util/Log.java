@@ -395,6 +395,7 @@ public class Log {
 		
 		switch (firstWord) {
 			case "SELECT":
+			case "WITH":
 				return "SELECT";
 			case "INSERT":
 				return "INSERT";
