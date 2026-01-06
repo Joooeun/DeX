@@ -5,10 +5,23 @@
 window.sentryOnLoad = function () {
 	Sentry.init({
 		dsn: "https://8e6f31672463d08b3758a6475c825ae7@o4510201747996672.ingest.us.sentry.io/4510201751470080",
-	  	integrations: [Sentry.browserTracingIntegration()],
+	  	integrations: [Sentry.browserTracingIntegration({
+			// 주기적인 AJAX 요청은 추적에서 제외
+			tracePropagationTargets: ["localhost", /^\//],
+			// 특정 URL만 추적 (주기적인 모니터링 요청 제외)
+			shouldCreateSpanForRequest: function(url) {
+				// 주기적인 모니터링 요청은 제외
+				if (url.includes('/Connection/status') || 
+				    url.includes('/Dashboard/charts') || 
+				    url.includes('/Dashboard/menuExecutionLog')) {
+					return false;
+				}
+				return true;
+			}
+		})],
 		sendDefaultPii: true,
-		// Performance Monitoring
-		tracesSampleRate: 1.0, // 데이터 샘플링 비율 설정
+		// Performance Monitoring - 샘플링 비율을 낮춰서 요청 수 감소
+		tracesSampleRate: 0.1, // 10%만 샘플링 (1.0에서 0.1로 변경)
 		// Session Replay
 		replaysSessionSampleRate: 0.1,
 		replaysOnErrorSampleRate: 1.0,

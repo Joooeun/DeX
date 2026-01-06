@@ -506,6 +506,8 @@
 				onSuccess: function(result) {
 					renderCategoryOptions(result.data);
 					renderCategoryList(result.data);
+					// 카테고리 목록에 포함된 템플릿 개수 업데이트
+					updateCategoryTemplateCounts(result.data);
 				}
 			});
 		}
@@ -621,9 +623,9 @@
 			}
 		}
 
-		// 카테고리별 템플릿 개수 로드
+		// 카테고리별 템플릿 개수 로드 (서버에서 이미 개수를 포함하여 반환하므로 별도 요청 불필요)
 		function loadCategoryTemplateCounts() {
-			// 미분류 템플릿 개수 로드
+			// 미분류 템플릿 개수만 별도 로드 (카테고리 목록에 포함되지 않음)
 			makeAjaxRequest({
 				url: '/SQLTemplate/category/templates',
 				data: { categoryId: 'UNCATEGORIZED' },
@@ -632,25 +634,17 @@
 					$('#count-UNCATEGORIZED').text(count);
 				}
 			});
-
-			// 각 카테고리별 템플릿 개수 로드
-			makeAjaxRequest({
-				url: '/SQLTemplate/category/list',
-				onSuccess: function(result) {
-					if (result.data) {
-						result.data.forEach(function (category) {
-							makeAjaxRequest({
-								url: '/SQLTemplate/category/templates',
-								data: { categoryId: category.CATEGORY_ID },
-								onSuccess: function(templateResult) {
-									var count = templateResult.data ? templateResult.data.length : 0;
-									$('#count-' + category.CATEGORY_ID).text(count);
-								}
-							});
-						});
-					}
-				}
-			});
+		}
+		
+		// 카테고리 목록 렌더링 시 템플릿 개수 표시
+		function updateCategoryTemplateCounts(categories) {
+			if (categories && categories.length > 0) {
+				categories.forEach(function (category) {
+					// 서버에서 반환된 TEMPLATE_COUNT 사용
+					var count = category.TEMPLATE_COUNT || 0;
+					$('#count-' + category.CATEGORY_ID).text(count);
+				});
+			}
 		}
 
 		// 카테고리 선택

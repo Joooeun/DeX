@@ -521,10 +521,23 @@ public class SqlTemplateService {
 	}
 
 	/**
-	 * 카테고리 목록 조회
+	 * 카테고리 목록 조회 (템플릿 개수 포함)
 	 */
 	public List<Map<String, Object>> getCategories() {
-		String sql = "SELECT CATEGORY_ID, CATEGORY_NAME, CATEGORY_DESCRIPTION, CATEGORY_ORDER, STATUS FROM SQL_TEMPLATE_CATEGORY WHERE STATUS = 'ACTIVE' ORDER BY CATEGORY_ORDER, CATEGORY_NAME";
+		// 카테고리별 템플릿 개수를 함께 조회하는 SQL
+		String sql = "SELECT " +
+					"c.CATEGORY_ID, " +
+					"c.CATEGORY_NAME, " +
+					"c.CATEGORY_DESCRIPTION, " +
+					"c.CATEGORY_ORDER, " +
+					"c.STATUS, " +
+					"COALESCE(COUNT(m.TEMPLATE_ID), 0) AS TEMPLATE_COUNT " +
+					"FROM SQL_TEMPLATE_CATEGORY c " +
+					"LEFT JOIN SQL_TEMPLATE_CATEGORY_MAPPING m ON c.CATEGORY_ID = m.CATEGORY_ID " +
+					"LEFT JOIN SQL_TEMPLATE t ON m.TEMPLATE_ID = t.TEMPLATE_ID AND t.STATUS = 'ACTIVE' " +
+					"WHERE c.STATUS = 'ACTIVE' " +
+					"GROUP BY c.CATEGORY_ID, c.CATEGORY_NAME, c.CATEGORY_DESCRIPTION, c.CATEGORY_ORDER, c.STATUS " +
+					"ORDER BY c.CATEGORY_ORDER, c.CATEGORY_NAME";
 		return jdbcTemplate.queryForList(sql);
 	}
 
