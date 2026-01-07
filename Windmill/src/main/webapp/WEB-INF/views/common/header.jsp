@@ -140,8 +140,8 @@
 			}
 		});
 
-		// 대시보드 탭 초기화 (권한 정보 전달)
-		var hasDashboardPermission = '${hasDashboardPermission}' === 'true';
+		// 대시보드 탭 초기화 (관리자만 기본 탭 설정)
+		var hasDashboardPermission = '${isAdmin}' === 'true';
 		window.tabManager.initDashboardTab(hasDashboardPermission);
 	});
 </script>
@@ -264,13 +264,7 @@
 			<ul id="pageTab" class="nav nav-tabs">
 			</ul>
 			<div id="pageTabContent" class="tab-content">
-				<div class="tab-pane active" id="page1">
-					<iframe name="iframe_home" id="iframe_home" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;" src="/index2"></iframe>
-				</div>
-				<div class="tab-pane" id="newpage">
-					<iframe name="iframe" id="iframe" class="tab_frame" style="margin: 0; width: 100%; height: calc(100vh - 101px); border: none; overflow: auto;"></iframe>
-				</div>
-			
+		
 			</div>
 		</div>
 		
