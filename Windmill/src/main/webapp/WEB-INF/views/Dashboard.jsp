@@ -874,7 +874,7 @@
             
             // 기존 차트 요소들을 맵으로 저장 (chartId -> DOM 요소)
             var existingCharts = {};
-            chartsContainer.find('.col-md-3').each(function() {
+            chartsContainer.find('[class*="col-md-"]').each(function() {
                 var $chartElement = $(this);
                 // 차트 ID 추출 (chart_ 접두사 고려)
                 var elementId = $chartElement.find('[id^="chart_"], [id^="error_"]').attr('id');
@@ -892,6 +892,11 @@
                     existingCharts[chartId] = $chartElement;
                 }
             });
+            
+            // 전체 차트 개수 계산
+            var totalChartCount = sortedCharts.length;
+            // 줄 구성 계산
+            var rowSizes = computeChartRowSizes(totalChartCount);
             
             // 정렬된 순서대로 차트 처리
             var chartIndex = 0;
@@ -933,11 +938,25 @@
                             '<i class="fa fa-exclamation-circle"></i> ' + errorMessage +
                             '</div>'
                         );
-                        chartElementsInOrder.push(existingErrorChart.closest('.col-md-3'));
+                        // 기존 클래스 제거 후 새로운 클래스 적용
+                        var $errorChartWrapper = existingErrorChart.closest('[class*="col-md-"]');
+                        var currentRow = 0;
+                        var currentIndex = 0;
+                        for (var i = 0; i < rowSizes.length; i++) {
+                            if (chartIndex < currentIndex + rowSizes[i]) {
+                                currentRow = i;
+                                break;
+                            }
+                            currentIndex += rowSizes[i];
+                        }
+                        var rowSize = rowSizes[currentRow] || 4;
+                        var newColClass = getChartColumnClassByRowSize(rowSize);
+                        $errorChartWrapper.removeClass().addClass(newColClass);
+                        chartElementsInOrder.push($errorChartWrapper);
                     } else {
                         // 기존 차트가 있으면 제거
                         if (existingChart.length > 0) {
-                            var chartElement = existingChart.closest('.col-md-3');
+                            var chartElement = existingChart.closest('[class*="col-md-"]');
                             if (window.chartInstances && window.chartInstances[elementId]) {
                                 window.chartInstances[elementId].destroy();
                                 delete window.chartInstances[elementId];
@@ -946,7 +965,7 @@
                         }
                         
                         // 새 에러 차트 생성
-                        var chartHtml = createErrorChartHtml(chartId, chartIndex, data.error);
+                        var chartHtml = createErrorChartHtml(chartId, chartIndex, data.error, rowSizes);
                         var $newErrorChart = $(chartHtml);
                         chartsContainer.append($newErrorChart);
                         chartElementsInOrder.push($newErrorChart);
@@ -974,11 +993,25 @@
                             '<i class="fa fa-exclamation-circle"></i> ' + errorMessage +
                             '</div>'
                         );
-                        chartElementsInOrder.push(existingErrorChart.closest('.col-md-3'));
+                        // 기존 클래스 제거 후 새로운 클래스 적용
+                        var $errorChartWrapper = existingErrorChart.closest('[class*="col-md-"]');
+                        var currentRow = 0;
+                        var currentIndex = 0;
+                        for (var j = 0; j < rowSizes.length; j++) {
+                            if (chartIndex < currentIndex + rowSizes[j]) {
+                                currentRow = j;
+                                break;
+                            }
+                            currentIndex += rowSizes[j];
+                        }
+                        var rowSize2 = rowSizes[currentRow] || 4;
+                        var newColClass2 = getChartColumnClassByRowSize(rowSize2);
+                        $errorChartWrapper.removeClass().addClass(newColClass2);
+                        chartElementsInOrder.push($errorChartWrapper);
                     } else {
                         // 기존 차트가 있으면 제거
                         if (existingChart.length > 0) {
-                            var chartElement = existingChart.closest('.col-md-3');
+                            var chartElement = existingChart.closest('[class*="col-md-"]');
                             if (window.chartInstances && window.chartInstances[elementId]) {
                                 window.chartInstances[elementId].destroy();
                                 delete window.chartInstances[elementId];
@@ -987,7 +1020,7 @@
                         }
                         
                         // 새 에러 차트 생성
-                        var chartHtml = createErrorChartHtml(chartId, chartIndex, validationResult.message);
+                        var chartHtml = createErrorChartHtml(chartId, chartIndex, validationResult.message, rowSizes);
                         var $newErrorChart = $(chartHtml);
                         chartsContainer.append($newErrorChart);
                         chartElementsInOrder.push($newErrorChart);
@@ -999,14 +1032,14 @@
                 // 기존 오류 차트가 있는지 확인하고 제거
                 var existingErrorChart = $('#error_' + chartId);
                 if (existingErrorChart.length > 0) {
-                    existingErrorChart.closest('.col-md-3').remove();
+                    existingErrorChart.closest('[class*="col-md-"]').remove();
                 }
                 
                 // 기존 차트가 없거나 타입이 다르면 새로 생성
                 if (existingChart.length === 0 || existingChartType !== chartType) {
                     // 기존 차트가 있으면 제거
                     if (existingChart.length > 0) {
-                        var chartElement = existingChart.closest('.col-md-3');
+                        var chartElement = existingChart.closest('[class*="col-md-"]');
                         if (window.chartInstances && window.chartInstances[elementId]) {
                             window.chartInstances[elementId].destroy();
                             delete window.chartInstances[elementId];
@@ -1015,7 +1048,7 @@
                     }
                     
                     // 차트 HTML 생성
-                    var chartHtml = createChartHtml(chartId, chartType, chartIndex);
+                    var chartHtml = createChartHtml(chartId, chartType, chartIndex, rowSizes);
                     var $newChart = $(chartHtml);
                     chartsContainer.append($newChart);
                     chartElementsInOrder.push($newChart);
@@ -1023,8 +1056,22 @@
                     initializeChart(chartId, chartType, data);
                 } else {
                     // 기존 차트가 있고 타입이 같으면 값만 업데이트하고 순서에 추가
+                    // 클래스도 업데이트 필요
+                    var $chartWrapper = existingChart.closest('[class*="col-md-"]');
+                    var currentRow3 = 0;
+                    var currentIndex3 = 0;
+                    for (var k = 0; k < rowSizes.length; k++) {
+                        if (chartIndex < currentIndex3 + rowSizes[k]) {
+                            currentRow3 = k;
+                            break;
+                        }
+                        currentIndex3 += rowSizes[k];
+                    }
+                    var rowSize3 = rowSizes[currentRow3] || 4;
+                    var newColClass3 = getChartColumnClassByRowSize(rowSize3);
+                    $chartWrapper.removeClass().addClass(newColClass3);
                     updateChartData(chartId, chartType, data);
-                    chartElementsInOrder.push(existingChart.closest('.col-md-3'));
+                    chartElementsInOrder.push($chartWrapper);
                 }
                 
                 chartIndex++;
@@ -1032,7 +1079,7 @@
             
             // 순서대로 차트 요소 재배치
             // 모든 차트 요소를 detach하고 순서대로 다시 append
-            var $allChartElements = chartsContainer.find('.col-md-3').detach();
+            var $allChartElements = chartsContainer.find('[class*="col-md-"]').detach();
             chartElementsInOrder.forEach(function($chartElement) {
                 if ($chartElement.length > 0) {
                     chartsContainer.append($chartElement);
@@ -1040,7 +1087,7 @@
             });
             
             // 더 이상 존재하지 않는 차트 제거
-            chartsContainer.find('.col-md-3').each(function() {
+            chartsContainer.find('[class*="col-md-"]').each(function() {
                 var $chartElement = $(this);
                 var elementId = $chartElement.find('[id^="chart_"], [id^="error_"]').attr('id');
                 if (elementId) {
@@ -1103,8 +1150,60 @@
             return 'text'; // 찾지 못하면 기본값
         }
         
+        // 차트 개수에 따라 줄 구성 계산
+        function computeChartRowSizes(totalCount) {
+            if (totalCount <= 0) return [];
+            if (totalCount <= 4) return [totalCount];
+            if (totalCount === 5) return [5];
+            if (totalCount === 6) return [3, 3];
+
+            var rows = [];
+            var q = Math.floor(totalCount / 4);
+            var r = totalCount % 4;
+
+            if (r === 0) {
+                for (var i = 0; i < q; i++) rows.push(4);
+                return rows;
+            }
+
+            if (r === 3) {
+                for (var j = 0; j < q; j++) rows.push(4);
+                rows.push(3);
+                return rows;
+            }
+
+            if (r === 1) {
+                // 9 같은 케이스는 4+5
+                if (totalCount === 9) return [4, 5];
+
+                // ... + 4 + 4 + 4 + 1  ->  ... + 5 + 5 + 3
+                for (var k = 0; k < q - 3; k++) rows.push(4);
+                rows.push(5, 5, 3);
+                return rows;
+            }
+
+            // r === 2
+            // 10 같은 케이스는 5+5
+            if (totalCount === 10) return [5, 5];
+
+            // ... + 4 + 4 + 2  ->  ... + 5 + 5
+            for (var m = 0; m < q - 2; m++) rows.push(4);
+            rows.push(5, 5);
+            return rows;
+        }
+
+        // 줄 크기에 따라 Bootstrap 컬럼 클래스 반환
+        function getChartColumnClassByRowSize(rowSize) {
+            if (rowSize === 1) return 'col-md-12';
+            if (rowSize === 2) return 'col-md-6';
+            if (rowSize === 3) return 'col-md-4';
+            if (rowSize === 4) return 'col-md-3';
+            if (rowSize === 5) return 'col-md-2 chart-col-5'; // 20%는 CSS로 보정
+            return 'col-md-3';
+        }
+
         // 차트 HTML 생성
-        function createChartHtml(chartId, chartType, index) {
+        function createChartHtml(chartId, chartType, index, rowSizes) {
             var chartTitle = getChartTitle(chartId);
             
             // chartId가 이미 chart_ 접두사를 가지고 있는지 확인
@@ -1119,7 +1218,20 @@
                 contentElement = '<canvas id="' + elementId + '" data-chart-type="' + chartType + '"></canvas>';
             }
             
-            var html = '<div class="col-md-3">' +
+            // 현재 차트가 속한 줄의 크기 계산
+            var currentRow = 0;
+            var currentIndex = 0;
+            for (var i = 0; i < rowSizes.length; i++) {
+                if (index < currentIndex + rowSizes[i]) {
+                    currentRow = i;
+                    break;
+                }
+                currentIndex += rowSizes[i];
+            }
+            var rowSize = rowSizes[currentRow] || 4;
+            var colClass = getChartColumnClassByRowSize(rowSize);
+            
+            var html = '<div class="' + colClass + '">' +
                 '<div class="box box-default">' +
                 '<div class="box-header with-border">' +
                 '<h3 class="box-title">' + chartTitle + '</h3>' +
@@ -1134,10 +1246,23 @@
         }
         
         // 에러 차트 HTML 생성
-        function createErrorChartHtml(chartId, index, errorMessage) {
+        function createErrorChartHtml(chartId, index, errorMessage, rowSizes) {
             var chartTitle = getChartTitle(chartId) + ' (오류)';
             
-            var html = '<div class="col-md-3">' +
+            // 현재 차트가 속한 줄의 크기 계산
+            var currentRow = 0;
+            var currentIndex = 0;
+            for (var i = 0; i < rowSizes.length; i++) {
+                if (index < currentIndex + rowSizes[i]) {
+                    currentRow = i;
+                    break;
+                }
+                currentIndex += rowSizes[i];
+            }
+            var rowSize = rowSizes[currentRow] || 4;
+            var colClass = getChartColumnClassByRowSize(rowSize);
+            
+            var html = '<div class="' + colClass + '">' +
                 '<div class="box box-danger" id="error_' + chartId + '">' +
                 '<div class="box-header with-border">' +
                 '<h3 class="box-title"><i class="fa fa-exclamation-triangle"></i> ' + chartTitle + '</h3>' +
@@ -2237,6 +2362,15 @@
         to {
             transform: translateX(0);
             opacity: 1;
+        }
+    }
+    
+    /* 5개 차트일 때 20% 너비 */
+    @media (min-width: 992px) {
+        .chart-col-5 {
+            width: 20% !important;
+            flex: 0 0 20% !important;
+            max-width: 20% !important;
         }
     }
     </style>
