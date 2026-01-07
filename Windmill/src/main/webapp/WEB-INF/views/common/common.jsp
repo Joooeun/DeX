@@ -101,12 +101,117 @@ window.sentryOnLoad = function () {
 
 <script>
 
-//페이지 로드 시 저장된 글꼴 복원
+// ========================================
+// 페이지 전체에 폰트 적용 함수 (공통)
+// ========================================
+function applyFontToPage(fontFamily) {
+	// CSS 변수 설정
+	document.documentElement.style.setProperty('--selected-font', fontFamily);
+	
+	// 모든 요소에 직접 폰트 적용 (아이콘 요소 제외)
+	if (typeof $ !== 'undefined') {
+		// 아이콘 요소와 아이콘 관련 클래스를 가진 요소를 제외하고 폰트 적용
+		$('*').not(
+			'i.fa, i.ion, [class*="fa-"], [class*="ion-"], .fa, .ion, ' +
+			'.sidebar-toggle, .icon-bar, [class*="icon-"], ' +
+			'[class*="glyphicon"], .caret, [class*="logo"]'
+		).css('font-family', fontFamily);
+	} else {
+		// jQuery가 없는 경우 직접 DOM 조작
+		var allElements = document.querySelectorAll('*');
+		for (var i = 0; i < allElements.length; i++) {
+			var element = allElements[i];
+			var className = element.className || '';
+			var tagName = element.tagName || '';
+			
+			// 아이콘 요소인지 확인 (Font Awesome, Ionicons 등)
+			var isIcon = tagName === 'I' && (
+				className.indexOf('fa') !== -1 || 
+				className.indexOf('ion') !== -1 ||
+				className.indexOf('glyphicon') !== -1
+			);
+			
+			// 아이콘 관련 클래스가 있는지 확인
+			var hasIconClass = /(^|\s)(fa|ion|glyphicon|icon-bar|sidebar-toggle|caret|logo)/.test(className);
+			
+			// sidebar-toggle, icon-bar 등 특정 클래스 제외
+			var isExcluded = className.indexOf('sidebar-toggle') !== -1 ||
+				className.indexOf('icon-bar') !== -1 ||
+				className.indexOf('caret') !== -1 ||
+				className.indexOf('logo') !== -1;
+			
+			if (!isIcon && !hasIconClass && !isExcluded) {
+				element.style.fontFamily = fontFamily;
+			}
+		}
+	}
+	
+	// 모든 Ace Editor에 폰트 적용
+	if (typeof ace !== 'undefined') {
+		// 모든 Ace Editor 컨테이너 찾기
+		var aceContainers = document.querySelectorAll('[id*="_ace"], #sql_text, [class*="ace_editor"]');
+		for (var j = 0; j < aceContainers.length; j++) {
+			try {
+				var editor = ace.edit(aceContainers[j].id);
+				if (editor && typeof editor.setOptions === 'function') {
+					editor.setOptions({ fontFamily: fontFamily });
+				}
+			} catch (e) {
+				// 개별 에디터 적용 실패는 무시
+			}
+		}
+		
+		// 전역 에디터 객체들 확인
+		if (window.sqlEditors) {
+			Object.values(window.sqlEditors).forEach(function(editor) {
+				if (editor && typeof editor.setOptions === 'function') {
+					editor.setOptions({ fontFamily: fontFamily });
+				}
+			});
+		}
+		
+		if (window.SqlTemplateState && window.SqlTemplateState.sqlEditors) {
+			Object.values(window.SqlTemplateState.sqlEditors).forEach(function(editor) {
+				if (editor && typeof editor.setOptions === 'function') {
+					editor.setOptions({ fontFamily: fontFamily });
+				}
+			});
+		}
+		
+		// FileUpload.jsp, FileRead.jsp 등의 에디터들
+		if (window.contentEditor && typeof window.contentEditor.setOptions === 'function') {
+			window.contentEditor.setOptions({ fontFamily: fontFamily });
+		}
+		if (window.resultEditor && typeof window.resultEditor.setOptions === 'function') {
+			window.resultEditor.setOptions({ fontFamily: fontFamily });
+		}
+	}
+}
+
+// ========================================
+// 전역 changeFont 함수 (모든 페이지에서 사용 가능)
+// ========================================
+window.changeFont = function(fontFamily) {
+	// localStorage에 저장
+	localStorage.setItem('selectedFont', fontFamily);
+	// 페이지에 적용
+	applyFontToPage(fontFamily);
+};
+
+//페이지 로드 시 저장된 글꼴 복원 및 적용
 $(document).ready(function() {
 	var savedFont = localStorage.getItem('selectedFont');
 	if (savedFont) {
-		document.documentElement.style.setProperty('--selected-font', savedFont);
+		applyFontToPage(savedFont);
 	}
+	
+	// 부모 창에서 폰트 변경 이벤트 수신 (iframe 내부에서 로드된 경우)
+	window.addEventListener('message', function(event) {
+		// 보안을 위해 같은 origin에서만 처리 (필요시 origin 체크 추가)
+		if (event.data && event.data.type === 'FONT_CHANGE' && event.data.fontFamily) {
+			applyFontToPage(event.data.fontFamily);
+		}
+	});
 });
 
 // ========================================
