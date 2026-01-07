@@ -42,17 +42,35 @@
 		try {
 			// Ace Editor가 로드되었는지 확인
 			if (typeof ace !== 'undefined') {
+				var selectedFont = localStorage.getItem('selectedFont') || 'D2Coding';
+				
 				ace.require("ace/ext/language_tools");
 				window.resultEditor = ace.edit("resultEditor");
 				window.resultEditor.setTheme("ace/theme/chrome");
 				window.resultEditor.session.setMode("ace/mode/text");
 				window.resultEditor.setShowPrintMargin(false);
 				window.resultEditor.setFontSize(14);
-				window.resultEditor.setOption("enableBasicAutocompletion", true);
-				window.resultEditor.setOption("enableLiveAutocompletion", true);
-				window.resultEditor.setOption("enableSnippets", true);
+				window.resultEditor.setOptions({
+					fontFamily: selectedFont,
+					enableBasicAutocompletion: true,
+					enableSnippets: true,
+					enableLiveAutocompletion: true,
+					showPrintMargin: false,
+					showGutter: true,
+					showInvisibles: false
+				});
 				window.resultEditor.setReadOnly(true); // 읽기 전용
-				window.resultEditor.resize();
+				
+				// 에디터 리사이즈
+				setTimeout(function() {
+					window.resultEditor.resize();
+				}, 100);
+				
+				// 우하단 모서리 드래그로 높이 변경(저장 없음) - 공통 함수 사용
+				if (typeof window.enableAceHeightResize === 'function') {
+					var editorDiv = document.getElementById("resultEditor");
+					window.enableAceHeightResize(editorDiv, window.resultEditor);
+				}
 			} else {
 				initTextareaEditor();
 			}
@@ -135,7 +153,9 @@
 		</div>
 		<div class="box box-default" id="resultbox" style="display: none;">
 			<div class="box-body">
-				<div id="resultEditor" style="height: 450px; width: 100%; border: 1px solid #ddd; border-radius: 4px;"></div>
+				<div class="textcontainer">
+					<div id="resultEditor" style="width: 100%; height: 450px; border: none;"></div>
+				</div>
 			</div>
 		</div>
 	</section>

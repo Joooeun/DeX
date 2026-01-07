@@ -36,14 +36,6 @@
 	color: red;
 }
 
-.textcontainer {
-	display: flex;
-	border: 1px solid rgb(203, 213, 225);
-	border-radius: 0.5rem;
-	overflow: hidden;
-	max-height: 200px;
-}
-
 .formtextarea {
 	border: none;
 	outline: none;
@@ -1260,6 +1252,8 @@ let ondate;
 		});
 	}
 
+	// enableAceHeightResize는 common.jsp에서 공통으로 제공됨
+	
 	// ========================================
 	// div에 대한 ACE Editor 초기화 (sql_text용)
 	// ========================================
@@ -1326,6 +1320,11 @@ let ondate;
 			setTimeout(function() {
 				editor.resize();
 			}, 100);
+
+			// 우하단 모서리 드래그로 높이 변경(저장 없음) - 공통 함수 사용
+			if (typeof window.enableAceHeightResize === 'function') {
+				window.enableAceHeightResize(editorDiv, editor);
+			}
 		} catch (e) {
 			console.error('ACE Editor 초기화 실패:', e);
 		}
@@ -1362,7 +1361,7 @@ let ondate;
 			var aceEditorDiv = document.createElement('div');
 			aceEditorDiv.id = editorId + '_ace';
 			aceEditorDiv.style.width = '100%';
-			aceEditorDiv.style.height = (textareaElement.rows * 20) + 'px';
+			aceEditorDiv.style.height = '100%';
 			aceEditorDiv.style.minHeight = '100px';
 			aceEditorDiv.style.border = 'none';
 			aceEditorDiv.style.flex = '1';
@@ -1433,6 +1432,11 @@ let ondate;
 			setTimeout(function() {
 				editor.resize();
 			}, 100);
+
+			// 우하단 모서리 드래그로 높이 변경(저장 없음) - 공통 함수 사용
+			if (typeof window.enableAceHeightResize === 'function') {
+				window.enableAceHeightResize(aceEditorDiv, editor, (textareaElement.rows * 20));
+			}
 		} catch (e) {
 			console.error('ACE Editor 초기화 실패:', e);
 		}
@@ -1529,7 +1533,7 @@ let ondate;
 									<c:if test="${empty sqlContent}">
 										<!-- SQL 에디터 -->
 										<div class="form-group" style="margin-bottom: 0">
-											<div id="container" class="textcontainer" style="display: flex; border: 1px solid rgb(203, 213, 225); border-radius: 0.5rem; overflow: hidden; max-height: none;">
+											<div id="container" class="textcontainer">
 												<div id="sql_text" style="width: 100%; height: 300px; border: none;"></div>
 												<textarea id="sql_text_hidden" style="display: none;" maxlength="${textlimit}"></textarea>
 											</div>

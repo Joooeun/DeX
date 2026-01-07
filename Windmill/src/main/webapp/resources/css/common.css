@@ -87,3 +87,26 @@ body {
   font-family: 'JetBrains Mono', 'D2Coding', monospace;
 }
 
+/* Ace Editor 컨테이너 기본 스타일 */
+.textcontainer {
+	display: flex;
+	border: 1px solid rgb(203, 213, 225);
+	border-radius: 0.5rem;
+	overflow: hidden;
+	max-height: 200px;
+}
+
+/* Ace Editor 높이 조절 (모서리 드래그) - 공통 스타일 */
+.textcontainer.wm-resizable {
+	/* 우하단 모서리 드래그로 높이 조절 (요청사항: 높이만, 저장 없음) */
+	resize: vertical;
+	overflow: hidden; /* resize 동작 조건: overflow가 visible이 아니어야 함 */
+	max-height: none;
+	min-height: 120px;
+}
+
+.textcontainer.wm-resizable > .wm-ace-host {
+	height: 100%;
+	min-height: 100%;
+}
+

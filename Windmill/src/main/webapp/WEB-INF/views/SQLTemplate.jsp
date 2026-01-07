@@ -2696,8 +2696,9 @@
 							'</div>';
 					}
 
-					contentHtml += '<div id="' + editorId + '" class="sql-editor" style="height: 300px; border: 1px solid #ccc;"></div>' +
-						'</div></div>';
+					contentHtml += '<div class="textcontainer">' +
+						'<div id="' + editorId + '" style="width: 100%; height: 300px; border: none;"></div>' +
+						'</div></div></div>';
 
 			return $(contentHtml)[0]; // jQuery 객체를 DOM 요소로 변환
 		}
@@ -2768,6 +2769,17 @@
 					
 					// ACE 에디터 변경 이벤트 리스너 설정
 					setupAceEditorChangeTracking(editorId);
+					
+					// 에디터 리사이즈
+					setTimeout(function() {
+						editor.resize();
+						
+						// 우하단 모서리 드래그로 높이 변경(저장 없음) - 공통 함수 사용
+						if (typeof window.enableAceHeightResize === 'function') {
+							// 초기 높이를 명시적으로 300px로 설정
+							window.enableAceHeightResize(editorElement, editor, 300);
+						}
+					}, 100);
 					} else {
 						initTextareaEditorForConnection(editorId, sqlContent);
 					}
@@ -3687,13 +3699,25 @@
 		$('#sqlContentTabs').on('shown.bs.tab', '.nav-link', function () {
 			// 탭 변경 시 처리 (미리보기 제거됨)
 			var href = $(this).attr('href');
-			if (href && href !== '#tab-default') {
-				// 해당 탭의 에디터에 포커스
+			if (href) {
 				var tabId = href.replace('#', '');
 				var connectionId = tabIdToConnectionId(tabId);
 				var editorId = connectionIdToEditorId(connectionId);
+				
 				setTimeout(function() {
+					// 해당 탭의 에디터에 포커스
 					focusEditor(editorId);
+					
+					// 에디터 리사이즈 및 높이 조정 기능 활성화
+					var editorElement = document.getElementById(editorId);
+					if (editorElement && typeof window.enableAceHeightResize === 'function') {
+						var editor = window.sqlEditors && window.sqlEditors[editorId];
+						if (editor) {
+							editor.resize();
+							// 초기 높이를 명시적으로 300px로 설정
+							window.enableAceHeightResize(editorElement, editor, 300);
+						}
+					}
 				}, 100);
 			}
 		});
@@ -4038,12 +4062,8 @@
 									<div class="tab-pane active" id="tab-default">
 										<div class="sql-editor-container" data-connection-id="default"
 											data-template-id="${templateId}">
-											<div id="sqlEditor_default" class="sql-editor"
-												style="height: 300px; border: 1px solid #ccc;"></div>
-											<div class="sql-editor-toggle" style="text-align: center; margin-top: 5px;">
-											<button type="button" class="btn btn-sm btn-default" id="toggleSqlEditor" style="border-radius: 50%; width: 30px; height: 30px; padding: 0;">
-													<i class="fa fa-chevron-down"></i>
-												</button>
+											<div class="textcontainer">
+												<div id="sqlEditor_default" style="width: 100%; height: 300px; border: none;"></div>
 											</div>
 										</div>
 									</div>

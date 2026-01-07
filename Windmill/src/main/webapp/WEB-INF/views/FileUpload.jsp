@@ -38,7 +38,6 @@
 		try {
 			// Ace Editor가 로드되었는지 확인
 			if (typeof ace !== 'undefined') {
-				
 				var selectedFont = localStorage.getItem('selectedFont') || 'D2Coding';
 				
 				ace.require("ace/ext/language_tools");
@@ -57,9 +56,16 @@
 					showInvisibles: false
 				});
 				
-				window.contentEditor.resize();
+				// 에디터 리사이즈
+				setTimeout(function() {
+					window.contentEditor.resize();
+				}, 100);
 				
-				
+				// 우하단 모서리 드래그로 높이 변경(저장 없음) - 공통 함수 사용
+				if (typeof window.enableAceHeightResize === 'function') {
+					var editorDiv = document.getElementById("contentEditor");
+					window.enableAceHeightResize(editorDiv, window.contentEditor);
+				}
 			} else {
 				initTextareaEditor();
 			}
@@ -157,7 +163,9 @@
 		</div>
 		<div class="box box-default" id="resultbox">
 			<div class="box-body">
-				<div id="contentEditor" style="height: calc(100vh - 320px); width: 100%; border: 1px solid #ddd; border-radius: 4px;"></div>
+				<div class="textcontainer">
+					<div id="contentEditor" style="width: 100%; height: 300px; border: none;"></div>
+				</div>
 			</div>
 		</div>
 	</section>

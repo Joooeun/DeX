@@ -90,6 +90,9 @@ window.sentryOnLoad = function () {
 <link href="/resources/plugins/select2/select2.min.css" rel="stylesheet" />
 <script src="/resources/plugins/select2/select2.min.js"></script>
 
+<!-- 공통 CSS 파일 로드 -->
+<link href="/resources/css/common.css" rel="stylesheet" type="text/css" />
+
 <!-- Google Fonts - 고정폭 폰트 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -105,6 +108,53 @@ $(document).ready(function() {
 		document.documentElement.style.setProperty('--selected-font', savedFont);
 	}
 });
+
+// ========================================
+// ACE Editor 높이 리사이즈(모서리 드래그) 활성화 - 공통 함수
+// - 저장/유지 없음
+// ========================================
+window.enableAceHeightResize = function(editorHostDiv, editor, initialHeightPx) {
+	if (!editorHostDiv || !editor) {
+		return;
+	}
+
+	var wrapper = editorHostDiv.closest('.textcontainer');
+	if (!wrapper) {
+		return;
+	}
+
+	// 초기 높이(없으면 현재 렌더링된 높이 기반)
+	if (!wrapper.style.height) {
+		if (typeof initialHeightPx === 'number' && initialHeightPx > 0) {
+			wrapper.style.height = initialHeightPx + 'px';
+		} else {
+			wrapper.style.height = editorHostDiv.offsetHeight + 'px';
+		}
+	}
+
+	wrapper.classList.add('wm-resizable');
+
+	// 에디터 DIV는 wrapper 높이를 100% 따라가게
+	editorHostDiv.classList.add('wm-ace-host');
+	editorHostDiv.style.height = '100%';
+
+	// ResizeObserver로 드래그 리사이즈 시 editor.resize() 동기화
+	if (typeof ResizeObserver === 'undefined') {
+		return;
+	}
+
+	wrapper._wmAceResizeEditor = editor;
+	if (wrapper._wmAceResizeObserver) {
+		return;
+	}
+
+	wrapper._wmAceResizeObserver = new ResizeObserver(function() {
+		if (wrapper._wmAceResizeEditor) {
+			wrapper._wmAceResizeEditor.resize();
+		}
+	});
+	wrapper._wmAceResizeObserver.observe(wrapper);
+};
 
 </script>
 
