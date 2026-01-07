@@ -148,32 +148,87 @@
 		iframes.forEach(function(iframe) {
 			try {
 				if (iframe.contentDocument) {
-					iframe.contentDocument.documentElement.style.setProperty('--selected-font', fontFamily);
+					var iframeDoc = iframe.contentDocument;
+					var iframeWindow = iframe.contentWindow;
+					
+					// CSS 변수 설정
+					iframeDoc.documentElement.style.setProperty('--selected-font', fontFamily);
+					
+					// iframe 전체에 폰트 적용 (모든 요소)
+					if (iframeWindow.$) {
+						iframeWindow.$('*').css('font-family', fontFamily);
+					} else {
+						// jQuery가 없는 경우 직접 DOM 조작
+						var allElements = iframeDoc.querySelectorAll('*');
+						for (var i = 0; i < allElements.length; i++) {
+							allElements[i].style.fontFamily = fontFamily;
+						}
+					}
+					
+					// iframe 내부의 changeFont 함수 호출 (있는 경우)
+					if (iframeWindow && typeof iframeWindow.changeFont === 'function') {
+						iframeWindow.changeFont(fontFamily);
+					}
+					
+					// postMessage로 폰트 변경 이벤트 전송
+					if (iframeWindow) {
+						iframeWindow.postMessage({
+							type: 'FONT_CHANGE',
+							fontFamily: fontFamily
+						}, '*');
+					}
 					
 					// iframe 내부의 에디터들에 직접 폰트 적용
-					if (iframe.contentWindow) {
+					if (iframeWindow) {
 						// FileUpload.jsp의 에디터들
-						if (iframe.contentWindow.contentEditor && typeof iframe.contentWindow.contentEditor.setOptions === 'function') {
-							iframe.contentWindow.contentEditor.setOptions({
+						if (iframeWindow.contentEditor && typeof iframeWindow.contentEditor.setOptions === 'function') {
+							iframeWindow.contentEditor.setOptions({
 								fontFamily: fontFamily
 							});
 						}
-						$(iframe.contentDocument).find('#contentTextarea').css('font-family', fontFamily);
+						if (iframeWindow.$) {
+							iframeWindow.$('#contentTextarea').css('font-family', fontFamily);
+						}
 						
 						// FileRead.jsp의 에디터들
-						if (iframe.contentWindow.resultEditor && typeof iframe.contentWindow.resultEditor.setOptions === 'function') {
-							iframe.contentWindow.resultEditor.setOptions({
+						if (iframeWindow.resultEditor && typeof iframeWindow.resultEditor.setOptions === 'function') {
+							iframeWindow.resultEditor.setOptions({
 								fontFamily: fontFamily
 							});
 						}
-						$(iframe.contentDocument).find('#resultTextarea').css('font-family', fontFamily);
+						if (iframeWindow.$) {
+							iframeWindow.$('#resultTextarea').css('font-family', fontFamily);
+						}
 						
-						// SQLExecute.jsp의 textarea들
-						$(iframe.contentDocument).find('.formtextarea').css('font-family', fontFamily);
+						// SQLExecute.jsp의 textarea들 및 Ace Editor들
+						if (iframeWindow.$) {
+							iframeWindow.$('.formtextarea').css('font-family', fontFamily);
+						}
+						
+						// SQLExecute.jsp의 Ace Editor들 (전역에서 찾기)
+						if (typeof iframeWindow.ace !== 'undefined') {
+							// 모든 Ace Editor 인스턴스 찾기
+							if (iframeWindow.ace.edit) {
+								// Ace Editor 컨테이너들을 찾아서 폰트 적용
+								var aceContainers = iframeDoc.querySelectorAll('[id*="_ace"], #sql_text');
+								for (var j = 0; j < aceContainers.length; j++) {
+									try {
+										var editor = iframeWindow.ace.edit(aceContainers[j].id);
+										if (editor && typeof editor.setOptions === 'function') {
+											editor.setOptions({
+												fontFamily: fontFamily
+											});
+										}
+									} catch (e) {
+										// 개별 에디터 적용 실패는 무시
+									}
+								}
+							}
+						}
 						
 						// SQLTemplate.jsp의 에디터들
-						if (iframe.contentWindow.sqlEditors) {
-							Object.values(iframe.contentWindow.sqlEditors).forEach(function(editor) {
+						if (iframeWindow.sqlEditors) {
+							Object.values(iframeWindow.sqlEditors).forEach(function(editor) {
 								if (editor && typeof editor.setOptions === 'function') {
 									editor.setOptions({
 										fontFamily: fontFamily
@@ -181,8 +236,8 @@
 								}
 							});
 						}
-						if (iframe.contentWindow.SqlTemplateState && iframe.contentWindow.SqlTemplateState.sqlEditors) {
-							Object.values(iframe.contentWindow.SqlTemplateState.sqlEditors).forEach(function(editor) {
+						if (iframeWindow.SqlTemplateState && iframeWindow.SqlTemplateState.sqlEditors) {
+							Object.values(iframeWindow.SqlTemplateState.sqlEditors).forEach(function(editor) {
 								if (editor && typeof editor.setOptions === 'function') {
 									editor.setOptions({
 										fontFamily: fontFamily

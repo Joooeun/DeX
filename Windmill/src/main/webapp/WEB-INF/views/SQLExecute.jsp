@@ -219,6 +219,7 @@ let ondate;
 				}
 			});
 		}
+		
 
 		// 차트 초기화
 		// SQL 타입일 때만 차트 초기화 처리
@@ -1200,6 +1201,44 @@ let ondate;
 		if (limit.value == '') {
 			$(limit).val(0)
 		}
+	}
+	
+	// ========================================
+	// SQLExecute.jsp 전용: Ace Editor 폰트 적용 확장
+	// (common.jsp의 applyFontToPage 함수를 확장)
+	// ========================================
+	// common.jsp의 applyFontToPage 함수를 확장하여 SQLExecute.jsp의 Ace Editor들에 폰트 적용
+	if (typeof applyFontToPage === 'function') {
+		var originalApplyFontToPage = applyFontToPage;
+		applyFontToPage = function(fontFamily) {
+			// 원본 함수 호출
+			originalApplyFontToPage(fontFamily);
+			
+			// SQLExecute.jsp 전용: Ace Editor 폰트 적용
+			if (typeof ace !== 'undefined') {
+				// sql_text 에디터
+				try {
+					var sqlEditor = ace.edit('sql_text');
+					if (sqlEditor && typeof sqlEditor.setOptions === 'function') {
+						sqlEditor.setOptions({ fontFamily: fontFamily });
+					}
+				} catch (e) {
+					// 에디터가 아직 초기화되지 않았을 수 있음
+				}
+				
+				// 파라미터 에디터들 (모든 _ace로 끝나는 ID)
+				document.querySelectorAll('[id$="_ace"]').forEach(function(aceDiv) {
+					try {
+						var editor = ace.edit(aceDiv.id);
+						if (editor && typeof editor.setOptions === 'function') {
+							editor.setOptions({ fontFamily: fontFamily });
+						}
+					} catch (e) {
+						// 개별 에디터 적용 실패는 무시
+					}
+				});
+			}
+		};
 	}
 	
 	// ========================================
