@@ -134,9 +134,12 @@ $(document).ready(function() {
 			return;
 		}
 
-		
-		var column = value.split('&')[1].split(',');
+		// value 파싱: "templateId&columnIndexes&autoExecute" 형태
+		var valueParts = value.split('&');
+		var columnPart = valueParts[1] || '';
+		var column = columnPart ? columnPart.split(',') : [];
 		var str = '';
+		
 		if($(".Resultrow.success").children('div').length>0){			
 			for (var i = 0; i < column.length; i++) {
 				if (i > 0) {

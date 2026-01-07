@@ -102,21 +102,46 @@
 					}
 				}
 			} else {
-				// 이미 정규화된 templateId 사용
+				// 이미 열린 탭 업데이트
 				var tabInfo = this.tabs.get(templateId);
 				if (tabInfo) {
-					// iframe URL 업데이트
 					var iframe = document.getElementById(tabInfo.iframeId);
-					if (iframe) {
+					var formId = 'form_' + templateId;
+					var form = document.getElementById(formId);
+					
+					// URL이 변경되었거나 POST 데이터가 있는 경우 새로 로드 필요
+					var needsReload = (tabInfo.url !== url) || (data && Object.keys(data).length > 0);
+					
+					if (needsReload) {
+						// 탭 정보 업데이트
+						tabInfo.url = url;
+						
 						if (data && Object.keys(data).length > 0) {
-							// POST 방식: form 다시 submit
-							var formId = 'form_' + templateId;
-							var form = document.getElementById(formId);
+							// POST 방식
+							if (!form) {
+								// form이 없으면 새로 생성
+								var tabPane = document.getElementById(tabInfo.id);
+								if (tabPane && iframe) {
+									form = document.createElement('form');
+									form.id = formId;
+									form.name = formId;
+									form.method = 'POST';
+									form.action = url;
+									form.target = tabInfo.iframeId;
+									form.style.display = 'none';
+									tabPane.insertBefore(form, iframe);
+								}
+							}
+							
 							if (form) {
+								// form action URL 업데이트
+								form.action = url;
+								
 								// 기존 input 제거
 								while (form.firstChild) {
 									form.removeChild(form.firstChild);
 								}
+								
 								// 새로운 데이터 추가
 								for (var key in data) {
 									if (data.hasOwnProperty(key)) {
@@ -127,11 +152,20 @@
 										form.appendChild(input);
 									}
 								}
-								form.submit();
+								
+								// iframe을 빈 페이지로 초기화 후 form submit
+								if (iframe) {
+									iframe.src = 'about:blank';
+									setTimeout(function() {
+										form.submit();
+									}, 10);
+								}
 							}
 						} else {
 							// GET 방식: iframe src 업데이트
-							iframe.src = url;
+							if (iframe) {
+								iframe.src = url;
+							}
 						}
 					}
 				}
