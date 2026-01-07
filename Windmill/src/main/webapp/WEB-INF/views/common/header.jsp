@@ -36,18 +36,18 @@
 			
 			// 오늘 날짜에 닫았는지 확인
 			if(checkNotice == 'popupEnd' && closedDate == today) {
-				$("#NoticeModal").modal("hide");
+				$("#noticeModal").modal("hide");
 			} else {
-				$('#NoticeModal').modal("show");	
+				$('#noticeModal').modal("show");	
 			}
 		} catch (e) {
 			// localStorage 오류 시 모달 표시
-			$('#NoticeModal').modal("show");
+			$('#noticeModal').modal("show");
 		}
 		
 		// 공지사항 닫기 버튼 - 이벤트 위임 사용
 		$(document).on("click", "#modal-today-close", function() {
-			$("#NoticeModal").modal("hide");
+			$("#noticeModal").modal("hide");
 			try {
 				var today = new Date().toDateString();
 				localStorage.setItem("noticeClosed", 'popupEnd');

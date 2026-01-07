@@ -171,7 +171,7 @@
             // 차트 모니터링 시작 (통합 API 사용)
                     startChartMonitoring();
             
-            // 메뉴 실행기록 모니터링 시작
+            // 실행기록 모니터링 시작
             startMenuExecutionLogMonitoring();
             
             // 페이지 언로드 시 정리
@@ -1342,7 +1342,7 @@
                             	annotation:{
                             	  type: 'doughnutLabel',
                             	  content: ({chart}) => [
-                               	   ( chart.data.datasets[0].data[0] || 0) + '%',
+                               	   ( chart.data.datasets[0].data[0] || 0),
                                	  ],
                             	  drawTime: 'beforeDraw',
                             	  position: {
@@ -1709,7 +1709,7 @@
             light.addClass(status);
         }
         
-        // 메뉴 실행기록 모니터링 시작
+        // 실행기록 모니터링 시작
         function startMenuExecutionLogMonitoring() {
             refreshMenuExecutionLog();
         }
@@ -1741,7 +1741,7 @@
         	}
 		}
         
-        // 메뉴 실행기록 새로고침
+        // 실행기록 새로고침
         function refreshMenuExecutionLog() {
             if (!isDashboardRunning()) {
                 clearMenuLogTimeout();
@@ -1771,7 +1771,7 @@
                     if (xhr.statusText === 'abort' || error === 'abort') {
                         return;
                     }
-                    console.error('메뉴 실행기록 조회 실패:', error);
+                    console.error('실행기록 조회 실패:', error);
                     scheduleMenuLogRefresh();
                     menuExecutionLogAbortController = null;
                 }
@@ -1788,7 +1788,7 @@
             }, 5000);
         }
         
-        // 메뉴 실행기록 표시 업데이트
+        // 실행기록 표시 업데이트
         function updateMenuExecutionLogDisplay(result) {
             var container = $('#menuExecutionLogContainer');
             
@@ -1830,7 +1830,7 @@
             container.html(html);
         }
         
-        // 메뉴 실행기록 모니터링 중지
+        // 실행기록 모니터링 중지
         function stopMenuExecutionLogMonitoring() {
             clearMenuLogTimeout();
         }
@@ -1879,18 +1879,18 @@
                 </div>
             </div>
 
-        <!-- 메뉴 실행기록 섹션 -->
+        <!-- 실행기록 섹션 -->
         <div class="row">
                 <div class="col-md-12">
                     <div class="box box-default">
                         <div class="box-header with-border">
                             <h3 class="box-title">
-                            <i class="fa fa-list"></i> 메뉴 실행기록
+                            <i class="fa fa-list"></i> 실행기록
                             </h3>
                         </div>
                         <div class="box-body">
                         <div id="menuExecutionLogContainer">
-                            <!-- 메뉴 실행기록이 여기에 표시됩니다 -->
+                            <!-- 실행기록이 여기에 표시됩니다 -->
                             </div>
                         </div>
                     </div>
