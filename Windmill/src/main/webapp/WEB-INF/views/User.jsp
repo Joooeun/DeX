@@ -850,6 +850,7 @@ function saveUser() {
                 // var userModal = bootstrap.Modal.getInstance(document.getElementById('userModal'));
                 $('#userModal').modal('hide');
                 loadUserList(currentPage);
+                loadGroupTable(); // 그룹 테이블 새로고침 (멤버 수 변경 반영)
                 updateGroupLists(); // 그룹 목록과 필터 업데이트
             } else {
                 showToast(response.message, 'error');
@@ -873,6 +874,7 @@ function deleteUser(userId) {
             if (response.success) {
                 showToast(response.message, 'success');
                 loadUserList(currentPage);
+                loadGroupTable(); // 그룹 테이블 새로고침 (멤버 수 변경 반영)
                 updateGroupLists(); // 그룹 목록과 필터 업데이트
             } else {
                 showToast(response.message, 'error');
@@ -1228,6 +1230,7 @@ function saveGroup() {
                 // var groupModal = bootstrap.Modal.getInstance(document.getElementById('groupModal'));
                 $('#groupModal').modal('hide');
                 loadGroupTable();
+                loadUserList(currentPage); // 사용자 목록 새로고침 (그룹 정보 변경 반영)
                 updateGroupLists(); // 사용자 모달의 그룹 목록과 필터 업데이트
             } else {
                 showToast(response.message, 'error');
@@ -1357,6 +1360,7 @@ function deleteGroup(groupId) {
             if (response.success) {
                 showToast(response.message, 'success');
                 loadGroupTable();
+                loadUserList(currentPage); // 사용자 목록 새로고침 (그룹 정보 변경 반영)
                 updateGroupLists(); // 사용자 모달의 그룹 목록과 필터 업데이트
             } else {
                 showToast(response.message, 'error');
