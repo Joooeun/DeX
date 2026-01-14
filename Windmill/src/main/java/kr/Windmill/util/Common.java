@@ -34,12 +34,17 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import kr.Windmill.service.UserService;
+
 @Component
 public class Common {
 	private static final Logger logger = LoggerFactory.getLogger(Common.class);
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
+	
+	@Autowired
+	private UserService userService;
 
 	public static String system_properties = "";
 	public static String tempPath = "";
@@ -624,6 +629,66 @@ public class Common {
 				logger.error("JDBC 폴더 생성 실패: " + JdbcPath, e);
 			}
 		}
+	}
+	
+	/**
+	 * 사용자의 엑셀 다운로드 권한을 확인합니다.
+	 * @param userId 사용자 ID
+	 * @param clientIp 클라이언트 IP 주소
+	 * @return 허용 여부
+	 */
+	public boolean checkExcelDownloadPermission(String userId, String clientIp) {
+		if (userId == null || clientIp == null) {
+			return false;
+		}
+		
+		try {
+			// 사용자의 엑셀 다운로드 IP 패턴 조회
+			Map<String, Object> userDetail = userService.getUserDetail(userId);
+			if (userDetail == null) {
+				return false;
+			}
+			
+			String excelDownloadIpPattern = (String) userDetail.get("EXCEL_DOWNLOAD_IP_PATTERN");
+			
+			// IP 패턴이 없으면 전체 허용
+			if (excelDownloadIpPattern == null || excelDownloadIpPattern.trim().isEmpty()) {
+				return true;
+			}
+			
+			// IP 패턴이 있으면 해당 패턴에 맞는지 확인
+			return isIpAllowed(clientIp, excelDownloadIpPattern);
+		} catch (Exception e) {
+			logger.error("엑셀 다운로드 권한 확인 중 오류 발생", e);
+			return false; // 오류 시 보안을 위해 접근 차단
+		}
+	}
+	
+	/**
+	 * IP 주소가 허용된 패턴과 일치하는지 확인합니다.
+	 * @param clientIp 클라이언트 IP 주소
+	 * @param pattern IP 패턴 (예: 10.240.13.*, 192.168.1.0/24, *)
+	 * @return 허용 여부
+	 */
+	public boolean isIpAllowed(String clientIp, String pattern) {
+		if (clientIp == null || pattern == null) {
+			return false;
+		}
+		
+		// 모든 IP 허용
+		if ("*".equals(pattern.trim())) {
+			return true;
+		}
+		
+		// 와일드카드 패턴 처리 (예: 10.240.13.*)
+		if (pattern.contains("*")) {
+			// *를 정규식의 .*로 변환하고 .을 \.로 이스케이프
+			String regex = pattern.replace(".", "\\.").replace("*", ".*");
+			return clientIp.matches(regex);
+		}
+		
+		// 정확한 IP 매칭
+		return clientIp.equals(pattern);
 	}
 
 }

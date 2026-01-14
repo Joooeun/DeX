@@ -23,14 +23,6 @@
                                         <small class="help-block">사용자 세션이 유지되는 시간 (1-1440분)</small>
                                     </div>
                                 </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="downloadIpPattern">다운로드 허용 IP 패턴</label>
-                                        <input type="text" class="form-control" id="downloadIpPattern" name="downloadIpPattern" 
-                                               value="${configValues.DOWNLOAD_IP_PATTERN}" placeholder="예: 10.240.13.* 또는 *">
-                                        <small class="help-block">* = 모든 IP 허용, 특정 IP 패턴 입력 가능</small>
-                                    </div>
-                                </div>
                             </div>
                             
                             <hr>
@@ -127,7 +119,6 @@ $(document).ready(function() {
         
         var formData = {
             sessionTimeout: $('#sessionTimeout').val(),
-            downloadIpPattern: $('#downloadIpPattern').val(),
             noticeContent: $('#noticeContent').val(),
             noticeEnabled: $('#noticeEnabled').is(':checked')
         };
@@ -135,11 +126,6 @@ $(document).ready(function() {
         // 유효성 검사
         if (!formData.sessionTimeout || formData.sessionTimeout < 1 || formData.sessionTimeout > 1440) {
             showAlert('세션 타임아웃은 1-1440분 사이의 값이어야 합니다.', 'danger');
-            return;
-        }
-        
-        if (!formData.downloadIpPattern.trim()) {
-            showAlert('다운로드 IP 패턴을 입력해주세요.', 'danger');
             return;
         }
         

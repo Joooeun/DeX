@@ -1,6 +1,11 @@
 <%@include file="common/common.jsp"%>
 <c:set var="textlimit" value="1900000" />
 
+<!-- 엑셀 다운로드 스크립트는 IP 권한이 있을 때만 로드 (보안) -->
+<c:if test="${DownloadEnable}">
+<script type="text/javascript" src="/resources/dist/js/tabulator/xlsx.full.min.js"></script>
+</c:if>
+
 <!-- Ace Editor CDN -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ace.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ext-language_tools.js"></script>
@@ -131,6 +136,9 @@ var tableoption;
 var temp_column;
 var tableHeight=0;
 let ondate;
+
+// 엑셀 다운로드 권한 변수
+var downloadEnable = ${DownloadEnable};
 
 	// ========================================
 	// 페이지 로드 시 초기화 함수
@@ -463,19 +471,6 @@ let ondate;
 		$('.formtextarea').on('scroll', () => {
 			$('.container__lines').scrollTop($('.formtextarea').scrollTop());
 		});
-
-		// ========================================
-		// 파일 다운로드 이벤트 처리
-		// ========================================
-		$(document).on("click", "#save_excel", function() {
-			table.download("xlsx", `${templateName}_${memberId}_` + dateFormat()+".xlsx");
-		});
-		
-		$(document).on("click", "#save_csv", function() {
-			table.download("csv", `${templateName}_${memberId}_` + dateFormat()+".csv");
-		});
-		
-		
 		
 		// ========================================
 		// 결과 테이블 확장/축소 버튼 이벤트
@@ -550,6 +545,35 @@ let ondate;
 			}
 		});
 
+	});
+
+	// ========================================
+	// 파일 다운로드 관련 함수
+	// ========================================
+	// 엑셀 다운로드 이벤트 핸들러 (IP 권한이 있을 때만 동작)
+	$(document).on("click", "#save_excel", function() {
+		if (!downloadEnable) {
+			alert("엑셀 다운로드 권한이 없습니다.");
+			return;
+		}
+		
+		if (!table || !lastExecutionData || !lastExecutionColumns) {
+			alert("다운로드할 데이터가 없습니다.");
+			return;
+		}
+		
+		// Tabulator의 기본 엑셀 다운로드 기능 사용
+		table.download("xlsx", `${templateName}_${memberId}_` + dateFormat()+".xlsx");
+	});
+	
+	// CSV 다운로드 이벤트 핸들러
+	$(document).on("click", "#save_csv", function() {
+		if (!table || !lastExecutionData || !lastExecutionColumns) {
+			alert("다운로드할 데이터가 없습니다.");
+			return;
+		}
+		
+		table.download("csv", `${templateName}_${memberId}_` + dateFormat()+".csv");
 	});
 	
 	// ========================================

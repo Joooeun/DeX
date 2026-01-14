@@ -139,7 +139,7 @@ public class UserService {
             String plainPassword = (String) userData.get("password");
             String encryptedPassword = Crypto.crypt(plainPassword);
             
-            String sql = "INSERT INTO USERS (USER_ID, USER_NAME, PASSWORD, TEMP_PASSWORD, PASSWORD_CHANGE_DATE, STATUS, IP_RESTRICTION, CREATED_BY) VALUES (?, ?, ?, ?, CURRENT DATE, ?, ?, ?)";
+            String sql = "INSERT INTO USERS (USER_ID, USER_NAME, PASSWORD, TEMP_PASSWORD, PASSWORD_CHANGE_DATE, STATUS, IP_RESTRICTION, EXCEL_DOWNLOAD_IP_PATTERN, CREATED_BY) VALUES (?, ?, ?, ?, CURRENT DATE, ?, ?, ?, ?)";
             jdbcTemplate.update(sql, 
                 userData.get("userId"),
                 userData.get("userName"),
@@ -147,6 +147,7 @@ public class UserService {
                 encryptedPassword,  // TEMP_PASSWORD (동일한 값)
                 userData.get("status"),
                 userData.get("ipRestriction"),
+                userData.get("excelDownloadIpPattern"),
                 userData.get("createdBy")
             );
             return true;
@@ -161,12 +162,13 @@ public class UserService {
     public boolean updateUser(String userId, Map<String, Object> userData) {
         try {
             StringBuilder sqlBuilder = new StringBuilder();
-            sqlBuilder.append("UPDATE USERS SET USER_NAME = ?, STATUS = ?, IP_RESTRICTION = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP");
+            sqlBuilder.append("UPDATE USERS SET USER_NAME = ?, STATUS = ?, IP_RESTRICTION = ?, EXCEL_DOWNLOAD_IP_PATTERN = ?, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP");
             
             java.util.List<Object> params = new java.util.ArrayList<>();
             params.add(userData.get("userName"));
             params.add(userData.get("status"));
             params.add(userData.get("ipRestriction"));
+            params.add(userData.get("excelDownloadIpPattern"));
             params.add(userData.get("modifiedBy"));
             
             // 비밀번호가 제공된 경우 관리자가 입력한 비밀번호를 임시 비밀번호로 설정

@@ -63,7 +63,6 @@ public class SystemConfigController {
     @ResponseBody
     public Map<String, Object> saveSystemConfig(
             @RequestParam("sessionTimeout") String sessionTimeout,
-            @RequestParam("downloadIpPattern") String downloadIpPattern,
             @RequestParam("noticeContent") String noticeContent,
             @RequestParam(value = "noticeEnabled", defaultValue = "false") String noticeEnabled,
             HttpSession session) {
@@ -80,11 +79,10 @@ public class SystemConfigController {
         try {
             // 각 설정값 업데이트
             boolean sessionTimeoutUpdated = systemConfigService.updateConfigValue("SESSION_TIMEOUT", sessionTimeout);
-            boolean downloadIpUpdated = systemConfigService.updateConfigValue("DOWNLOAD_IP_PATTERN", downloadIpPattern);
             boolean noticeContentUpdated = systemConfigService.updateConfigValue("NOTICE_CONTENT", noticeContent);
             boolean noticeEnabledUpdated = systemConfigService.updateConfigValue("NOTICE_ENABLED", noticeEnabled);
             
-            if (sessionTimeoutUpdated && downloadIpUpdated && noticeContentUpdated && noticeEnabledUpdated) {
+            if (sessionTimeoutUpdated && noticeContentUpdated && noticeEnabledUpdated) {
                 result.put("success", true);
                 result.put("message", "환경설정이 성공적으로 저장되었습니다.");
                 logger.info("환경설정 저장 완료 - 사용자: {}", memberId);

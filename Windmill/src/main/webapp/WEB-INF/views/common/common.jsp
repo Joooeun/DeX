@@ -75,7 +75,7 @@ window.sentryOnLoad = function () {
 
 <link href="/resources/dist/css/tabulator/tabulator.min.css" rel="stylesheet">
 <script type="text/javascript" src="/resources/dist/js/tabulator/tabulator.js"></script>
-<script type="text/javascript" src="/resources/dist/js/tabulator/xlsx.full.min.js"></script>
+<!-- xlsx.full.min.js는 IP 권한이 있을 때만 로드 (SQLExecute.jsp에서 조건부 로드) -->
 
 
 <script src="/resources/jquery-slimscroll/jquery.slimscroll.js"></script>

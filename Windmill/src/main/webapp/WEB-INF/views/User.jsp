@@ -178,6 +178,14 @@
                             <span class="text-info">💡 비워두면 모든 IP에서 로그인 가능합니다.</span>
                         </small>
                     </div>
+                    <div class="form-group">
+                        <label for="excelDownloadIpPattern" data-toggle="tooltip" data-placement="top" title="엑셀 다운로드를 허용할 IP 주소 패턴을 설정합니다. 와일드카드(*) 사용 가능합니다. 비워두면 모든 IP에서 엑셀 다운로드 가능합니다.">엑셀 다운로드 IP 대역</label>
+                        <input type="text" class="form-control" id="excelDownloadIpPattern" placeholder="예: 10.240.13.* 또는 *">
+                        <small class="text-muted">
+                            <strong>예시:</strong> 10.240.13.* (10.240.13.x 대역), * (모든 IP 허용)<br>
+                            <span class="text-info">💡 비워두면 모든 IP에서 엑셀 다운로드 가능합니다.</span>
+                        </small>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -768,6 +776,7 @@ function editUser(userId) {
                 $('#userName').val(user.USER_NAME);
                 $('#status').val(user.STATUS);
                 $('#ipRestriction').val(user.IP_RESTRICTION || '');
+                $('#excelDownloadIpPattern').val(user.EXCEL_DOWNLOAD_IP_PATTERN || '');
                 $('#password').attr('required', false);
                 $('#passwordDescription').show();
                 
@@ -827,7 +836,8 @@ function saveUser() {
         userName: $('#userName').val(),
         status: $('#status').val(),
         groupIds: groupIds, // 여러 그룹 ID 배열
-        ipRestriction: $('#ipRestriction').val()
+        ipRestriction: $('#ipRestriction').val(),
+        excelDownloadIpPattern: $('#excelDownloadIpPattern').val()
     };
     
     var password = $('#password').val();
