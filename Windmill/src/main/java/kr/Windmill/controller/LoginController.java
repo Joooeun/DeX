@@ -91,7 +91,7 @@ public class LoginController {
 			} else {
 				// 로그인 실패
 				cLog.userLog(userId, ipAddress, " 로그인 실패: " + loginResult.get("message"));
-				model.addAttribute("params", com.showMessageAndRedirect("계정정보가 올바르지 않습니다.", "/", "GET"));
+				model.addAttribute("params", com.showMessageAndRedirect((String) loginResult.get("message"), "/", "GET"));
 				return "/common/messageRedirect";
 			}
 

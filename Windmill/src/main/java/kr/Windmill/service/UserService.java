@@ -1,5 +1,6 @@
 package kr.Windmill.service;
 
+import java.sql.Date;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -25,28 +26,38 @@ public class UserService {
     @Autowired
     private JdbcTemplate jdbcTemplate;
     
-    // 사용자 목록 조회 (페이징 포함)
-    public Map<String, Object> getUserList(String searchKeyword, String groupFilter, int page, int pageSize) {
+    // 사용자 목록 조회 (페이징 포함, statusFilter 추가)
+    public Map<String, Object> getUserList(String searchKeyword, String groupFilter, String statusFilter, int page, int pageSize) {
         Map<String, Object> result = new HashMap<>();
         
         // 전체 개수 조회 (중복 제거) - 데이터 조회 쿼리와 동일한 조건 사용
         StringBuilder countSqlBuilder = new StringBuilder();
         countSqlBuilder.append("SELECT COUNT(DISTINCT u.USER_ID) FROM USERS u ");
         
-        List<Object> countParams = new ArrayList<>();
         List<String> whereConditions = new ArrayList<>();
+        List<Object> baseParams = new ArrayList<>();
         
         if (searchKeyword != null && !searchKeyword.trim().isEmpty()) {
             whereConditions.add("(u.USER_ID LIKE ? OR u.USER_NAME LIKE ?)");
             String likePattern = "%" + searchKeyword.trim() + "%";
-            countParams.add(likePattern);
-            countParams.add(likePattern);
+            baseParams.add(likePattern);
+            baseParams.add(likePattern);
         }
         
         // 그룹 필터가 있는 경우 EXISTS 서브쿼리 사용 (데이터 조회 쿼리와 동일)
         if (groupFilter != null && !groupFilter.trim().isEmpty()) {
             whereConditions.add("EXISTS (SELECT 1 FROM USER_GROUP_MAPPING ugm WHERE ugm.USER_ID = u.USER_ID AND ugm.GROUP_ID = ?)");
-            countParams.add(groupFilter);
+            baseParams.add(groupFilter);
+        }
+        
+        // 상태 필터 추가
+        if (statusFilter != null && !statusFilter.trim().isEmpty() && !"ALL".equals(statusFilter)) {
+            if ("EXPIRED".equals(statusFilter)) {
+                whereConditions.add("(u.ACCOUNT_END_DATE IS NOT NULL AND u.ACCOUNT_END_DATE < CURRENT DATE)");
+            } else {
+                whereConditions.add("u.STATUS = ?");
+                baseParams.add(statusFilter);
+            }
         }
         
         if (!whereConditions.isEmpty()) {
@@ -54,10 +65,10 @@ public class UserService {
         }
         
         int totalCount;
-        if (countParams.isEmpty()) {
+        if (baseParams.isEmpty()) {
             totalCount = jdbcTemplate.queryForObject(countSqlBuilder.toString(), Integer.class);
         } else {
-            totalCount = jdbcTemplate.queryForObject(countSqlBuilder.toString(), countParams.toArray(), Integer.class);
+            totalCount = jdbcTemplate.queryForObject(countSqlBuilder.toString(), baseParams.toArray(), Integer.class);
         }
         
         // 페이징된 데이터 조회 - DB2 표준 문법 사용 (중복 제거)
@@ -65,6 +76,7 @@ public class UserService {
         sqlBuilder.append("SELECT * FROM (");
         sqlBuilder.append("SELECT ROW_NUMBER() OVER (ORDER BY u.CREATED_TIMESTAMP DESC) AS RN, ");
         sqlBuilder.append("u.USER_ID, u.USER_NAME, u.STATUS, u.IP_RESTRICTION, u.LAST_LOGIN_TIMESTAMP, u.LOGIN_FAIL_COUNT, u.CREATED_TIMESTAMP, ");
+        sqlBuilder.append("u.ACCOUNT_START_DATE, u.ACCOUNT_END_DATE, ");
         // 여러 그룹명을 쉼표로 구분하여 합치기 (DB2 LISTAGG 사용)
         sqlBuilder.append("(SELECT LISTAGG(ug2.GROUP_NAME, ', ') WITHIN GROUP (ORDER BY ug2.GROUP_NAME) ");
         sqlBuilder.append("FROM USER_GROUP_MAPPING ugm2 ");
@@ -72,24 +84,9 @@ public class UserService {
         sqlBuilder.append("WHERE ugm2.USER_ID = u.USER_ID) AS GROUP_NAME ");
         sqlBuilder.append("FROM USERS u ");
         
-        List<Object> params = new ArrayList<>();
-        List<String> dataWhereConditions = new ArrayList<>();
-        
-        if (searchKeyword != null && !searchKeyword.trim().isEmpty()) {
-            dataWhereConditions.add("(u.USER_ID LIKE ? OR u.USER_NAME LIKE ?)");
-            String likePattern = "%" + searchKeyword.trim() + "%";
-            params.add(likePattern);
-            params.add(likePattern);
-        }
-        
-        // 그룹 필터가 있는 경우에만 서브쿼리로 필터링
-        if (groupFilter != null && !groupFilter.trim().isEmpty()) {
-            dataWhereConditions.add("EXISTS (SELECT 1 FROM USER_GROUP_MAPPING ugm WHERE ugm.USER_ID = u.USER_ID AND ugm.GROUP_ID = ?)");
-            params.add(groupFilter);
-        }
-        
-        if (!dataWhereConditions.isEmpty()) {
-            sqlBuilder.append("WHERE ").append(String.join(" AND ", dataWhereConditions));
+        List<Object> params = new ArrayList<>(baseParams);
+        if (!whereConditions.isEmpty()) {
+            sqlBuilder.append("WHERE ").append(String.join(" AND ", whereConditions));
         }
         
         sqlBuilder.append(") AS PAGED_DATA ");
@@ -102,6 +99,18 @@ public class UserService {
         
         List<Map<String, Object>> userList = jdbcTemplate.queryForList(sqlBuilder.toString(), params.toArray());
         
+        // 사용 기간 만료 사용자를 EXPIRED 상태로 표시 (화면 표시용)
+        for (Map<String, Object> user : userList) {
+            String currentStatus = (String) user.get("STATUS");
+            Date accountStartDate = (Date) user.get("ACCOUNT_START_DATE");
+            Date accountEndDate = (Date) user.get("ACCOUNT_END_DATE");
+            
+            // ACTIVE 또는 LOCKED 상태이고 사용 기간이 만료된 경우 EXPIRED로 표시
+            if (("ACTIVE".equals(currentStatus) || "LOCKED".equals(currentStatus)) && !isAccountPeriodValid(accountStartDate, accountEndDate)) {
+                user.put("STATUS", "EXPIRED");
+            }
+        }
+        
         // 페이징 정보 계산
         int totalPages = (int) Math.ceil((double) totalCount / pageSize);
         
@@ -112,6 +121,11 @@ public class UserService {
         result.put("totalPages", totalPages);
         
         return result;
+    }
+    
+    // 기존 메서드 호환성을 위한 오버로드 (statusFilter 없이 호출)
+    public Map<String, Object> getUserList(String searchKeyword, String groupFilter, int page, int pageSize) {
+        return getUserList(searchKeyword, groupFilter, null, page, pageSize);
     }
     
     // 기존 메서드 호환성을 위한 오버로드
@@ -139,7 +153,20 @@ public class UserService {
             String plainPassword = (String) userData.get("password");
             String encryptedPassword = Crypto.crypt(plainPassword);
             
-            String sql = "INSERT INTO USERS (USER_ID, USER_NAME, PASSWORD, TEMP_PASSWORD, PASSWORD_CHANGE_DATE, STATUS, IP_RESTRICTION, EXCEL_DOWNLOAD_IP_PATTERN, CREATED_BY) VALUES (?, ?, ?, ?, CURRENT DATE, ?, ?, ?, ?)";
+            // 사용 기간 필드 처리
+            Object accountStartDateObj = userData.get("accountStartDate");
+            Object accountEndDateObj = userData.get("accountEndDate");
+            java.sql.Date accountStartDate = null;
+            java.sql.Date accountEndDate = null;
+            
+            if (accountStartDateObj != null && !accountStartDateObj.toString().trim().isEmpty()) {
+                accountStartDate = java.sql.Date.valueOf(accountStartDateObj.toString());
+            }
+            if (accountEndDateObj != null && !accountEndDateObj.toString().trim().isEmpty()) {
+                accountEndDate = java.sql.Date.valueOf(accountEndDateObj.toString());
+            }
+            
+            String sql = "INSERT INTO USERS (USER_ID, USER_NAME, PASSWORD, TEMP_PASSWORD, PASSWORD_CHANGE_DATE, STATUS, IP_RESTRICTION, EXCEL_DOWNLOAD_IP_PATTERN, ACCOUNT_START_DATE, ACCOUNT_END_DATE, CREATED_BY) VALUES (?, ?, ?, ?, CURRENT DATE, ?, ?, ?, ?, ?, ?)";
             jdbcTemplate.update(sql, 
                 userData.get("userId"),
                 userData.get("userName"),
@@ -148,6 +175,8 @@ public class UserService {
                 userData.get("status"),
                 userData.get("ipRestriction"),
                 userData.get("excelDownloadIpPattern"),
+                accountStartDate,   // ACCOUNT_START_DATE
+                accountEndDate,     // ACCOUNT_END_DATE
                 userData.get("createdBy")
             );
             return true;
@@ -187,10 +216,41 @@ public class UserService {
                     "비밀번호가 임시 비밀번호로 변경됨 (관리자: " + userData.get("modifiedBy") + ")");
             }
             
+            // 사용 기간 필드 처리
+            Object accountStartDateObj = userData.get("accountStartDate");
+            Object accountEndDateObj = userData.get("accountEndDate");
+            java.sql.Date accountStartDate = null;
+            java.sql.Date accountEndDate = null;
+            
+            if (accountStartDateObj != null && !accountStartDateObj.toString().trim().isEmpty()) {
+                accountStartDate = java.sql.Date.valueOf(accountStartDateObj.toString());
+            }
+            if (accountEndDateObj != null && !accountEndDateObj.toString().trim().isEmpty()) {
+                accountEndDate = java.sql.Date.valueOf(accountEndDateObj.toString());
+            }
+            
+            sqlBuilder.append(", ACCOUNT_START_DATE = ?, ACCOUNT_END_DATE = ?");
+            params.add(accountStartDate);
+            params.add(accountEndDate);
+            
             sqlBuilder.append(" WHERE USER_ID = ?");
             params.add(userId);
             
             jdbcTemplate.update(sqlBuilder.toString(), params.toArray());
+            
+            // 사용 기간 변경 시 LOCKED 상태이고 사용 기간이 유효하면 ACTIVE로 자동 변경
+            String currentStatusSql = "SELECT STATUS FROM USERS WHERE USER_ID = ?";
+            String currentStatus = jdbcTemplate.queryForObject(currentStatusSql, String.class, userId);
+            
+            if ("LOCKED".equals(currentStatus)) {
+                // 사용 기간이 유효한지 확인
+                if (isAccountPeriodValid(accountStartDate, accountEndDate)) {
+                    String activateSql = "UPDATE USERS SET STATUS = 'ACTIVE' WHERE USER_ID = ?";
+                    jdbcTemplate.update(activateSql, userId);
+                    logger.info("사용자 계정 사용 기간 변경으로 자동 활성화: {}", userId);
+                }
+            }
+            
             return true;
         } catch (Exception e) {
             logger.error("사용자 수정 실패: {}", userId, e);
@@ -217,8 +277,9 @@ public class UserService {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            // 사용자 존재 여부 및 상태 확인
-            String checkSql = "SELECT STATUS, LOGIN_FAIL_COUNT FROM USERS WHERE USER_ID = ?";
+            // 1. 사용자 존재 여부 및 모든 필요한 정보를 한 번에 조회 (서버 부담 최소화)
+            // 검증 순서: 존재 확인 → 상태 확인 → 사용 기간 확인 → IP 제한 → 비밀번호 확인 (가장 무거운 연산은 마지막)
+            String checkSql = "SELECT STATUS, LOGIN_FAIL_COUNT, ACCOUNT_START_DATE, ACCOUNT_END_DATE, IP_RESTRICTION, PASSWORD, TEMP_PASSWORD FROM USERS WHERE USER_ID = ?";
             List<Map<String, Object>> userInfo = jdbcTemplate.queryForList(checkSql, userId);
             
             if (userInfo.isEmpty()) {
@@ -234,23 +295,98 @@ public class UserService {
             Map<String, Object> user = userInfo.get(0);
             String status = (String) user.get("STATUS");
             Integer failCount = (Integer) user.get("LOGIN_FAIL_COUNT");
+            Date accountStartDate = (Date) user.get("ACCOUNT_START_DATE");
+            Date accountEndDate = (Date) user.get("ACCOUNT_END_DATE");
+            String ipRestriction = (String) user.get("IP_RESTRICTION");
+            String storedPassword = (String) user.get("PASSWORD");
+            String tempPassword = (String) user.get("TEMP_PASSWORD");
             
-            // 비밀번호 확인 (PASSWORD 또는 TEMP_PASSWORD와 비교)
-            String passwordSql = "SELECT PASSWORD, TEMP_PASSWORD FROM USERS WHERE USER_ID = ?";
-            List<Map<String, Object>> passwordResult = jdbcTemplate.queryForList(passwordSql, userId);
+            // 2. 사용 기간 확인 및 자동 업데이트 (계정 상태 확인 전에 먼저 확인)
+            // 사용 기간이 만료되었으면 STATUS를 LOCKED로 업데이트
+            boolean isExpired = checkAndUpdateAccountExpiration(userId, accountStartDate, accountEndDate);
             
-            if (passwordResult.isEmpty()) {
+            // STATUS가 업데이트되었을 수 있으므로 다시 조회
+            if (isExpired) {
+                String statusCheckSql = "SELECT STATUS FROM USERS WHERE USER_ID = ?";
+                status = jdbcTemplate.queryForObject(statusCheckSql, String.class, userId);
+            }
+            
+            // 3. 계정 상태 확인 (가벼운 검증 - 조회한 데이터에서 확인)
+            if (!"ACTIVE".equals(status)) {
+                String userMessage = "";
+                String logMessage = ""; // 로그에 기록할 상세 메시지
+                
+                if ("LOCKED".equals(status)) {
+                    // LOCKED 상태인 경우 사용 기간 만료인지 확인
+                    if (isExpired || !isAccountPeriodValid(accountStartDate, accountEndDate)) {
+                        userMessage = "계정 사용 기간이 만료되었습니다. 관리자에게 문의하세요.";
+                        logMessage = "계정 사용 기간 만료";
+                        if (accountStartDate != null && accountEndDate != null) {
+                            logMessage += " (시작일: " + accountStartDate + ", 종료일: " + accountEndDate + ")";
+                        } else if (accountEndDate != null) {
+                            logMessage += " (종료일: " + accountEndDate + ")";
+                        } else if (accountStartDate != null) {
+                            logMessage += " (시작일: " + accountStartDate + ", 아직 시작 전)";
+                        }
+                    } else {
+                        userMessage = "로그인 실패 횟수 초과로 계정이 잠겼습니다. 관리자에게 문의하세요.";
+                        logMessage = "계정 잠금 상태";
+                    }
+                } else if ("INACTIVE".equals(status)) {
+                    userMessage = "비활성화된 계정입니다.";
+                    logMessage = "계정 비활성화 상태";
+                } else {
+                    userMessage = "계정 상태 이상입니다. 관리자에게 문의하세요.";
+                    logMessage = "계정 상태 이상 (상태: " + status + ")";
+                }
+                
+                // 계정 상태 문제 로그인 시도 로그 (상세 정보 기록)
+                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', ?)";
+                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, logMessage);
+                
                 result.put("success", false);
-                result.put("message", "계정정보가 일치하지 않습니다.");
+                result.put("message", userMessage);
                 return result;
             }
             
-            String storedPassword = (String) passwordResult.get(0).get("PASSWORD");
-            String tempPassword = (String) passwordResult.get(0).get("TEMP_PASSWORD");
+            // 4. 사용 기간 만료 확인 (ACTIVE 상태이지만 사용 기간이 만료된 경우 - 이중 체크)
+            if (!isAccountPeriodValid(accountStartDate, accountEndDate)) {
+                // 사용 기간 만료로 인한 로그인 실패 로그
+                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', ?)";
+                String logMessage = "계정 사용 기간 만료";
+                if (accountStartDate != null && accountEndDate != null) {
+                    logMessage += " (시작일: " + accountStartDate + ", 종료일: " + accountEndDate + ")";
+                } else if (accountEndDate != null) {
+                    logMessage += " (종료일: " + accountEndDate + ")";
+                } else if (accountStartDate != null) {
+                    logMessage += " (시작일: " + accountStartDate + ", 아직 시작 전)";
+                }
+                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, logMessage);
+                
+                result.put("success", false);
+                result.put("message", "계정 사용 기간이 만료되었습니다. 관리자에게 문의하세요.");
+                return result;
+            }
+            
+            // 4. IP 제한 확인 (중간 부담 - JSON 파싱)
+            if (!isIpAllowed(userId, ipAddress, ipRestriction)) {
+                String userMessage = "계정정보가 일치하지 않습니다."; // 사용자에게 보여줄 메시지
+                String logMessage = "IP 제한 위반 (접속 IP: " + ipAddress + ")"; // 로그에 기록할 상세 메시지
+                
+                // IP 제한 위반 로그인 시도 로그 (상세 정보 기록)
+                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', ?)";
+                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, logMessage);
+                
+                result.put("success", false);
+                result.put("message", userMessage);
+                return result;
+            }
+            
+            // 5. 비밀번호 확인 (가장 무거운 연산 - 암호화 연산은 마지막에)
             String encryptedPassword = Crypto.crypt(password);
             
             // 비밀번호가 틀린 경우 (PASSWORD 또는 TEMP_PASSWORD와 비교)
-            boolean passwordMatch = storedPassword.equals(encryptedPassword) || 
+            boolean passwordMatch = storedPassword.equals(encryptedPassword) ||
                                   (tempPassword != null && tempPassword.equals(encryptedPassword));
             
             if (!passwordMatch) {
@@ -276,43 +412,6 @@ public class UserService {
                 }
                 
                 // 비밀번호 불일치 로그인 시도 로그 (상세 정보 기록)
-                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', ?)";
-                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, logMessage);
-                
-                result.put("success", false);
-                result.put("message", userMessage);
-                return result;
-            }
-            
-            // 비밀번호가 맞은 경우 - IP 제한 확인
-            if (!isIpAllowed(userId, ipAddress)) {
-                String userMessage = "계정정보가 일치하지 않습니다."; // 사용자에게 보여줄 메시지
-                String logMessage = "IP 제한 위반 (접속 IP: " + ipAddress + ")"; // 로그에 기록할 상세 메시지
-                
-                // IP 제한 위반 로그인 시도 로그 (상세 정보 기록)
-                String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', ?)";
-                jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, logMessage);
-                
-                result.put("success", false);
-                result.put("message", userMessage);
-                return result;
-            }
-            
-            // IP 제한 통과 후 - 계정 상태 확인
-            if (!"ACTIVE".equals(status)) {
-                String userMessage = "LOCKED".equals(status) ? "계정이 잠겨있습니다. 관리자에게 문의하세요." : "비활성화된 계정입니다.";
-                String logMessage = ""; // 로그에 기록할 상세 메시지
-                
-                if ("LOCKED".equals(status)) {
-                    userMessage = "로그인 실패 횟수 초과로 계정이 잠겼습니다. 관리자에게 문의하세요.";
-                    logMessage = "계정 잠금 상태";
-                } else if ("INACTIVE".equals(status)) {
-                    logMessage = "계정 비활성화 상태";
-                } else {
-                    logMessage = "계정 상태 이상 (상태: " + status + ")";
-                }
-                
-                // 계정 상태 문제 로그인 시도 로그 (상세 정보 기록)
                 String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, 'FAIL', ?)";
                 jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, logMessage);
                 
@@ -715,13 +814,80 @@ public class UserService {
         }
     }
     
-    // IP 제한 검증
-    public boolean isIpAllowed(String userId, String clientIp) {
+    // 사용 기간 검증 (Date 객체를 받아서 검증)
+    private boolean isAccountPeriodValid(Date accountStartDate, Date accountEndDate) {
+        // 둘 다 NULL이면 기간 제한 없음
+        if (accountStartDate == null && accountEndDate == null) {
+            return true;
+        }
+        
+        java.time.LocalDate today = java.time.LocalDate.now();
+        
+        // 시작일 체크
+        if (accountStartDate != null) {
+            java.time.LocalDate start = ((java.sql.Date) accountStartDate).toLocalDate();
+            if (today.isBefore(start)) {
+                return false; // 아직 시작일 전
+            }
+        }
+        
+        // 종료일 체크
+        if (accountEndDate != null) {
+            java.time.LocalDate end = ((java.sql.Date) accountEndDate).toLocalDate();
+            if (today.isAfter(end)) {
+                return false; // 종료일 지남
+            }
+        }
+        
+        return true;
+    }
+    
+    // 사용 기간 만료 확인 및 자동 업데이트
+    private boolean checkAndUpdateAccountExpiration(String userId, Date accountStartDate, Date accountEndDate) {
+        // 둘 다 NULL이면 기간 제한 없음
+        if (accountStartDate == null && accountEndDate == null) {
+            return false;
+        }
+        
+        java.time.LocalDate today = java.time.LocalDate.now();
+        boolean isExpired = false;
+        
+        // 종료일 체크
+        if (accountEndDate != null) {
+            java.time.LocalDate end = ((java.sql.Date) accountEndDate).toLocalDate();
+            if (today.isAfter(end)) {
+                isExpired = true;
+            }
+        }
+        
+        // 시작일 체크 (아직 시작 전이면 만료는 아니지만 사용 불가)
+        if (accountStartDate != null && !isExpired) {
+            java.time.LocalDate start = ((java.sql.Date) accountStartDate).toLocalDate();
+            if (today.isBefore(start)) {
+                // 시작일 전이면 아직 사용 불가 (하지만 만료는 아님)
+                return false;
+            }
+        }
+        
+        // 만료되었으면 STATUS를 LOCKED로 업데이트
+        if (isExpired) {
+            try {
+                String updateSql = "UPDATE USERS SET STATUS = 'LOCKED' WHERE USER_ID = ? AND STATUS = 'ACTIVE'";
+                int updated = jdbcTemplate.update(updateSql, userId);
+                if (updated > 0) {
+                    logger.info("사용자 계정 사용 기간 만료로 자동 잠금: {}", userId);
+                }
+            } catch (Exception e) {
+                logger.error("사용자 계정 사용 기간 만료 업데이트 중 오류 발생: {}", userId, e);
+            }
+        }
+
+        return isExpired;
+    }
+    
+    // IP 제한 검증 (ipRestriction 파라미터 추가로 DB 조회 제거)
+    private boolean isIpAllowed(String userId, String clientIp, String ipRestriction) {
         try {
-            // 사용자의 IP 제한 정보 조회
-            String sql = "SELECT IP_RESTRICTION FROM USERS WHERE USER_ID = ?";
-            String ipRestriction = jdbcTemplate.queryForObject(sql, String.class, userId);
-            
             // IP 제한이 설정되지 않은 경우 모든 IP 허용
             if (ipRestriction == null || ipRestriction.trim().isEmpty()) {
                 return true;
@@ -747,6 +913,19 @@ public class UserService {
             }
             
             return false;
+        } catch (Exception e) {
+            logger.error("IP 제한 검증 중 오류 발생", e);
+            return false; // 오류 시 보안을 위해 접근 차단
+        }
+    }
+    
+    // IP 제한 검증 (기존 메서드 - 호환성 유지)
+    public boolean isIpAllowed(String userId, String clientIp) {
+        try {
+            // 사용자의 IP 제한 정보 조회
+            String sql = "SELECT IP_RESTRICTION FROM USERS WHERE USER_ID = ?";
+            String ipRestriction = jdbcTemplate.queryForObject(sql, String.class, userId);
+            return isIpAllowed(userId, clientIp, ipRestriction);
         } catch (Exception e) {
             logger.error("IP 제한 검증 중 오류 발생", e);
             return false; // 오류 시 보안을 위해 접근 차단

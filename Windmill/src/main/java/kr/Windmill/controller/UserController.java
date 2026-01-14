@@ -73,6 +73,7 @@ public class UserController {
 	@RequestMapping("/list")
 	public Map<String, Object> getUserList(@RequestParam(required = false) String searchKeyword, 
 										  @RequestParam(required = false) String groupFilter,
+										  @RequestParam(required = false) String statusFilter,
 										  @RequestParam(defaultValue = "1") int page, 
 										  @RequestParam(defaultValue = "5") int pageSize, 
 										  HttpSession session) {
@@ -93,7 +94,7 @@ public class UserController {
 				return result;
 			}
 
-			Map<String, Object> userData = userService.getUserList(searchKeyword, groupFilter, page, pageSize);
+			Map<String, Object> userData = userService.getUserList(searchKeyword, groupFilter, statusFilter, page, pageSize);
 			result.put("success", true);
 			result.put("data", userData.get("userList"));
 			result.put("pagination", userData);

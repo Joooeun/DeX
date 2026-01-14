@@ -34,7 +34,19 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-sm-6">
+                            <div class="col-sm-3">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-addon">상태</span>
+                                    <select class="form-control" id="statusFilter" onchange="filterByStatus()">
+                                        <option value="ALL">전체</option>
+                                        <option value="ACTIVE">활성</option>
+                                        <option value="INACTIVE">비활성</option>
+                                        <option value="LOCKED">잠금</option>
+                                        <option value="EXPIRED">기한 만료</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-sm-3">
 								<button type="button" class="btn pull-right btn-primary btn-sm"
 									onclick="showCreateUserModal()">
 									<i class="fa fa-plus"></i> 새 사용자
@@ -148,8 +160,30 @@
                         <label for="password" data-toggle="tooltip" data-placement="top" title="사용자의 로그인 비밀번호를 입력합니다. 수정 시 비워두면 기존 비밀번호가 유지되며, 보안을 위해 암호화되어 저장됩니다.">비밀번호</label>
                         <input type="password" class="form-control" id="password">
                         <small class="text-muted" id="passwordDescription" style="display: none;">
-                            <strong>수정 시 비워두면 변경하지 않습니다.</strong><br>
-                            <span class="text-warning">⚠️ 비밀번호를 입력하면 해당 비밀번호가 임시 비밀번호로 설정되며, 해당 사용자는 다음 로그인 시 비밀번호 변경이 강제됩니다.</span>
+                            <span class="text-warning">⚠️ 비밀번호를 입력하면 임시 비밀번호로 설정되며 다음 로그인 시 비밀번호 변경이 강제됩니다.</span>
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="groupId" data-toggle="tooltip" data-placement="top" 
+                            title="사용자가 속할 그룹을 선택합니다. 여러 그룹을 선택할 수 있으며, 선택된 모든 그룹의 권한을 합집합으로 사용합니다. 그룹별로 접근 권한과 연결 권한이 설정되며, 사용자의 역할을 결정합니다.">
+                            그룹 <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-control" id="groupId" multiple required>
+                            <!-- 그룹 목록이 동적으로 로드됩니다 -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="ipRestriction" data-toggle="tooltip" data-placement="top" title="사용자의 로그인을 허용할 IP 주소를 설정합니다. 여러 IP는 쉼표로 구분하고, 와일드카드(*) 사용 가능합니다. 비워두면 모든 IP에서 로그인 가능합니다.">로그인 IP 대역</label>
+                        <input type="text" class="form-control" id="ipRestriction" placeholder="예: 192.168.1.*, 10.0.0.100">
+                        <small class="text-muted">
+                            <span class="text-info">💡 비워두면 모든 IP에서 로그인 가능합니다.</span>
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="excelDownloadIpPattern" data-toggle="tooltip" data-placement="top" title="엑셀 다운로드를 허용할 IP 주소 패턴을 설정합니다. 와일드카드(*) 사용 가능합니다. 비워두면 모든 IP에서 엑셀 다운로드 가능합니다.">엑셀 다운로드 IP 대역</label>
+                        <input type="text" class="form-control" id="excelDownloadIpPattern" placeholder="예: 10.240.13.* 또는 *">
+                        <small class="text-muted">
+                            <span class="text-info">💡 비워두면 모든 IP에서 엑셀 다운로드 가능합니다.</span>
                         </small>
                     </div>
                     <div class="form-group">
@@ -161,30 +195,29 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="groupId" data-toggle="tooltip" data-placement="top" 
-                            title="사용자가 속할 그룹을 선택합니다. 여러 그룹을 선택할 수 있으며, 선택된 모든 그룹의 권한을 합집합으로 사용합니다. 그룹별로 접근 권한과 연결 권한이 설정되며, 사용자의 역할을 결정합니다."
-                            style="font-size: 12px; font-weight: 500;">
-                            그룹 <span class="text-danger">*</span>
+                        <label>
+                            <input type="checkbox" id="accountPeriodEnabled" onchange="toggleAccountPeriod()"> 
+                            기간제한
                         </label>
-                        <select class="form-control" id="groupId" multiple required>
-                            <!-- 그룹 목록이 동적으로 로드됩니다 -->
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="ipRestriction" data-toggle="tooltip" data-placement="top" title="사용자의 로그인을 허용할 IP 주소를 설정합니다. 여러 IP는 쉼표로 구분하고, 와일드카드(*) 사용 가능합니다. 비워두면 모든 IP에서 로그인 가능합니다.">IP 제한</label>
-                        <input type="text" class="form-control" id="ipRestriction" placeholder="예: 192.168.1.*, 10.0.0.100">
-                        <small class="text-muted">
-                            <strong>예시:</strong> 192.168.1.* (192.168.1.x 대역), 10.0.0.100 (특정 IP), 192.168.1.*,10.0.0.100 (여러 IP)<br>
-                            <span class="text-info">💡 비워두면 모든 IP에서 로그인 가능합니다.</span>
+                        <small class="text-muted" style="display: block; margin-top: 5px;">
+                            <span class="text-info">💡 체크하면 사용 기간을 설정할 수 있습니다. 체크하지 않으면 기간 제한이 없습니다.</span>
                         </small>
                     </div>
-                    <div class="form-group">
-                        <label for="excelDownloadIpPattern" data-toggle="tooltip" data-placement="top" title="엑셀 다운로드를 허용할 IP 주소 패턴을 설정합니다. 와일드카드(*) 사용 가능합니다. 비워두면 모든 IP에서 엑셀 다운로드 가능합니다.">엑셀 다운로드 IP 대역</label>
-                        <input type="text" class="form-control" id="excelDownloadIpPattern" placeholder="예: 10.240.13.* 또는 *">
-                        <small class="text-muted">
-                            <strong>예시:</strong> 10.240.13.* (10.240.13.x 대역), * (모든 IP 허용)<br>
-                            <span class="text-info">💡 비워두면 모든 IP에서 엑셀 다운로드 가능합니다.</span>
-                        </small>
+                    <div id="accountPeriodFields" style="display: none;">
+                        <div class="row">
+                            <div class="col-sm-6">
+                                <div class="form-group">
+                                    <label for="accountStartDate">시작일</label>
+                                    <input type="date" class="form-control" id="accountStartDate">
+                                </div>
+                            </div>
+                            <div class="col-sm-6">
+                                <div class="form-group">
+                                    <label for="accountEndDate">종료일</label>
+                                    <input type="date" class="form-control" id="accountEndDate">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -503,6 +536,7 @@ function loadUserList(page) {
     
     var searchKeyword = $('#searchKeyword').val();
     var groupFilter = $('#groupFilter').val();
+    var statusFilter = $('#statusFilter').val();
     
     $.ajax({
         url: '/User/list',
@@ -510,6 +544,7 @@ function loadUserList(page) {
         data: { 
             searchKeyword: searchKeyword,
             groupFilter: groupFilter,
+            statusFilter: statusFilter,
             page: currentPage,
             pageSize: currentPageSize
         },
@@ -535,6 +570,12 @@ function searchUsers() {
 
 // 그룹별 필터링
 function filterByGroup() {
+    currentPage = 1;
+    loadUserList();
+}
+
+// 상태별 필터링
+function filterByStatus() {
     currentPage = 1;
     loadUserList();
 }
@@ -680,6 +721,10 @@ function getStatusBadge(status) {
             badgeClass = 'label-danger';
             statusText = '잠금';
             break;
+        case 'EXPIRED':
+            badgeClass = 'label-danger';
+            statusText = '기한 만료';
+            break;
     }
     
     return '<span class="label ' + badgeClass + '">' + statusText + '</span>';
@@ -752,6 +797,11 @@ function showCreateUserModal() {
     $('#userId').prop('readonly', false);
     $('#password').attr('required', true);
     $('#passwordDescription').show();
+    // 기간제한 초기화
+    $('#accountPeriodEnabled').prop('checked', false);
+    $('#accountPeriodFields').hide();
+    $('#accountStartDate').val('');
+    $('#accountEndDate').val('');
     // 그룹 선택 초기화 (Select2)
     if ($('#groupId').hasClass('select2-hidden-accessible')) {
         $('#groupId').val(null).trigger('change');
@@ -779,6 +829,37 @@ function editUser(userId) {
                 $('#excelDownloadIpPattern').val(user.EXCEL_DOWNLOAD_IP_PATTERN || '');
                 $('#password').attr('required', false);
                 $('#passwordDescription').show();
+                
+                // 사용 기간 필드 설정
+                if (user.ACCOUNT_START_DATE || user.ACCOUNT_END_DATE) {
+                    $('#accountPeriodEnabled').prop('checked', true);
+                    $('#accountPeriodFields').show();
+                    if (user.ACCOUNT_START_DATE) {
+                        // 날짜 형식 변환 (YYYY-MM-DD)
+                        var startDate = new Date(user.ACCOUNT_START_DATE);
+                        var startDateStr = startDate.getFullYear() + '-' + 
+                            String(startDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                            String(startDate.getDate()).padStart(2, '0');
+                        $('#accountStartDate').val(startDateStr);
+                    } else {
+                        $('#accountStartDate').val('');
+                    }
+                    if (user.ACCOUNT_END_DATE) {
+                        // 날짜 형식 변환 (YYYY-MM-DD)
+                        var endDate = new Date(user.ACCOUNT_END_DATE);
+                        var endDateStr = endDate.getFullYear() + '-' + 
+                            String(endDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                            String(endDate.getDate()).padStart(2, '0');
+                        $('#accountEndDate').val(endDateStr);
+                    } else {
+                        $('#accountEndDate').val('');
+                    }
+                } else {
+                    $('#accountPeriodEnabled').prop('checked', false);
+                    $('#accountPeriodFields').hide();
+                    $('#accountStartDate').val('');
+                    $('#accountEndDate').val('');
+                }
                 
                 // 사용자의 현재 그룹 정보 로드 (Select2 업데이트 포함)
                 loadUserGroup(userId);
@@ -814,6 +895,18 @@ function loadUserGroup(userId) {
     });
 }
 
+// 기간제한 체크박스 토글
+function toggleAccountPeriod() {
+    var enabled = $('#accountPeriodEnabled').is(':checked');
+    if (enabled) {
+        $('#accountPeriodFields').show();
+    } else {
+        $('#accountPeriodFields').hide();
+        $('#accountStartDate').val('');
+        $('#accountEndDate').val('');
+    }
+}
+
 // 사용자 저장
 function saveUser() {
     var editUserId = $('#editUserId').val();
@@ -843,6 +936,15 @@ function saveUser() {
     var password = $('#password').val();
     if (password) {
         userData.password = password;
+    }
+    
+    // 사용 기간 필드 처리
+    if ($('#accountPeriodEnabled').is(':checked')) {
+        userData.accountStartDate = $('#accountStartDate').val() || null;
+        userData.accountEndDate = $('#accountEndDate').val() || null;
+    } else {
+        userData.accountStartDate = null;
+        userData.accountEndDate = null;
     }
     
     var url = editUserId ? '/User/update?userId=' + editUserId : '/User/create';
