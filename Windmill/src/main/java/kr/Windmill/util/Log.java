@@ -587,6 +587,30 @@ public class Log {
 		}
 	}
 
+	/**
+	 * 엑셀 다운로드 여부를 EXECUTION_LOG 테이블에 업데이트합니다.
+	 * @param logId 로그 ID
+	 */
+	public void updateExcelDownloaded(String logId) {
+		if (logId == null || logId.trim().isEmpty()) {
+			logger.warn("엑셀 다운로드 업데이트 실패: LOG_ID가 null이거나 비어있습니다.");
+			return;
+		}
+
+		try {
+			String sql = "UPDATE EXECUTION_LOG SET EXCEL_DOWNLOADED = TRUE WHERE LOG_ID = ?";
+			int updatedRows = jdbcTemplate.update(sql, logId);
+			
+			if (updatedRows > 0) {
+				logger.debug("EXECUTION_LOG 엑셀 다운로드 업데이트 완료: {}", logId);
+			} else {
+				logger.warn("EXECUTION_LOG 엑셀 다운로드 업데이트 실패: LOG_ID를 찾을 수 없습니다. {}", logId);
+			}
+		} catch (Exception e) {
+			logger.error("EXECUTION_LOG 엑셀 다운로드 업데이트 실패: {}", logId, e);
+		}
+	}
+
 	// ==================== SqlTemplateExecuteDto 로깅 메서드들 ====================
 	
 	/**

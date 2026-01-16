@@ -29,6 +29,7 @@ import kr.Windmill.service.SqlContentService;
 import kr.Windmill.service.SqlTemplateService;
 import kr.Windmill.service.SystemConfigService;
 import kr.Windmill.util.Common;
+import kr.Windmill.util.Log;
 
 @Controller
 public class SQLTemplateController {
@@ -58,6 +59,9 @@ public class SQLTemplateController {
 
 	@Autowired
 	private kr.Windmill.service.AuditLogService auditLogService;
+
+	@Autowired
+	private Log log;
 
 	@RequestMapping(path = "/SQLTemplate", method = RequestMethod.GET)
 	public ModelAndView sqlTemplateMain(HttpServletRequest request, ModelAndView mv, HttpSession session) {
@@ -995,11 +999,47 @@ public class SQLTemplateController {
 			if (executeDto.getRows() != null) {
 				result.put("rows", executeDto.getRows());
 			}
+			// 로그 ID 추가 (엑셀 다운로드 추적용)
+			if (executeDto.getLogId() != null) {
+				result.put("logId", executeDto.getLogId());
+			}
 
 		} catch (Exception e) {
 			logger.error("SQL 템플릿 실행 중 오류 발생: {}", e.getMessage(), e);
 			result.put("success", false);
 			result.put("error", e.getMessage());
+		}
+
+		return result;
+	}
+
+	/**
+	 * 엑셀 다운로드 여부를 실행 기록에 업데이트합니다.
+	 */
+	@ResponseBody
+	@RequestMapping(path = "/SQLTemplate/excel-download", method = RequestMethod.POST)
+	public Map<String, Object> updateExcelDownload(@RequestBody Map<String, String> requestData, HttpSession session) {
+		Map<String, Object> result = new HashMap<>();
+
+		try {
+			String logId = requestData.get("logId");
+			
+			if (logId == null || logId.trim().isEmpty()) {
+				result.put("success", false);
+				result.put("error", "로그 ID가 필요합니다.");
+				return result;
+			}
+
+			// 엑셀 다운로드 여부 업데이트
+			log.updateExcelDownloaded(logId);
+			
+			result.put("success", true);
+			result.put("message", "엑셀 다운로드 기록이 업데이트되었습니다.");
+			
+		} catch (Exception e) {
+			logger.error("엑셀 다운로드 업데이트 중 오류 발생", e);
+			result.put("success", false);
+			result.put("error", "엑셀 다운로드 업데이트 중 오류가 발생했습니다: " + e.getMessage());
 		}
 
 		return result;

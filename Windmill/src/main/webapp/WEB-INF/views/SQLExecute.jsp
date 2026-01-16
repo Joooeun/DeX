@@ -121,6 +121,7 @@ var textLimit = ${textlimit};
 var lastExecutionData = null;
 var lastExecutionColumns = null;
 var lastExecutionTableOption = null;
+var lastExecutionLogId = null;  // 마지막 실행의 로그 ID (엑셀 다운로드 추적용)
 
 // 자동 새로고침 관련 변수
 	var timeRemain = null;
@@ -564,6 +565,29 @@ var downloadEnable = ${DownloadEnable};
 		
 		// Tabulator의 기본 엑셀 다운로드 기능 사용
 		table.download("xlsx", `${templateName}_${memberId}_` + dateFormat()+".xlsx");
+		
+		// 엑셀 다운로드 여부를 서버에 업데이트
+		if (lastExecutionLogId) {
+			$.ajax({
+				type: 'POST',
+				url: '/SQLTemplate/excel-download',
+				contentType: 'application/json',
+				dataType: 'json',
+				data: JSON.stringify({
+					logId: lastExecutionLogId
+				}),
+				success: function(response) {
+					if (response.success) {
+						console.log('엑셀 다운로드 기록이 업데이트되었습니다.');
+					} else {
+						console.warn('엑셀 다운로드 기록 업데이트 실패:', response.error);
+					}
+				},
+				error: function(xhr, status, error) {
+					console.warn('엑셀 다운로드 기록 업데이트 중 오류 발생:', error);
+				}
+			});
+		}
 	});
 	
 	// CSV 다운로드 이벤트 핸들러
@@ -819,6 +843,11 @@ var downloadEnable = ${DownloadEnable};
 					
 					// data 래퍼에서 실제 결과 추출
 					var resultData = result.data || result;
+					
+					// 로그 ID 저장 (엑셀 다운로드 추적용)
+					if (result.logId) {
+						lastExecutionLogId = result.logId;
+					}
 					
 					// 결과 헤더 처리
 					if (resultData.rowhead!=null) {
