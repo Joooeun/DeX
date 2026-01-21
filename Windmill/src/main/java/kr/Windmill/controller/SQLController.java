@@ -241,7 +241,11 @@ public class SQLController {
 				Map<String, Object> paramResult = sqlTemplateService.getTemplateParameters(templateId);
 				if (paramResult.get("success").equals(true)) {
 					mv.addObject("parameters", paramResult.get("data"));
-					mv.addObject("sendvalue", request.getParameter("sendvalue"));
+					String[] sendvalueArray = request.getParameterValues("sendvalueArray[]");
+					if (sendvalueArray != null && sendvalueArray.length > 0) {
+						// 배열을 리스트로 변환하여 전달
+						mv.addObject("sendvalueArray", Arrays.asList(sendvalueArray));
+					}
 				}
 				
 				// 단축키 정보 조회

@@ -19,6 +19,7 @@
 		
 		// 탭 추가
 		addTab: function(templateId, title, url, data) {
+
 			// templateId를 문자열로 정규화
 			templateId = this.normalizeTemplateId(templateId);
 			
@@ -90,11 +91,23 @@
 						// form에 데이터 추가
 						for (var key in data) {
 							if (data.hasOwnProperty(key)) {
-								var input = document.createElement('input');
-								input.type = 'hidden';
-								input.name = key;
-								input.value = data[key];
-								form.appendChild(input);
+								var value = data[key];
+				
+								if (Array.isArray(value)) {
+									for (var i = 0; i < value.length; i++) {
+										var input = document.createElement('input');
+										input.type = 'hidden';
+										input.name = key + '[]';
+										input.value = value[i];
+										form.appendChild(input);
+									}
+								} else {
+									var input = document.createElement('input');
+									input.type = 'hidden';
+									input.name = key;
+									input.value = value;
+									form.appendChild(input);
+								}
 							}
 						}
 						// form submit
@@ -145,11 +158,23 @@
 								// 새로운 데이터 추가
 								for (var key in data) {
 									if (data.hasOwnProperty(key)) {
-										var input = document.createElement('input');
-										input.type = 'hidden';
-										input.name = key;
-										input.value = data[key];
-										form.appendChild(input);
+										var value = data[key];
+						
+										if (Array.isArray(value)) {
+											for (var i = 0; i < value.length; i++) {
+												var input = document.createElement('input');
+												input.type = 'hidden';
+												input.name = key + '[]';
+												input.value = value[i];
+												form.appendChild(input);
+											}
+										} else {
+											var input = document.createElement('input');
+											input.type = 'hidden';
+											input.name = key;
+											input.value = value;
+											form.appendChild(input);
+										}
 									}
 								}
 								

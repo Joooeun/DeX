@@ -293,48 +293,39 @@ window.enableAceHeightResize = function(editorHostDiv, editor, initialHeightPx) 
 		var valueParts = value.split('&');
 		var columnPart = valueParts[1] || '';
 		var column = columnPart ? columnPart.split(',') : [];
-		var str = '';
 		
+		var paramValues = []; // 배열로 파라미터 값 저장
+
 		if($(".Resultrow.success").children('div').length>0){			
 			for (var i = 0; i < column.length; i++) {
-				if (i > 0) {
-					str += '&';
-				}
-				
 				var colValue = column[i].trim();
 				
 				// 작은따옴표로 감싼 값은 상수값으로 처리
 				if (colValue.startsWith("'") && colValue.endsWith("'") && colValue.length > 1) {
 					// 작은따옴표 제거하고 상수값으로 사용
-					str += colValue.substring(1, colValue.length - 1);
+					paramValues.push(colValue.substring(1, colValue.length - 1));
 				} else if(colValue == 0){
-					str += "";
+					paramValues.push("");
 				} else {
 					// 숫자인 경우 컬럼 인덱스로 처리
-					str += $(".Resultrow.success").children('div').eq(colValue).text().trim();
+					paramValues.push($(".Resultrow.success").children('div').eq(colValue).text().trim());
 				}
 			}
 		}else{
 			// 단축키로 전달된 파라미터 처리 개선
 			for (var i = 0; i < column.length; i++) {
-				if (i > 0) {
-					str += '&';
-				}
-				
 				var colValue = column[i].trim();
 				
 				// 작은따옴표로 감싼 값은 상수값으로 처리
 				if (colValue.startsWith("'") && colValue.endsWith("'") && colValue.length > 1) {
 					// 작은따옴표 제거하고 상수값으로 사용
-					str += colValue.substring(1, colValue.length - 1);
+					paramValues.push(colValue.substring(1, colValue.length - 1));
 				} else {
 					// 작은따옴표로 감싸지 않은 값은 그대로 사용 (이미 처리된 값)
-					str += colValue;
+					paramValues.push(colValue);
 				}
 			}
 		}
-
-		$("#sendvalue").val(str);
 
 		if (value.includes("FileRead")) {
 			var myForm = document.popForm;
@@ -394,10 +385,8 @@ window.enableAceHeightResize = function(editorHostDiv, editor, initialHeightPx) 
 			// POST로 전송할 데이터를 JSON 객체로 구성
 			var postData = {};
 			
-			// sendvalue는 POST 데이터로 전송
-			var sendvalue = $("#sendvalue").val();
-			if (sendvalue && sendvalue.trim() !== '') {
-				postData.sendvalue = sendvalue;
+			if (paramValues.length > 0) {
+				postData.sendvalueArray = paramValues;
 			}
 			
 			// 연결 ID는 POST 데이터로 전송

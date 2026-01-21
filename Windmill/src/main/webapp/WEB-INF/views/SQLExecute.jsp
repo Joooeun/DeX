@@ -1645,7 +1645,7 @@ var downloadEnable = ${DownloadEnable};
 														<div id="container" class="textcontainer">
 
 															<div id="line-numbers" class="container__lines"></div>
-															<textarea class="paramvalue col-xs-12 formtextarea" maxlength="${textlimit}" paramtitle="${item.PARAMETER_NAME}" rows="5" paramtype="${item.PARAMETER_TYPE}" style="padding: 0 2px;" wrap="off">${item.PARAMETER_NAME == 'memberId' ? memberId : (not empty sendvalue.split('&')[status.count-1]?sendvalue.split('&')[status.count-1]:item.DEFAULT_VALUE)}</textarea>
+															<textarea class="paramvalue col-xs-12 formtextarea" maxlength="${textlimit}" paramtitle="${item.PARAMETER_NAME}" rows="5" paramtype="${item.PARAMETER_TYPE}" style="padding: 0 2px;" wrap="off">${item.PARAMETER_NAME == 'memberId' ? memberId : (not empty sendvalueArray[status.count-1] ? sendvalueArray[status.count-1] : item.DEFAULT_VALUE)}</textarea>
 														</div>
 														<span id="textcount">0</span> / <span>${textlimit}</span>
 													</div>
@@ -1661,7 +1661,7 @@ var downloadEnable = ${DownloadEnable};
 														</c:if>
 														<div style="margin: 2px 0">
 															<input type="${item.PARAMETER_NAME=='memberId' || item.IS_HIDDEN == true ? 'hidden' : 'text'}" class="form-control paramvalue" paramtitle="${item.PARAMETER_NAME}" paramtype="${item.PARAMETER_TYPE}"
-																value="${item.PARAMETER_NAME == 'memberId' ? memberId : (not empty sendvalue.split('&')[status.count-1]?sendvalue.split('&')[status.count-1]:item.DEFAULT_VALUE)}" style="padding: 0 2px;"
+																value="${item.PARAMETER_NAME == 'memberId' ? memberId :  (not empty sendvalueArray[status.count-1] ? sendvalueArray[status.count-1] : item.DEFAULT_VALUE)}" style="padding: 0 2px;"
 																<c:if test="${item.IS_REQUIRED == true}">required="required" pattern="\S(.*\S)?" title="공백은 입력할 수 없습니다."</c:if> <c:if test="${item.IS_DISABLED == true}">disabled</c:if>
 																<c:if test="${item.PARAMETER_NAME=='memberId' || item.IS_READONLY == true}">readonly</c:if>>
 														</div>
