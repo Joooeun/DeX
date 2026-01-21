@@ -3,6 +3,7 @@ package kr.Windmill.service;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.ParameterMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -975,84 +976,37 @@ public class SQLExecuteService {
 			
 			Map<String, List> result = new HashMap<>();
 			
-			// DB2 프로시저 처리 (dd 파일의 callprocedure 방식 참고)
-			String callcheckstr = "";
-			String prcdname = "";
-			List<Integer> typelst = new ArrayList<>();
+			List<Integer> outputParamIndexes = new ArrayList<>();
+			List<Integer> outputParamTypes = new ArrayList<>();
 			List<Integer> rowlength = new ArrayList<>();
 			List<Map<String, Object>> rowhead = new ArrayList<>();
-			
-			// CALL 문에서 프로시저명 추출
-			if (sql.indexOf("CALL") > -1) {
-				prcdname = sql.substring(sql.indexOf("CALL") + 5, sql.indexOf("("));
-				if (prcdname.contains(".")) {
-					prcdname = sql.substring(sql.indexOf(".") + 1, sql.indexOf("("));
-				}
-				
-				int paramcnt = StringUtils.countMatches(sql, ",") + 1;
-				
-				// DB2 프로시저 파라미터 타입 조회
-				callcheckstr = "SELECT * FROM syscat.ROUTINEPARMS WHERE routinename = '" + prcdname.toUpperCase().trim() + 
-					"' AND SPECIFICNAME = (SELECT SPECIFICNAME FROM (SELECT SPECIFICNAME, count(*) AS cnt FROM syscat.ROUTINEPARMS " +
-					"WHERE routinename = '" + prcdname.toUpperCase().trim() + "' GROUP BY SPECIFICNAME) a WHERE a.cnt = " + paramcnt + 
-					") AND ROWTYPE != 'P' ORDER BY SPECIFICNAME, ordinal";
-				
-				PreparedStatement pstmt = null;
-				ResultSet paramRs = null;
-				try {
-					pstmt = con.prepareStatement(callcheckstr);
-					paramRs = pstmt.executeQuery();
-					
-					while (paramRs.next()) {
-						String typeName = paramRs.getString("TYPENAME");
-						switch (typeName) {
-							case "VARCHAR2":
-							case "VARCHAR":
-								typelst.add(Types.VARCHAR);
-								break;
-							case "INTEGER":
-								typelst.add(Types.INTEGER);
-								break;
-							case "TIMESTAMP":
-								typelst.add(Types.TIMESTAMP);
-								break;
-							case "DATE":
-								typelst.add(Types.DATE);
-								break;
-							case "DECIMAL":
-								typelst.add(Types.DECIMAL);
-								break;
-							case "BIGINT":
-								typelst.add(Types.BIGINT);
-								break;
-							case "SMALLINT":
-								typelst.add(Types.SMALLINT);
-								break;
-							default:
-								typelst.add(Types.VARCHAR);
-								break;
-						}
-					}
-				} catch (SQLException e) {
-					logger.warn("프로시저 파라미터 정보 조회 실패: {}", e.getMessage());
-				} finally {
-					if (paramRs != null) try { paramRs.close(); } catch (Exception e) {}
-					if (pstmt != null) try { pstmt.close(); } catch (Exception e) {}
-				}
-			}
 			
 			// CallableStatement 생성
 			callStmt = con.prepareCall(sql);
 			
-			// 출력 파라미터 등록
-			for (int i = 0; i < typelst.size(); i++) {
-				callStmt.registerOutParameter(i + 1, typelst.get(i));
-				
-				Map<String, Object> head = new HashMap<>();
-				head.put("title", "OUTPUT_" + (i + 1));
-				head.put("type", typelst.get(i));
-				head.put("desc", "OUTPUT_PARAMETER");
-				rowhead.add(head);
+			// 출력 파라미터 등록 (JDBC 메타데이터 기반)
+			try {
+				ParameterMetaData paramsMeta = callStmt.getParameterMetaData();
+				if (paramsMeta != null) {
+					int paramCount = paramsMeta.getParameterCount();
+					for (int index = 1; index <= paramCount; index++) {
+						int mode = paramsMeta.getParameterMode(index);
+						if (mode == ParameterMetaData.parameterModeOut || mode == ParameterMetaData.parameterModeInOut) {
+							int paramType = paramsMeta.getParameterType(index);
+							callStmt.registerOutParameter(index, paramType);
+							outputParamIndexes.add(index);
+							outputParamTypes.add(paramType);
+							
+							Map<String, Object> head = new HashMap<>();
+							head.put("title", "OUTPUT_" + index);
+							head.put("type", paramType);
+							head.put("desc", "OUTPUT_PARAMETER");
+							rowhead.add(head);
+						}
+					}
+				}
+			} catch (SQLException e) {
+				logger.warn("프로시저 파라미터 메타데이터 처리 실패: {}", e.getMessage());
 			}
 			
 			result.put("rowhead", rowhead);
@@ -1109,41 +1063,43 @@ public class SQLExecuteService {
 				List<List<Object>> rowbody = new ArrayList<>();
 				List<Object> element = new ArrayList<>();
 				
-				if (typelst.size() > 0) {
+				if (outputParamTypes.size() > 0) {
 					// 출력 파라미터 값들 가져오기
-					for (int i = 0; i < typelst.size(); i++) {
+					for (int i = 0; i < outputParamTypes.size(); i++) {
 						try {
+							int paramIndex = outputParamIndexes.get(i);
+							int paramType = outputParamTypes.get(i);
 							Object value = null;
-							switch (typelst.get(i)) {
+							switch (paramType) {
 								case Types.INTEGER:
-									value = callStmt.getInt(i + 1);
+									value = callStmt.getInt(paramIndex);
 									break;
 								case Types.VARCHAR:
 								case Types.CHAR:
-									value = callStmt.getString(i + 1 );
+									value = callStmt.getString(paramIndex);
 									break;
 								case Types.DECIMAL:
-									value = callStmt.getBigDecimal(i + 1);
+									value = callStmt.getBigDecimal(paramIndex);
 									break;
 								case Types.BIGINT:
-									value = callStmt.getLong(i + 1 );
+									value = callStmt.getLong(paramIndex);
 									break;
 								case Types.SMALLINT:
-									value = callStmt.getShort(i + 1);
+									value = callStmt.getShort(paramIndex);
 									break;
 								default:
-									value = callStmt.getObject(i + 1 );
+									value = callStmt.getObject(paramIndex);
 									break;
 							}
 							element.add(value);
 						} catch (SQLException e) {
-							logger.warn("출력 파라미터 값 가져오기 실패: index={}, error={}", i + 1, e.getMessage());
+							logger.warn("출력 파라미터 값 가져오기 실패: index={}, error={}", outputParamIndexes.get(i), e.getMessage());
 							element.add(null);
 						}
 					}
 					
 					rowlength.add(1);
-					rowlength.add(typelst.size());
+					rowlength.add(outputParamTypes.size());
 				} else {
 					// 출력 파라미터가 없는 경우
 					Map<String, Object> head = new HashMap<>();

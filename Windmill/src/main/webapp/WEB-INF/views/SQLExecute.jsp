@@ -578,7 +578,6 @@ var downloadEnable = ${DownloadEnable};
 				}),
 				success: function(response) {
 					if (response.success) {
-						console.log('엑셀 다운로드 기록이 업데이트되었습니다.');
 					} else {
 						console.warn('엑셀 다운로드 기록 업데이트 실패:', response.error);
 					}
