@@ -108,6 +108,53 @@
                 </div>
             </div>
         </div>
+        
+        <!-- 대시보드 템플릿 설정 -->
+        <div class="row" style="margin-top: 20px;">
+            <div class="col-md-12">
+                <div class="box box-info">
+                    <div class="box-header with-border">
+                        <h3 class="box-title">
+                            <i class="fa fa-table"></i> 대시보드 템플릿 설정
+                        </h3>
+                    </div>
+                    <div class="box-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="monitoringTemplateSelect">모니터링 템플릿</label>
+                                    <select class="form-control template-select2" id="monitoringTemplateSelect" style="width: 100%;">
+                                        <option value="">템플릿을 선택하세요</option>
+                                    </select>
+                                    <small class="help-block">대시보드에 표시할 모니터링 템플릿을 선택하세요</small>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="monitoringConnectionSelect">데이터베이스 연결</label>
+                                    <select class="form-control" id="monitoringConnectionSelect">
+                                        <option value="">연결을 선택하세요</option>
+                                    </select>
+                                    <small class="help-block">템플릿을 실행할 데이터베이스 연결을 선택하세요</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row" style="margin-top: 20px;">
+                            <div class="col-md-12">
+                                <button type="button" class="btn btn-primary" onclick="saveMonitoringTemplateConfig()">
+                                    <i class="fa fa-save"></i> 템플릿 설정 저장
+                                </button>
+                                <button type="button" class="btn btn-danger" onclick="deleteMonitoringTemplateConfig()">
+                                    <i class="fa fa-trash"></i> 설정 삭제
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </section>
 </div>
     
@@ -372,6 +419,14 @@ $(document).ready(function() {
         success: function(result) {
             if (result.success) {
                 templateListCache = result.data;
+                // 모니터링 템플릿 Select2 초기화
+                initializeMonitoringTemplateSelect();
+                
+                // 데이터베이스 연결 목록 로드 (템플릿 목록 로드 후)
+                loadConnectionList(function() {
+                    // 연결 목록 로드 완료 후 기존 모니터링 템플릿 설정 로드
+                    loadExistingMonitoringTemplateConfig();
+                });
             }
         },
         error: function() {
@@ -454,5 +509,169 @@ function addChartConfigWithData(chartData, index) {
     // 차트 타입 선택
     var chartTypeSelect = row.find('.chart-type-select');
     chartTypeSelect.val(chartData.chartType || '');
+}
+
+// 모니터링 템플릿 설정 관련 함수들
+function initializeMonitoringTemplateSelect() {
+    var $select = $('#monitoringTemplateSelect');
+    
+    // Select2 초기화
+    $select.select2({
+        placeholder: '템플릿을 선택하세요',
+        allowClear: true,
+        width: '100%',
+        language: {
+            noResults: function() {
+                return "검색 결과가 없습니다.";
+            },
+            searching: function() {
+                return "검색 중...";
+            }
+        }
+    });
+    
+    // 옵션 추가
+    var options = '<option value="">템플릿을 선택하세요</option>';
+    templateListCache.forEach(function(template) {
+        options += '<option value="' + template.TEMPLATE_ID + '">' + template.TEMPLATE_NAME + '</option>';
+    });
+    $select.html(options);
+}
+
+function loadConnectionList(callback) {
+    $.ajax({
+        type: 'GET',
+        url: '/SQLTemplate/db-connections',
+        data: { templateType: 'SQL' },
+        success: function(result) {
+            if (result.success && result.data) {
+                var $select = $('#monitoringConnectionSelect');
+                var options = '<option value="">연결을 선택하세요</option>';
+                result.data.forEach(function(conn) {
+                    options += '<option value="' + conn.CONNECTION_ID + '">' + conn.CONNECTION_ID + '</option>';
+                });
+                $select.html(options);
+            }
+            if (callback && typeof callback === 'function') {
+                callback();
+            }
+        },
+        error: function() {
+            console.error('연결 목록 로드 실패');
+            if (callback && typeof callback === 'function') {
+                callback();
+            }
+        }
+    });
+}
+
+function loadExistingMonitoringTemplateConfig() {
+    $.ajax({
+        url: '/SystemConfig/getMonitoringTemplateConfig',
+        type: 'GET',
+        success: function(response) {
+            if (response.success && response.monitoringConfig) {
+                try {
+                    var config = JSON.parse(response.monitoringConfig);
+                    
+                    // 템플릿 선택
+                    if (config.templateId) {
+                        var $templateSelect = $('#monitoringTemplateSelect');
+                        // Select2가 이미 초기화되어 있는지 확인
+                        if ($templateSelect.data('select2')) {
+                            $templateSelect.val(config.templateId).trigger('change');
+                        } else {
+                            // Select2 초기화가 안 되어 있으면 잠시 후 다시 시도
+                            setTimeout(function() {
+                                $templateSelect.val(config.templateId).trigger('change');
+                            }, 100);
+                        }
+                    }
+                    
+                    // 연결 선택
+                    if (config.connectionId) {
+                        var $connectionSelect = $('#monitoringConnectionSelect');
+                        // 옵션이 로드되었는지 확인
+                        if ($connectionSelect.find('option[value="' + config.connectionId + '"]').length > 0) {
+                            $connectionSelect.val(config.connectionId);
+                        } else {
+                            // 옵션이 아직 로드되지 않았으면 잠시 후 다시 시도
+                            setTimeout(function() {
+                                $connectionSelect.val(config.connectionId);
+                            }, 200);
+                        }
+                    }
+                } catch (e) {
+                    console.error('모니터링 템플릿 설정 파싱 실패:', e);
+                }
+            }
+        },
+        error: function() {
+            console.error('모니터링 템플릿 설정 로드 실패');
+        }
+    });
+}
+
+function saveMonitoringTemplateConfig() {
+    var templateId = $('#monitoringTemplateSelect').val();
+    var connectionId = $('#monitoringConnectionSelect').val();
+    
+    if (!templateId || !connectionId) {
+        showAlert('템플릿과 연결을 모두 선택해주세요.', 'danger');
+        return;
+    }
+    
+    // 템플릿명 조회
+    var templateName = '';
+    templateListCache.forEach(function(template) {
+        if (template.TEMPLATE_ID === templateId) {
+            templateName = template.TEMPLATE_NAME;
+        }
+    });
+    
+    var config = {
+        templateId: templateId,
+        templateName: templateName,
+        connectionId: connectionId
+    };
+    
+    $.ajax({
+        url: '/SystemConfig/saveMonitoringTemplateConfig',
+        type: 'POST',
+        data: { monitoringConfig: JSON.stringify(config) },
+        success: function(response) {
+            if (response.success) {
+                showAlert('모니터링 템플릿 설정이 저장되었습니다.', 'success');
+            } else {
+                showAlert('모니터링 템플릿 설정 저장에 실패했습니다: ' + response.message, 'danger');
+            }
+        },
+        error: function() {
+            showAlert('모니터링 템플릿 설정 저장 중 오류가 발생했습니다.', 'danger');
+        }
+    });
+}
+
+function deleteMonitoringTemplateConfig() {
+    if (!confirm('모니터링 템플릿 설정을 삭제하시겠습니까?\n\n삭제 후 대시보드에서 모니터링 템플릿 영역이 표시되지 않습니다.')) {
+        return;
+    }
+    
+    $.ajax({
+        url: '/SystemConfig/deleteMonitoringTemplateConfig',
+        type: 'POST',
+        success: function(response) {
+            if (response.success) {
+                $('#monitoringTemplateSelect').val('').trigger('change');
+                $('#monitoringConnectionSelect').val('');
+                showAlert('모니터링 템플릿 설정이 삭제되었습니다.', 'success');
+            } else {
+                showAlert('모니터링 템플릿 설정 삭제에 실패했습니다: ' + response.message, 'danger');
+            }
+        },
+        error: function() {
+            showAlert('모니터링 템플릿 설정 삭제 중 오류가 발생했습니다.', 'danger');
+        }
+    });
 }
 </script>

@@ -243,4 +243,100 @@ public class SystemConfigController {
         
         return result;
     }
+    
+    /**
+     * 모니터링 템플릿 설정 저장 API
+     */
+    @RequestMapping(value = "/SystemConfig/saveMonitoringTemplateConfig", method = RequestMethod.POST)
+    @ResponseBody
+    public Map<String, Object> saveMonitoringTemplateConfig(@RequestParam String monitoringConfig, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        String memberId = (String) session.getAttribute("memberId");
+        if (memberId == null || !permissionService.isAdmin(memberId)) {
+            result.put("success", false);
+            result.put("message", "권한이 없습니다.");
+            return result;
+        }
+        
+        try {
+            // 모니터링 템플릿 설정 저장
+            systemConfigService.saveDashboardMonitoringTemplateConfig(monitoringConfig);
+            
+            // 스케줄러 갱신
+            dashboardSchedulerService.refreshSchedulers();
+            
+            result.put("success", true);
+            result.put("message", "모니터링 템플릿 설정이 저장되었습니다.");
+            logger.info("모니터링 템플릿 설정 저장 완료 - 사용자: {}", memberId);
+        } catch (Exception e) {
+            logger.error("모니터링 템플릿 설정 저장 중 오류 발생", e);
+            result.put("success", false);
+            result.put("message", "모니터링 템플릿 설정 저장 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 모니터링 템플릿 설정 조회 API
+     */
+    @RequestMapping(value = "/SystemConfig/getMonitoringTemplateConfig", method = RequestMethod.GET)
+    @ResponseBody
+    public Map<String, Object> getMonitoringTemplateConfig(HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        String memberId = (String) session.getAttribute("memberId");
+        if (memberId == null || !permissionService.isAdmin(memberId)) {
+            result.put("success", false);
+            result.put("message", "권한이 없습니다.");
+            return result;
+        }
+        
+        try {
+            String monitoringConfig = systemConfigService.getDashboardMonitoringTemplateConfig();
+            result.put("success", true);
+            result.put("monitoringConfig", monitoringConfig);
+        } catch (Exception e) {
+            logger.error("모니터링 템플릿 설정 조회 중 오류 발생", e);
+            result.put("success", false);
+            result.put("message", "모니터링 템플릿 설정 조회 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 모니터링 템플릿 설정 삭제 API
+     */
+    @RequestMapping(value = "/SystemConfig/deleteMonitoringTemplateConfig", method = RequestMethod.POST)
+    @ResponseBody
+    public Map<String, Object> deleteMonitoringTemplateConfig(HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        String memberId = (String) session.getAttribute("memberId");
+        if (memberId == null || !permissionService.isAdmin(memberId)) {
+            result.put("success", false);
+            result.put("message", "권한이 없습니다.");
+            return result;
+        }
+        
+        try {
+            // 모니터링 템플릿 설정 삭제
+            systemConfigService.deleteDashboardMonitoringTemplateConfig();
+            
+            // 스케줄러 갱신
+            dashboardSchedulerService.refreshSchedulers();
+            
+            result.put("success", true);
+            result.put("message", "모니터링 템플릿 설정이 삭제되었습니다.");
+            logger.info("모니터링 템플릿 설정 삭제 완료 - 사용자: {}", memberId);
+        } catch (Exception e) {
+            logger.error("모니터링 템플릿 설정 삭제 중 오류 발생", e);
+            result.put("success", false);
+            result.put("message", "모니터링 템플릿 설정 삭제 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return result;
+    }
 }

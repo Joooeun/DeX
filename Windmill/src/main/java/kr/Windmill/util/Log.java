@@ -505,8 +505,16 @@ public class Log {
 		}
 
 		try {
-			// LOG_ID 생성 (템플릿 ID + 타임스탬프)
-			String logId = executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli();
+			// setLogNo가 호출되면 logId가 덮어씌워지므로, 
+			// setLogNo 호출 후에 생성된 logId를 사용해야 함
+			// setLogNo에서 생성된 logId가 있으면 그것을 사용, 없으면 새로 생성
+			String logId = executeDto.getLogId();
+			
+			if (logId == null || logId.trim().isEmpty()) {
+				// logId가 없으면 템플릿 ID + 타임스탬프로 생성
+				logId = executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli();
+				executeDto.setLogId(logId);
+			}
 			
 			// EXECUTION_LOG 테이블에 PENDING 상태로 삽입
 			String sql = "INSERT INTO EXECUTION_LOG (" +
@@ -525,7 +533,7 @@ public class Log {
 				java.sql.Timestamp.from(executeDto.getStartTime())  // EXECUTION_START_TIME
 			);
 			
-			logger.debug("EXECUTION_LOG 시작 저장 완료 (Template): {} - {}", executeDto.getMemberId(), executeDto.getTemplateId());
+			logger.debug("EXECUTION_LOG 시작 저장 완료 (Template): {} - {} - logId: {}", executeDto.getMemberId(), executeDto.getTemplateId(), logId);
 			
 		} catch (Exception e) {
 			logger.error("EXECUTION_LOG 시작 저장 실패 (Template)", e);
@@ -542,8 +550,13 @@ public class Log {
 		}
 
 		try {
-			// LOG_ID 생성 (템플릿 ID + 타임스탬프)
-			String logId = executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli();
+			// executeDto에 설정된 logId 사용 (logMenuExecutionStart에서 설정된 값)
+			String logId = executeDto.getLogId();
+			
+			if (logId == null || logId.trim().isEmpty()) {
+				// logId가 없으면 템플릿 ID + 타임스탬프로 생성 (fallback)
+				logId = executeDto.getTemplateId() + "_" + executeDto.getStartTime().toEpochMilli();
+			}
 			
 			// 실행 시간 계산
 			long duration = 0;

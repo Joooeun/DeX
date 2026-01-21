@@ -148,4 +148,36 @@ public class SystemConfigService {
             logger.error("설정 존재 확인 및 생성 실패: {}", e.getMessage(), e);
         }
     }
+    
+    /**
+     * 대시보드 모니터링 템플릿 설정을 가져옵니다
+     */
+    public String getDashboardMonitoringTemplateConfig() {
+        return getConfigValue("DASHBOARD_MONITORING_TEMPLATE_CONFIG", "{}");
+    }
+    
+    /**
+     * 대시보드 모니터링 템플릿 설정을 저장합니다
+     */
+    public boolean saveDashboardMonitoringTemplateConfig(String monitoringConfig) {
+        return updateConfigValue("DASHBOARD_MONITORING_TEMPLATE_CONFIG", monitoringConfig);
+    }
+    
+    /**
+     * 대시보드 모니터링 템플릿 설정을 삭제합니다
+     */
+    public boolean deleteDashboardMonitoringTemplateConfig() {
+        try {
+            String sql = "DELETE FROM SYSTEM_CONFIG WHERE CONFIG_KEY = 'DASHBOARD_MONITORING_TEMPLATE_CONFIG'";
+            int deleted = jdbcTemplate.update(sql);
+            if (deleted > 0) {
+                refreshCache();
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            logger.error("모니터링 템플릿 설정 삭제 실패: {}", e.getMessage(), e);
+            return false;
+        }
+    }
 }

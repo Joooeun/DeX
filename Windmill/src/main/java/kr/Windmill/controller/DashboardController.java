@@ -184,81 +184,33 @@ public class DashboardController {
     }
 
     /**
-     * 최근 메뉴 실행 기록 조회 (최근 10개)
+     * 모니터링 템플릿 데이터 조회
      */
-    @RequestMapping(path = "/Dashboard/menuExecutionLog", method = RequestMethod.POST)
-    public @ResponseBody Map<String, Object> getMenuExecutionLog(HttpServletRequest request, HttpSession session) {
+    @RequestMapping(path = "/Dashboard/monitoringTemplate", method = RequestMethod.POST)
+    public @ResponseBody Map<String, Object> getMonitoringTemplateData(HttpServletRequest request, HttpSession session) {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            // 모니터링 로그 기록 (요청 시작은 제거)
-            
-            // 최근 10개 메뉴 실행 기록 조회 (템플릿 이름 포함)
-            String sql = "SELECT " +
-                "e.LOG_ID, e.USER_ID, e.TEMPLATE_ID, t.TEMPLATE_NAME, e.CONNECTION_ID, e.SQL_TYPE, " +
-                "e.EXECUTION_STATUS, e.DURATION, e.AFFECTED_ROWS, e.ERROR_MESSAGE, " +
-                "e.EXECUTION_START_TIME, e.EXECUTION_END_TIME " +
-                "FROM EXECUTION_LOG e " +
-                "LEFT JOIN SQL_TEMPLATE t ON e.TEMPLATE_ID = t.TEMPLATE_ID " +
-                "ORDER BY e.EXECUTION_START_TIME DESC " +
-                "FETCH FIRST 10 ROWS ONLY";
-            
-            List<Map<String, Object>> executionLogs = jdbcTemplate.queryForList(sql);
-            
-            // 결과 포맷팅
-            List<Map<String, Object>> formattedLogs = new ArrayList<>();
-            for (Map<String, Object> log : executionLogs) {
-                Map<String, Object> formattedLog = new HashMap<>();
-                formattedLog.put("logId", log.get("LOG_ID"));
-                formattedLog.put("userId", log.get("USER_ID"));
-                formattedLog.put("templateId", log.get("TEMPLATE_ID"));
-                formattedLog.put("templateName", log.get("TEMPLATE_NAME"));
-                formattedLog.put("connectionId", log.get("CONNECTION_ID"));
-                formattedLog.put("sqlType", log.get("SQL_TYPE"));
-                formattedLog.put("executionStatus", log.get("EXECUTION_STATUS"));
-                formattedLog.put("duration", log.get("DURATION"));
-                formattedLog.put("affectedRows", log.get("AFFECTED_ROWS"));
-                formattedLog.put("errorMessage", log.get("ERROR_MESSAGE"));
-                formattedLog.put("executionStartTime", log.get("EXECUTION_START_TIME"));
-                formattedLog.put("executionEndTime", log.get("EXECUTION_END_TIME"));
-                
-                // 실행 상태에 따른 색상 설정
-                String status = (String) log.get("EXECUTION_STATUS");
-                String statusColor = "#666";
-                if ("SUCCESS".equals(status)) {
-                    statusColor = "#28a745";
-                } else if ("FAIL".equals(status)) {
-                    statusColor = "#dc3545";
-                } else if ("PENDING".equals(status)) {
-                    statusColor = "#ffc107";
-                }
-                formattedLog.put("statusColor", statusColor);
-                
-                // 실행 시간 포맷팅
-                Integer duration = (Integer) log.get("DURATION");
-                if (duration != null) {
-                    if (duration < 1000) {
-                        formattedLog.put("durationText", duration + "ms");
-                    } else {
-                        formattedLog.put("durationText", String.format("%.1fs", duration / 1000.0));
-                    }
-                } else {
-                    formattedLog.put("durationText", "-");
-                }
-                
-                formattedLogs.add(formattedLog);
+            // 모니터링 템플릿 설정 확인
+            String monitoringConfig = systemConfigService.getDashboardMonitoringTemplateConfig();
+            if (monitoringConfig == null || monitoringConfig.trim().isEmpty() || monitoringConfig.equals("{}")) {
+                result.put("success", true);
+                result.put("data", null);
+                result.put("hasConfig", false);
+                return result;
             }
             
-            result.put("success", true);
-            result.put("data", formattedLogs);
-            result.put("count", formattedLogs.size());
+            // 캐시된 모니터링 템플릿 데이터 조회
+            Object monitoringData = dashboardSchedulerService.getMonitoringTemplateData();
             
-            // 조회 완료 로그 제거 (단순 정보성)
+            result.put("success", true);
+            result.put("data", monitoringData);
+            result.put("hasConfig", true);
             
         } catch (Exception e) {
-            cLog.monitoringLog("DASHBOARD_ERROR", "메뉴 실행 기록 조회 실패: " + e.getMessage());
+            cLog.monitoringLog("DASHBOARD_ERROR", "모니터링 템플릿 데이터 조회 실패: " + e.getMessage());
             result.put("success", false);
-            result.put("error", "메뉴 실행 기록 조회 중 오류가 발생했습니다: " + e.getMessage());
+            result.put("error", "모니터링 템플릿 데이터 조회 중 오류가 발생했습니다: " + e.getMessage());
         }
         
         return result;

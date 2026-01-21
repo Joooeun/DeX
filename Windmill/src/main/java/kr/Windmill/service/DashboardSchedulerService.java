@@ -94,31 +94,62 @@ public class DashboardSchedulerService {
      */
     private void initializeDynamicSchedulers() {
         try {
+            // 차트 스케줄러 초기화
             String chartConfig = systemConfigService.getDashboardChartConfig();
-            if (chartConfig == null || chartConfig.trim().isEmpty() || chartConfig.equals("{}")) {
-                System.out.println("차트 설정이 없습니다. 스케줄러를 시작하지 않습니다.");
+            if (chartConfig != null && !chartConfig.trim().isEmpty() && !chartConfig.equals("{}")) {
+                ObjectMapper mapper = new ObjectMapper();
+                @SuppressWarnings("unchecked")
+                Map<String, Object> config = mapper.readValue(chartConfig, Map.class);
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> charts = (List<Map<String, Object>>) config.get("charts");
+                
+                if (charts != null) {
+                    for (Map<String, Object> chart : charts) {
+                        String chartId = (String) chart.get("id");
+                        String templateId = (String) chart.get("templateId");
+                        
+                        // 템플릿 정보에서 REFRESH_TIMEOUT 조회
+                        int refreshTimeout = getTemplateRefreshTimeout(templateId);
+                        
+                        startScheduler(chartId, refreshTimeout);
+                    }
+                }
+            }
+            
+            // 모니터링 템플릿 스케줄러 초기화
+            initializeMonitoringTemplateScheduler();
+        } catch (Exception e) {
+            System.err.println("동적 스케줄러 초기화 실패: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 모니터링 템플릿 스케줄러 초기화
+     */
+    private void initializeMonitoringTemplateScheduler() {
+        try {
+            String monitoringConfig = systemConfigService.getDashboardMonitoringTemplateConfig();
+            if (monitoringConfig == null || monitoringConfig.trim().isEmpty() || monitoringConfig.equals("{}")) {
                 return;
             }
             
             ObjectMapper mapper = new ObjectMapper();
             @SuppressWarnings("unchecked")
-            Map<String, Object> config = mapper.readValue(chartConfig, Map.class);
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> charts = (List<Map<String, Object>>) config.get("charts");
+            Map<String, Object> config = mapper.readValue(monitoringConfig, Map.class);
             
-            if (charts != null) {
-                for (Map<String, Object> chart : charts) {
-                    String chartId = (String) chart.get("id");
-                    String templateId = (String) chart.get("templateId");
-                    
-                    // 템플릿 정보에서 REFRESH_TIMEOUT 조회
-                    int refreshTimeout = getTemplateRefreshTimeout(templateId);
-                    
-                    startScheduler(chartId, refreshTimeout);
-                }
+            String templateId = (String) config.get("templateId");
+            if (templateId == null || templateId.trim().isEmpty()) {
+                return;
             }
+            
+            // 템플릿 정보에서 REFRESH_TIMEOUT 조회
+            int refreshTimeout = getTemplateRefreshTimeout(templateId);
+            
+            // 모니터링 템플릿 스케줄러 시작
+            startMonitoringTemplateScheduler(refreshTimeout);
         } catch (Exception e) {
-            System.err.println("동적 스케줄러 초기화 실패: " + e.getMessage());
+            System.err.println("모니터링 템플릿 스케줄러 초기화 실패: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -154,6 +185,13 @@ public class DashboardSchedulerService {
         chartDataCache.clear();
         chartSuccessStatus.clear();
     }
+    
+    /**
+     * 모든 스케줄러 중지 (차트 + 모니터링 템플릿)
+     */
+    public void stopAllSchedulers() {
+        shutdownSchedulers();
+    }
 
     /**
      * 특정 차트 ID의 스케줄러 시작
@@ -169,6 +207,32 @@ public class DashboardSchedulerService {
         ScheduledFuture<?> scheduler = taskScheduler.scheduleAtFixedRate(() -> updateChartData(chartId), refreshTimeout*1000);
 
         schedulers.put(chartId, scheduler);
+    }
+    
+    /**
+     * 모니터링 템플릿 스케줄러 시작
+     * 
+     * @param refreshTimeout 새로고침 주기 (초)
+     */
+    private void startMonitoringTemplateScheduler(int refreshTimeout) {
+        // 기존 모니터링 템플릿 스케줄러가 있으면 중지
+        stopMonitoringTemplateScheduler();
+
+        // 새로운 스케줄러 시작
+        ScheduledFuture<?> scheduler = taskScheduler.scheduleAtFixedRate(() -> updateMonitoringTemplateData(), refreshTimeout*1000);
+
+        schedulers.put("monitoring_template", scheduler);
+    }
+    
+    /**
+     * 모니터링 템플릿 스케줄러 중지
+     */
+    private void stopMonitoringTemplateScheduler() {
+        ScheduledFuture<?> scheduler = schedulers.get("monitoring_template");
+        if (scheduler != null && !scheduler.isCancelled()) {
+            scheduler.cancel(false);
+            schedulers.remove("monitoring_template");
+        }
     }
 
     /**
@@ -325,6 +389,7 @@ public class DashboardSchedulerService {
             result.put("success", true);
             result.put("templateId", templateId);
             result.put("result", sqlResult.get("rowbody"));
+            result.put("rowhead", sqlResult.get("rowhead"));  // 컬럼 헤더 정보 추가
            
             return result;
             
@@ -368,6 +433,66 @@ public class DashboardSchedulerService {
     public Object getChartData(String chartId, String connectionId) {
         String cacheKey = chartId + "_" + connectionId;
         return chartDataCache.get(cacheKey);
+    }
+    
+    /**
+     * 모니터링 템플릿 데이터 업데이트
+     */
+    private void updateMonitoringTemplateData() {
+        try {
+            String monitoringConfig = systemConfigService.getDashboardMonitoringTemplateConfig();
+            if (monitoringConfig == null || monitoringConfig.trim().isEmpty() || monitoringConfig.equals("{}")) {
+                return;
+            }
+            
+            ObjectMapper mapper = new ObjectMapper();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> config = mapper.readValue(monitoringConfig, Map.class);
+            
+            String templateId = (String) config.get("templateId");
+            String connectionId = (String) config.get("connectionId");
+            
+            if (templateId == null || templateId.trim().isEmpty() || connectionId == null || connectionId.trim().isEmpty()) {
+                return;
+            }
+            
+            // 연결 상태 확인
+            List<String> onlineConnectionIds = connectionService.getOnlineConnectionIds();
+            if (!onlineConnectionIds.contains(connectionId)) {
+                // 연결이 온라인이 아니면 업데이트하지 않음
+                return;
+            }
+            
+            try {
+                // 템플릿 실행
+                Object templateData = executeTemplateByTemplateId(templateId, connectionId);
+                
+                // 캐시에 저장
+                chartDataCache.put("monitoring_template", templateData);
+                
+            } catch (Exception e) {
+                System.err.println("❌ 모니터링 템플릿 데이터 업데이트 실패: " + e.getMessage());
+                
+                // 예외 발생 시에도 에러 데이터를 캐시에 저장
+                Map<String, Object> errorResult = new HashMap<>();
+                errorResult.put("error", "모니터링 템플릿 조회 실패: " + e.getMessage());
+                errorResult.put("success", false);
+                chartDataCache.put("monitoring_template", errorResult);
+            }
+            
+        } catch (Exception e) {
+            System.err.println("❌ 모니터링 템플릿 데이터 업데이트 중 오류: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * 캐시된 모니터링 템플릿 데이터 조회
+     * 
+     * @return 모니터링 템플릿 데이터
+     */
+    public Object getMonitoringTemplateData() {
+        return chartDataCache.get("monitoring_template");
     }
 
     /**

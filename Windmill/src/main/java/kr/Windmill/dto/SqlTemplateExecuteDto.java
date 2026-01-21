@@ -175,12 +175,13 @@ public class SqlTemplateExecuteDto {
     }
     
     public void setLogNo(int logNo) {
-
-		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("YYYYMMddHHmmssSSS");
-		String strNowDate = simpleDateFormat.format(Date.from(this.startTime));
-
-		this.logId = this.memberId + "_" + this.templateName + "_" + strNowDate + "_" + logNo;
 		this.logNo = logNo;
+		
+		if (this.logId == null || this.logId.trim().isEmpty()) {
+			SimpleDateFormat simpleDateFormat = new SimpleDateFormat("YYYYMMddHHmmssSSS");
+			String strNowDate = simpleDateFormat.format(Date.from(this.startTime));
+			this.logId = this.memberId + "_" + this.templateName + "_" + strNowDate + "_" + logNo;
+		}
 	}
 
 

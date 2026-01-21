@@ -864,14 +864,14 @@ public class DynamicJdbcManager implements Closeable {
 		//properties.put("connectTimeout", "5000"); // 5초 연결 타임아웃
 		//properties.put("socketTimeout", "5000"); // 5초 소켓 타임아웃
 
-		// DB2 전용 속성
-		if ("DB2".equalsIgnoreCase(dbtype)) {
+	// DB2 전용 속성
+	if ("DB2".equalsIgnoreCase(dbtype)) {
 			//properties.put("loginTimeout", "5"); // 로그인 타임아웃 5초
 			//properties.put("blockingReadConnectionTimeout", "5"); // 읽기 타임아웃 5초
-			properties.put("blockingReadConnectionTimeoutUnit", "SECONDS");
-			// currentSchema 설정 제거 - 각 연결별로 다른 스키마를 사용할 수 있도록
-			properties.put("retrieveMessagesFromServerOnGetMessage", "false"); // 메시지 검색 비활성화
-		}
+		properties.put("blockingReadConnectionTimeoutUnit", "SECONDS");
+		// currentSchema 설정 제거 - 각 연결별로 다른 스키마를 사용할 수 있도록
+		properties.put("retrieveMessagesFromServerOnGetMessage", "false"); // 메시지 검색 비활성화
+	}
 
 		return properties;
 	}

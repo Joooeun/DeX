@@ -13,12 +13,12 @@
         // 타이머 핸들 저장용 변수 (setTimeout 기반)
         var connectionRefreshTimeout = null;
         var chartRefreshTimeout = null;
-        var menuExecutionLogTimeout = null;
+        var monitoringTemplateTimeout = null;
 
         // AJAX 요청 취소를 위한 AbortController
         var connectionStatusAbortController = null;
         var chartUpdateAbortController = null;
-        var menuExecutionLogAbortController = null;
+        var monitoringTemplateAbortController = null;
 
         // 탭(iframe) 활성 상태는 tabVisibilityManager에서 관리
 
@@ -50,6 +50,19 @@
             red: { min: 90, max: 100 }
         };
 
+        // 날짜 시간 포맷팅 함수
+        function formatDateTime(timestamp) {
+            if (!timestamp) return '-';
+            var date = new Date(timestamp);
+            var year = date.getFullYear();
+            var month = String(date.getMonth() + 1).padStart(2, '0');
+            var day = String(date.getDate()).padStart(2, '0');
+            var hours = String(date.getHours()).padStart(2, '0');
+            var minutes = String(date.getMinutes()).padStart(2, '0');
+            var seconds = String(date.getSeconds()).padStart(2, '0');
+            return year + '-' + month + '-' + day + ' ' + hours + ':' + minutes + ':' + seconds;
+        }
+
         function isDashboardRunning() {
             // tabVisibilityManager가 로드되지 않았으면 기본적으로 true 반환 (초기 로드 시)
             if (!window.tabVisibilityManager) {
@@ -72,10 +85,10 @@
             }
         }
 
-        function clearMenuLogTimeout() {
-            if (menuExecutionLogTimeout) {
-                clearTimeout(menuExecutionLogTimeout);
-                menuExecutionLogTimeout = null;
+        function clearMonitoringTemplateTimeout() {
+            if (monitoringTemplateTimeout) {
+                clearTimeout(monitoringTemplateTimeout);
+                monitoringTemplateTimeout = null;
             }
         }
 
@@ -89,9 +102,9 @@
                 chartUpdateAbortController.abort();
                 chartUpdateAbortController = null;
             }
-            if (menuExecutionLogAbortController) {
-                menuExecutionLogAbortController.abort();
-                menuExecutionLogAbortController = null;
+            if (monitoringTemplateAbortController) {
+                monitoringTemplateAbortController.abort();
+                monitoringTemplateAbortController = null;
             }
         }
 
@@ -172,7 +185,7 @@
                     startChartMonitoring();
             
             // 실행기록 모니터링 시작
-            startMenuExecutionLogMonitoring();
+            startMonitoringTemplateMonitoring();
             
             // 페이지 언로드 시 정리
             $(window).on('beforeunload', function() {
@@ -180,7 +193,7 @@
                     clearInterval(chartUpdateTimer);
                 }
                 stopConnectionMonitoring();
-                stopMenuExecutionLogMonitoring();
+                stopMonitoringTemplateMonitoring();
                 
                 // 모든 차트 인스턴스 정리
                 if (window.chartInstances) {
@@ -205,7 +218,7 @@
                         // 브라우저 탭이 숨겨지면 모든 주기적인 작업을 중단
                         clearConnectionRefreshTimeout();
                         clearChartRefreshTimeout();
-                        clearMenuLogTimeout();
+                        clearMonitoringTemplateTimeout();
                         abortPendingAjaxRequests();
                     },
                     onVisible: function(isActive) {
@@ -213,7 +226,7 @@
                         if (isActive) {
                             refreshConnectionStatus();
                             updateDynamicCharts();
-                            refreshMenuExecutionLog();
+                            refreshMonitoringTemplate();
                         }
                     },
                     onTabActivated: function(isActive) {
@@ -221,14 +234,14 @@
                         if (isActive) {
                             refreshConnectionStatus();
                             updateDynamicCharts();
-                            refreshMenuExecutionLog();
+                            refreshMonitoringTemplate();
                         }
                     },
                     onTabDeactivated: function() {
                         // iframe 탭이 비활성화되면 모든 주기적인 작업을 중단
                         clearConnectionRefreshTimeout();
                         clearChartRefreshTimeout();
-                        clearMenuLogTimeout();
+                        clearMonitoringTemplateTimeout();
                         abortPendingAjaxRequests();
                     }
                 });
@@ -1834,9 +1847,279 @@
             light.addClass(status);
         }
         
-        // 실행기록 모니터링 시작
-        function startMenuExecutionLogMonitoring() {
-            refreshMenuExecutionLog();
+        // 모니터링 템플릿 새로고침
+        function refreshMonitoringTemplate() {
+            if (!isDashboardRunning()) {
+                clearMonitoringTemplateTimeout();
+                return;
+            }
+
+            // 이전 요청이 있으면 취소
+            if (monitoringTemplateAbortController) {
+                monitoringTemplateAbortController.abort();
+            }
+            monitoringTemplateAbortController = new AbortController();
+
+            $.ajax({
+                type: 'POST',
+                url: '/Dashboard/monitoringTemplate',
+                signal: monitoringTemplateAbortController.signal,
+                success: function(result) {
+                    if (!isDashboardRunning()) {
+                        return;
+                    }
+                    // 모니터링 템플릿 설정에서 템플릿 이름 가져오기
+                    $.ajax({
+                        url: '/SystemConfig/getMonitoringTemplateConfig',
+                        type: 'GET',
+                        success: function(configResponse) {
+                            if (configResponse.success && configResponse.monitoringConfig) {
+                                try {
+                                    var config = JSON.parse(configResponse.monitoringConfig);
+                                    var templateName = config.templateName || '모니터링 템플릿';
+                                    
+                                    // box-title 업데이트
+                                    var section = $('#monitoringTemplateSection');
+                                    var boxTitle = section.find('.box-title');
+                                    boxTitle.html('<i class="fa fa-table"></i> ' + templateName);
+                                } catch (e) {
+                                    console.error('모니터링 템플릿 설정 파싱 실패:', e);
+                                }
+                            }
+                            updateMonitoringTemplateDisplay(result);
+                        },
+                        error: function() {
+                            updateMonitoringTemplateDisplay(result);
+                        }
+                    });
+                    
+                    scheduleMonitoringTemplateRefresh();
+                    monitoringTemplateAbortController = null;
+                },
+                error: function(xhr, status, error) {
+                    // AbortError는 무시 (요청이 취소된 경우)
+                    if (xhr.statusText === 'abort' || error === 'abort') {
+                        return;
+                    }
+                    console.error('모니터링 템플릿 조회 실패:', error);
+                    scheduleMonitoringTemplateRefresh();
+                    monitoringTemplateAbortController = null;
+                }
+            });
+        }
+        
+        function scheduleMonitoringTemplateRefresh() {
+            clearMonitoringTemplateTimeout();
+            if (!isDashboardRunning()) {
+                return;
+            }
+            // 5초마다 새로고침
+            monitoringTemplateTimeout = setTimeout(function() {
+                refreshMonitoringTemplate();
+            }, 5000);
+        }
+        
+        // 모니터링 템플릿 표시 업데이트
+        function updateMonitoringTemplateDisplay(result) {
+            var container = $('#monitoringTemplateContainer');
+            var section = $('#monitoringTemplateSection');
+            var boxTitle = section.find('.box-title');
+            
+            // 설정이 없으면 섹션 숨김
+            if (!result || !result.hasConfig) {
+                section.hide();
+                return;
+            }
+            
+            // 설정이 있으면 섹션 표시
+            section.show();
+            
+            // 에러 체크
+            if (!result.success || !result.data) {
+                container.html('<div class="alert alert-warning text-center">모니터링 템플릿 데이터를 불러올 수 없습니다.</div>');
+                return;
+            }
+            
+            var data = result.data;
+            
+            // 에러 결과인 경우
+            if (data.error) {
+                container.html('<div class="alert alert-danger text-center">' + data.error + '</div>');
+                return;
+            }
+            
+            // 성공 결과인 경우
+            if (data.success && data.result) {
+                var rows = data.result;
+                var rowhead = data.rowhead || [];
+                
+                if (!rows || rows.length === 0) {
+                    container.html('<div class="alert alert-info text-center">데이터가 없습니다.</div>');
+                    return;
+                }
+                
+                // 컬럼명 추출 (rowhead에서 title 추출)
+                var columns = [];
+                if (rowhead && rowhead.length > 0) {
+                    rowhead.forEach(function(head) {
+                        columns.push(head.title || '컬럼');
+                    });
+                } else {
+                    // rowhead가 없으면 첫 번째 행의 길이만큼 컬럼명 생성
+                    if (rows.length > 0 && rows[0]) {
+                        for (var i = 0; i < rows[0].length; i++) {
+                            columns.push('컬럼' + (i + 1));
+                        }
+                    }
+                }
+                
+                // 테이블 생성
+                var html = '<div class="table-responsive">' +
+                    '<table class="table table-striped table-hover" id="monitoringTemplateTable">' +
+                    '<thead><tr>';
+                
+                columns.forEach(function(col) {
+                    html += '<th>' + col + '</th>';
+                });
+                
+                html += '</tr></thead><tbody>';
+                
+                rows.forEach(function(row, rowIndex) {
+                    html += '<tr data-row-index="' + rowIndex + '" style="cursor: pointer;">';
+                    if (row) {
+                        row.forEach(function(cell) {
+                            html += '<td>' + (cell !== null && cell !== undefined ? cell : '-') + '</td>';
+                        });
+                    }
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table></div>';
+                container.html(html);
+                
+                // 행 클릭 이벤트 등록
+                $('#monitoringTemplateTable tbody tr').on('click', function() {
+                    var rowIndex = $(this).data('row-index');
+                    handleMonitoringTemplateRowClick(rowIndex, rows[rowIndex]);
+                });
+            } else {
+                container.html('<div class="alert alert-warning text-center">데이터 형식이 올바르지 않습니다.</div>');
+            }
+        }
+        
+        // 모니터링 템플릿 행 클릭 처리
+        function handleMonitoringTemplateRowClick(rowIndex, rowData) {
+            // 모니터링 템플릿 설정에서 템플릿 ID 조회
+            $.ajax({
+                url: '/SystemConfig/getMonitoringTemplateConfig',
+                type: 'GET',
+                success: function(response) {
+                    if (response.success && response.monitoringConfig) {
+                        try {
+                            var config = JSON.parse(response.monitoringConfig);
+                            var templateId = config.templateId;
+                            
+                            if (!templateId) {
+                                showToast('템플릿 정보를 찾을 수 없습니다.', 'warning');
+                                return;
+                            }
+                            
+                            // 단축키 정보 조회
+                            $.ajax({
+                                type: 'POST',
+                                url: '/SQLTemplate/shortcuts',
+                                data: {
+                                    templateId: templateId
+                                },
+                                success: function(result) {
+                                    if (result.success && result.data && result.data.length > 0) {
+                                        // 활성화된 첫 번째 단축키 찾기
+                                        var firstActiveShortcut = null;
+                                        for (var i = 0; i < result.data.length; i++) {
+                                            var shortcut = result.data[i];
+                                            if (shortcut.IS_ACTIVE === true) {
+                                                firstActiveShortcut = shortcut;
+                                                break;
+                                            }
+                                        }
+                                        
+                                        if (firstActiveShortcut) {
+                                            // 단축키 실행 - 소스 컬럼 인덱스에 따라 파라미터 생성
+                                            var sourceColumns = firstActiveShortcut.SOURCE_COLUMN_INDEXES;
+                                            var parameterString = '';
+                                            
+                                            if (sourceColumns && sourceColumns.trim() !== '') {
+                                                var columnParts = sourceColumns.split(',');
+                                                var paramValues = [];
+                                                
+                                                for (var i = 0; i < columnParts.length; i++) {
+                                                    var trimmedPart = columnParts[i].trim();
+                                                    
+                                                    if (trimmedPart === '') {
+                                                        paramValues.push('');
+                                                        continue;
+                                                    }
+                                                    
+                                                    // 작은따옴표로 감싼 값은 상수값으로 처리
+                                                    if (trimmedPart.startsWith("'") && trimmedPart.endsWith("'") && trimmedPart.length > 1) {
+                                                        paramValues.push(trimmedPart.substring(1, trimmedPart.length - 1));
+                                                    } else if (/^\d+$/.test(trimmedPart)) {
+                                                        // 숫자인 경우 컬럼 인덱스로 처리 (1-based를 0-based로 변환)
+                                                        var columnIndex = parseInt(trimmedPart) - 1;
+                                                        if (rowData && rowData[columnIndex] !== undefined) {
+                                                            paramValues.push(rowData[columnIndex]);
+                                                        } else {
+                                                            paramValues.push('');
+                                                        }
+                                                    } else {
+                                                        paramValues.push('');
+                                                    }
+                                                }
+                                                
+                                                parameterString = paramValues.join(',');
+                                            }
+                                        
+                                            // 모니터링 템플릿 설정에서 연결 ID 가져오기
+                                            var connectionId = config.connectionId;
+                                            
+                                            // SQLExecute.jsp의 sendSql 함수 호출 방식과 동일
+                                            sendSql(firstActiveShortcut.TARGET_TEMPLATE_ID + "&" + parameterString + "&" + firstActiveShortcut.AUTO_EXECUTE, connectionId);
+                                            
+                                        } else {
+                                            console.log('활성화된 단축키가 없습니다.');
+                                            showToast('활성화된 단축키가 없습니다.', 'info');
+                                        }
+                                    } else {
+                                        console.log('단축키 정보를 찾을 수 없습니다.');
+                                        showToast('단축키 정보를 찾을 수 없습니다.', 'warning');
+                                    }
+                                },
+                                error: function() {
+                                    showToast('단축키 정보 조회에 실패했습니다.', 'error');
+                                }
+                            });
+                        } catch (e) {
+                            console.error('모니터링 템플릿 설정 파싱 실패:', e);
+                            showToast('템플릿 설정을 불러올 수 없습니다.', 'error');
+                        }
+                    } else {
+                        showToast('모니터링 템플릿 설정을 찾을 수 없습니다.', 'warning');
+                    }
+                },
+                error: function() {
+                    showToast('모니터링 템플릿 설정 조회에 실패했습니다.', 'error');
+                }
+            });
+        }
+        
+        // 모니터링 템플릿 모니터링 시작
+        function startMonitoringTemplateMonitoring() {
+            refreshMonitoringTemplate();
+        }
+        
+        // 모니터링 템플릿 모니터링 중지
+        function stopMonitoringTemplateMonitoring() {
+            clearMonitoringTemplateTimeout();
         }
         
         function reload() {
@@ -1866,106 +2149,6 @@
         	}
 		}
         
-        // 실행기록 새로고침
-        function refreshMenuExecutionLog() {
-            if (!isDashboardRunning()) {
-                clearMenuLogTimeout();
-                return;
-            }
-
-            // 이전 요청이 있으면 취소
-            if (menuExecutionLogAbortController) {
-                menuExecutionLogAbortController.abort();
-            }
-            menuExecutionLogAbortController = new AbortController();
-
-            $.ajax({
-                type: 'POST',
-                url: '/Dashboard/menuExecutionLog',
-                signal: menuExecutionLogAbortController.signal,
-                success: function(result) {
-                    if (!isDashboardRunning()) {
-                        return;
-                    }
-                    updateMenuExecutionLogDisplay(result);
-                    scheduleMenuLogRefresh();
-                    menuExecutionLogAbortController = null;
-                },
-                error: function(xhr, status, error) {
-                    // AbortError는 무시 (요청이 취소된 경우)
-                    if (xhr.statusText === 'abort' || error === 'abort') {
-                        return;
-                    }
-                    console.error('실행기록 조회 실패:', error);
-                    scheduleMenuLogRefresh();
-                    menuExecutionLogAbortController = null;
-                }
-            });
-        }
-        
-        function scheduleMenuLogRefresh() {
-            clearMenuLogTimeout();
-            if (!isDashboardRunning()) {
-                return;
-            }
-            menuExecutionLogTimeout = setTimeout(function() {
-                refreshMenuExecutionLog();
-            }, 5000);
-        }
-        
-        // 실행기록 표시 업데이트
-        function updateMenuExecutionLogDisplay(result) {
-            var container = $('#menuExecutionLogContainer');
-            
-            if (!result || !result.data || result.data.length === 0) {
-                container.html('<div class="alert alert-info text-center">실행된 메뉴가 없습니다.</div>');
-                return;
-            }
-            
-            var html = '<div class="table-responsive">' +
-                '<table class="table table-striped table-hover">' +
-                '<thead>' +
-                '<tr>' +
-                '<th>실행시간</th>' +
-                '<th>사용자</th>' +
-                '<th>템플릿명</th>' +
-                '<th>연결ID</th>' +
-                '<th>SQL타입</th>' +
-                '<th>상태</th>' +
-                '<th>실행시간</th>' +
-                '<th>영향행수</th>' +
-                '</tr>' +
-                '</thead>' +
-                '<tbody>';
-            
-            result.data.forEach(function(log) {
-                html += '<tr>' +
-                    '<td>' + formatDateTime(log.executionStartTime) + '</td>' +
-                    '<td>' + (log.userId || '-') + '</td>' +
-                    '<td>' + (log.templateName || '-') + '</td>' +
-                    '<td>' + (log.connectionId || '-') + '</td>' +
-                    '<td>' + (log.sqlType || '-') + '</td>' +
-                    '<td><span style="color: ' + (log.statusColor || '#666') + ';">' + (log.executionStatus || '-') + '</span></td>' +
-                    '<td>' + (log.durationText || '-') + '</td>' +
-                    '<td>' + (log.affectedRows || '-') + '</td>' +
-                    '</tr>';
-            });
-            
-            html += '</tbody></table></div>';
-            container.html(html);
-        }
-        
-        // 실행기록 모니터링 중지
-        function stopMenuExecutionLogMonitoring() {
-            clearMenuLogTimeout();
-        }
-        
-        // 날짜시간 포맷팅
-        function formatDateTime(dateTime) {
-            if (!dateTime) return '-';
-            var date = new Date(dateTime);
-            return date.toLocaleString('ko-KR');
-        }
     </script>
         
 <div class="content-wrapper" style="margin-left: 0">
@@ -2004,23 +2187,23 @@
                 </div>
             </div>
 
-        <!-- 실행기록 섹션 -->
-        <div class="row">
-                <div class="col-md-12">
-                    <div class="box box-default">
-                        <div class="box-header with-border">
-                            <h3 class="box-title">
-                            <i class="fa fa-list"></i> 실행기록
-                            </h3>
-                        </div>
-                        <div class="box-body">
-                        <div id="menuExecutionLogContainer">
-                            <!-- 실행기록이 여기에 표시됩니다 -->
-                            </div>
+        <!-- 모니터링 템플릿 섹션 -->
+        <div class="row" id="monitoringTemplateSection" style="display: none;">
+            <div class="col-md-12">
+                <div class="box box-default">
+                    <div class="box-header with-border">
+                        <h3 class="box-title">
+                            <i class="fa fa-table"></i> 모니터링 템플릿
+                        </h3>
+                    </div>
+                    <div class="box-body">
+                        <div id="monitoringTemplateContainer">
+                            <!-- 모니터링 템플릿 데이터가 여기에 표시됩니다 -->
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
     </section>
     
     <!-- ParamForm 추가 (sendSql 방식 지원) -->

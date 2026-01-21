@@ -572,20 +572,27 @@ public class SQLExecuteService {
 	public Map<String, List> processUpdateSQL(LogInfoDto data, List<Map<String, String>> mapping, String sql) throws Exception {
 		Map<String, List> result = new HashMap<>();
 
-		List<Map<String, String>> rowhead = new ArrayList<>();
-		rowhead.add(new HashMap<String, String>() {
+		// 컬럼 헤더 생성 (SQLExecute.jsp 방식 참고)
+		List<Map<String, Object>> rowhead = new ArrayList<>();
+		rowhead.add(new HashMap<String, Object>() {
 			{
 				put("title", "Result");
+				put("type", java.sql.Types.VARCHAR);
+				put("desc", "실행 결과");
 			}
 		});
-		rowhead.add(new HashMap<String, String>() {
+		rowhead.add(new HashMap<String, Object>() {
 			{
 				put("title", "Updated Rows");
+				put("type", java.sql.Types.INTEGER);
+				put("desc", "영향받은 행 수");
 			}
 		});
-		rowhead.add(new HashMap<String, String>() {
+		rowhead.add(new HashMap<String, Object>() {
 			{
 				put("title", "Query");
+				put("type", java.sql.Types.VARCHAR);
+				put("desc", "실행된 SQL");
 			}
 		});
 		result.put("rowhead", rowhead);
@@ -862,20 +869,27 @@ public class SQLExecuteService {
 			Map<String, List> errorResult = new HashMap<>();
 
 			if (errorResult.size() == 0) {
-				List<Map<String, String>> rowhead = new ArrayList<>();
-				rowhead.add(new HashMap<String, String>() {
+				// 컬럼 헤더 생성 (SQLExecute.jsp 방식 참고)
+				List<Map<String, Object>> rowhead = new ArrayList<>();
+				rowhead.add(new HashMap<String, Object>() {
 					{
 						put("title", "Result");
+						put("type", java.sql.Types.VARCHAR);
+						put("desc", "실행 결과");
 					}
 				});
-				rowhead.add(new HashMap<String, String>() {
+				rowhead.add(new HashMap<String, Object>() {
 					{
 						put("title", "Updated Rows");
+						put("type", java.sql.Types.INTEGER);
+						put("desc", "영향받은 행 수");
 					}
 				});
-				rowhead.add(new HashMap<String, String>() {
+				rowhead.add(new HashMap<String, Object>() {
 					{
 						put("title", "Query");
+						put("type", java.sql.Types.VARCHAR);
+						put("desc", "실행된 SQL");
 					}
 				});
 				errorResult.put("rowhead", rowhead);
@@ -1306,16 +1320,22 @@ public class SQLExecuteService {
 	private Map<String, List> executeUpdate(SqlTemplateExecuteDto executeDto, String sql) throws Exception {
 		Map<String, List> result = new HashMap<>();
 		
-		// 컬럼 헤더 생성
+		// 컬럼 헤더 생성 (SQLExecute.jsp 방식 참고)
 		List<Map<String, Object>> rowhead = new ArrayList<>();
 		rowhead.add(new HashMap<String, Object>() {{
 			put("title", "Result");
+			put("type", java.sql.Types.VARCHAR);
+			put("desc", "실행 결과");
 		}});
 		rowhead.add(new HashMap<String, Object>() {{
 			put("title", "Updated Rows");
+			put("type", java.sql.Types.INTEGER);
+			put("desc", "영향받은 행 수");
 		}});
 		rowhead.add(new HashMap<String, Object>() {{
 			put("title", "Query");
+			put("type", java.sql.Types.VARCHAR);
+			put("desc", "실행된 SQL");
 		}});
 		result.put("rowhead", rowhead);
 		
