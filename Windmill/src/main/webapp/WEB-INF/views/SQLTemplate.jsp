@@ -1,8 +1,6 @@
 <%@include file="common/common.jsp" %>
 
-	<!-- Ace Editor CDN -->
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ace.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ext-language_tools.js"></script>
+	<%@include file="common/ace.jsp"%>
 
 	<!-- SQL 템플릿 전용 스타일 -->
 	<link href="/resources/css/sql-template.css" rel="stylesheet" />

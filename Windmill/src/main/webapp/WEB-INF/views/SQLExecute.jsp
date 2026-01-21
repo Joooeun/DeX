@@ -6,9 +6,7 @@
 <script type="text/javascript" src="/resources/dist/js/tabulator/xlsx.full.min.js"></script>
 </c:if>
 
-<!-- Ace Editor CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ace.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.0/ext-language_tools.js"></script>
+<%@include file="common/ace.jsp"%>
 
 <!-- 기존 SQL 실행 화면 -->
 
@@ -809,7 +807,7 @@ var downloadEnable = ${DownloadEnable};
 					limit: finalLimit
 				}),
 				success: function(result, status, jqXHR) {
-
+					
 					// 에러 응답인지 확인하여 error 쪽으로 넘기기
 					if (result.success === false) {
 						// 에러 처리 (error 함수와 동일한 로직)
