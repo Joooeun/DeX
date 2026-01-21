@@ -3,6 +3,7 @@ package kr.Windmill.service;
 import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.Struct;
 import java.sql.ParameterMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -1039,8 +1041,15 @@ public class SQLExecuteService {
 					List<Object> body = new ArrayList<>();
 					for (int index = 0; index < colcnt; index++) {
 						try {
-							Object value = rsmd.getColumnTypeName(index + 1).equals("CLOB") ? 
-								rs.getString(index + 1) : rs.getObject(index + 1);
+							int columnType = rsmd.getColumnType(index + 1);
+							Object value;
+							if (columnType == Types.CLOB) {
+								value = rs.getString(index + 1);
+							} else if (columnType == Types.ARRAY) {
+								value = normalizeJdbcValue(rs.getArray(index + 1));
+							} else {
+								value = normalizeJdbcValue(rs.getObject(index + 1));
+							}
 							body.add(value);
 							
 							if (rowlength.get(index) < (body.get(index) == null ? "" : body.get(index)).toString().length()) {
@@ -1091,7 +1100,7 @@ public class SQLExecuteService {
 									value = callStmt.getObject(paramIndex);
 									break;
 							}
-							element.add(value);
+							element.add(normalizeJdbcValue(value));
 						} catch (SQLException e) {
 							logger.warn("출력 파라미터 값 가져오기 실패: index={}, error={}", outputParamIndexes.get(i), e.getMessage());
 							element.add(null);
@@ -1213,7 +1222,7 @@ public class SQLExecuteService {
 				for (int i = 0; i < colCount; i++) {
 					try {
 						Object value;
-						switch (rsmd.getColumnType(i + 1)) {
+					switch (rsmd.getColumnType(i + 1)) {
 							case Types.SQLXML:
 								value = rs.getSQLXML(i + 1).toString();
 								break;
@@ -1224,12 +1233,15 @@ public class SQLExecuteService {
 							case Types.DECIMAL:
 								value = rs.getBigDecimal(i + 1).toString();
 								break;
+						case Types.ARRAY:
+							value = normalizeJdbcValue(rs.getArray(i + 1));
+							break;
 							case Types.CLOB:
 							case Types.TIMESTAMP:
 								value = rs.getString(i + 1);
 								break;
 							default:
-								value = rs.getObject(i + 1);
+							value = normalizeJdbcValue(rs.getObject(i + 1));
 								break;
 						}
 						
@@ -1399,6 +1411,39 @@ public class SQLExecuteService {
 			return result;
 		}
 		executeDto.setRows(totalRows);
+		return result;
+	}
+
+	private Object normalizeJdbcValue(Object value) {
+		if (value == null) {
+			return null;
+		}
+		if (value instanceof java.sql.Array) {
+			try {
+				Object arrayValue = ((java.sql.Array) value).getArray();
+				return normalizeJdbcArray(arrayValue);
+			} catch (SQLException e) {
+				return value.toString();
+			}
+		}
+		if (value instanceof Struct) {
+			return value.toString();
+		}
+		return value;
+	}
+
+	private List<Object> normalizeJdbcArray(Object arrayValue) {
+		if (arrayValue == null) {
+			return null;
+		}
+		if (arrayValue instanceof Object[]) {
+			return Arrays.asList((Object[]) arrayValue);
+		}
+		int length = java.lang.reflect.Array.getLength(arrayValue);
+		List<Object> result = new ArrayList<>(length);
+		for (int i = 0; i < length; i++) {
+			result.add(java.lang.reflect.Array.get(arrayValue, i));
+		}
 		return result;
 	}
 	
