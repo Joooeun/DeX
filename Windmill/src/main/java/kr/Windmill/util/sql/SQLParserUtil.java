@@ -125,7 +125,6 @@ public class SQLParserUtil {
             case "UPDATE":
             case "DELETE":
             case "MERGE":
-            case "TRUNCATE":
                 return true;
             default:
                 return false;
@@ -172,41 +171,65 @@ public class SQLParserUtil {
     }
     
     /**
-     * SQL에서 첫 번째 단어 추출 (기존 로직 재사용)
+     * SQL에서 첫 번째 단어 추출
      * 
      * @param sql SQL 문장
      * @return 첫 번째 단어 (대문자)
      */
-    private static String firstword(String sql) {
+    public static String firstword(String sql) {
         String[] words = removeComments(sql).trim().split("\\s+");
         return words.length > 0 ? words[0].toUpperCase() : "";
     }
     
     /**
-     * SQL 주석 제거 (기존 로직 재사용)
+     * SQL 주석 제거
      * 
      * @param sql 원본 SQL
      * @return 주석이 제거된 SQL
      */
-    private static String removeComments(String sql) {
+    public static String removeComments(String sql) {
         if (sql == null) return "";
         
-        // 블록 주석 제거 (/* ... */)
-        sql = sql.replaceAll("/\\*.*?\\*/", "");
+        // 블록 주석 제거 (/* ... */) - 줄바꿈 포함
+        sql = sql.replaceAll("(?s)/\\*.*?\\*/", " ");
         
         // 한 줄 주석 제거 (-- ...)
+        // 문자열 내부의 --는 주석이 아니므로, 따옴표 밖의 --만 처리
         String[] lines = sql.split("\n");
         StringBuilder result = new StringBuilder();
         
         for (String line : lines) {
-            int commentIndex = line.indexOf("--");
+            // 문자열 내부 체크를 위한 플래그
+            boolean inSingleQuote = false;
+            boolean inDoubleQuote = false;
+            int commentIndex = -1;
+            
+            for (int i = 0; i < line.length() - 1; i++) {
+                char c = line.charAt(i);
+                char next = line.charAt(i + 1);
+                
+                if (c == '\'' && !inDoubleQuote) {
+                    inSingleQuote = !inSingleQuote;
+                } else if (c == '"' && !inSingleQuote) {
+                    inDoubleQuote = !inDoubleQuote;
+                } else if (c == '-' && next == '-' && !inSingleQuote && !inDoubleQuote) {
+                    commentIndex = i;
+                    break;
+                }
+            }
+            
             if (commentIndex >= 0) {
                 line = line.substring(0, commentIndex);
             }
-            result.append(line).append("\n");
+            
+            // 빈 줄이 아닌 경우만 추가
+            if (line.trim().length() > 0) {
+                result.append(line).append(" ");
+            }
         }
         
-        return result.toString();
+        // 연속된 공백을 하나로 정리하고 trim
+        return result.toString().replaceAll("\\s+", " ").trim();
     }
     
     /**

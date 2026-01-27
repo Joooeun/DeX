@@ -391,11 +391,22 @@ public class Log {
 			return "UNKNOWN";
 		}
 		
-		String firstWord = sql.trim().split("\\s+")[0].toUpperCase();
+		// 주석 제거 후 첫 번째 단어 추출 (SQLExecuteService의 메서드 사용)
+		String firstWord = kr.Windmill.util.sql.SQLParserUtil.firstword(sql);
+		
+		if (firstWord == null || firstWord.isEmpty()) {
+			return "UNKNOWN";
+		}
 		
 		switch (firstWord) {
 			case "SELECT":
 			case "WITH":
+			case "VALUE":
+			case "EXPLAIN":
+			case "SHOW":
+			case "DESC":
+			case "PRAGMA":
+			case "VALUES":
 				return "SELECT";
 			case "INSERT":
 				return "INSERT";
@@ -404,7 +415,14 @@ public class Log {
 			case "DELETE":
 				return "DELETE";
 			case "CALL":
+			case "BEGIN":
+			case "DECLARE":
+			case "SET":
+			case "EXEC":
+			case "DO":
 				return "CALL";
+			case "MERGE":
+				return "UPDATE";
 			default:
 				return "OTHER";
 		}

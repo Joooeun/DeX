@@ -714,85 +714,6 @@ public class SQLExecuteService {
 		return result;
 	}
 
-	/**
-	 * SQL 타입 감지
-	 * @throws Exception 
-	 */
-	public static SqlType detectSqlType(String sql) throws Exception {
-		try {
-			// JSQLParser를 사용하여 정확한 SQL 타입 감지
-			return SQLParserUtil.detectSqlType(sql);
-		} catch (Exception e) {
-			// JSQLParser 실패 시 기존 방식으로 폴백
-			logger.debug("JSQLParser 타입 감지 실패, 기존 방식으로 폴백: {}", e.getMessage());
-			return fallbackDetectSqlType(sql);
-		}
-	}
-	
-	/**
-	 * 기존 방식으로 SQL 타입 감지 (폴백용)
-	 */
-	private static SqlType fallbackDetectSqlType(String sql) throws Exception {
-		switch (firstword(sql)) {
-		case "CALL":
-		case "BEGIN":
-		case "DECLARE":
-		case "SET":
-		case "EXEC":
-		case "DO":			
-			return SqlType.CALL;
-		case "SELECT":
-		case "WITH":
-		case "VALUE":
-		case "EXPLAIN":
-		case "SHOW":
-		case "DESC":
-		case "PRAGMA":
-		case "VALUES":
-			return SqlType.EXECUTE;
-		case "INSERT":
-		case "UPDATE":
-		case "DELETE":
-		case "MERGE":
-		case "TRUNCATE":
-			return SqlType.UPDATE;
-		default:
-			throw new Exception("지원하지 않는 SQL 타입입니다: " + firstword(sql));
-		}
-	}
-
-	/**
-	 * SQL에서 첫 번째 단어 추출
-	 */
-	public static String firstword(String sql) {
-		String[] words = removeComments(sql).trim().split("\\s+");
-		return words.length > 0 ? words[0].toUpperCase() : "";
-	}
-
-	/**
-	 * SQL 주석 제거
-	 */
-	public static String removeComments(String sql) {
-		if (sql == null) return "";
-		
-		// 블록 주석 제거 (/* ... */)
-		sql = sql.replaceAll("/\\*.*?\\*/", "");
-		
-		// 한 줄 주석 제거 (-- ...)
-		String[] lines = sql.split("\n");
-		StringBuilder result = new StringBuilder();
-		
-		for (String line : lines) {
-			// -- 이후 부분 제거
-			int commentIndex = line.indexOf("--");
-			if (commentIndex >= 0) {
-				line = line.substring(0, commentIndex);
-			}
-			result.append(line).append("\n");
-		}
-		
-		return result.toString().trim();
-	}
 
 	/**
 	 * SQL 실행 핵심 로직
@@ -833,8 +754,8 @@ public class SQLExecuteService {
 
 			executeDto.setLogNo(1);
 			
-			// SQL 타입 감지
-			SqlType sqlType = detectSqlType(sql);
+		// SQL 타입 감지
+		SqlType sqlType = SQLParserUtil.detectSqlType(sql);
 			
 			switch (sqlType) {
 				case CALL:
@@ -1363,7 +1284,7 @@ public class SQLExecuteService {
 					executeDto.setRows(updatedRows);
 					totalRows += updatedRows;
 					
-					String row = " / " + detectSqlType(executeDto.getSqlContent()) + " rows : " + updatedRows;
+				String row = " / " + SQLParserUtil.detectSqlType(executeDto.getSqlContent()) + " rows : " + updatedRows;
 					cLog.log_end(executeDto, " sql 실행 종료 : 성공" + row + " / 소요시간 : " + new DecimalFormat("###,###").format(timeElapsed.toMillis()) + "\n");
 					cLog.log_DB(executeDto);
 				}
