@@ -290,6 +290,16 @@ CREATE TABLE EXECUTION_LOG (
     CREATED_TIMESTAMP TIMESTAMP DEFAULT CURRENT TIMESTAMP
 );
 
+-- 대시보드 알람 로그 테이블
+CREATE TABLE DASHBOARD_ALARM_LOG (
+    CONNECTION_ID VARCHAR(100) NOT NULL,
+    CHART_NAME VARCHAR(200) NOT NULL,
+    COLUMN1_VALUE VARCHAR(1000),
+    COLUMN2_VALUE VARCHAR(1000),
+    COLUMN3_VALUE VARCHAR(1000),
+    CHECKED_TIMESTAMP TIMESTAMP NOT NULL
+);
+
 -- =====================================================
 -- 5. 시스템 설정 테이블
 -- =====================================================

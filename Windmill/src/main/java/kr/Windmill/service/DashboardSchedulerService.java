@@ -31,6 +31,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @DependsOn({"dataSource", "jdbcTemplate"})
 public class DashboardSchedulerService {
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(DynamicJdbcManager.class);
+    private static final String ALARM_SEVERITY_VALUE = "심각";
+    private static final String INSERT_DASHBOARD_ALARM_LOG_SQL =
+            "INSERT INTO DASHBOARD_ALARM_LOG " +
+            "(CONNECTION_ID, CHART_NAME, COLUMN1_VALUE, COLUMN2_VALUE, COLUMN3_VALUE, CHECKED_TIMESTAMP) " +
+            "VALUES (?, ?, ?, ?, ?, ?)";
 
     @Autowired
     private TaskScheduler taskScheduler;
@@ -283,6 +288,8 @@ public class DashboardSchedulerService {
                     // 해당 차트의 템플릿 실행
                     Object chartData = executeTemplateByTemplateId((String) chartInfo.get("templateId"), connectionId);
                     
+                    saveAlarmRowsIfNeeded(chartId, chartInfo, connectionId, chartData);
+                    
                     // 캐시에 저장 (성공/실패 관계없이)
                     String cacheKey = chartId + "_" + connectionId;
                     chartDataCache.put(cacheKey, chartData);
@@ -313,6 +320,71 @@ public class DashboardSchedulerService {
             System.err.println("❌ " + chartId + " 데이터 업데이트 중 오류: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    private void saveAlarmRowsIfNeeded(String chartId, Map<String, Object> chartInfo, String connectionId, Object chartData) {
+        if (!(chartData instanceof Map<?, ?>)) {
+            return;
+        }
+
+        Map<?, ?> chartDataMap = (Map<?, ?>) chartData;
+        Object result = chartDataMap.get("result");
+        if (!(result instanceof List<?>)) {
+            return;
+        }
+
+        String chartName = getChartName(chartId, chartInfo);
+        for (Object rowObject : (List<?>) result) {
+            if (!(rowObject instanceof List<?>)) {
+                continue;
+            }
+            List<?> row = (List<?>) rowObject;
+            if (row.isEmpty()) {
+                continue;
+            }
+
+            String severityValue = toStringOrNull(row.get(0));
+            if (severityValue == null || !ALARM_SEVERITY_VALUE.equals(severityValue.trim())) {
+                continue;
+            }
+
+            String column1Value = toStringOrNull(getRowValue(row, 0));
+            String column2Value = toStringOrNull(getRowValue(row, 1));
+            String column3Value = toStringOrNull(getRowValue(row, 2));
+
+            try {
+                java.sql.Timestamp checkedTimestamp = new java.sql.Timestamp(System.currentTimeMillis());
+                jdbcTemplate.update(
+                        INSERT_DASHBOARD_ALARM_LOG_SQL,
+                        connectionId,
+                        chartName,
+                        column1Value,
+                        column2Value,
+                        column3Value,
+                        checkedTimestamp
+                );
+            } catch (Exception e) {
+                logger.warn("대시보드 알람 로그 저장 실패 [{}][{}]: {}", chartId, connectionId, e.getMessage());
+            }
+        }
+    }
+
+    private Object getRowValue(List<?> row, int index) {
+        if (index < 0 || index >= row.size()) {
+            return null;
+        }
+        return row.get(index);
+    }
+
+    private String toStringOrNull(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private String getChartName(String chartId, Map<String, Object> chartInfo) {
+        if (chartInfo != null && chartInfo.get("templateName") != null) {
+            return String.valueOf(chartInfo.get("templateName"));
+        }
+        return chartId;
     }
 
     /**
