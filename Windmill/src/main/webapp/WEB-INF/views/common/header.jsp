@@ -29,22 +29,6 @@
 		var isAdmin = '${isAdmin}' === 'true';
 
 		/* ------------------------------공지사항 start------------------------------ */
-		try {
-			var checkNotice = localStorage.getItem("noticeClosed");
-			var closedDate = localStorage.getItem("noticeClosedDate");
-			var today = new Date().toDateString();
-			
-			// 오늘 날짜에 닫았는지 확인
-			if(checkNotice == 'popupEnd' && closedDate == today) {
-				$("#noticeModal").modal("hide");
-			} else {
-				$('#noticeModal').modal("show");	
-			}
-		} catch (e) {
-			// localStorage 오류 시 모달 표시
-			$('#noticeModal').modal("show");
-		}
-		
 		// 공지사항 닫기 버튼 - 이벤트 위임 사용
 		$(document).on("click", "#modal-today-close", function() {
 			$("#noticeModal").modal("hide");
@@ -149,16 +133,8 @@
 <script>
 	// 공지사항 관련 초기화
 	$(document).ready(function() {
-		// 오늘 하루 열지 않기 체크
-		var closedDate = localStorage.getItem('noticeClosedDate');
-		var today = new Date().toDateString();
-		if (closedDate !== today) {
-			// 오늘 아직 닫지 않았으면 공지사항 로드
-			window.HeaderUtils.loadNotice();
-		}
-		
-		// 오늘 하루 열지 않기 버튼 이벤트 - 이벤트 위임 사용 (위에서 이미 처리됨)
-		// 중복 제거: 위의 스크립트에서 이미 처리하므로 제거
+		// 공지사항 로드 (내부에서 localStorage 체크 수행)
+		window.HeaderUtils.loadNotice();
 	});
 	
 	// 페이지 로드 시 저장된 글꼴 복원

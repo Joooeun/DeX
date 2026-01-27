@@ -81,11 +81,27 @@
 	 * 공지사항 로드
 	 */
 	function loadNotice() {
+		// 오늘 하루 열지 않기 체크
+		try {
+			var closedDate = localStorage.getItem('noticeClosedDate');
+			var today = new Date().toDateString();
+			if (closedDate === today) {
+				// 오늘 이미 닫았으면 표시하지 않음
+				return;
+			}
+		} catch (e) {
+			// localStorage 오류 시 계속 진행
+		}
+		
 		$.ajax({
 			url: '/SystemConfig/getNotice',
 			type: 'GET',
 			success: function(response) {
-				if (response.success && response.noticeEnabled === 'true' && response.noticeContent) {
+				// noticeEnabled가 정확히 'true' 문자열이고, noticeContent가 있을 때만 표시
+				if (response.success && 
+				    response.noticeEnabled === 'true' && 
+				    response.noticeContent && 
+				    response.noticeContent.trim() !== '') {
 					showNotice(response.noticeContent);
 				}
 			},
@@ -100,6 +116,11 @@
 	 * @param {string} content - 공지사항 내용
 	 */
 	function showNotice(content) {
+		// 내용이 비어있으면 표시하지 않음
+		if (!content || content.trim() === '') {
+			return;
+		}
+		
 		$('#noticeContent').html(content.replace(/\n/g, '<br>'));
 		$('#noticeModal').modal('show');
 	}
