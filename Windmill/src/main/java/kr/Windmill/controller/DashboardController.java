@@ -20,10 +20,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import kr.Windmill.dto.SqlTemplateExecuteDto;
 import kr.Windmill.dto.connection.ConnectionStatusDto;
-import kr.Windmill.service.SQLExecuteService;
-import kr.Windmill.service.SqlTemplateService;
 import kr.Windmill.service.DashboardSchedulerService;
 import kr.Windmill.service.ConnectionService;
 import kr.Windmill.service.SystemConfigService;
@@ -33,12 +30,6 @@ import kr.Windmill.util.Log;
 public class DashboardController {
 
     private final Log cLog;
-    
-    @Autowired
-    private SQLExecuteService sqlExecuteService;
-    
-    @Autowired
-    private SqlTemplateService sqlTemplateService;
     
     @Autowired
     private DashboardSchedulerService dashboardSchedulerService;
@@ -84,6 +75,103 @@ public class DashboardController {
     }
 
     /**
+     * 차트 설정 조회 API (권한 필터링, templateName 동적 조회, hash 포함)
+     */
+    @RequestMapping(value = "/Dashboard/chart-config", method = RequestMethod.GET)
+    @ResponseBody
+    public Map<String, Object> getChartConfig(HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        try {
+            // 사용자 ID 가져오기
+            String userId = (String) session.getAttribute("memberId");
+            if (userId == null) {
+                result.put("success", false);
+                result.put("error", "로그인이 필요합니다.");
+                return result;
+            }
+            
+            // 차트 설정 조회
+            String chartConfig = systemConfigService.getDashboardChartConfig();
+            if (chartConfig == null || chartConfig.trim().isEmpty() || chartConfig.equals("{}")) {
+                result.put("success", true);
+                result.put("charts", new ArrayList<>());
+                result.put("chartConfigHash", generateHash(new HashMap<>()));
+                return result;
+            }
+            
+            ObjectMapper mapper = new ObjectMapper();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> config = mapper.readValue(chartConfig, Map.class);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> charts = (List<Map<String, Object>>) config.get("charts");
+            
+            if (charts == null || charts.isEmpty()) {
+                result.put("success", true);
+                result.put("charts", new ArrayList<>());
+                result.put("chartConfigHash", generateHash(new HashMap<>()));
+                return result;
+            }
+            
+            // templateName 조회 (카테고리 권한 체크 없음, DB 권한만 체크)
+            List<Map<String, Object>> filteredCharts = new ArrayList<>();
+            
+            for (Map<String, Object> chart : charts) {
+                String templateId = (String) chart.get("templateId");
+                if (templateId == null || templateId.trim().isEmpty()) {
+                    continue;
+                }
+                
+                // templateName 동적 조회
+                String templateName = null;
+                try {
+                    String nameSql = "SELECT TEMPLATE_NAME FROM SQL_TEMPLATE WHERE TEMPLATE_ID = ? AND STATUS = 'ACTIVE'";
+                    List<Map<String, Object>> nameRows = jdbcTemplate.queryForList(nameSql, templateId);
+                    if (!nameRows.isEmpty()) {
+                        templateName = (String) nameRows.get(0).get("TEMPLATE_NAME");
+                    }
+                } catch (Exception e) {
+                    cLog.monitoringLog("DASHBOARD_ERROR", "템플릿 이름 조회 실패 [" + templateId + "]: " + e.getMessage());
+                }
+                
+                // 차트 정보 구성 (카테고리 권한 체크 없음)
+                Map<String, Object> filteredChart = new HashMap<>();
+                filteredChart.put("templateId", templateId);
+                filteredChart.put("chartType", chart.get("chartType"));
+                filteredChart.put("order", chart.get("order"));
+                if (templateName != null) {
+                    filteredChart.put("templateName", templateName);
+                }
+                
+                filteredCharts.add(filteredChart);
+            }
+            
+            // order 기준으로 정렬
+            filteredCharts.sort((a, b) -> {
+                Integer orderA = (Integer) a.get("order");
+                Integer orderB = (Integer) b.get("order");
+                if (orderA == null) orderA = 0;
+                if (orderB == null) orderB = 0;
+                return orderA.compareTo(orderB);
+            });
+            
+            // hash 생성
+            String chartConfigHash = generateHash(filteredCharts);
+            
+            result.put("success", true);
+            result.put("charts", filteredCharts);
+            result.put("chartConfigHash", chartConfigHash);
+            
+        } catch (Exception e) {
+            cLog.monitoringLog("DASHBOARD_ERROR", "차트 설정 조회 실패: " + e.getMessage());
+            result.put("success", false);
+            result.put("error", "차트 설정 조회 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return result;
+    }
+
+    /**
      * 연결상태 + 차트정보 통합 조회 API
      */
     @RequestMapping(value = "/Dashboard/getIntegratedData", method = RequestMethod.POST)
@@ -103,35 +191,54 @@ public class DashboardController {
             // 1. 연결 상태 조회 (사용자 권한에 따라 필터링)
             List<ConnectionStatusDto> connections = connectionService.getConnectionStatusesForUser(userId);
             
-            // 2. 차트 설정 조회
+            // 2. 차트 설정 조회 (카테고리 권한 체크 없음, DB 권한만 체크)
             String chartConfig = systemConfigService.getDashboardChartConfig();
             Map<String, Object> allData = new HashMap<>();
+            List<Map<String, Object>> authorizedCharts = new ArrayList<>();
+            
+            // 사용자가 권한을 가진 연결 ID 목록 (DB 권한만 체크)
+            List<String> authorizedConnectionIds = new ArrayList<>();
+            for (ConnectionStatusDto conn : connections) {
+                authorizedConnectionIds.add(conn.getConnectionId());
+            }
             
             if (chartConfig != null && !chartConfig.trim().isEmpty() && !chartConfig.equals("{}")) {
-            ObjectMapper mapper = new ObjectMapper();
-            @SuppressWarnings("unchecked")
-            Map<String, Object> config = mapper.readValue(chartConfig, Map.class);
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> charts = (List<Map<String, Object>>) config.get("charts");
+                ObjectMapper mapper = new ObjectMapper();
+                @SuppressWarnings("unchecked")
+                Map<String, Object> config = mapper.readValue(chartConfig, Map.class);
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> charts = (List<Map<String, Object>>) config.get("charts");
                 
                 if (charts != null) {
                     for (Map<String, Object> chart : charts) {
-                        String chartId = (String) chart.get("id");
+                        String templateId = (String) chart.get("templateId");
+                        String chartType = (String) chart.get("chartType");
                         
+                        if (templateId == null || templateId.trim().isEmpty() || chartType == null || chartType.trim().isEmpty()) {
+                            continue;
+                        }
+                        
+                        // 모든 차트 추가 (카테고리 권한 체크 없음)
+                        authorizedCharts.add(chart);
+                        
+                        // 차트 키: templateId__chart_type__chartType
+                        String chartKey = templateId + "__chart_type__" + chartType;
+                        
+                        // 사용자가 권한을 가진 연결에 대해서만 차트 데이터 조회 (DB 권한만 체크)
                         for (ConnectionStatusDto conn : connections) {
                             String connectionId = conn.getConnectionId();
                             
                             // 캐시된 차트 데이터 조회
-                        Object cachedData = dashboardSchedulerService.getChartData(chartId, connectionId);
-                        if (cachedData != null) {
-                            String dataKey = connectionId + "_charts";
-                            if (!allData.containsKey(dataKey)) {
-                                allData.put(dataKey, new HashMap<String, Object>());
+                            Object cachedData = dashboardSchedulerService.getChartData(templateId, chartType, connectionId);
+                            if (cachedData != null) {
+                                String dataKey = connectionId + "_charts";
+                                if (!allData.containsKey(dataKey)) {
+                                    allData.put(dataKey, new HashMap<String, Object>());
+                                }
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> connectionCharts = (Map<String, Object>) allData.get(dataKey);
+                                connectionCharts.put(chartKey, cachedData);
                             }
-                            @SuppressWarnings("unchecked")
-                            Map<String, Object> connectionCharts = (Map<String, Object>) allData.get(dataKey);
-                            connectionCharts.put(chartId, cachedData);
-                        }
                         }
                     }
                 }
@@ -159,18 +266,9 @@ public class DashboardController {
             result.put("success", true);
             result.put("connections", connectionList);
             
-            // 차트 설정을 파싱하여 객체로 전달
-            if (chartConfig != null && !chartConfig.trim().isEmpty() && !chartConfig.equals("{}")) {
-                try {
-                    ObjectMapper mapper = new ObjectMapper();
-                    Object parsedConfig = mapper.readValue(chartConfig, Object.class);
-                    result.put("chartConfig", parsedConfig);
-                } catch (Exception e) {
-                    result.put("chartConfig", null);
-                }
-            } else {
-                result.put("chartConfig", null);
-            }
+            // 차트 설정 hash 생성 및 반환
+            String chartConfigHash = generateHash(authorizedCharts);
+            result.put("chartConfigHash", chartConfigHash);
             
             result.put("timestamp", System.currentTimeMillis());
             

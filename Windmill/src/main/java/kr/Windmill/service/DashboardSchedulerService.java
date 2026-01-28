@@ -61,7 +61,7 @@ public class DashboardSchedulerService {
     // 캐시 저장소 (실제 운영에서는 Redis 등 사용 권장)
     private final Map<String, Object> chartDataCache = new ConcurrentHashMap<>();
     
-    // 차트별 성공/실패 상태 저장 (차트ID_연결ID 형태의 키)
+    // 차트별 성공/실패 상태 저장 (templateId__chart_type__chartType_connectionId 형태의 키)
     private final Map<String, Boolean> chartSuccessStatus = new ConcurrentHashMap<>();
     
     private final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -109,14 +109,23 @@ public class DashboardSchedulerService {
                 List<Map<String, Object>> charts = (List<Map<String, Object>>) config.get("charts");
                 
                 if (charts != null) {
+                    // templateId 기준으로 그룹화하여 중복 스케줄러 방지
+                    Map<String, Integer> templateTimeouts = new HashMap<>();
+                    
                     for (Map<String, Object> chart : charts) {
-                        String chartId = (String) chart.get("id");
                         String templateId = (String) chart.get("templateId");
+                        if (templateId == null || templateId.trim().isEmpty()) {
+                            continue;
+                        }
                         
                         // 템플릿 정보에서 REFRESH_TIMEOUT 조회
                         int refreshTimeout = getTemplateRefreshTimeout(templateId);
-                        
-                        startScheduler(chartId, refreshTimeout);
+                        templateTimeouts.put(templateId, refreshTimeout);
+                    }
+                    
+                    // 각 templateId별로 스케줄러 시작 (중복 방지)
+                    for (Map.Entry<String, Integer> entry : templateTimeouts.entrySet()) {
+                        startScheduler(entry.getKey(), entry.getValue());
                     }
                 }
             }
@@ -199,19 +208,19 @@ public class DashboardSchedulerService {
     }
 
     /**
-     * 특정 차트 ID의 스케줄러 시작
+     * 특정 templateId의 스케줄러 시작
      * 
-     * @param chartId   차트 ID
+     * @param templateId   템플릿 ID
      * @param refreshTimeout 새로고침 주기 (초)
      */
-    private void startScheduler(String chartId, int refreshTimeout) {
+    private void startScheduler(String templateId, int refreshTimeout) {
         // 기존 스케줄러가 있으면 중지
-        stopScheduler(chartId);
+        stopScheduler(templateId);
 
         // 새로운 스케줄러 시작
-        ScheduledFuture<?> scheduler = taskScheduler.scheduleAtFixedRate(() -> updateChartData(chartId), refreshTimeout*1000);
+        ScheduledFuture<?> scheduler = taskScheduler.scheduleAtFixedRate(() -> updateChartData(templateId), refreshTimeout*1000);
 
-        schedulers.put(chartId, scheduler);
+        schedulers.put(templateId, scheduler);
     }
     
     /**
@@ -241,29 +250,29 @@ public class DashboardSchedulerService {
     }
 
     /**
-     * 특정 차트 ID의 스케줄러 중지
+     * 특정 templateId의 스케줄러 중지
      * 
-     * @param chartId 차트 ID
+     * @param templateId 템플릿 ID
      */
-    private void stopScheduler(String chartId) {
-        ScheduledFuture<?> scheduler = schedulers.get(chartId);
+    private void stopScheduler(String templateId) {
+        ScheduledFuture<?> scheduler = schedulers.get(templateId);
         if (scheduler != null && !scheduler.isCancelled()) {
             scheduler.cancel(false);
-            schedulers.remove(chartId);
+            schedulers.remove(templateId);
         }
     }
 
     /**
-     * 특정 차트 ID의 데이터 업데이트
+     * 특정 templateId의 데이터 업데이트 (모든 chartType에 대해)
      * 
-     * @param chartId 차트 ID
+     * @param templateId 템플릿 ID
      */
-    private void updateChartData(String chartId) {
+    private void updateChartData(String templateId) {
         try {
-            // 차트 정보 조회
-            Map<String, Object> chartInfo = getChartInfoById(chartId);
-            if (chartInfo == null) {
-                System.err.println("❌ 차트 정보를 찾을 수 없습니다: " + chartId);
+            // 해당 templateId의 모든 차트 설정 조회
+            List<Map<String, Object>> chartConfigs = getChartConfigsByTemplateId(templateId);
+            if (chartConfigs == null || chartConfigs.isEmpty()) {
+                System.err.println("❌ 차트 설정을 찾을 수 없습니다: " + templateId);
                 return;
             }
 
@@ -275,54 +284,69 @@ public class DashboardSchedulerService {
                 return;
             }
             
+            // 템플릿 실행 (한 번만 실행하여 모든 chartType에 공유)
+            Map<String, Object> templateDataByConnection = new HashMap<>();
+            
             for (String connectionId : connectionIds) {
-                String statusKey = chartId + "_" + connectionId;
+                String statusKey = templateId + "_" + connectionId;
                 
-                // 이전에 실패한 차트는 건너뛰기
+                // 이전에 실패한 경우 건너뛰기
                 if (chartSuccessStatus.containsKey(statusKey) && !chartSuccessStatus.get(statusKey)) {
-                    //System.out.println("⚠️ " + chartId + " [" + connectionId + "] 이전에 실패한 차트로 건너뜁니다.");
                     continue;
                 }
                 
                 try {
-                    // 해당 차트의 템플릿 실행
-                    Object chartData = executeTemplateByTemplateId((String) chartInfo.get("templateId"), connectionId);
-                    
-                    saveAlarmRowsIfNeeded(chartId, chartInfo, connectionId, chartData);
-                    
-                    // 캐시에 저장 (성공/실패 관계없이)
-                    String cacheKey = chartId + "_" + connectionId;
-                    chartDataCache.put(cacheKey, chartData);
+                    // 템플릿 실행
+                    Object chartData = executeTemplateByTemplateId(templateId, connectionId);
+                    templateDataByConnection.put(connectionId, chartData);
                     
                     // 에러 결과인지 확인하여 상태 저장
                     if (chartData instanceof Map && ((Map<?, ?>) chartData).containsKey("error")) {
-                        System.out.println("⚠️ " + chartId + " [" + connectionId + "] 조회 결과에 에러가 있어 상태를 실패로 저장합니다.");
                         chartSuccessStatus.put(statusKey, false);
                     } else {
-                        // 성공한 경우 상태를 성공으로 저장
                         chartSuccessStatus.put(statusKey, true);
                     }
                     
                 } catch (Exception e) {
-                    System.err.println("❌ " + chartId + " [" + connectionId + "] 데이터 업데이트 실패: " + e.getMessage());
+                    System.err.println("❌ " + templateId + " [" + connectionId + "] 데이터 업데이트 실패: " + e.getMessage());
                     
-                    // 예외 발생 시에도 에러 데이터를 캐시에 저장
-                    String cacheKey = chartId + "_" + connectionId;
                     Map<String, Object> errorResult = new HashMap<>();
                     errorResult.put("error", "차트 조회 실패: " + e.getMessage());
                     errorResult.put("success", false);
-                    chartDataCache.put(cacheKey, errorResult);
+                    templateDataByConnection.put(connectionId, errorResult);
                     chartSuccessStatus.put(statusKey, false);
                 }
             }
             
+            // 각 chartType별로 캐시에 저장
+            for (Map<String, Object> chartConfig : chartConfigs) {
+                String chartType = (String) chartConfig.get("chartType");
+                if (chartType == null || chartType.trim().isEmpty()) {
+                    continue;
+                }
+                
+                for (String connectionId : connectionIds) {
+                    Object chartData = templateDataByConnection.get(connectionId);
+                    if (chartData != null) {
+                        // 캐시 키: templateId__chart_type__chartType_connectionId
+                        String cacheKey = templateId + "__chart_type__" + chartType + "_" + connectionId;
+                        chartDataCache.put(cacheKey, chartData);
+                        
+                        // 알람 저장 (첫 번째 chartType에 대해서만)
+                        if (chartConfigs.indexOf(chartConfig) == 0) {
+                            saveAlarmRowsIfNeeded(templateId, chartConfig, connectionId, chartData);
+                        }
+                    }
+                }
+            }
+            
         } catch (Exception e) {
-            System.err.println("❌ " + chartId + " 데이터 업데이트 중 오류: " + e.getMessage());
+            System.err.println("❌ " + templateId + " 데이터 업데이트 중 오류: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    private void saveAlarmRowsIfNeeded(String chartId, Map<String, Object> chartInfo, String connectionId, Object chartData) {
+    private void saveAlarmRowsIfNeeded(String templateId, Map<String, Object> chartInfo, String connectionId, Object chartData) {
         if (!(chartData instanceof Map<?, ?>)) {
             return;
         }
@@ -333,7 +357,7 @@ public class DashboardSchedulerService {
             return;
         }
 
-        String chartName = getChartName(chartId, chartInfo);
+        String chartName = getChartName(templateId, chartInfo);
         for (Object rowObject : (List<?>) result) {
             if (!(rowObject instanceof List<?>)) {
                 continue;
@@ -364,7 +388,7 @@ public class DashboardSchedulerService {
                         checkedTimestamp
                 );
             } catch (Exception e) {
-                logger.warn("대시보드 알람 로그 저장 실패 [{}][{}]: {}", chartId, connectionId, e.getMessage());
+                logger.warn("대시보드 알람 로그 저장 실패 [{}][{}]: {}", templateId, connectionId, e.getMessage());
             }
         }
     }
@@ -380,21 +404,19 @@ public class DashboardSchedulerService {
         return value == null ? null : String.valueOf(value);
     }
 
-    private String getChartName(String chartId, Map<String, Object> chartInfo) {
-        if (chartInfo != null && chartInfo.get("templateName") != null) {
-            return String.valueOf(chartInfo.get("templateName"));
-        }
-        return chartId;
+    private String getChartName(String templateId, Map<String, Object> chartInfo) {
+        // templateName은 서버에서 동적 조회하므로 여기서는 templateId 반환
+        return templateId;
     }
 
     /**
-     * 차트 ID로 차트 정보 조회
+     * templateId로 차트 설정 목록 조회 (같은 templateId의 모든 chartType)
      * 
-     * @param chartId 차트 ID
-     * @return 차트 정보
+     * @param templateId 템플릿 ID
+     * @return 차트 설정 목록
      */
     @SuppressWarnings("unchecked")
-    private Map<String, Object> getChartInfoById(String chartId) {
+    private List<Map<String, Object>> getChartConfigsByTemplateId(String templateId) {
         try {
             String chartConfig = systemConfigService.getDashboardChartConfig();
             if (chartConfig == null || chartConfig.trim().isEmpty() || chartConfig.equals("{}")) {
@@ -408,15 +430,18 @@ public class DashboardSchedulerService {
             List<Map<String, Object>> charts = (List<Map<String, Object>>) config.get("charts");
             
             if (charts != null) {
+                List<Map<String, Object>> result = new ArrayList<>();
                 for (Map<String, Object> chart : charts) {
-                    if (chartId.equals(chart.get("id"))) {
-                        return chart;
+                    String chartTemplateId = (String) chart.get("templateId");
+                    if (templateId.equals(chartTemplateId)) {
+                        result.add(chart);
                     }
                 }
+                return result.isEmpty() ? null : result;
             }
             return null;
         } catch (Exception e) {
-            System.err.println("차트 정보 조회 실패: " + e.getMessage());
+            System.err.println("차트 설정 조회 실패: " + e.getMessage());
             return null;
         }
     }
@@ -452,7 +477,19 @@ public class DashboardSchedulerService {
             List<Boolean> successList = (List<Boolean>) sqlResult.get("success");
             if (successList != null && !successList.isEmpty() && !successList.get(0)) {
                 Map<String, Object> errorResult = new HashMap<>();
-				errorResult.put("error", ((List) sqlResult.get("rowbody").get(0)).get(0));
+                @SuppressWarnings("unchecked")
+                List<Object> rowbody = (List<Object>) sqlResult.get("rowbody");
+                if (rowbody != null && !rowbody.isEmpty() && rowbody.get(0) instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<Object> firstRow = (List<Object>) rowbody.get(0);
+                    if (!firstRow.isEmpty()) {
+                        errorResult.put("error", firstRow.get(0));
+                    } else {
+                        errorResult.put("error", "SQL 실행 실패");
+                    }
+                } else {
+                    errorResult.put("error", "SQL 실행 실패");
+                }
                 return errorResult;
             }
             
@@ -498,11 +535,35 @@ public class DashboardSchedulerService {
     /**
      * 캐시된 차트 데이터 조회
      * 
-     * @param chartId 차트 ID
+     * @param templateId 템플릿 ID
+     * @param chartType 차트 타입
      * @param connectionId 연결 ID
      * @return 차트 데이터
      */
+    public Object getChartData(String templateId, String chartType, String connectionId) {
+        String cacheKey = templateId + "__chart_type__" + chartType + "_" + connectionId;
+        return chartDataCache.get(cacheKey);
+    }
+    
+    /**
+     * 캐시된 차트 데이터 조회 (하위 호환성을 위한 오버로드)
+     * 
+     * @param chartId 차트 ID (구식, 사용 중단 예정)
+     * @param connectionId 연결 ID
+     * @return 차트 데이터
+     * @deprecated templateId와 chartType을 사용하는 메서드를 사용하세요
+     */
+    @Deprecated
     public Object getChartData(String chartId, String connectionId) {
+        // 기존 코드 호환성을 위해 chartId에서 templateId와 chartType 추출 시도
+        // chartId가 templateId__chart_type__chartType 형식인 경우
+        if (chartId.contains("__chart_type__")) {
+            String[] parts = chartId.split("__chart_type__");
+            if (parts.length == 2) {
+                return getChartData(parts[0], parts[1], connectionId);
+            }
+        }
+        // 구식 키 형식 시도
         String cacheKey = chartId + "_" + connectionId;
         return chartDataCache.get(cacheKey);
     }
@@ -609,3 +670,4 @@ public class DashboardSchedulerService {
         }
     }
 }
+

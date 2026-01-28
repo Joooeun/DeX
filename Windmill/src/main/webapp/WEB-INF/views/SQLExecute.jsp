@@ -115,10 +115,7 @@ var sql_text = "";
 // 텍스트 제한 값
 var textLimit = ${textlimit};
 
-// 실행 결과 저장 변수
-var lastExecutionData = null;
-var lastExecutionColumns = null;
-var lastExecutionTableOption = null;
+// 실행 로그 관련 변수
 var lastExecutionLogId = null;  // 마지막 실행의 로그 ID (엑셀 다운로드 추적용)
 
 // 자동 새로고침 관련 변수
@@ -508,40 +505,20 @@ var downloadEnable = ${DownloadEnable};
 		    }, 700);
 		});
 
-		// 탭 전환 시 Result 탭으로 이동할 때 저장된 데이터로 테이블 다시 그리기
+	// 탭 전환 시 Result 탭으로 이동할 때 테이블 리사이즈/리드로우
 		$('a[href="#result"]').on('shown.bs.tab', function (e) {
-			if (lastExecutionData && lastExecutionColumns && lastExecutionTableOption) {
-				// 기존 테이블 제거
-				if (table) {
-					table.destroy();
-				}
-				
-				// 저장된 데이터로 테이블 다시 생성
-				table = new Tabulator("#result_table", {
-					data: lastExecutionData,
-					...lastExecutionTableOption,
-					height: $('#expenda i').hasClass('fa-chevron-up') ? "85vh" : (tableHeight > 0 ? tableHeight + "px" : "400px"),
-				});
-				
-				// 컬럼 크기 조정 이벤트 처리
-				table.on("columnResized", function(col){
-					lastExecutionColumns = lastExecutionColumns.map((it, idx)=>{
-						if(it.title == col.getField())
-							return {...it, width:col.getWidth()}
-						else
-							return it
-					})
-				});
-				
-				// 컬럼 헤더 우클릭 복사 기능 추가
-				setTimeout(() => {
-					addColumnHeaderCopyFeature();
-				}, 100);
-				
-				// 결과 정보 표시
-				$("#result-text").text('total : ' + lastExecutionData.length + ' records, on ' + dateFormat2(ondate));
-				$("#save").css('display', 'block');
-			}
+		if (!table) {
+			return;
+		}
+
+		var targetHeight = $('#expenda i').hasClass('fa-chevron-up') ? "85vh" : (tableHeight > 0 ? tableHeight + "px" : "400px");
+		table.setHeight(targetHeight);
+		table.redraw();
+
+		// 컬럼 헤더 우클릭 복사 기능 추가
+		setTimeout(() => {
+			addColumnHeaderCopyFeature();
+		}, 100);
 		});
 
 	});
@@ -556,7 +533,7 @@ var downloadEnable = ${DownloadEnable};
 			return;
 		}
 		
-		if (!table || !lastExecutionData || !lastExecutionColumns) {
+	if (!table) {
 			alert("다운로드할 데이터가 없습니다.");
 			return;
 		}
@@ -589,7 +566,7 @@ var downloadEnable = ${DownloadEnable};
 	
 	// CSV 다운로드 이벤트 핸들러
 	$(document).on("click", "#save_csv", function() {
-		if (!table || !lastExecutionData || !lastExecutionColumns) {
+	if (!table) {
 			alert("다운로드할 데이터가 없습니다.");
 			return;
 		}
@@ -932,11 +909,6 @@ var downloadEnable = ${DownloadEnable};
 					})
 					return obj
 				})
-
-				// 실행 결과 저장
-				lastExecutionData = data;
-				lastExecutionColumns = column;
-				lastExecutionTableOption = tableoption;
 
 				// 테이블 옵션 설정
 				tableoption = {

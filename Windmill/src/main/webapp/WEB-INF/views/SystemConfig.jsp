@@ -236,7 +236,8 @@ function addChartConfig() {
         return;
     }
     
-    var chartId = 'chart_' + Date.now();
+    // 임시 ID 생성 (템플릿과 차트 타입 선택 후 실제 ID로 업데이트됨)
+    var chartId = 'temp_chart_' + Date.now();
     
     var row = $('<tr class="chart-config-item" data-chart-id="' + chartId + '">' +
         '<td style="text-align: center;">' +
@@ -358,11 +359,9 @@ function getChartConfigData() {
         
         if (templateId && chartType) {
             var chart = {
-                id: $row.data('chart-id'),
                 templateId: templateId,
                 chartType: chartType,
-                order: index + 1,
-                templateName: $row.find('.template-select2 option:selected').text()
+                order: index + 1
             };
             chartData.charts.push(chart);
         }
@@ -466,7 +465,10 @@ function loadExistingChartConfig() {
 
 // 기존 데이터로 차트 설정 추가
 function addChartConfigWithData(chartData, index) {
-    var chartId = chartData.id || 'chart_' + Date.now();
+    // 차트 ID 생성: templateId__chart_type__chartType 형식
+    var templateId = chartData.templateId || '';
+    var chartType = chartData.chartType || '';
+    var chartId = (templateId && chartType) ? (templateId + '__chart_type__' + chartType) : ('chart_' + Date.now());
     
     var row = $('<tr class="chart-config-item" data-chart-id="' + chartId + '">' +
         '<td style="text-align: center;">' +

@@ -8,6 +8,7 @@
         var chartUpdateTimer = null; // 차트 업데이트 타이머
         var cachedApiResponse = null; // API 응답 데이터 캐시
         var chartConfigData = null; // 차트 설정 데이터
+        var chartConfigHash = null; // 차트 설정 hash (변경 감지용)
         var isAdmin = ${isAdmin}; // 관리자 권한 여부
         
         // 타이머 핸들 저장용 변수 (setTimeout 기반)
@@ -178,11 +179,14 @@
         }
 
         $(document).ready(function() {
+            // 초기 차트 설정 로딩
+            loadChartConfig();
+            
             // 연결 상태 모니터링 시작
-                startConnectionMonitoring();
-                
+            startConnectionMonitoring();
+            
             // 차트 모니터링 시작 (통합 API 사용)
-                    startChartMonitoring();
+            startChartMonitoring();
             
             // 실행기록 모니터링 시작
             startMonitoringTemplateMonitoring();
@@ -667,6 +671,32 @@
             clearConnectionRefreshTimeout();
         }
         
+        // 차트 설정 초기 로딩
+        function loadChartConfig() {
+            $.ajax({
+                url: '/Dashboard/chart-config',
+                type: 'GET',
+                success: function(response) {
+                    if (response.success && response.charts) {
+                        chartConfigData = { charts: response.charts };
+                        chartConfigHash = response.chartConfigHash;
+                    } else {
+                        chartConfigData = null;
+                        chartConfigHash = null;
+                    }
+                    
+                    // 차트 설정 로딩 완료 후 차트 모니터링 시작
+                    startChartMonitoring();
+                },
+                error: function() {
+                    console.error('차트 설정 로드 실패');
+                    chartConfigData = null;
+                    chartConfigHash = null;
+                    startChartMonitoring();
+                }
+            });
+        }
+        
         // 차트 모니터링 시작
         function startChartMonitoring() {
             updateDynamicCharts();
@@ -698,11 +728,60 @@
                         // API 응답 데이터 캐시에 저장
                         cachedApiResponse = response;
                         
-                        // 차트 설정 정보 저장
-                        if (response.chartConfig) {
-                            chartConfigData = response.chartConfig;
-                        } else {
-                            chartConfigData = null;
+                        // hash 변경 감지 및 재렌더링
+                        if (response.chartConfigHash && response.chartConfigHash !== chartConfigHash) {
+                            // hash가 변경되었으면 차트 설정 다시 로드하고 전체 재렌더링
+                            chartConfigHash = response.chartConfigHash;
+                            
+                            // 차트 설정 다시 로드
+                            $.ajax({
+                                url: '/Dashboard/chart-config',
+                                type: 'GET',
+                                success: function(configResponse) {
+                                    if (configResponse.success && configResponse.charts) {
+                                        chartConfigData = { charts: configResponse.charts };
+                                        
+                                        // 모든 차트 제거 후 재생성
+                                        $('#dynamicChartsContainer').empty();
+                                        if (window.chartInstances) {
+                                            for (var chartId in window.chartInstances) {
+                                                if (window.chartInstances.hasOwnProperty(chartId)) {
+                                                    try {
+                                                        window.chartInstances[chartId].destroy();
+                                                    } catch (e) {
+                                                        console.error('차트 인스턴스 정리 중 오류:', e);
+                                                    }
+                                                    delete window.chartInstances[chartId];
+                                                }
+                                            }
+                                            window.chartInstances = {};
+                                        }
+                                        
+                                        // 차트 재생성
+                                        if (selectedConnectionId) {
+                                            var selectedConnection = response.connections.find(function(conn) {
+                                                return conn.connectionId === selectedConnectionId;
+                                            });
+                                            if (selectedConnection && selectedConnection.charts) {
+                                                createChartsFromServerData(selectedConnection.charts);
+                                            }
+                                        } else if (response.connections.length > 0) {
+                                            var connectedConnection = response.connections.find(function(conn) {
+                                                return conn.status === 'connected';
+                                            });
+                                            if (connectedConnection && connectedConnection.charts) {
+                                                selectConnection(connectedConnection.connectionId);
+                                            } else if (connectedConnection) {
+                                                selectConnection(connectedConnection.connectionId);
+                                            }
+                                        }
+                                    }
+                                },
+                                error: function() {
+                                    console.error('차트 설정 재로드 실패');
+                                }
+                            });
+                            return;
                         }
                         
                         // 모든 연결의 신호등 다시 생성
@@ -767,10 +846,8 @@
         }
         
         // 차트 데이터만 업데이트 (기존 차트 유지)
-        function updateChartData(chartId, chartType, data) {
-
-            // chartId가 이미 chart_ 접두사를 가지고 있는지 확인
-            var elementId = chartId.startsWith('chart_') ? chartId : 'chart_' + chartId;
+        function updateChartData(elementId, chartType, data) {
+            // elementId는 이미 templateId__chart_type__chartType 형식
             
             // 차트 데이터 형식 검증
             var validationResult = validateChartDataFormat(data);
@@ -789,7 +866,7 @@
                 // 에러 차트 생성
                 var chartsContainer = $('#dynamicChartsContainer');
                 var chartIndex = chartsContainer.find('.col-md-3').length;
-                var chartHtml = createErrorChartHtml(chartId, chartIndex, validationResult.message);
+                        var chartHtml = createErrorChartHtml(elementId, chartIndex, validationResult.message);
                 var $newErrorChart = $(chartHtml);
                 chartsContainer.append($newErrorChart);
                 return;
@@ -861,48 +938,59 @@
                 
                 // 정렬된 차트 목록을 순회하며 데이터가 있는 차트만 추가
                 configCharts.forEach(function(chart) {
-                    var chartId = chart.id;
-                    var data = chartsData[chartId];
+                    var templateId = chart.templateId;
+                    var chartType = chart.chartType || 'text';
+                    // 차트 키: templateId__chart_type__chartType
+                    var chartKey = templateId + '__chart_type__' + chartType;
+                    var data = chartsData[chartKey];
                     if (data) {
                         sortedCharts.push({
-                            chartId: chartId,
-                            data: data,
-                            chartType: chart.chartType || 'text'
+                            templateId: templateId,
+                            chartType: chartType,
+                            chartKey: chartKey,
+                            data: data
                         });
                     }
                 });
             } else {
-                // chartConfig가 없으면 기존 방식으로 처리
-                for (var chartId in chartsData) {
-                    var data = chartsData[chartId];
+                // chartConfig가 없으면 기존 방식으로 처리 (하위 호환성)
+                for (var chartKey in chartsData) {
+                    var data = chartsData[chartKey];
                     if (data) {
+                        // chartKey에서 templateId와 chartType 추출 시도
+                        var templateId = null;
+                        var chartType = 'text';
+                        if (chartKey.includes('__chart_type__')) {
+                            var parts = chartKey.split('__chart_type__');
+                            templateId = parts[0];
+                            chartType = parts[1] || 'text';
+                        }
                         sortedCharts.push({
-                            chartId: chartId,
-                            data: data,
-                            chartType: 'text'
+                            templateId: templateId,
+                            chartType: chartType,
+                            chartKey: chartKey,
+                            data: data
                         });
                     }
                 }
             }
             
-            // 기존 차트 요소들을 맵으로 저장 (chartId -> DOM 요소)
+            // 기존 차트 요소들을 맵으로 저장 (chartKey -> DOM 요소)
             var existingCharts = {};
             chartsContainer.find('[class*="col-md-"]').each(function() {
                 var $chartElement = $(this);
-                // 차트 ID 추출 (chart_ 접두사 고려)
-                var elementId = $chartElement.find('[id^="chart_"], [id^="error_"]').attr('id');
+                // 차트 ID 추출
+                var elementId = $chartElement.find('[id^="chart_"], [id^="error_"], [id*="__chart_type__"]').attr('id');
                 if (elementId) {
-                    var chartId;
+                    var chartKey;
                     if (elementId.startsWith('error_')) {
                         // error_ 접두사 제거
-                        chartId = elementId.substring(6); // 'error_'.length = 6
-                    } else if (elementId.startsWith('chart_')) {
-                        // chart_ 접두사는 그대로 유지 (chartId 자체가 chart_로 시작할 수 있음)
-                        chartId = elementId;
+                        chartKey = elementId.substring(6); // 'error_'.length = 6
                     } else {
-                        chartId = elementId;
+                        // elementId를 그대로 사용 (templateId__chart_type__chartType 형식)
+                        chartKey = elementId;
                     }
-                    existingCharts[chartId] = $chartElement;
+                    existingCharts[chartKey] = $chartElement;
                 }
             });
             
@@ -917,25 +1005,26 @@
             var chartElementsInOrder = []; // 순서대로 정렬된 차트 요소들
             
             sortedCharts.forEach(function(chart) {
-                var chartId = chart.chartId;
-                var data = chart.data;
+                var templateId = chart.templateId;
                 var chartType = chart.chartType;
+                var chartKey = chart.chartKey;
+                var data = chart.data;
                 
                 if (!data) return;
                 
                 hasValidCharts = true;
                 
-                // chartId가 이미 chart_ 접두사를 가지고 있는지 확인
-                var elementId = chartId.startsWith('chart_') ? chartId : 'chart_' + chartId;
+                // DOM ID 생성: templateId__chart_type__chartType 형식
+                var elementId = templateId + '__chart_type__' + chartType;
                 
                 // 기존 차트 요소 확인
-                var existingChartElement = existingCharts[chartId];
+                var existingChartElement = existingCharts[chartKey];
                 var existingChart = $('#' + elementId);
                 var existingChartType = existingChart.data('chart-type');
                 
                 // 에러 데이터 처리
                 if (data.error) {
-                    var existingErrorChart = $('#error_' + chartId);
+                    var existingErrorChart = $('#error_' + elementId);
                     
                     if (existingErrorChart.length > 0) {
                         // 기존 에러 차트가 있으면 내용만 업데이트하고 순서에 추가
@@ -978,7 +1067,7 @@
                         }
                         
                         // 새 에러 차트 생성
-                        var chartHtml = createErrorChartHtml(chartId, chartIndex, data.error, rowSizes);
+                        var chartHtml = createErrorChartHtml(elementId, chartIndex, data.error, rowSizes);
                         var $newErrorChart = $(chartHtml);
                         chartsContainer.append($newErrorChart);
                         chartElementsInOrder.push($newErrorChart);
@@ -990,7 +1079,7 @@
                 // 차트 데이터 형식 검증
                 var validationResult = validateChartDataFormat(data);
                 if (!validationResult.isValid) {
-                    var existingErrorChart = $('#error_' + chartId);
+                    var existingErrorChart = $('#error_' + elementId);
                     
                     if (existingErrorChart.length > 0) {
                         // 기존 에러 차트가 있으면 내용만 업데이트하고 순서에 추가
@@ -1033,7 +1122,7 @@
                         }
                         
                         // 새 에러 차트 생성
-                        var chartHtml = createErrorChartHtml(chartId, chartIndex, validationResult.message, rowSizes);
+                        var chartHtml = createErrorChartHtml(elementId, chartIndex, validationResult.message, rowSizes);
                         var $newErrorChart = $(chartHtml);
                         chartsContainer.append($newErrorChart);
                         chartElementsInOrder.push($newErrorChart);
@@ -1043,7 +1132,7 @@
                 }
                 
                 // 기존 오류 차트가 있는지 확인하고 제거
-                var existingErrorChart = $('#error_' + chartId);
+                var existingErrorChart = $('#error_' + elementId);
                 if (existingErrorChart.length > 0) {
                     existingErrorChart.closest('[class*="col-md-"]').remove();
                 }
@@ -1061,12 +1150,12 @@
                     }
                     
                     // 차트 HTML 생성
-                    var chartHtml = createChartHtml(chartId, chartType, chartIndex, rowSizes);
+                    var chartHtml = createChartHtml(elementId, chartType, chartIndex, rowSizes);
                     var $newChart = $(chartHtml);
                     chartsContainer.append($newChart);
                     chartElementsInOrder.push($newChart);
                     // 차트 초기화
-                    initializeChart(chartId, chartType, data);
+                    initializeChart(elementId, chartType, data);
                 } else {
                     // 기존 차트가 있고 타입이 같으면 값만 업데이트하고 순서에 추가
                     // 클래스도 업데이트 필요
@@ -1083,7 +1172,7 @@
                     var rowSize3 = rowSizes[currentRow3] || 4;
                     var newColClass3 = getChartColumnClassByRowSize(rowSize3);
                     $chartWrapper.removeClass().addClass(newColClass3);
-                    updateChartData(chartId, chartType, data);
+                    updateChartData(elementId, chartType, data);
                     chartElementsInOrder.push($chartWrapper);
                 }
                 
@@ -1102,31 +1191,27 @@
             // 더 이상 존재하지 않는 차트 제거
             chartsContainer.find('[class*="col-md-"]').each(function() {
                 var $chartElement = $(this);
-                var elementId = $chartElement.find('[id^="chart_"], [id^="error_"]').attr('id');
+                var elementId = $chartElement.find('[id^="chart_"], [id^="error_"], [id*="__chart_type__"]').attr('id');
                 if (elementId) {
-                    var chartId;
+                    var chartKey;
                     if (elementId.startsWith('error_')) {
                         // error_ 접두사 제거
-                        chartId = elementId.substring(6); // 'error_'.length = 6
-                    } else if (elementId.startsWith('chart_')) {
-                        // chart_ 접두사는 그대로 유지
-                        chartId = elementId;
+                        chartKey = elementId.substring(6); // 'error_'.length = 6
                     } else {
-                        chartId = elementId;
+                        // elementId를 그대로 사용
+                        chartKey = elementId;
                     }
                     
                     // sortedCharts에 없는 차트는 제거
                     var found = sortedCharts.some(function(chart) {
-                        return chart.chartId === chartId;
+                        return chart.chartKey === chartKey;
                     });
                     
                     if (!found) {
                         // Chart.js 인스턴스 정리
-                        if (elementId.startsWith('chart_')) {
-                            if (window.chartInstances && window.chartInstances[elementId]) {
-                                window.chartInstances[elementId].destroy();
-                                delete window.chartInstances[elementId];
-                            }
+                        if (window.chartInstances && window.chartInstances[elementId]) {
+                            window.chartInstances[elementId].destroy();
+                            delete window.chartInstances[elementId];
                         }
                         $chartElement.remove();
                     }
@@ -1148,14 +1233,21 @@
         }
         
         // 차트 설정에서 차트 타입 가져오기
-        function getChartTypeFromConfig(chartId) {
+        function getChartTypeFromConfig(elementId) {
             if (!chartConfigData || !chartConfigData.charts) {
                 return 'text'; // 기본값
             }
             
+            // elementId가 templateId__chart_type__chartType 형식인 경우 파싱
+            if (elementId.includes('__chart_type__')) {
+                var parts = elementId.split('__chart_type__');
+                return parts[1] || 'text';
+            }
+            
             for (var i = 0; i < chartConfigData.charts.length; i++) {
                 var chart = chartConfigData.charts[i];
-                if (chart.id === chartId) {
+                var templateId = elementId.includes('__chart_type__') ? elementId.split('__chart_type__')[0] : null;
+                if (templateId && chart.templateId === templateId) {
                     return chart.chartType || 'text';
                 }
             }
@@ -1216,11 +1308,8 @@
         }
 
         // 차트 HTML 생성
-        function createChartHtml(chartId, chartType, index, rowSizes) {
-            var chartTitle = getChartTitle(chartId);
-            
-            // chartId가 이미 chart_ 접두사를 가지고 있는지 확인
-            var elementId = chartId.startsWith('chart_') ? chartId : 'chart_' + chartId;
+        function createChartHtml(elementId, chartType, index, rowSizes) {
+            var chartTitle = getChartTitle(elementId);
             
             var contentElement;
             if (chartType === 'text') {
@@ -1259,8 +1348,8 @@
         }
         
         // 에러 차트 HTML 생성
-        function createErrorChartHtml(chartId, index, errorMessage, rowSizes) {
-            var chartTitle = getChartTitle(chartId) + ' (오류)';
+        function createErrorChartHtml(elementId, index, errorMessage, rowSizes) {
+            var chartTitle = getChartTitle(elementId) + ' (오류)';
             
             // 현재 차트가 속한 줄의 크기 계산
             var currentRow = 0;
@@ -1276,7 +1365,7 @@
             var colClass = getChartColumnClassByRowSize(rowSize);
             
             var html = '<div class="' + colClass + '">' +
-                '<div class="box box-danger" id="error_' + chartId + '">' +
+                '<div class="box box-danger" id="error_' + elementId + '">' +
                 '<div class="box-header with-border">' +
                 '<h3 class="box-title"><i class="fa fa-exclamation-triangle"></i> ' + chartTitle + '</h3>' +
                 '</div>' +
@@ -1292,9 +1381,9 @@
         }
         
         // 차트 초기화
-        function initializeChart(chartId, chartType, data) {
-            // chartId가 이미 chart_ 접두사를 가지고 있는지 확인
-            var canvasId = chartId.startsWith('chart_') ? chartId : 'chart_' + chartId;
+        function initializeChart(elementId, chartType, data) {
+            // elementId는 이미 templateId__chart_type__chartType 형식
+            var canvasId = elementId;
             
             // Chart.js 인스턴스를 전역으로 저장
             if (!window.chartInstances) {
@@ -1662,21 +1751,30 @@
         
         
         
-        // 차트 ID로 차트 제목 가져오기
-        function getChartTitle(chartId) {
+        // 차트 ID로 차트 제목 가져오기 (하위 호환성을 위한 중복 함수)
+        function getChartTitle(elementId) {
             if (!chartConfigData || !chartConfigData.charts) {
-                return chartId; // 설정이 없으면 차트 ID 반환
+                return elementId; // 설정이 없으면 elementId 반환
+            }
+            
+            // elementId가 templateId__chart_type__chartType 형식인 경우 파싱
+            var templateId = null;
+            var chartType = null;
+            if (elementId.includes('__chart_type__')) {
+                var parts = elementId.split('__chart_type__');
+                templateId = parts[0];
+                chartType = parts[1];
             }
             
             for (var i = 0; i < chartConfigData.charts.length; i++) {
                 var chart = chartConfigData.charts[i];
-                if (chart.id === chartId) {
+                if (chart.templateId === templateId && chart.chartType === chartType) {
                     // templateName이 있으면 사용, 없으면 templateId 사용
-                    return chart.templateName || chart.templateId || chartId;
+                    return chart.templateName || chart.templateId || elementId;
                 }
             }
             
-            return chartId; // 찾지 못하면 차트 ID 반환
+            return elementId; // 찾지 못하면 elementId 반환
         }
         
         // 동적 신호등 생성
@@ -1722,22 +1820,23 @@
                 
                 // 정렬된 차트 목록을 순회하며 데이터가 있는 차트만 추가
                 configCharts.forEach(function(chart) {
-                    var chartId = chart.id;
-                    var data = chartsData[chartId];
+                    // 새로운 키 형식: templateId__chart_type__chartType
+                    var chartKey = chart.chartKey || (chart.templateId + '__chart_type__' + chart.chartType);
+                    var data = chartsData[chartKey];
                     if (data) {
                         sortedCharts.push({
-                            chartId: chartId,
+                            chartKey: chartKey,
                             data: data
                         });
                     }
                 });
             } else {
                 // chartConfig가 없으면 기존 방식으로 처리
-                for (var chartId in chartsData) {
-                    var data = chartsData[chartId];
+                for (var chartKey in chartsData) {
+                    var data = chartsData[chartKey];
                     if (data) {
                         sortedCharts.push({
-                            chartId: chartId,
+                            chartKey: chartKey,
                             data: data
                         });
                     }
@@ -1786,24 +1885,25 @@
                         
                         // 정렬된 차트 목록을 순회하며 데이터가 있는 차트만 추가
                         configCharts.forEach(function(chart, index) {
-                            var chartId = chart.id;
                             var chartDataKey = 'chart_' + index;
                             var chartData = dbData[chartDataKey];
                             
                             if (chartData) {
+                                // 새로운 키 형식: templateId__chart_type__chartType
+                                var chartKey = chart.chartKey || (chart.templateId + '__chart_type__' + chart.chartType);
                                 sortedCharts.push({
-                                    chartId: chartId,
+                                    chartKey: chartKey,
                                     data: chartData
                                 });
                             }
                         });
                     } else {
                         // chartConfig가 없으면 기존 방식으로 처리
-                        for (var chartId in dbData) {
-                            var chartData = dbData[chartId];
+                        for (var chartKey in dbData) {
+                            var chartData = dbData[chartKey];
                             if (chartData) {
                                 sortedCharts.push({
-                                    chartId: chartId,
+                                    chartKey: chartKey,
                                     data: chartData
                                 });
                             }
@@ -2335,9 +2435,12 @@
                 actualRowIndex = 0;
             }
             
-            // 차트 설정에서 해당 차트의 템플릿 ID 찾기
+            // canvasId에서 templateId 추출 (templateId__chart_type__chartType 형식)
             var templateId = null;
-            if (chartConfigData && chartConfigData.charts) {
+            if (canvasId && canvasId.includes('__chart_type__')) {
+                templateId = canvasId.split('__chart_type__')[0];
+            } else if (chartConfigData && chartConfigData.charts) {
+                // 하위 호환성: 기존 형식인 경우
                 for (var i = 0; i < chartConfigData.charts.length; i++) {
                     var chart = chartConfigData.charts[i];
                     if (chart.id === canvasId) {
