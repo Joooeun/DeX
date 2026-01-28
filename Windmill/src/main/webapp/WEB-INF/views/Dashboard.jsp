@@ -2002,71 +2002,77 @@
             }
             monitoringTemplateAbortController = new AbortController();
 
+            // 모니터링 템플릿 설정 조회 (권한 체크를 위해 templateId 필요)
             $.ajax({
-                type: 'POST',
-                url: '/Dashboard/monitoringTemplate',
-                signal: monitoringTemplateAbortController.signal,
-                success: function(result) {
+                url: '/SystemConfig/getMonitoringTemplateConfig',
+                type: 'GET',
+                success: function(configResponse) {
                     if (!isDashboardRunning()) {
                         return;
                     }
                     
-                    // hash 변경 감지
-                    var shouldLoadConfig = false;
-                    if (result.monitoringConfigHash && result.monitoringConfigHash !== monitoringConfigHash) {
-                        // hash가 변경되었으면 설정 다시 로드
-                        monitoringConfigHash = result.monitoringConfigHash;
-                        shouldLoadConfig = true;
-                    } else if (!monitoringConfigHash && result.monitoringConfigHash) {
-                        // 초기 로딩 시 hash 설정
-                        monitoringConfigHash = result.monitoringConfigHash;
-                    }
-                    
-                    // hash가 변경되었거나 설정 데이터가 없으면 설정 로드
-                    if (shouldLoadConfig || !monitoringConfigData) {
-                        $.ajax({
-                            url: '/SystemConfig/getMonitoringTemplateConfig',
-                            type: 'GET',
-                            success: function(configResponse) {
-                                if (configResponse.success && configResponse.monitoringConfig) {
-                                    try {
-                                        monitoringConfigData = JSON.parse(configResponse.monitoringConfig);
-                                        var templateName = monitoringConfigData.templateName || '모니터링 템플릿';
-                                        
-                                        // box-title 업데이트
-                                        var section = $('#monitoringTemplateSection');
-                                        var boxTitle = section.find('.box-title');
-                                        boxTitle.html('<i class="fa fa-table"></i> ' + templateName);
-                                    } catch (e) {
-                                        console.error('모니터링 템플릿 설정 파싱 실패:', e);
-                                    }
-                                }
-                                updateMonitoringTemplateDisplay(result);
-                            },
-                            error: function() {
-                                updateMonitoringTemplateDisplay(result);
-                            }
-                        });
-                    } else {
-                        // 캐시된 설정 데이터 사용
-                        if (monitoringConfigData) {
-                            var templateName = monitoringConfigData.templateName || '모니터링 템플릿';
+                    var templateId = null;
+                    if (configResponse.success && configResponse.monitoringConfig) {
+                        try {
+                            var config = JSON.parse(configResponse.monitoringConfig);
+                            templateId = config.templateId;
+                            
+                            // 설정 데이터 캐시 업데이트
+                            monitoringConfigData = config;
+                            var templateName = config.templateName || '모니터링 템플릿';
+                            
+                            // box-title 업데이트
                             var section = $('#monitoringTemplateSection');
                             var boxTitle = section.find('.box-title');
                             boxTitle.html('<i class="fa fa-table"></i> ' + templateName);
+                        } catch (e) {
+                            console.error('모니터링 템플릿 설정 파싱 실패:', e);
                         }
-                        updateMonitoringTemplateDisplay(result);
                     }
                     
-                    scheduleMonitoringTemplateRefresh();
-                    monitoringTemplateAbortController = null;
+                    // 모니터링 템플릿 데이터 조회 (templateId와 함께 권한 체크)
+                    $.ajax({
+                        type: 'POST',
+                        url: '/Dashboard/monitoringTemplate',
+                        data: templateId ? { templateId: templateId } : {},
+                        signal: monitoringTemplateAbortController.signal,
+                        success: function(result) {
+                            if (!isDashboardRunning()) {
+                                return;
+                            }
+                            
+                            // hash 변경 감지
+                            if (result.monitoringConfigHash && result.monitoringConfigHash !== monitoringConfigHash) {
+                                monitoringConfigHash = result.monitoringConfigHash;
+                            } else if (!monitoringConfigHash && result.monitoringConfigHash) {
+                                monitoringConfigHash = result.monitoringConfigHash;
+                            }
+                            
+                            // 권한 없음 체크
+                            if (!result.success && result.error && result.error.indexOf('권한') > -1) {
+                                // 권한 없음 - 해당 템플릿 섹션 숨기기
+                                $('#monitoringTemplateSection').hide();
+                            } else {
+                                // 권한 있음 또는 기타 응답
+                                updateMonitoringTemplateDisplay(result);
+                            }
+                            
+                            scheduleMonitoringTemplateRefresh();
+                            monitoringTemplateAbortController = null;
+                        },
+                        error: function(xhr, status, error) {
+                            // AbortError는 무시 (요청이 취소된 경우)
+                            if (xhr.statusText === 'abort' || error === 'abort') {
+                                return;
+                            }
+                            console.error('모니터링 템플릿 조회 실패:', error);
+                            scheduleMonitoringTemplateRefresh();
+                            monitoringTemplateAbortController = null;
+                        }
+                    });
                 },
-                error: function(xhr, status, error) {
-                    // AbortError는 무시 (요청이 취소된 경우)
-                    if (xhr.statusText === 'abort' || error === 'abort') {
-                        return;
-                    }
-                    console.error('모니터링 템플릿 조회 실패:', error);
+                error: function() {
+                    console.error('모니터링 템플릿 설정 조회 실패');
                     scheduleMonitoringTemplateRefresh();
                     monitoringTemplateAbortController = null;
                 }

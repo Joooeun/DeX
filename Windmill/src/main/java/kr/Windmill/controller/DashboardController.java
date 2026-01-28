@@ -24,6 +24,7 @@ import kr.Windmill.dto.connection.ConnectionStatusDto;
 import kr.Windmill.service.DashboardSchedulerService;
 import kr.Windmill.service.ConnectionService;
 import kr.Windmill.service.SystemConfigService;
+import kr.Windmill.service.PermissionService;
 import kr.Windmill.util.Log;
 
 @Controller
@@ -42,6 +43,9 @@ public class DashboardController {
     
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    
+    @Autowired
+    private PermissionService permissionService;
     
     @Autowired
     public DashboardController(Log log) {
@@ -285,11 +289,24 @@ public class DashboardController {
      * 모니터링 템플릿 데이터 조회
      */
     @RequestMapping(path = "/Dashboard/monitoringTemplate", method = RequestMethod.POST)
-    public @ResponseBody Map<String, Object> getMonitoringTemplateData(HttpServletRequest request, HttpSession session) {
+    public @ResponseBody Map<String, Object> getMonitoringTemplateData(
+            @RequestParam(required = false) String templateId,
+            HttpServletRequest request, 
+            HttpSession session) {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            // 모니터링 템플릿 설정 확인
+            String userId = (String) session.getAttribute("memberId");
+            if (userId == null) {
+                result.put("success", false);
+                result.put("error", "로그인이 필요합니다.");
+                return result;
+            }
+            
+            // 관리자는 모든 권한
+            boolean isAdmin = permissionService.isAdmin(userId);
+            
+            // 모니터링 템플릿 설정 조회
             String monitoringConfig = systemConfigService.getDashboardMonitoringTemplateConfig();
             if (monitoringConfig == null || monitoringConfig.trim().isEmpty() || monitoringConfig.equals("{}")) {
                 result.put("success", true);
@@ -297,6 +314,37 @@ public class DashboardController {
                 result.put("hasConfig", false);
                 result.put("monitoringConfigHash", generateHash(new HashMap<>()));
                 return result;
+            }
+            
+            ObjectMapper mapper = new ObjectMapper();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> config = mapper.readValue(monitoringConfig, Map.class);
+            
+            // 현재는 단일 템플릿 구조
+            String configTemplateId = (String) config.get("templateId");
+            String templateName = (String) config.get("templateName");
+            
+            // 특정 템플릿 조회 요청인 경우 권한 체크
+            if (templateId != null && !templateId.trim().isEmpty()) {
+                if (!isAdmin) {
+                    String menuId = "MENU_DASHBOARD_MONITORING_" + templateId;
+                    if (!permissionService.checkMenuPermission(userId, menuId)) {
+                        result.put("success", false);
+                        result.put("error", "대시보드(템플릿 모니터링: " + (templateName != null ? templateName : templateId) + ") 권한이 필요합니다.");
+                        return result;
+                    }
+                }
+            }
+            // 전체 템플릿 조회인 경우 (현재는 단일 템플릿)
+            else if (configTemplateId != null && !configTemplateId.trim().isEmpty()) {
+                if (!isAdmin) {
+                    String menuId = "MENU_DASHBOARD_MONITORING_" + configTemplateId;
+                    if (!permissionService.checkMenuPermission(userId, menuId)) {
+                        result.put("success", false);
+                        result.put("error", "대시보드(템플릿 모니터링: " + (templateName != null ? templateName : configTemplateId) + ") 권한이 필요합니다.");
+                        return result;
+                    }
+                }
             }
             
             // 캐시된 모니터링 템플릿 데이터 조회

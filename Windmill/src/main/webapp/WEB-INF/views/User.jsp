@@ -1577,18 +1577,71 @@ function displayGroupMenuPermissions(permissions) {
     if (permissions && permissions.length > 0) {
         permissions.forEach(function(menu) {
             var isGranted = menu.HAS_PERMISSION;
-            console.log('메뉴 권한:', menu.MENU_ID, '권한:', isGranted);
-            var item = '<div class="permission-item">' +
+            var dependsOn = menu.DEPENDS_ON;
+            var menuId = menu.MENU_ID;
+            console.log('메뉴 권한:', menuId, '권한:', isGranted, '의존성:', dependsOn);
+            
+            var checkboxId = 'group_menu_' + menuId;
+            var disabledAttr = '';
+            var dataDependsOn = '';
+            var indentClass = '';
+            
+            // 의존성이 있는 경우 data 속성 추가 및 들여쓰기 클래스 추가
+            if (dependsOn) {
+                dataDependsOn = ' data-depends-on="' + dependsOn + '"';
+                // 대시보드 하위 권한인 경우 들여쓰기
+                if (dependsOn === 'MENU_DASHBOARD') {
+                    indentClass = ' menu-sub-item';
+                }
+            }
+            
+            var item = '<div class="permission-item' + indentClass + '" data-menu-id="' + menuId + '">' +
                 '<label>' +
-                '<input type="checkbox" id="group_menu_' + menu.MENU_ID + '" class="permission-checkbox"' + (isGranted ? ' checked' : '') + '>' +
-                menu.MENU_NAME+
+                '<input type="checkbox" id="' + checkboxId + '" class="permission-checkbox"' + 
+                (isGranted ? ' checked' : '') + disabledAttr + dataDependsOn + '>' +
+                menu.MENU_NAME +
                 '</label>' +
                 '<small class="text-muted">' + (menu.MENU_DESCRIPTION || '') + '</small>' +
                 '</div>';
             container.append(item);
         });
+        
+        // 의존성 설정
+        setupMenuDependencies();
     } else {
         console.log('메뉴 권한 데이터가 없습니다.');
+    }
+}
+
+// 메뉴 권한 로드 후 의존성 설정
+function setupMenuDependencies() {
+    var dashboardCheckbox = $('#group_menu_MENU_DASHBOARD');
+    // MENU_DASHBOARD_MONITORING_로 시작하는 모든 체크박스 찾기
+    var monitoringCheckboxes = $('input[id^="group_menu_MENU_DASHBOARD_MONITORING_"]');
+    
+    // 대시보드 권한 변경 시
+    dashboardCheckbox.on('change', function() {
+        if (!$(this).is(':checked')) {
+            // 대시보드 권한 해제 시 모든 모니터링 권한도 해제 및 비활성화
+            monitoringCheckboxes.prop('checked', false);
+            monitoringCheckboxes.prop('disabled', true);
+        } else {
+            // 대시보드 권한 체크 시 모든 모니터링 권한 체크박스 활성화
+            monitoringCheckboxes.prop('disabled', false);
+        }
+    });
+    
+    // 모니터링 권한 체크 시 대시보드 권한 확인
+    monitoringCheckboxes.on('change', function() {
+        if ($(this).is(':checked') && !dashboardCheckbox.is(':checked')) {
+            alert('대시보드 권한이 먼저 필요합니다.');
+            $(this).prop('checked', false);
+        }
+    });
+    
+    // 초기 상태 설정
+    if (!dashboardCheckbox.is(':checked')) {
+        monitoringCheckboxes.prop('disabled', true);
     }
 }
 
@@ -1748,6 +1801,12 @@ function openUserGroupManagement() {
         transform: translateY(0);
         opacity: 1;
     }
+}
+
+/* 대시보드 하위 권한 들여쓰기 */
+.permission-item.menu-sub-item {
+    margin-left: 20px;
+    padding-left: 10px;
 }
 </style>
 

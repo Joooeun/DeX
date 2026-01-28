@@ -14,6 +14,8 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.HashSet;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Service
 public class UserGroupService {
     
@@ -21,6 +23,9 @@ public class UserGroupService {
     
     @Autowired
     private JdbcTemplate jdbcTemplate;
+    
+    @Autowired
+    private SystemConfigService systemConfigService;
     
     // 그룹 목록 조회
     public List<Map<String, Object>> getGroupList() {
@@ -237,11 +242,55 @@ public class UserGroupService {
             // 기본 메뉴 목록 정의
             List<Map<String, Object>> allMenus = new ArrayList<>();
             
+            // 대시보드 권한 추가 (기존 MENU_DASHBOARD 유지)
             Map<String, Object> dashboard = new HashMap<>();
             dashboard.put("MENU_ID", "MENU_DASHBOARD");
             dashboard.put("MENU_NAME", "대시보드");
-            dashboard.put("MENU_DESCRIPTION", "");
+            dashboard.put("MENU_DESCRIPTION", "대시보드 조회 권한");
             allMenus.add(dashboard);
+            
+            // 모니터링 템플릿 설정 조회
+            String monitoringConfig = systemConfigService.getDashboardMonitoringTemplateConfig();
+            if (monitoringConfig != null && !monitoringConfig.trim().isEmpty() && !monitoringConfig.equals("{}")) {
+                try {
+                    ObjectMapper mapper = new ObjectMapper();
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> config = mapper.readValue(monitoringConfig, Map.class);
+                    
+                    // 현재는 단일 템플릿 구조, 향후 여러개 지원 가능하도록 처리
+                    List<Map<String, Object>> templates = new ArrayList<>();
+                    
+                    // 단일 템플릿 구조인 경우
+                    if (config.containsKey("templateId")) {
+                        templates.add(config);
+                    }
+                    // 향후 여러개 구조인 경우
+                    else if (config.containsKey("templates") && config.get("templates") instanceof List) {
+                        @SuppressWarnings("unchecked")
+                        List<Map<String, Object>> templateList = (List<Map<String, Object>>) config.get("templates");
+                        templates.addAll(templateList);
+                    }
+                    
+                    // 각 템플릿마다 권한 추가
+                    for (Map<String, Object> templateConfig : templates) {
+                        String templateId = (String) templateConfig.get("templateId");
+                        String templateName = (String) templateConfig.get("templateName");
+                        
+                        if (templateId != null && !templateId.trim().isEmpty()) {
+                            Map<String, Object> dashboardMonitoring = new HashMap<>();
+                            String menuId = "MENU_DASHBOARD_MONITORING_" + templateId;
+                            dashboardMonitoring.put("MENU_ID", menuId);
+                            dashboardMonitoring.put("MENU_NAME",  (templateName != null ? templateName : templateId));
+                            dashboardMonitoring.put("MENU_DESCRIPTION", "");
+                            dashboardMonitoring.put("DEPENDS_ON", "MENU_DASHBOARD"); // 의존성 표시
+                            dashboardMonitoring.put("TEMPLATE_ID", templateId); // 템플릿 ID 저장
+                            allMenus.add(dashboardMonitoring);
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.warn("모니터링 템플릿 설정 파싱 실패", e);
+                }
+            }
             
             Map<String, Object> fileRead = new HashMap<>();
             fileRead.put("MENU_ID", "MENU_FILE_READ");
@@ -259,11 +308,11 @@ public class UserGroupService {
             String sql = "SELECT CATEGORY_ID FROM GROUP_CATEGORY_MAPPING WHERE GROUP_ID = ? AND CATEGORY_ID LIKE 'MENU_%'";
             List<String> grantedMenus = jdbcTemplate.queryForList(sql, String.class, groupId);
             
-            // 권한 상태 설정
+            // 권한 상태 설정 (기본적으로 권한 없음)
             for (Map<String, Object> menu : allMenus) {
                 String menuId = (String) menu.get("MENU_ID");
                 boolean hasPermission = grantedMenus.contains(menuId);
-                menu.put("HAS_PERMISSION", hasPermission);
+                menu.put("HAS_PERMISSION", hasPermission); // 기본값 false, 권한이 있으면 true
             }
             
             return allMenus;
