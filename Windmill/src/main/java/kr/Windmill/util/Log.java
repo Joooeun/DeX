@@ -591,7 +591,7 @@ public class Log {
 					executionStatus = "SUCCESS";
 				} else {
 					executionStatus = "FAIL";
-					errorMessage = executeDto.getResult();
+					errorMessage = executeDto.getErrorMessage();
 				}
 			}
 			
