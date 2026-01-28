@@ -284,9 +284,14 @@ window.enableAceHeightResize = function(editorHostDiv, editor, initialHeightPx) 
 		}
 	}
 
-	function sendSql(value, connectionId) {
+	function sendSql(value, connectionId, forceReload) {
 		if (value == null) {
 			return;
+		}
+		
+		// forceReload 기본값 처리
+		if (forceReload === undefined) {
+			forceReload = false;
 		}
 
 		// value 파싱: "templateId&columnIndexes&autoExecute" 형태
@@ -433,7 +438,7 @@ window.enableAceHeightResize = function(editorHostDiv, editor, initialHeightPx) 
 						}
 					}
 					
-					parent.tabManager.addTab(templateId, title, finalUrl, Object.keys(postData).length > 0 ? postData : null);
+					parent.tabManager.addTab(templateId, title, finalUrl, Object.keys(postData).length > 0 ? postData : null, forceReload);
 				},
 				error: function() {
 					// 에러 시 기본 탭 추가 (SQLExecute 사용)
@@ -443,7 +448,7 @@ window.enableAceHeightResize = function(editorHostDiv, editor, initialHeightPx) 
 						url += "&Excute=" + excuteParam;
 					}
 					// POST 데이터가 있으면 data 파라미터로 전달, 없으면 GET 방식
-					parent.tabManager.addTab(templateId, title, url, Object.keys(postData).length > 0 ? postData : null);
+					parent.tabManager.addTab(templateId, title, url, Object.keys(postData).length > 0 ? postData : null, forceReload);
 				}
 			});
 			

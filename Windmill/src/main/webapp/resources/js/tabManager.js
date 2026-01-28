@@ -18,10 +18,15 @@
 		},
 		
 		// 탭 추가
-		addTab: function(templateId, title, url, data) {
+		addTab: function(templateId, title, url, data, forceReload) {
 
 			// templateId를 문자열로 정규화
 			templateId = this.normalizeTemplateId(templateId);
+			
+			// forceReload 기본값 처리
+			if (forceReload === undefined) {
+				forceReload = false;
+			}
 			
 			// 중복 탭 체크
 			if (!this.tabs.has(templateId)) {
@@ -122,8 +127,8 @@
 					var formId = 'form_' + templateId;
 					var form = document.getElementById(formId);
 					
-					// URL이 변경되었거나 POST 데이터가 있는 경우 새로 로드 필요
-					var needsReload = (tabInfo.url !== url) || (data && Object.keys(data).length > 0);
+					// URL이 변경되었거나 POST 데이터가 있거나 forceReload가 true인 경우 새로 로드 필요
+					var needsReload = (tabInfo.url !== url) || (data && Object.keys(data).length > 0) || forceReload;
 					
 					if (needsReload) {
 						// 탭 정보 업데이트

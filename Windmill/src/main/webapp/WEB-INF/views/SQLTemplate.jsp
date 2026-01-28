@@ -3646,7 +3646,8 @@
 				return;
 			}
 			
-			sendSql(templateId+"&");
+			// 강제 새로고침 옵션 전달
+			sendSql(templateId+"&", null, true);
 		}
 
 		// 단축키 입력 필드에 키 이벤트 리스너 추가 (테이블 범위로 최적화)
