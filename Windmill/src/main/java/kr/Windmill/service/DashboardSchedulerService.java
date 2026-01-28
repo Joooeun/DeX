@@ -54,6 +54,9 @@ public class DashboardSchedulerService {
     
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    
+    @Autowired
+    private Common common;
 
     // 스케줄러 저장소
     private final Map<String, ScheduledFuture<?>> schedulers = new ConcurrentHashMap<>();
@@ -575,6 +578,11 @@ public class DashboardSchedulerService {
         try {
             String monitoringConfig = systemConfigService.getDashboardMonitoringTemplateConfig();
             if (monitoringConfig == null || monitoringConfig.trim().isEmpty() || monitoringConfig.equals("{}")) {
+                Map<String, Object> noConfigResult = new HashMap<>();
+                noConfigResult.put("success", false);
+                noConfigResult.put("error", "모니터링 템플릿 설정이 없습니다. 대시보드 설정에서 모니터링 템플릿을 구성해주세요.");
+                noConfigResult.put("hasConfig", false);
+                chartDataCache.put("monitoring_template", noConfigResult);
                 return;
             }
             
@@ -586,13 +594,30 @@ public class DashboardSchedulerService {
             String connectionId = (String) config.get("connectionId");
             
             if (templateId == null || templateId.trim().isEmpty() || connectionId == null || connectionId.trim().isEmpty()) {
+                Map<String, Object> invalidConfigResult = new HashMap<>();
+                invalidConfigResult.put("success", false);
+                invalidConfigResult.put("error", "모니터링 템플릿 설정이 올바르지 않습니다. templateId 또는 connectionId가 설정되지 않았습니다.");
+                invalidConfigResult.put("hasConfig", true);
+                if (templateId == null || templateId.trim().isEmpty()) {
+                    invalidConfigResult.put("error", "모니터링 템플릿 설정이 올바르지 않습니다. templateId가 설정되지 않았습니다.");
+                } else if (connectionId == null || connectionId.trim().isEmpty()) {
+                    invalidConfigResult.put("error", "모니터링 템플릿 설정이 올바르지 않습니다. connectionId가 설정되지 않았습니다.");
+                }
+                chartDataCache.put("monitoring_template", invalidConfigResult);
+                logger.warn("모니터링 템플릿 설정이 올바르지 않습니다: templateId={}, connectionId={}", templateId, connectionId);
                 return;
             }
             
             // 연결 상태 확인
-            List<String> onlineConnectionIds = connectionService.getOnlineConnectionIds();
-            if (!onlineConnectionIds.contains(connectionId)) {
-                // 연결이 온라인이 아니면 업데이트하지 않음
+            List<String> activeConnectionIds = common.ConnectionnList();
+            if (!activeConnectionIds.contains(connectionId)) {
+                Map<String, Object> inactiveResult = new HashMap<>();
+                inactiveResult.put("success", false);
+                inactiveResult.put("error", "연결이 ACTIVE 상태가 아닙니다: " + connectionId);
+                inactiveResult.put("hasConfig", true);
+                inactiveResult.put("connectionId", connectionId);
+                chartDataCache.put("monitoring_template", inactiveResult);
+                logger.debug("모니터링 템플릿 연결이 ACTIVE 상태가 아닙니다: {}", connectionId);
                 return;
             }
             
@@ -604,18 +629,27 @@ public class DashboardSchedulerService {
                 chartDataCache.put("monitoring_template", templateData);
                 
             } catch (Exception e) {
-                System.err.println("❌ 모니터링 템플릿 데이터 업데이트 실패: " + e.getMessage());
+                logger.error("❌ 모니터링 템플릿 데이터 업데이트 실패 [{}][{}]: {}", templateId, connectionId, e.getMessage(), e);
                 
                 // 예외 발생 시에도 에러 데이터를 캐시에 저장
                 Map<String, Object> errorResult = new HashMap<>();
                 errorResult.put("error", "모니터링 템플릿 조회 실패: " + e.getMessage());
                 errorResult.put("success", false);
+                errorResult.put("hasConfig", true);
+                errorResult.put("templateId", templateId);
+                errorResult.put("connectionId", connectionId);
                 chartDataCache.put("monitoring_template", errorResult);
             }
             
         } catch (Exception e) {
-            System.err.println("❌ 모니터링 템플릿 데이터 업데이트 중 오류: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("❌ 모니터링 템플릿 데이터 업데이트 중 오류: {}", e.getMessage(), e);
+            
+            // 최상위 예외 발생 시에도 에러 상태 저장
+            Map<String, Object> errorResult = new HashMap<>();
+            errorResult.put("success", false);
+            errorResult.put("error", "모니터링 템플릿 데이터 업데이트 중 오류가 발생했습니다: " + e.getMessage());
+            errorResult.put("hasConfig", true);
+            chartDataCache.put("monitoring_template", errorResult);
         }
     }
     
