@@ -295,15 +295,20 @@ public class DashboardController {
                 result.put("success", true);
                 result.put("data", null);
                 result.put("hasConfig", false);
+                result.put("monitoringConfigHash", generateHash(new HashMap<>()));
                 return result;
             }
             
             // 캐시된 모니터링 템플릿 데이터 조회
             Object monitoringData = dashboardSchedulerService.getMonitoringTemplateData();
             
+            // hash 생성
+            String monitoringConfigHash = generateHash(monitoringConfig);
+            
             result.put("success", true);
             result.put("data", monitoringData);
             result.put("hasConfig", true);
+            result.put("monitoringConfigHash", monitoringConfigHash);
             
         } catch (Exception e) {
             cLog.monitoringLog("DASHBOARD_ERROR", "모니터링 템플릿 데이터 조회 실패: " + e.getMessage());

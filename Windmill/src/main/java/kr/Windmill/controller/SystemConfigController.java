@@ -286,12 +286,6 @@ public class SystemConfigController {
     public Map<String, Object> getMonitoringTemplateConfig(HttpSession session) {
         Map<String, Object> result = new HashMap<>();
         
-        String memberId = (String) session.getAttribute("memberId");
-        if (memberId == null || !permissionService.isAdmin(memberId)) {
-            result.put("success", false);
-            result.put("message", "권한이 없습니다.");
-            return result;
-        }
         
         try {
             String monitoringConfig = systemConfigService.getDashboardMonitoringTemplateConfig();

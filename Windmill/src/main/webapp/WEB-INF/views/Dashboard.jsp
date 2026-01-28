@@ -9,6 +9,8 @@
         var cachedApiResponse = null; // API 응답 데이터 캐시
         var chartConfigData = null; // 차트 설정 데이터
         var chartConfigHash = null; // 차트 설정 hash (변경 감지용)
+        var monitoringConfigHash = null; // 모니터링 템플릿 설정 hash (변경 감지용)
+        var monitoringConfigData = null; // 모니터링 템플릿 설정 데이터 캐시
         var isAdmin = ${isAdmin}; // 관리자 권한 여부
         
         // 타이머 핸들 저장용 변수 (setTimeout 기반)
@@ -181,6 +183,9 @@
         $(document).ready(function() {
             // 초기 차트 설정 로딩
             loadChartConfig();
+            
+            // 초기 모니터링 템플릿 설정 로딩
+            loadMonitoringTemplateConfig();
             
             // 연결 상태 모니터링 시작
             startConnectionMonitoring();
@@ -697,6 +702,31 @@
             });
         }
         
+        // 모니터링 템플릿 설정 초기 로딩
+        function loadMonitoringTemplateConfig() {
+            $.ajax({
+                url: '/SystemConfig/getMonitoringTemplateConfig',
+                type: 'GET',
+                success: function(response) {
+                    if (response.success && response.monitoringConfig) {
+                        try {
+                            monitoringConfigData = JSON.parse(response.monitoringConfig);
+                            // hash는 monitoringTemplate API 응답에서 받아옴
+                        } catch (e) {
+                            console.error('모니터링 템플릿 설정 파싱 실패:', e);
+                            monitoringConfigData = null;
+                        }
+                    } else {
+                        monitoringConfigData = null;
+                    }
+                },
+                error: function() {
+                    console.error('모니터링 템플릿 설정 로드 실패');
+                    monitoringConfigData = null;
+                }
+            });
+        }
+        
         // 차트 모니터링 시작
         function startChartMonitoring() {
             updateDynamicCharts();
@@ -775,6 +805,15 @@
                                                 selectConnection(connectedConnection.connectionId);
                                             }
                                         }
+                                        
+                                        // 차트 설정 변경 시 모든 연결의 신호등 재생성 및 색상 업데이트
+                                        response.connections.forEach(function(conn) {
+                                            createDynamicTrafficLights(conn.connectionId);
+                                            // 신호등 재생성 후 즉시 색상 업데이트
+                                            if (conn.charts) {
+                                                updateTrafficLightsFromDynamicData(conn.charts, conn.connectionId);
+                                            }
+                                        });
                                     }
                                 },
                                 error: function() {
@@ -784,9 +823,12 @@
                             return;
                         }
                         
-                        // 모든 연결의 신호등 다시 생성
+                        // 신호등이 없을 때만 생성 (차트 설정 변경 시에는 이미 재생성됨)
                         response.connections.forEach(function(conn) {
-                            createDynamicTrafficLights(conn.connectionId);
+                            var trafficLightContainer = $('#traffic-lights-' + conn.connectionId);
+                            if (trafficLightContainer.length === 0 || trafficLightContainer.children().length === 0) {
+                                createDynamicTrafficLights(conn.connectionId);
+                            }
                         });
                         
                         // 차트는 선택된 연결만 업데이트
@@ -1968,30 +2010,53 @@
                     if (!isDashboardRunning()) {
                         return;
                     }
-                    // 모니터링 템플릿 설정에서 템플릿 이름 가져오기
-                    $.ajax({
-                        url: '/SystemConfig/getMonitoringTemplateConfig',
-                        type: 'GET',
-                        success: function(configResponse) {
-                            if (configResponse.success && configResponse.monitoringConfig) {
-                                try {
-                                    var config = JSON.parse(configResponse.monitoringConfig);
-                                    var templateName = config.templateName || '모니터링 템플릿';
-                                    
-                                    // box-title 업데이트
-                                    var section = $('#monitoringTemplateSection');
-                                    var boxTitle = section.find('.box-title');
-                                    boxTitle.html('<i class="fa fa-table"></i> ' + templateName);
-                                } catch (e) {
-                                    console.error('모니터링 템플릿 설정 파싱 실패:', e);
+                    
+                    // hash 변경 감지
+                    var shouldLoadConfig = false;
+                    if (result.monitoringConfigHash && result.monitoringConfigHash !== monitoringConfigHash) {
+                        // hash가 변경되었으면 설정 다시 로드
+                        monitoringConfigHash = result.monitoringConfigHash;
+                        shouldLoadConfig = true;
+                    } else if (!monitoringConfigHash && result.monitoringConfigHash) {
+                        // 초기 로딩 시 hash 설정
+                        monitoringConfigHash = result.monitoringConfigHash;
+                    }
+                    
+                    // hash가 변경되었거나 설정 데이터가 없으면 설정 로드
+                    if (shouldLoadConfig || !monitoringConfigData) {
+                        $.ajax({
+                            url: '/SystemConfig/getMonitoringTemplateConfig',
+                            type: 'GET',
+                            success: function(configResponse) {
+                                if (configResponse.success && configResponse.monitoringConfig) {
+                                    try {
+                                        monitoringConfigData = JSON.parse(configResponse.monitoringConfig);
+                                        var templateName = monitoringConfigData.templateName || '모니터링 템플릿';
+                                        
+                                        // box-title 업데이트
+                                        var section = $('#monitoringTemplateSection');
+                                        var boxTitle = section.find('.box-title');
+                                        boxTitle.html('<i class="fa fa-table"></i> ' + templateName);
+                                    } catch (e) {
+                                        console.error('모니터링 템플릿 설정 파싱 실패:', e);
+                                    }
                                 }
+                                updateMonitoringTemplateDisplay(result);
+                            },
+                            error: function() {
+                                updateMonitoringTemplateDisplay(result);
                             }
-                            updateMonitoringTemplateDisplay(result);
-                        },
-                        error: function() {
-                            updateMonitoringTemplateDisplay(result);
+                        });
+                    } else {
+                        // 캐시된 설정 데이터 사용
+                        if (monitoringConfigData) {
+                            var templateName = monitoringConfigData.templateName || '모니터링 템플릿';
+                            var section = $('#monitoringTemplateSection');
+                            var boxTitle = section.find('.box-title');
+                            boxTitle.html('<i class="fa fa-table"></i> ' + templateName);
                         }
-                    });
+                        updateMonitoringTemplateDisplay(result);
+                    }
                     
                     scheduleMonitoringTemplateRefresh();
                     monitoringTemplateAbortController = null;
@@ -2109,105 +2174,86 @@
         
         // 모니터링 템플릿 행 클릭 처리
         function handleMonitoringTemplateRowClick(rowIndex, rowData) {
-            // 모니터링 템플릿 설정에서 템플릿 ID 조회
+            // 캐시된 모니터링 템플릿 설정에서 템플릿 ID 조회
+            if (!monitoringConfigData || !monitoringConfigData.templateId) {
+                showToast('템플릿 정보를 찾을 수 없습니다.', 'warning');
+                return;
+            }
+            
+            var templateId = monitoringConfigData.templateId;
+            
+            // 단축키 정보 조회
             $.ajax({
-                url: '/SystemConfig/getMonitoringTemplateConfig',
-                type: 'GET',
-                success: function(response) {
-                    if (response.success && response.monitoringConfig) {
-                        try {
-                            var config = JSON.parse(response.monitoringConfig);
-                            var templateId = config.templateId;
-                            
-                            if (!templateId) {
-                                showToast('템플릿 정보를 찾을 수 없습니다.', 'warning');
-                                return;
+                type: 'POST',
+                url: '/SQLTemplate/shortcuts',
+                data: {
+                    templateId: templateId
+                },
+                success: function(result) {
+                    if (result.success && result.data && result.data.length > 0) {
+                        // 활성화된 첫 번째 단축키 찾기
+                        var firstActiveShortcut = null;
+                        for (var i = 0; i < result.data.length; i++) {
+                            var shortcut = result.data[i];
+                            if (shortcut.IS_ACTIVE === true) {
+                                firstActiveShortcut = shortcut;
+                                break;
                             }
+                        }
+                        
+                        if (firstActiveShortcut) {
+                            // 단축키 실행 - 소스 컬럼 인덱스에 따라 파라미터 생성
+                            var sourceColumns = firstActiveShortcut.SOURCE_COLUMN_INDEXES;
+                            var parameterString = '';
                             
-                            // 단축키 정보 조회
-                            $.ajax({
-                                type: 'POST',
-                                url: '/SQLTemplate/shortcuts',
-                                data: {
-                                    templateId: templateId
-                                },
-                                success: function(result) {
-                                    if (result.success && result.data && result.data.length > 0) {
-                                        // 활성화된 첫 번째 단축키 찾기
-                                        var firstActiveShortcut = null;
-                                        for (var i = 0; i < result.data.length; i++) {
-                                            var shortcut = result.data[i];
-                                            if (shortcut.IS_ACTIVE === true) {
-                                                firstActiveShortcut = shortcut;
-                                                break;
-                                            }
-                                        }
-                                        
-                                        if (firstActiveShortcut) {
-                                            // 단축키 실행 - 소스 컬럼 인덱스에 따라 파라미터 생성
-                                            var sourceColumns = firstActiveShortcut.SOURCE_COLUMN_INDEXES;
-                                            var parameterString = '';
-                                            
-                                            if (sourceColumns && sourceColumns.trim() !== '') {
-                                                var columnParts = sourceColumns.split(',');
-                                                var paramValues = [];
-                                                
-                                                for (var i = 0; i < columnParts.length; i++) {
-                                                    var trimmedPart = columnParts[i].trim();
-                                                    
-                                                    if (trimmedPart === '') {
-                                                        paramValues.push('');
-                                                        continue;
-                                                    }
-                                                    
-                                                    // 작은따옴표로 감싼 값은 상수값으로 처리
-                                                    if (trimmedPart.startsWith("'") && trimmedPart.endsWith("'") && trimmedPart.length > 1) {
-                                                        paramValues.push(trimmedPart.substring(1, trimmedPart.length - 1));
-                                                    } else if (/^\d+$/.test(trimmedPart)) {
-                                                        // 숫자인 경우 컬럼 인덱스로 처리 (1-based를 0-based로 변환)
-                                                        var columnIndex = parseInt(trimmedPart) - 1;
-                                                        if (rowData && rowData[columnIndex] !== undefined) {
-                                                            paramValues.push(rowData[columnIndex]);
-                                                        } else {
-                                                            paramValues.push('');
-                                                        }
-                                                    } else {
-                                                        paramValues.push('');
-                                                    }
-                                                }
-                                                
-                                                parameterString = paramValues.join(',');
-                                            }
-                                        
-                                            // 모니터링 템플릿 설정에서 연결 ID 가져오기
-                                            var connectionId = config.connectionId;
-                                            
-                                            // SQLExecute.jsp의 sendSql 함수 호출 방식과 동일
-                                            sendSql(firstActiveShortcut.TARGET_TEMPLATE_ID + "&" + parameterString + "&" + firstActiveShortcut.AUTO_EXECUTE, connectionId);
-                                            
+                            if (sourceColumns && sourceColumns.trim() !== '') {
+                                var columnParts = sourceColumns.split(',');
+                                var paramValues = [];
+                                
+                                for (var i = 0; i < columnParts.length; i++) {
+                                    var trimmedPart = columnParts[i].trim();
+                                    
+                                    if (trimmedPart === '') {
+                                        paramValues.push('');
+                                        continue;
+                                    }
+                                    
+                                    // 작은따옴표로 감싼 값은 상수값으로 처리
+                                    if (trimmedPart.startsWith("'") && trimmedPart.endsWith("'") && trimmedPart.length > 1) {
+                                        paramValues.push(trimmedPart.substring(1, trimmedPart.length - 1));
+                                    } else if (/^\d+$/.test(trimmedPart)) {
+                                        // 숫자인 경우 컬럼 인덱스로 처리 (1-based를 0-based로 변환)
+                                        var columnIndex = parseInt(trimmedPart) - 1;
+                                        if (rowData && rowData[columnIndex] !== undefined) {
+                                            paramValues.push(rowData[columnIndex]);
                                         } else {
-                                            console.log('활성화된 단축키가 없습니다.');
-                                            showToast('활성화된 단축키가 없습니다.', 'info');
+                                            paramValues.push('');
                                         }
                                     } else {
-                                        console.log('단축키 정보를 찾을 수 없습니다.');
-                                        showToast('단축키 정보를 찾을 수 없습니다.', 'warning');
+                                        paramValues.push('');
                                     }
-                                },
-                                error: function() {
-                                    showToast('단축키 정보 조회에 실패했습니다.', 'error');
                                 }
-                            });
-                        } catch (e) {
-                            console.error('모니터링 템플릿 설정 파싱 실패:', e);
-                            showToast('템플릿 설정을 불러올 수 없습니다.', 'error');
+                                
+                                parameterString = paramValues.join(',');
+                            }
+                            
+                            // 모니터링 템플릿 설정에서 연결 ID 가져오기
+                            var connectionId = monitoringConfigData.connectionId;
+                            
+                            // SQLExecute.jsp의 sendSql 함수 호출 방식과 동일
+                            sendSql(firstActiveShortcut.TARGET_TEMPLATE_ID + "&" + parameterString + "&" + firstActiveShortcut.AUTO_EXECUTE, connectionId);
+                            
+                        } else {
+                            console.log('활성화된 단축키가 없습니다.');
+                            showToast('활성화된 단축키가 없습니다.', 'info');
                         }
                     } else {
-                        showToast('모니터링 템플릿 설정을 찾을 수 없습니다.', 'warning');
+                        console.log('단축키 정보를 찾을 수 없습니다.');
+                        showToast('단축키 정보를 찾을 수 없습니다.', 'warning');
                     }
                 },
                 error: function() {
-                    showToast('모니터링 템플릿 설정 조회에 실패했습니다.', 'error');
+                    showToast('단축키 정보 조회에 실패했습니다.', 'error');
                 }
             });
         }

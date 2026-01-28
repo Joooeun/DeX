@@ -34,7 +34,8 @@ public class LoginInterceptor implements HandlerInterceptor {
 		Pattern.compile("^/Connection/.*"),     // 연결 
 		Pattern.compile("^/Dashboard.*"),          // 대시보드 관련
 		Pattern.compile("^/DexStatus.*"),           // DEX 상태 관련
-		Pattern.compile("^/SQLTemplate.*")           // 템플릿관리 관련
+		Pattern.compile("^/SQLTemplate.*") ,          // 템플릿관리 관련
+		Pattern.compile("^/SystemConfig.*")           // 템플릿관리 관련
 	);
 
 	// 요청을 컨트롤러에 보내기 전 작업
