@@ -1354,29 +1354,17 @@ function saveGroup() {
     });
 }
 
-// 모든 권한 목록 로드 (단순화)
-function loadAllPermissions() {
-    // 메뉴 권한 목록 로드 (그룹 추가 모달용 - groupId 없음)
+// 메뉴 권한 로드 (공통 함수)
+function loadMenuPermissions(groupId) {
+    groupId = groupId || ''; // groupId가 없으면 빈 문자열
     $.ajax({
         url: '/UserGroup/menuPermissions',
         type: 'GET',
-        data: { groupId: '' }, // 빈 문자열 전달하여 모든 메뉴 목록만 가져옴
+        data: { groupId: groupId },
         success: function(response) {
             console.log('메뉴 권한 로드 응답:', response);
             if (response.success && response.data) {
-                var container = $('#groupMenuPermissions');
-                container.empty();
-                
-                response.data.forEach(function(menu) {
-                    var item = '<div class="permission-item">' +
-                        '<label>' +
-                        '<input type="checkbox" id="group_menu_' + menu.MENU_ID + '" class="permission-checkbox">' +
-                        menu.MENU_NAME +
-                        '</label>' +
-                        '<small class="text-muted">' + (menu.MENU_DESCRIPTION || '') + '</small>' +
-                        '</div>';
-                    container.append(item);
-                });
+                displayGroupMenuPermissions(response.data);
             } else {
                 console.error('메뉴 권한 로드 실패:', response.message);
             }
@@ -1385,6 +1373,12 @@ function loadAllPermissions() {
             console.error('메뉴 권한 로드 중 오류:', error);
         }
     });
+}
+
+// 모든 권한 목록 로드 (단순화)
+function loadAllPermissions() {
+    // 메뉴 권한 목록 로드 (그룹 추가 모달용 - groupId 없음)
+    loadMenuPermissions('');
     
     // SQL 템플릿 카테고리 권한 목록 로드
     $.ajax({
@@ -1511,22 +1505,7 @@ function loadGroupPermissions(groupId) {
     });
     
     // 메뉴 권한 로드
-    $.ajax({
-        url: '/UserGroup/menuPermissions',
-        type: 'GET',
-        data: { groupId: groupId },
-        success: function(response) {
-            console.log('메뉴 권한 로드 응답:', response);
-            if (response.success) {
-                displayGroupMenuPermissions(response.data);
-            } else {
-                console.error('메뉴 권한 로드 실패:', response.message);
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('메뉴 권한 로드 중 오류:', error);
-        }
-    });
+    loadMenuPermissions(groupId);
 }
 
 // 그룹 SQL 템플릿 카테고리 권한 표시
