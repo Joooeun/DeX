@@ -440,13 +440,14 @@ public class Log {
 		try {
 			// EXECUTION_LOG 테이블에 PENDING 상태로 삽입
 			String sql = "INSERT INTO EXECUTION_LOG (" +
-				"LOG_ID, USER_ID, TEMPLATE_ID, CONNECTION_ID, SQL_TYPE, EXECUTION_STATUS, " +
+				"LOG_ID, USER_ID, IP_ADDRESS, TEMPLATE_ID, CONNECTION_ID, SQL_TYPE, EXECUTION_STATUS, " +
 				"SQL_CONTENT, EXECUTION_START_TIME" +
-				") VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 			
 			jdbcTemplate.update(sql,
 				data.getLogId(),                                // LOG_ID
 				data.getId(),                                   // USER_ID
+				data.getIp(),                                   // IP_ADDRESS
 				data.getTitle(),                                // TEMPLATE_ID
 				data.getConnectionId(),                         // CONNECTION_ID
 				getExecutionType(data.getLogsql()),            // SQL_TYPE
@@ -536,13 +537,14 @@ public class Log {
 			
 			// EXECUTION_LOG 테이블에 PENDING 상태로 삽입
 			String sql = "INSERT INTO EXECUTION_LOG (" +
-				"LOG_ID, USER_ID, TEMPLATE_ID, CONNECTION_ID, SQL_TYPE, EXECUTION_STATUS, " +
+				"LOG_ID, USER_ID, IP_ADDRESS, TEMPLATE_ID, CONNECTION_ID, SQL_TYPE, EXECUTION_STATUS, " +
 				"SQL_CONTENT, EXECUTION_START_TIME" +
-				") VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+				") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 			
 			jdbcTemplate.update(sql,
 				logId,                                           // LOG_ID
 				executeDto.getMemberId(),                        // USER_ID
+				executeDto.getIp(),                              // IP_ADDRESS
 				executeDto.getTemplateId(),                      // TEMPLATE_ID
 				executeDto.getConnectionId(),                     // CONNECTION_ID
 				getExecutionType(executeDto.getSqlContent()),    // SQL_TYPE
