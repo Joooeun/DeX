@@ -97,6 +97,50 @@
 	text-align: left;
 	line-height: 1.4;
 }
+
+/* 템플릿 설명 접기/펼치기 */
+.template-desc-wrapper {
+	margin-top: 4px;
+}
+
+.template-desc {
+	display: block;
+	white-space: pre-line;
+	line-height: 1.4;
+	overflow: hidden;
+	max-height: var(--template-desc-collapsed-height, none);
+	transition: max-height 0.25s ease;
+}
+
+.template-desc-wrapper.is-collapsible .template-desc {
+	max-height: var(--template-desc-collapsed-height);
+}
+
+.template-desc-wrapper.is-collapsible:hover .template-desc {
+	max-height: var(--template-desc-full-height);
+}
+
+.template-desc-toggle {
+	display: none;
+	align-items: center;
+	gap: 4px;
+	font-size: 12px;
+	color: rgb(60, 141, 188);
+	margin-top: 2px;
+	transition: opacity 0.2s ease;
+}
+
+.template-desc-wrapper.is-collapsible .template-desc-toggle {
+	display: inline-flex;
+}
+
+.template-desc-toggle i {
+	transition: transform 0.25s ease;
+}
+
+.template-desc-wrapper.is-collapsible:hover .template-desc-toggle i {
+	transform: rotate(180deg);
+}
 </style>
 
 <!-- ======================================== -->
@@ -135,6 +179,38 @@ let ondate;
 
 // 엑셀 다운로드 권한 변수
 var downloadEnable = ${DownloadEnable};
+
+// 템플릿 설명 최대 표시 라인 수
+var TEMPLATE_DESC_MAX_LINES = 2;
+
+// 템플릿 설명 2줄 접기 및 마우스 오버 확장 처리
+function initTemplateDescriptionClamp() {
+	var descElement = document.getElementById("templateDescription");
+	var wrapper = document.getElementById("templateDescriptionWrapper");
+	if (!descElement || !wrapper) {
+		return;
+	}
+
+	var computedStyle = window.getComputedStyle(descElement);
+	var lineHeight = parseFloat(computedStyle.lineHeight);
+	if (isNaN(lineHeight)) {
+		var fontSize = parseFloat(computedStyle.fontSize);
+		lineHeight = fontSize ? fontSize * 1.4 : 22.4;
+	}
+
+	var collapsedHeight = lineHeight * TEMPLATE_DESC_MAX_LINES;
+	var fullHeight = descElement.scrollHeight;
+
+	if (fullHeight > collapsedHeight + 1) {
+		wrapper.classList.add("is-collapsible");
+		wrapper.style.setProperty("--template-desc-collapsed-height", collapsedHeight + "px");
+		wrapper.style.setProperty("--template-desc-full-height", fullHeight + "px");
+	} else {
+		wrapper.classList.remove("is-collapsible");
+		wrapper.style.removeProperty("--template-desc-collapsed-height");
+		wrapper.style.removeProperty("--template-desc-full-height");
+	}
+}
 
 	// ========================================
 	// 페이지 로드 시 초기화 함수
@@ -223,6 +299,15 @@ var downloadEnable = ${DownloadEnable};
 				}
 			});
 		}
+
+		// 템플릿 설명 접기/펼치기 초기화
+		initTemplateDescriptionClamp();
+		$(window).on('resize', function() {
+			clearTimeout(window.templateDescriptionResizeTimer);
+			window.templateDescriptionResizeTimer = setTimeout(function() {
+				initTemplateDescriptionClamp();
+			}, 100);
+		});
 		
 
 		// 차트 초기화
@@ -1544,7 +1629,10 @@ var downloadEnable = ${DownloadEnable};
 	<!-- ======================================== -->
 	<section class="content-header">
 		<h1>${templateName}</h1>
-		<span style="white-space: pre-line;">${templateDescription}</span>
+		<div class="template-desc-wrapper" id="templateDescriptionWrapper">
+			<span class="template-desc" id="templateDescription">${templateDescription}</span>
+			<span class="template-desc-toggle"><span class="toggle-label">더보기</span><i class="fa fa-angle-down"></i></span>
+		</div>
 
 		<ol class="breadcrumb">
 			<li><a href="#"><i class="icon ion-ios-home"></i> Home</a></li>
