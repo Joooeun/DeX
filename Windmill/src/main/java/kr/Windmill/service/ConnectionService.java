@@ -582,7 +582,7 @@ public class ConnectionService {
 			// 연결 테스트는 항상 새로운 연결 정보로 생성 (캐시 사용 안함)
 			// 패스워드 복호화 (평문 호환)
 			String password = connConfig.get("PW");
-			String decryptedPassword = decryptPassword(password);
+			String decryptedPassword = Crypto.decryptPassword(password);
 			
 			String url = dynamicJdbcManager.createJdbcUrl(dbType, connConfig.get("IP"), connConfig.get("PORT"), connConfig.get("DB"));
 			// 공통 연결 속성 생성
@@ -689,7 +689,7 @@ public class ConnectionService {
 			String username = connConfig.get("USER");
 			// 패스워드 복호화 (평문 호환)
 			String encryptedPassword = connConfig.get("PW");
-			String password = decryptPassword(encryptedPassword);
+			String password = Crypto.decryptPassword(encryptedPassword);
 
 			// JSch를 사용한 SFTP 연결 테스트
 			com.jcraft.jsch.JSch jsch = new com.jcraft.jsch.JSch();
@@ -787,23 +787,6 @@ public class ConnectionService {
 	 * @param encryptedPassword 암호화된 패스워드 또는 평문 패스워드
 	 * @return 복호화된 패스워드 또는 평문 패스워드
 	 */
-	private String decryptPassword(String encryptedPassword) {
-		if (encryptedPassword == null || encryptedPassword.trim().isEmpty()) {
-			return encryptedPassword;
-		}
-		
-		try {
-			String decrypted = Crypto.deCrypt(encryptedPassword);
-			// 복호화 실패 시 빈 문자열이 반환되므로, 원본이 평문인 것으로 간주
-			if (decrypted == null || decrypted.isEmpty()) {
-				return encryptedPassword; // 평문으로 간주
-			}
-			return decrypted;
-		} catch (Exception e) {
-			logger.debug("패스워드 복호화 실패 (평문으로 간주): {}", e.getMessage());
-			return encryptedPassword; // 평문으로 간주
-		}
-	}
 
 	/**
 	 * 패스워드를 암호화합니다.
@@ -1115,7 +1098,7 @@ public class ConnectionService {
 			// 패스워드 복호화 및 자동 마이그레이션
 			String password = (String) detail.get("PASSWORD");
 			if (password != null && !password.trim().isEmpty()) {
-				String decrypted = decryptPassword(password);
+				String decrypted = Crypto.decryptPassword(password);
 				// 평문이면 암호화하여 저장
 				if (decrypted.equals(password)) {
 					logger.info("평문 패스워드 발견, 자동 암호화 저장: {} (DB)", connectionId);
@@ -1141,7 +1124,7 @@ public class ConnectionService {
 			// 패스워드 복호화 및 자동 마이그레이션
 			String password = (String) detail.get("PASSWORD");
 			if (password != null && !password.trim().isEmpty()) {
-				String decrypted = decryptPassword(password);
+				String decrypted = Crypto.decryptPassword(password);
 				// 평문이면 암호화하여 저장
 				if (decrypted.equals(password)) {
 					logger.info("평문 패스워드 발견, 자동 암호화 저장: {} (SFTP)", connectionId);

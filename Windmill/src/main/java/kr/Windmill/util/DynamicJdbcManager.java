@@ -418,7 +418,7 @@ public class DynamicJdbcManager implements Closeable {
 		String encryptedPassword = (String) connInfo.get("PASSWORD");
 		
 		// 패스워드 복호화 (평문 호환)
-		String password = decryptPassword(encryptedPassword);
+		String password = Crypto.decryptPassword(encryptedPassword);
 		
 		// 평문이면 암호화하여 저장 (자동 마이그레이션)
 		if (password != null && password.equals(encryptedPassword)) {
@@ -484,7 +484,7 @@ public class DynamicJdbcManager implements Closeable {
 
 		// 패스워드 복호화 (평문 호환)
 		String encryptedPassword = (String) connInfo.get("PASSWORD");
-		String password = decryptPassword(encryptedPassword);
+		String password = Crypto.decryptPassword(encryptedPassword);
 		
 		// 평문이면 암호화하여 저장 (자동 마이그레이션)
 		if (password != null && password.equals(encryptedPassword)) {
@@ -776,7 +776,7 @@ public class DynamicJdbcManager implements Closeable {
 		
 		// 패스워드 복호화 (평문 호환)
 		String encryptedPassword = (String) connInfo.get("PASSWORD");
-		String password = decryptPassword(encryptedPassword);
+		String password = Crypto.decryptPassword(encryptedPassword);
 		
 		// 평문이면 암호화하여 저장 (자동 마이그레이션)
 		if (password != null && password.equals(encryptedPassword)) {
@@ -826,23 +826,6 @@ public class DynamicJdbcManager implements Closeable {
 	 * @param encryptedPassword 암호화된 패스워드 또는 평문 패스워드
 	 * @return 복호화된 패스워드 또는 평문 패스워드
 	 */
-	private String decryptPassword(String encryptedPassword) {
-		if (encryptedPassword == null || encryptedPassword.trim().isEmpty()) {
-			return encryptedPassword;
-		}
-		
-		try {
-			String decrypted = Crypto.deCrypt(encryptedPassword);
-			// 복호화 실패 시 빈 문자열이 반환되므로, 원본이 평문인 것으로 간주
-			if (decrypted == null || decrypted.isEmpty()) {
-				return encryptedPassword; // 평문으로 간주
-			}
-			return decrypted;
-		} catch (Exception e) {
-			logger.debug("패스워드 복호화 실패 (평문으로 간주): {}", e.getMessage());
-			return encryptedPassword; // 평문으로 간주
-		}
-	}
 
 	/**
 	 * 데이터베이스 타입별 기본 연결 속성 생성
