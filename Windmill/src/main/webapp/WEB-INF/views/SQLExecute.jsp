@@ -83,19 +83,13 @@
 	position: relative;
 }
 
-/* 툴팁 커스텀 스타일 */
-.tooltip {
-	font-size: 12px;
-	max-width: 300px;
-}
-
 .tooltip-inner {
-	background-color: #333;
-	color: #fff;
-	border-radius: 4px;
-	padding: 8px 12px;
-	text-align: left;
-	line-height: 1.4;
+	max-width: 100% !important;
+
+}
+.tooltip {
+	max-width: 90% !important;
+	left:0 !important;
 }
 
 /* 템플릿 설명 접기/펼치기 */
