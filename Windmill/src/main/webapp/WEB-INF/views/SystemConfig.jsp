@@ -23,6 +23,14 @@
                                         <small class="help-block">사용자 세션이 유지되는 시간 (1-1440분)</small>
                                     </div>
                                 </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="dashboardChartMaxConsecutiveFailures">대시보드 차트 연속 실패 허용 횟수</label>
+                                        <input type="number" class="form-control" id="dashboardChartMaxConsecutiveFailures" name="dashboardChartMaxConsecutiveFailures"
+                                               value="${empty configValues.DASHBOARD_CHART_MAX_CONSECUTIVE_FAILURES ? '3' : configValues.DASHBOARD_CHART_MAX_CONSECUTIVE_FAILURES}" min="1" max="999" required>
+                                        <small class="help-block">같은 템플릿·DB 연결 조회가 이 횟수만큼 연속으로 실패하면 자동 조회를 멈춥니다. 성공 시 카운터는 초기화됩니다. 기본 3회. &quot;에러 상태 리셋&quot;으로 즉시 재시도할 수 있습니다.</small>
+                                    </div>
+                                </div>
                             </div>
                             
                             <hr>
@@ -167,12 +175,18 @@ $(document).ready(function() {
         var formData = {
             sessionTimeout: $('#sessionTimeout').val(),
             noticeContent: $('#noticeContent').val(),
-            noticeEnabled: $('#noticeEnabled').is(':checked')
+            noticeEnabled: $('#noticeEnabled').is(':checked'),
+            dashboardChartMaxConsecutiveFailures: $('#dashboardChartMaxConsecutiveFailures').val()
         };
         
         // 유효성 검사
         if (!formData.sessionTimeout || formData.sessionTimeout < 1 || formData.sessionTimeout > 1440) {
             showAlert('세션 타임아웃은 1-1440분 사이의 값이어야 합니다.', 'danger');
+            return;
+        }
+        var maxChartFail = parseInt(formData.dashboardChartMaxConsecutiveFailures, 10);
+        if (isNaN(maxChartFail) || maxChartFail < 1 || maxChartFail > 999) {
+            showAlert('대시보드 차트 연속 실패 허용 횟수는 1~999 사이의 숫자여야 합니다.', 'danger');
             return;
         }
         

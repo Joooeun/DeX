@@ -1,6 +1,9 @@
 package kr.Windmill.controller;
 
 import kr.Windmill.service.SystemConfigService;
+
+import static kr.Windmill.service.SystemConfigService.CONFIG_KEY_DASHBOARD_CHART_MAX_CONSECUTIVE_FAILURES;
+import static kr.Windmill.service.SystemConfigService.DEFAULT_DASHBOARD_CHART_MAX_CONSECUTIVE_FAILURES;
 import kr.Windmill.service.DashboardSchedulerService;
 import kr.Windmill.service.PermissionService;
 import org.slf4j.Logger;
@@ -65,6 +68,7 @@ public class SystemConfigController {
             @RequestParam("sessionTimeout") String sessionTimeout,
             @RequestParam("noticeContent") String noticeContent,
             @RequestParam(value = "noticeEnabled", defaultValue = "false") String noticeEnabled,
+            @RequestParam(value = "dashboardChartMaxConsecutiveFailures", defaultValue = "3") String dashboardChartMaxConsecutiveFailures,
             HttpSession session) {
         
         Map<String, Object> result = new HashMap<>();
@@ -77,12 +81,28 @@ public class SystemConfigController {
         }
         
         try {
+            int maxFail = DEFAULT_DASHBOARD_CHART_MAX_CONSECUTIVE_FAILURES;
+            try {
+                maxFail = Integer.parseInt(dashboardChartMaxConsecutiveFailures.trim());
+            } catch (NumberFormatException e) {
+                result.put("success", false);
+                result.put("message", "대시보드 차트 연속 실패 허용 횟수는 숫자여야 합니다.");
+                return result;
+            }
+            if (maxFail < 1 || maxFail > 999) {
+                result.put("success", false);
+                result.put("message", "대시보드 차트 연속 실패 허용 횟수는 1~999 사이여야 합니다.");
+                return result;
+            }
+            
             // 각 설정값 업데이트
             boolean sessionTimeoutUpdated = systemConfigService.updateConfigValue("SESSION_TIMEOUT", sessionTimeout);
             boolean noticeContentUpdated = systemConfigService.updateConfigValue("NOTICE_CONTENT", noticeContent);
             boolean noticeEnabledUpdated = systemConfigService.updateConfigValue("NOTICE_ENABLED", noticeEnabled);
+            boolean chartFailLimitUpdated = systemConfigService.updateConfigValue(
+                    CONFIG_KEY_DASHBOARD_CHART_MAX_CONSECUTIVE_FAILURES, String.valueOf(maxFail));
             
-            if (sessionTimeoutUpdated && noticeContentUpdated && noticeEnabledUpdated) {
+            if (sessionTimeoutUpdated && noticeContentUpdated && noticeEnabledUpdated && chartFailLimitUpdated) {
                 result.put("success", true);
                 result.put("message", "환경설정이 성공적으로 저장되었습니다.");
                 logger.info("환경설정 저장 완료 - 사용자: {}", memberId);

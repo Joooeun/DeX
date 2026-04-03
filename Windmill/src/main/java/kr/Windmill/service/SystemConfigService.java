@@ -12,6 +12,10 @@ import java.util.Map;
 @Service
 public class SystemConfigService {
     
+    /** 대시보드 차트(및 모니터링 템플릿) SQL 조회가 연속 실패 시 조회를 중단하는 횟수 */
+    public static final String CONFIG_KEY_DASHBOARD_CHART_MAX_CONSECUTIVE_FAILURES = "DASHBOARD_CHART_MAX_CONSECUTIVE_FAILURES";
+    public static final int DEFAULT_DASHBOARD_CHART_MAX_CONSECUTIVE_FAILURES = 3;
+    
     private static final Logger logger = LoggerFactory.getLogger(SystemConfigService.class);
     
     @Autowired
@@ -48,12 +52,24 @@ public class SystemConfigService {
         String value = getConfigValue(configKey);
         if (value != null) {
             try {
-                return Integer.parseInt(value);
+                return Integer.parseInt(value.trim());
             } catch (NumberFormatException e) {
                 // 파싱 실패 시 기본값 반환
             }
         }
         return defaultValue;
+    }
+    
+    /**
+     * 대시보드 차트 연속 실패 허용 횟수(이 횟수에 도달하면 해당 템플릿·연결 조회를 중단, 리셋 시까지).
+     * 1 미만이면 기본값을 사용합니다.
+     */
+    public int getDashboardChartMaxConsecutiveFailures() {
+        int v = getIntConfigValue(CONFIG_KEY_DASHBOARD_CHART_MAX_CONSECUTIVE_FAILURES, DEFAULT_DASHBOARD_CHART_MAX_CONSECUTIVE_FAILURES);
+        if (v < 1) {
+            return DEFAULT_DASHBOARD_CHART_MAX_CONSECUTIVE_FAILURES;
+        }
+        return v;
     }
     
     /**

@@ -64,8 +64,11 @@ public class DashboardSchedulerService {
     // 캐시 저장소 (실제 운영에서는 Redis 등 사용 권장)
     private final Map<String, Object> chartDataCache = new ConcurrentHashMap<>();
     
-    // 차트별 성공/실패 상태 저장 (templateId__chart_type__chartType_connectionId 형태의 키)
-    private final Map<String, Boolean> chartSuccessStatus = new ConcurrentHashMap<>();
+    /**
+     * 템플릿+연결별 연속 실패 횟수 (키: templateId_connectionId).
+     * 설정된 횟수 이상이면 해당 주기 조회를 건너뜁니다. 성공 시 0으로 리셋(맵에서 제거).
+     */
+    private final Map<String, Integer> chartConsecutiveFailures = new ConcurrentHashMap<>();
     
     private final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor();
 
@@ -200,7 +203,7 @@ public class DashboardSchedulerService {
 
         schedulers.clear();
         chartDataCache.clear();
-        chartSuccessStatus.clear();
+        chartConsecutiveFailures.clear();
     }
     
     /**
@@ -290,11 +293,15 @@ public class DashboardSchedulerService {
             // 템플릿 실행 (한 번만 실행하여 모든 chartType에 공유)
             Map<String, Object> templateDataByConnection = new HashMap<>();
             
+            int maxConsecutive = systemConfigService.getDashboardChartMaxConsecutiveFailures();
+            
             for (String connectionId : connectionIds) {
                 String statusKey = templateId + "_" + connectionId;
                 
-                // 이전에 실패한 경우 건너뛰기
-                if (chartSuccessStatus.containsKey(statusKey) && !chartSuccessStatus.get(statusKey)) {
+                // 연속 실패가 설정 횟수 이상이면 해당 연결 조회 건너뜀 (캐시는 이전 값 유지)
+                int priorFailures = chartConsecutiveFailures.getOrDefault(statusKey, 0);
+                if (priorFailures >= maxConsecutive) {
+                    logger.debug("차트 조회 일시 중단(연속 실패 한도) [{}] {}/{}", statusKey, priorFailures, maxConsecutive);
                     continue;
                 }
                 
@@ -303,11 +310,14 @@ public class DashboardSchedulerService {
                     Object chartData = executeTemplateByTemplateId(templateId, connectionId);
                     templateDataByConnection.put(connectionId, chartData);
                     
-                    // 에러 결과인지 확인하여 상태 저장
                     if (chartData instanceof Map && ((Map<?, ?>) chartData).containsKey("error")) {
-                        chartSuccessStatus.put(statusKey, false);
+                        int n = chartConsecutiveFailures.getOrDefault(statusKey, 0) + 1;
+                        chartConsecutiveFailures.put(statusKey, n);
+                        if (n >= maxConsecutive) {
+                            logger.warn("차트 조회 중단 임계 도달 [{}] 연속 실패 {}회 (한도 {})", statusKey, n, maxConsecutive);
+                        }
                     } else {
-                        chartSuccessStatus.put(statusKey, true);
+                        chartConsecutiveFailures.remove(statusKey);
                     }
                     
                 } catch (Exception e) {
@@ -317,7 +327,11 @@ public class DashboardSchedulerService {
                     errorResult.put("error", "차트 조회 실패: " + e.getMessage());
                     errorResult.put("success", false);
                     templateDataByConnection.put(connectionId, errorResult);
-                    chartSuccessStatus.put(statusKey, false);
+                    int n = chartConsecutiveFailures.getOrDefault(statusKey, 0) + 1;
+                    chartConsecutiveFailures.put(statusKey, n);
+                    if (n >= maxConsecutive) {
+                        logger.warn("차트 조회 중단 임계 도달 [{}] 연속 실패 {}회 (한도 {})", statusKey, n, maxConsecutive);
+                    }
                 }
             }
             
@@ -621,12 +635,30 @@ public class DashboardSchedulerService {
                 return;
             }
             
+            String monitoringStatusKey = "monitoring_template_" + templateId + "_" + connectionId;
+            int maxConsecutive = systemConfigService.getDashboardChartMaxConsecutiveFailures();
+            int priorMonFailures = chartConsecutiveFailures.getOrDefault(monitoringStatusKey, 0);
+            if (priorMonFailures >= maxConsecutive) {
+                logger.debug("모니터링 템플릿 조회 일시 중단(연속 실패 한도) [{}] {}/{}", monitoringStatusKey, priorMonFailures, maxConsecutive);
+                return;
+            }
+            
             try {
                 // 템플릿 실행
                 Object templateData = executeTemplateByTemplateId(templateId, connectionId);
                 
                 // 캐시에 저장
                 chartDataCache.put("monitoring_template", templateData);
+                
+                if (templateData instanceof Map && ((Map<?, ?>) templateData).containsKey("error")) {
+                    int n = chartConsecutiveFailures.getOrDefault(monitoringStatusKey, 0) + 1;
+                    chartConsecutiveFailures.put(monitoringStatusKey, n);
+                    if (n >= maxConsecutive) {
+                        logger.warn("모니터링 템플릿 조회 중단 임계 도달 [{}] 연속 실패 {}회 (한도 {})", monitoringStatusKey, n, maxConsecutive);
+                    }
+                } else {
+                    chartConsecutiveFailures.remove(monitoringStatusKey);
+                }
                 
             } catch (Exception e) {
                 logger.error("❌ 모니터링 템플릿 데이터 업데이트 실패 [{}][{}]: {}", templateId, connectionId, e.getMessage(), e);
@@ -639,6 +671,11 @@ public class DashboardSchedulerService {
                 errorResult.put("templateId", templateId);
                 errorResult.put("connectionId", connectionId);
                 chartDataCache.put("monitoring_template", errorResult);
+                int n = chartConsecutiveFailures.getOrDefault(monitoringStatusKey, 0) + 1;
+                chartConsecutiveFailures.put(monitoringStatusKey, n);
+                if (n >= maxConsecutive) {
+                    logger.warn("모니터링 템플릿 조회 중단 임계 도달 [{}] 연속 실패 {}회 (한도 {})", monitoringStatusKey, n, maxConsecutive);
+                }
             }
             
         } catch (Exception e) {
@@ -674,7 +711,7 @@ public class DashboardSchedulerService {
             
             // 2. 캐시 초기화
             chartDataCache.clear();
-            chartSuccessStatus.clear();
+            chartConsecutiveFailures.clear();
             
             // 3. 새로운 설정으로 재시작
             initializeDynamicSchedulers();
@@ -693,8 +730,8 @@ public class DashboardSchedulerService {
         try {
             System.out.println("🔄 모든 차트 에러 상태 리셋 시작...");
             
-            // 성공/실패 상태 초기화
-            chartSuccessStatus.clear();
+            // 연속 실패 카운터 초기화
+            chartConsecutiveFailures.clear();
             
             
             System.out.println("✅ 모든 차트 에러 상태 리셋 완료");
