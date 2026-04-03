@@ -11,7 +11,7 @@
         var chartConfigHash = null; // 차트 설정 hash (변경 감지용)
         var monitoringConfigHash = null; // 모니터링 템플릿 설정 hash (변경 감지용)
         var monitoringConfigData = null; // 모니터링 템플릿 설정 데이터 캐시
-        var isAdmin = ${isAdmin}; // 관리자 권한 여부
+        var isAdmin = '${isAdmin}' === 'true'; // 관리자 권한 여부 (JS 린터용: 문자열 비교)
         
         // 타이머 핸들 저장용 변수 (setTimeout 기반)
         var connectionRefreshTimeout = null;
@@ -2275,31 +2275,39 @@
         }
         
         function reload() {
-        	
-        	 var hasErrorCharts = $('#dynamicChartsContainer .box-danger').length > 0;
-        	 
-        	// 관리자 권한 확인
-        	if (isAdmin && hasErrorCharts) {
-	            if (confirm('에러 상태인 차트가 있습니다.\n\n모든 차트의 에러 상태를 리셋하시겠습니까?\n\n이 작업은 에러로 인해 중단된 차트들을 즉시 재시작합니다.')) {
-	                $.ajax({
-	                    url: '/SystemConfig/resetChartErrors',
-	                    type: 'POST',
-	                    success: function(response) {
-	                        if (response.success) {
-	                        	location.reload();
-	                        } else {
-	                            showToast('에러 상태 리셋에 실패했습니다: ' + response.message, 'error');
-	                        }
-	                    },
-	                    error: function() {
-	                        showToast('에러 상태 리셋 중 오류가 발생했습니다.', 'error');
-	                    }
-	                });
-                }
-        	}else{
-        		location.reload();
-        	}
-		}
+            var hasErrorCharts = $('#dynamicChartsContainer .box-danger').length > 0;
+
+            function clearErrorCacheAndReload() {
+                $.ajax({
+                    url: '/Dashboard/clearErrorChartCache',
+                    type: 'POST',
+                    complete: function() {
+                        location.reload();
+                    }
+                });
+            }
+
+            // 관리자 + 에러 차트: 스케줄러 연속실패 카운터 리셋 여부 선택
+            if (isAdmin && hasErrorCharts) {
+				alert('에러 상태인 차트가 있습니다.\n에러로 중단된 차트 조회를 다시 시작합니다');
+				$.ajax({
+					url: '/SystemConfig/resetChartErrors',
+					type: 'POST',
+					success: function(response) {
+						if (response.success) {
+							clearErrorCacheAndReload();
+						} else {
+							showToast('에러 상태 리셋에 실패했습니다: ' + response.message, 'error');
+						}
+					},
+					error: function() {
+						showToast('에러 상태 리셋 중 오류가 발생했습니다.', 'error');
+					}
+				});
+            } else {
+                location.reload();
+            }
+        }
         
     </script>
         

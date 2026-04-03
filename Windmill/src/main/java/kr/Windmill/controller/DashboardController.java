@@ -286,6 +286,30 @@ public class DashboardController {
     }
 
     /**
+     * 대시보드 차트 캐시 중 에러 응답만 삭제 (새로고침 시 에러 UI 숨김)
+     */
+    @RequestMapping(value = "/Dashboard/clearErrorChartCache", method = RequestMethod.POST)
+    @ResponseBody
+    public Map<String, Object> clearErrorChartCache(HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            String userId = (String) session.getAttribute("memberId");
+            if (userId == null) {
+                result.put("success", false);
+                result.put("error", "로그인이 필요합니다.");
+                return result;
+            }
+            dashboardSchedulerService.removeErrorEntriesFromChartCache();
+            result.put("success", true);
+        } catch (Exception e) {
+            cLog.monitoringLog("DASHBOARD_ERROR", "에러 차트 캐시 삭제 실패: " + e.getMessage());
+            result.put("success", false);
+            result.put("error", e.getMessage());
+        }
+        return result;
+    }
+
+    /**
      * 모니터링 템플릿 데이터 조회
      */
     @RequestMapping(path = "/Dashboard/monitoringTemplate", method = RequestMethod.POST)

@@ -698,6 +698,25 @@ public class DashboardSchedulerService {
     public Object getMonitoringTemplateData() {
         return chartDataCache.get("monitoring_template");
     }
+    
+    /**
+     * 대시보드 캐시에서 에러 형태의 항목만 제거합니다.
+     * 새로고침 시 에러 차트/모니터링 영역을 다시 그리지 않도록 할 때 사용합니다.
+     */
+    public void removeErrorEntriesFromChartCache() {
+        chartDataCache.entrySet().removeIf(e -> isErrorLikeChartCacheValue(e.getValue()));
+    }
+    
+    private static boolean isErrorLikeChartCacheValue(Object value) {
+        if (!(value instanceof Map)) {
+            return false;
+        }
+        Map<?, ?> m = (Map<?, ?>) value;
+        if (m.containsKey("error")) {
+            return true;
+        }
+        return Boolean.FALSE.equals(m.get("success")) && !m.containsKey("result");
+    }
 
     /**
      * 스케줄러 갱신 (설정 변경 시 호출)
