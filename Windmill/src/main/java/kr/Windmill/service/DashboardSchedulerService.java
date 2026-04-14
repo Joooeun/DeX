@@ -470,15 +470,16 @@ public class DashboardSchedulerService {
      * @param connectionId 연결 ID
      * @return 실행 결과
      */
-    @SuppressWarnings("unchecked")
+	@SuppressWarnings("unchecked")
     private Object executeTemplateByTemplateId(String templateId, String connectionId) {
         try {
-            // SQLExecuteService를 통해 템플릿 실행
             SqlTemplateExecuteDto executeDto = new SqlTemplateExecuteDto();
             executeDto.setTemplateId(templateId);
             executeDto.setConnectionId(connectionId);
             executeDto.setLimit(1000);
-            executeDto.setSkipMetadata(true);  // 모니터링 조회 시 메타데이터 조회 스킵
+            executeDto.setSkipMetadata(true);       // 모니터링 조회 시 메타데이터 조회 스킵
+            executeDto.setUseDashboardPool(true);   // 대시보드 전용 풀 사용 (사용자 풀과 분리)
+            executeDto.setQueryTimeout(10);          // 10초 쿼리 타임아웃 (차트 조회 전용)
             
             @SuppressWarnings("rawtypes")
             Map<String, List> sqlResult = sqlExecuteService.executeTemplateSQL(executeDto);

@@ -295,7 +295,7 @@ public class SQLTemplateController {
 					.body(createErrorResponse(validation.getErrorMessage(), validation.getErrorCode()));
 			}
 			
-			// 2. 템플릿 ID 설정 (신규인 경우)
+			// 2. 신규 템플릿명 중복 체크 (ID 생성은 서비스에서 처리)
 			if (StringUtils.isEmpty(request.getTemplate().getTemplateId())) {
 				String templateName = request.getTemplate().getTemplateName();
 				
@@ -304,8 +304,6 @@ public class SQLTemplateController {
 					return ResponseEntity.badRequest()
 						.body(createErrorResponse("이미 존재하는 템플릿 이름입니다: " + templateName, "DUPLICATE_TEMPLATE_NAME"));
 				}
-				
-				request.getTemplate().setTemplateId(String.valueOf(System.currentTimeMillis()));
 			}
 			
 			// 3. 서비스 호출

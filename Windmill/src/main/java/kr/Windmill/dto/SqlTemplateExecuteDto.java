@@ -21,7 +21,9 @@ public class SqlTemplateExecuteDto {
     private List<Map<String, Object>> parameterList;  // 파싱된 파라미터 리스트
     private Integer limit;            // 실행 제한 (기본값: 1000)
     private Boolean audit;            // 감사 로그 저장 여부
-    private Boolean skipMetadata;     // 메타데이터 조회 스킵 여부 (모니터링/PostgreSQL 최적화용)
+    private Boolean skipMetadata;      // 메타데이터 조회 스킵 여부 (모니터링/PostgreSQL 최적화용)
+    private Boolean useDashboardPool; // 대시보드 전용 커넥션 풀 사용 여부 (스케줄러 전용)
+    private Integer queryTimeout;     // 쿼리 타임아웃 (초단위, null이면 무제한)
     private String memberId;          // 사용자 ID (세션에서 설정)
     private String ip;                // 클라이언트 IP (세션에서 설정)
     
@@ -121,7 +123,23 @@ public class SqlTemplateExecuteDto {
     public void setSkipMetadata(Boolean skipMetadata) {
         this.skipMetadata = skipMetadata;
     }
-    
+
+    public Boolean getUseDashboardPool() {
+        return useDashboardPool;
+    }
+
+    public void setUseDashboardPool(Boolean useDashboardPool) {
+        this.useDashboardPool = useDashboardPool;
+    }
+
+    public Integer getQueryTimeout() {
+        return queryTimeout;
+    }
+
+    public void setQueryTimeout(Integer queryTimeout) {
+        this.queryTimeout = queryTimeout;
+    }
+
     public String getMemberId() {
         return memberId;
     }

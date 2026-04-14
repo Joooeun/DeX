@@ -65,6 +65,32 @@ public class SQLExecuteService {
 		CALL, EXECUTE, UPDATE
 	}
 
+	/**
+	 * DTO의 useDashboardPool 플래그에 따라 적절한 커넥션을 반환합니다.
+	 * - useDashboardPool=true : 대시보드 전용 풀 (스케줄러용, 쿼리 타임아웃 적용)
+	 * - useDashboardPool=false/null : 일반 풀 (사용자 직접 실행용, 타임아웃 없음)
+	 */
+	private Connection acquireConnection(SqlTemplateExecuteDto executeDto) throws Exception {
+		if (Boolean.TRUE.equals(executeDto.getUseDashboardPool())) {
+			return dynamicJdbcManager.getDashboardConnection(executeDto.getConnectionId());
+		}
+		return dynamicJdbcManager.getConnection(executeDto.getConnectionId());
+	}
+
+	/**
+	 * DTO의 queryTimeout 값을 PreparedStatement에 적용합니다.
+	 * queryTimeout이 null이거나 0 이하이면 적용하지 않습니다 (무제한).
+	 */
+	private void applyQueryTimeout(PreparedStatement pstmt, SqlTemplateExecuteDto executeDto) {
+		if (executeDto != null && executeDto.getQueryTimeout() != null && executeDto.getQueryTimeout() > 0) {
+			try {
+				pstmt.setQueryTimeout(executeDto.getQueryTimeout());
+			} catch (Exception e) {
+				logger.debug("setQueryTimeout 적용 실패 (드라이버 미지원일 수 있음): {}", e.getMessage());
+			}
+		}
+	}
+
 
 
 	/**
@@ -894,7 +920,7 @@ public class SQLExecuteService {
 		ResultSet rs = null;
 		
 		try {
-			con = dynamicJdbcManager.getConnection(executeDto.getConnectionId());
+			con = acquireConnection(executeDto);
 			con.setAutoCommit(false);
 			
 			Map<String, List> result = new HashMap<>();
@@ -1077,14 +1103,14 @@ public class SQLExecuteService {
 		ResultSet rs = null;
 		
 		try {
-			con = dynamicJdbcManager.getConnection(executeDto.getConnectionId());
+			con = acquireConnection(executeDto);
 			con.setAutoCommit(false);
 			
 			Map<String, List> result = new HashMap<>();
 			
-			// PreparedStatement 생성 (이미 파라미터가 바인딩된 SQL 사용)
 			pstmt = con.prepareStatement(sql);
-			
+			applyQueryTimeout(pstmt, executeDto);
+
 			// 결과 제한 설정
 			if (executeDto.getLimit() != null && executeDto.getLimit() > 0) {
 				pstmt.setMaxRows(executeDto.getLimit());
@@ -1381,8 +1407,9 @@ public class SQLExecuteService {
 		Instant singleStart = Instant.now();
 		
 		try {
-			con = dynamicJdbcManager.getConnection(executeDto.getConnectionId());
+			con = acquireConnection(executeDto);
 			pstmt = con.prepareStatement(sql);
+			applyQueryTimeout(pstmt, executeDto);
 			
 			// SQL 실행 (이미 파라미터가 바인딩된 SQL 사용)
 			int updatedRows = pstmt.executeUpdate();

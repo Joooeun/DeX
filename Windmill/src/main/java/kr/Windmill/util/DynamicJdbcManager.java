@@ -357,6 +357,13 @@ public class DynamicJdbcManager implements Closeable {
 
 	/* --------------------------- Pool Manager --------------------------- */
 	private final ConcurrentMap<String, IsolatedPool> pools = new ConcurrentHashMap<>();
+
+	/** 대시보드 차트 전용 커넥션 풀 (일반 풀과 분리하여 스케줄러 쿼리가 사용자 쿼리에 영향을 주지 않도록 함) */
+	private final ConcurrentMap<String, IsolatedPool> dashboardPools = new ConcurrentHashMap<>();
+
+	/** 대시보드 풀 최대 커넥션 수 (스케줄러 동시 실행 수 이하로 유지) */
+	private static final int DASHBOARD_POOL_SIZE = 3;
+
 	private final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor();
 
 	/**
@@ -395,10 +402,19 @@ public class DynamicJdbcManager implements Closeable {
 				}
 			}
 
+			// 대시보드 전용 풀 초기화 (일반 풀과 별도)
+			for (Map<String, Object> connInfo : connections) {
+				try {
+					initializeDashboardPoolForConnection(connInfo);
+				} catch (Exception e) {
+					logger.error("대시보드 커넥션 풀 초기화 실패: {} - {}", connInfo.get("CONNECTION_ID"), e.getMessage(), e);
+				}
+			}
+
 			// 주기적으로 사용하지 않는 풀 정리 (1시간마다)
 			cleanupExecutor.scheduleAtFixedRate(this::cleanupUnusedPools, 1, 1, TimeUnit.HOURS);
 
-			logger.info("=== 커넥션 풀 초기화 완료 (총 {}개 풀) ===", pools.size());
+			logger.info("=== 커넥션 풀 초기화 완료 (일반 {}개 풀, 대시보드 {}개 풀) ===", pools.size(), dashboardPools.size());
 
 		} catch (Exception e) {
 			logger.error("커넥션 풀 초기화 중 오류 발생", e);
@@ -462,6 +478,71 @@ public class DynamicJdbcManager implements Closeable {
 		pools.put(connectionId, pool);
 
 		logger.info("커넥션 풀 초기화 완료: {}", connectionId);
+	}
+
+	/**
+	 * 대시보드 차트 전용 커넥션 풀을 초기화합니다.
+	 * 일반 풀과 동일한 접속 정보를 사용하되, 풀 크기를 DASHBOARD_POOL_SIZE로 제한합니다.
+	 */
+	private void initializeDashboardPoolForConnection(Map<String, Object> connInfo) throws Exception {
+		String connectionId = (String) connInfo.get("CONNECTION_ID");
+		String dbType = (String) connInfo.get("DB_TYPE");
+		String hostIp = (String) connInfo.get("HOST_IP");
+		Integer port = (Integer) connInfo.get("PORT");
+		String databaseName = (String) connInfo.get("DATABASE_NAME");
+		String username = (String) connInfo.get("USERNAME");
+		String encryptedPassword = (String) connInfo.get("PASSWORD");
+		String password = Crypto.decryptPassword(encryptedPassword);
+		String jdbcDriverFile = (String) connInfo.get("JDBC_DRIVER_FILE");
+
+		String jdbcUrl = createJdbcUrl(dbType, hostIp, String.valueOf(port), databaseName);
+		String driverClassName = common.getDriverByDbType(dbType);
+		Properties props = createConnectionProperties(dbType, username, password);
+
+		String jarPath = findDriverJarPath(jdbcDriverFile);
+		if (jarPath == null) {
+			throw new Exception("드라이버 JAR 파일을 찾을 수 없습니다: " + jdbcDriverFile);
+		}
+
+		long connectionTimeoutMs = connInfo.get("CONNECTION_TIMEOUT") != null
+				? (Integer) connInfo.get("CONNECTION_TIMEOUT") * 1000L : 5000L;
+		long maxLifetimeMs = 30 * 60 * 1000L;
+		long idleTimeoutMs = 60 * 1000L;
+
+		PoolKey poolKey = new PoolKey("[dashboard]" + connectionId, Paths.get(jarPath), driverClassName, jdbcUrl, props);
+		IsolatedDriver isoDriver = IsolatedDriver.load(Paths.get(jarPath), driverClassName);
+		IsolatedPool pool = new IsolatedPool(poolKey, isoDriver, DASHBOARD_POOL_SIZE, connectionTimeoutMs, maxLifetimeMs, idleTimeoutMs);
+
+		dashboardPools.put(connectionId, pool);
+		logger.info("대시보드 커넥션 풀 초기화 완료: {} (maxSize={})", connectionId, DASHBOARD_POOL_SIZE);
+	}
+
+	/**
+	 * 대시보드 차트 전용 커넥션을 가져옵니다.
+	 * 일반 getConnection()과 별도의 풀을 사용하여 스케줄러 쿼리가 사용자 쿼리를 방해하지 않습니다.
+	 */
+	public Connection getDashboardConnection(String connectionId) throws Exception {
+		if (!Common.isRootPathValid()) {
+			throw new Exception("RootPath가 유효하지 않아 대시보드 연결을 가져올 수 없습니다: " + connectionId);
+		}
+
+		IsolatedPool pool = dashboardPools.get(connectionId);
+		if (pool == null) {
+			throw new Exception("대시보드 커넥션 풀이 없습니다: " + connectionId);
+		}
+
+		String sql = "SELECT * FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ?";
+		Map<String, Object> connInfo = jdbcTemplate.queryForMap(sql, connectionId);
+
+		String encryptedPassword = (String) connInfo.get("PASSWORD");
+		String password = Crypto.decryptPassword(encryptedPassword);
+
+		String jdbcUrl = createJdbcUrl((String) connInfo.get("DB_TYPE"), (String) connInfo.get("HOST_IP"),
+				String.valueOf(connInfo.get("PORT")), (String) connInfo.get("DATABASE_NAME"));
+		Properties props = createConnectionProperties((String) connInfo.get("DB_TYPE"),
+				(String) connInfo.get("USERNAME"), password);
+
+		return pool.borrow(jdbcUrl, props);
 	}
 
 	/**
@@ -568,28 +649,29 @@ public class DynamicJdbcManager implements Closeable {
 	}
 
 	/**
-	 * 특정 연결의 풀을 재초기화합니다.
+	 * 특정 연결의 풀을 재초기화합니다 (일반 풀 + 대시보드 풀).
 	 */
 	public void reinitializePool(String connectionId) throws Exception {
 		logger.info("풀 재초기화 시작: {}", connectionId);
-		
-		// 기존 풀 제거
+
 		IsolatedPool oldPool = pools.remove(connectionId);
 		if (oldPool != null) {
-			try {
-				oldPool.close();
-				logger.debug("기존 풀 정리 완료: {}", connectionId);
-			} catch (Exception e) {
+			try { oldPool.close(); } catch (Exception e) {
 				logger.warn("기존 풀 정리 중 오류: {} - {}", connectionId, e.getMessage());
 			}
 		}
-		
-		// 연결 정보 조회
+		IsolatedPool oldDashPool = dashboardPools.remove(connectionId);
+		if (oldDashPool != null) {
+			try { oldDashPool.close(); } catch (Exception e) {
+				logger.warn("기존 대시보드 풀 정리 중 오류: {} - {}", connectionId, e.getMessage());
+			}
+		}
+
 		String sql = "SELECT * FROM DATABASE_CONNECTION WHERE CONNECTION_ID = ? AND STATUS = 'ACTIVE'";
 		Map<String, Object> connInfo = jdbcTemplate.queryForMap(sql, connectionId);
-		
-		// 새 풀 초기화 (내부에서 패스워드 복호화 및 마이그레이션 처리)
+
 		initializePoolForConnection(connInfo);
+		initializeDashboardPoolForConnection(connInfo);
 		logger.info("풀 재초기화 완료: {}", connectionId);
 	}
 
@@ -627,7 +709,7 @@ public class DynamicJdbcManager implements Closeable {
 			Thread.currentThread().interrupt();
 		}
 
-		// 모든 풀 정리
+		// 모든 풀 정리 (일반 풀)
 		int poolCount = 0;
 		for (IsolatedPool pool : pools.values()) {
 			try {
@@ -638,6 +720,16 @@ public class DynamicJdbcManager implements Closeable {
 			}
 		}
 		pools.clear();
+
+		// 대시보드 전용 풀 정리
+		for (IsolatedPool pool : dashboardPools.values()) {
+			try {
+				pool.close();
+			} catch (Exception e) {
+				logger.warn("대시보드 풀 정리 중 오류: {}", e.getMessage());
+			}
+		}
+		dashboardPools.clear();
 
 		// DB2 드라이버 관련 타이머 스레드 정리 시도
 		try {
@@ -706,19 +798,14 @@ public class DynamicJdbcManager implements Closeable {
 	}
 
 	/**
-	 * 커넥션 풀을 추가합니다.
+	 * 커넥션 풀을 추가합니다 (일반 풀 + 대시보드 풀).
 	 */
 	public void addConnectionPool(String connectionId) {
 		try {
-			// DATABASE_CONNECTION에서 정보 조회
 			Map<String, Object> connInfo = getConnectionInfo(connectionId);
-
-			// 기존 풀이 있으면 먼저 제거
 			removeConnectionPool(connectionId);
-
-			// 새 커넥션 풀 생성
 			initializePoolForConnection(connInfo);
-
+			initializeDashboardPoolForConnection(connInfo);
 			logger.info("커넥션 풀 추가 완료: {}", connectionId);
 		} catch (Exception e) {
 			logger.error("커넥션 풀 추가 실패: {} - {}", connectionId, e.getMessage(), e);
@@ -726,7 +813,7 @@ public class DynamicJdbcManager implements Closeable {
 	}
 
 	/**
-	 * 커넥션 풀을 삭제합니다.
+	 * 커넥션 풀을 삭제합니다 (일반 풀 + 대시보드 풀).
 	 */
 	public void removeConnectionPool(String connectionId) {
 		IsolatedPool pool = pools.remove(connectionId);
@@ -736,6 +823,15 @@ public class DynamicJdbcManager implements Closeable {
 				logger.info("커넥션 풀 삭제 완료: {}", connectionId);
 			} catch (Exception e) {
 				logger.warn("커넥션 풀 삭제 중 오류: {} - {}", connectionId, e.getMessage());
+			}
+		}
+		IsolatedPool dashPool = dashboardPools.remove(connectionId);
+		if (dashPool != null) {
+			try {
+				dashPool.close();
+				logger.info("대시보드 커넥션 풀 삭제 완료: {}", connectionId);
+			} catch (Exception e) {
+				logger.warn("대시보드 커넥션 풀 삭제 중 오류: {} - {}", connectionId, e.getMessage());
 			}
 		}
 	}

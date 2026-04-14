@@ -9,6 +9,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -1047,33 +1048,36 @@ public class SqlTemplateService {
 		Map<String, Object> result = new HashMap<>();
 		
 		try {
-			String templateId = request.getTemplate().getTemplateId();
-			boolean isUpdate = StringUtils.hasText(templateId) && templateExists(templateId);
+			String requestTemplateId = request.getTemplate().getTemplateId();
+			boolean isUpdate = StringUtils.hasText(requestTemplateId) && templateExists(requestTemplateId);
+
+			String effectiveTemplateId;
 			
 			if (isUpdate) {
+				effectiveTemplateId = requestTemplateId;
 				// UPDATE 방식 - 기존 템플릿 업데이트
 				// 1. 템플릿 기본 정보 업데이트
 				updateTemplateInfo(request.getTemplate(), userId);
 				
 				// 2. 관련 데이터 개별 업데이트 (삭제 후 재생성)
-				updateCategoryMappings(templateId, request.getCategories(), userId);
-				updateParameters(templateId, request.getParameters());
-				updateShortcuts(templateId, request.getShortcuts());
-				updateSqlContents(templateId, request.getSqlContents(), userId);
+				updateCategoryMappings(effectiveTemplateId, request.getCategories(), userId);
+				updateParameters(effectiveTemplateId, request.getParameters());
+				updateShortcuts(effectiveTemplateId, request.getShortcuts());
+				updateSqlContents(effectiveTemplateId, request.getSqlContents(), userId);
 			} else {
 				// INSERT 방식 - 새 템플릿 생성
 				// 1. 템플릿 기본 정보 저장
-				saveTemplateInfo(request.getTemplate(), userId);
+				effectiveTemplateId = saveTemplateInfo(request.getTemplate(), userId);
 				
 				// 2. 관련 데이터 저장
-				saveCategoryMappings(templateId, request.getCategories(), userId);
-				saveParameters(templateId, request.getParameters());
-				saveShortcuts(templateId, request.getShortcuts());
-				saveSqlContents(templateId, request.getSqlContents(), userId);
+				saveCategoryMappings(effectiveTemplateId, request.getCategories(), userId);
+				saveParameters(effectiveTemplateId, request.getParameters());
+				saveShortcuts(effectiveTemplateId, request.getShortcuts());
+				saveSqlContents(effectiveTemplateId, request.getSqlContents(), userId);
 			}
 			
 			result.put("success", true);
-			result.put("templateId", templateId);
+			result.put("templateId", effectiveTemplateId);
 			result.put("categoryId", request.getCategories() != null && !request.getCategories().isEmpty() ? request.getCategories().get(0) : null);
 			result.put("message", "SQL 템플릿이 성공적으로 저장되었습니다.");
 			
@@ -1161,13 +1165,19 @@ public class SqlTemplateService {
 	/**
 	 * 템플릿 기본 정보 저장
 	 */
-	private void saveTemplateInfo(SqlTemplateInfo template, String userId) {
+	private String saveTemplateInfo(SqlTemplateInfo template, String userId) {
+		if (!StringUtils.hasText(template.getTemplateId())) {
+			template.setTemplateId(String.valueOf(System.currentTimeMillis()));
+		}
+
 		String sql = "INSERT INTO SQL_TEMPLATE (TEMPLATE_ID, TEMPLATE_NAME, TEMPLATE_DESC, SQL_CONTENT, " +
 		             "ACCESSIBLE_CONNECTION_IDS, TEMPLATE_TYPE, VERSION, STATUS, EXECUTION_LIMIT, " +
 		             "REFRESH_TIMEOUT, NEWLINE, AUDIT, CREATED_BY, CREATED_TIMESTAMP) " +
 		             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT TIMESTAMP)";
 		
-		String accessibleConnectionIds = String.join(",", template.getAccessibleConnectionIds());
+		String accessibleConnectionIds = template.getAccessibleConnectionIds() != null
+			? String.join(",", template.getAccessibleConnectionIds())
+			: "";
 		
 		jdbcTemplate.update(sql, 
 			template.getTemplateId(),
@@ -1183,6 +1193,8 @@ public class SqlTemplateService {
 			template.getNewline(),
 			template.getAudit(),
 			userId);
+
+		return template.getTemplateId();
 	}
 
 	/**
@@ -1208,14 +1220,69 @@ public class SqlTemplateService {
 		if (parameters == null || parameters.isEmpty()) {
 			return;
 		}
-		
-		String sql = "INSERT INTO SQL_TEMPLATE_PARAMETER (TEMPLATE_ID, PARAMETER_NAME, PARAMETER_TYPE, " +
-		             "PARAMETER_ORDER, IS_REQUIRED, DEFAULT_VALUE, IS_READONLY, IS_HIDDEN, IS_DISABLED, " +
-		             "DESCRIPTION, CREATED_TIMESTAMP) " +
-		             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT TIMESTAMP)";
-		
+
+		Boolean isParameterIdIdentity = getIdentityColumnMode("SQL_TEMPLATE_PARAMETER", "PARAMETER_ID");
+
+		String sqlWithIdentity = "INSERT INTO SQL_TEMPLATE_PARAMETER (TEMPLATE_ID, PARAMETER_NAME, PARAMETER_TYPE, " +
+		                         "PARAMETER_ORDER, IS_REQUIRED, DEFAULT_VALUE, IS_READONLY, IS_HIDDEN, IS_DISABLED, " +
+		                         "DESCRIPTION, CREATED_TIMESTAMP) " +
+		                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT TIMESTAMP)";
+
+		String sqlWithoutIdentity = "INSERT INTO SQL_TEMPLATE_PARAMETER (PARAMETER_ID, TEMPLATE_ID, PARAMETER_NAME, PARAMETER_TYPE, " +
+		                            "PARAMETER_ORDER, IS_REQUIRED, DEFAULT_VALUE, IS_READONLY, IS_HIDDEN, IS_DISABLED, " +
+		                            "DESCRIPTION, CREATED_TIMESTAMP) " +
+		                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT TIMESTAMP)";
+
+		if (Boolean.TRUE.equals(isParameterIdIdentity)) {
+			for (SqlTemplateParameter param : parameters) {
+				jdbcTemplate.update(sqlWithIdentity,
+					templateId,
+					param.getParameterName(),
+					param.getParameterType(),
+					param.getParameterOrder(),
+					param.getIsRequired(),
+					param.getDefaultValue(),
+					param.getIsReadonly(),
+					param.getIsHidden(),
+					param.getIsDisabled(),
+					param.getDescription());
+			}
+			return;
+		}
+
+		if (Boolean.FALSE.equals(isParameterIdIdentity)) {
+			insertParametersWithManualId(templateId, parameters, sqlWithoutIdentity);
+			return;
+		}
+
+		// 메타 조회 실패 시: identity 방식 시도 후, PK NULL 패턴일 때만 수동 ID로 재시도
+		try {
+			for (SqlTemplateParameter param : parameters) {
+				jdbcTemplate.update(sqlWithIdentity,
+					templateId,
+					param.getParameterName(),
+					param.getParameterType(),
+					param.getParameterOrder(),
+					param.getIsRequired(),
+					param.getDefaultValue(),
+					param.getIsReadonly(),
+					param.getIsHidden(),
+					param.getIsDisabled(),
+					param.getDescription());
+			}
+		} catch (DataIntegrityViolationException e) {
+			if (!isNullPrimaryKeyError(e)) {
+				throw e;
+			}
+			insertParametersWithManualId(templateId, parameters, sqlWithoutIdentity);
+		}
+	}
+
+	private void insertParametersWithManualId(String templateId, List<SqlTemplateParameter> parameters, String sqlWithoutIdentity) {
+		long nextParameterId = getNextIdWithTableLock("SQL_TEMPLATE_PARAMETER", "PARAMETER_ID");
 		for (SqlTemplateParameter param : parameters) {
-			jdbcTemplate.update(sql,
+			jdbcTemplate.update(sqlWithoutIdentity,
+				nextParameterId++,
 				templateId,
 				param.getParameterName(),
 				param.getParameterType(),
@@ -1229,6 +1296,38 @@ public class SqlTemplateService {
 		}
 	}
 
+	private Boolean getIdentityColumnMode(String tableName, String columnName) {
+		try {
+			String identityFlag = jdbcTemplate.queryForObject(
+				"SELECT COALESCE(IDENTITY, 'N') FROM SYSCAT.COLUMNS " +
+				"WHERE TABSCHEMA = CURRENT SCHEMA AND TABNAME = ? AND COLNAME = ?",
+				String.class
+				,tableName, columnName
+			);
+			return identityFlag != null && "Y".equalsIgnoreCase(identityFlag);
+		} catch (Exception e) {
+			logger.warn("IDENTITY 메타 조회 실패 - table={}, column={}", tableName, columnName, e);
+			return null;
+		}
+	}
+
+	private long getNextIdWithTableLock(String tableName, String idColumnName) {
+		jdbcTemplate.execute("LOCK TABLE " + tableName + " IN EXCLUSIVE MODE");
+		Long nextId = jdbcTemplate.queryForObject(
+			"SELECT COALESCE(MAX(" + idColumnName + "), 0) + 1 FROM " + tableName,
+			Long.class
+		);
+		return nextId != null ? nextId : 1L;
+	}
+
+	private boolean isNullPrimaryKeyError(DataIntegrityViolationException e) {
+		if (e == null || e.getMessage() == null) {
+			return false;
+		}
+		String msg = e.getMessage();
+		return msg.contains("SQLCODE=-407") && msg.contains("COLNO=0");
+	}
+
 	/**
 	 * 단축키 저장
 	 */
@@ -1236,14 +1335,65 @@ public class SqlTemplateService {
 		if (shortcuts == null || shortcuts.isEmpty()) {
 			return;
 		}
-		
-		String sql = "INSERT INTO SQL_TEMPLATE_SHORTCUT (SOURCE_TEMPLATE_ID, TARGET_TEMPLATE_ID, " +
-		             "SHORTCUT_KEY, SHORTCUT_NAME, SHORTCUT_DESCRIPTION, SOURCE_COLUMN_INDEXES, " +
-		             "AUTO_EXECUTE, IS_ACTIVE, CREATED_TIMESTAMP) " +
-		             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT TIMESTAMP)";
-		
+
+		Boolean isShortcutIdIdentity = getIdentityColumnMode("SQL_TEMPLATE_SHORTCUT", "SHORTCUT_ID");
+
+		String sqlWithIdentity = "INSERT INTO SQL_TEMPLATE_SHORTCUT (SOURCE_TEMPLATE_ID, TARGET_TEMPLATE_ID, " +
+		                         "SHORTCUT_KEY, SHORTCUT_NAME, SHORTCUT_DESCRIPTION, SOURCE_COLUMN_INDEXES, " +
+		                         "AUTO_EXECUTE, IS_ACTIVE, CREATED_TIMESTAMP) " +
+		                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT TIMESTAMP)";
+
+		String sqlWithoutIdentity = "INSERT INTO SQL_TEMPLATE_SHORTCUT (SHORTCUT_ID, SOURCE_TEMPLATE_ID, TARGET_TEMPLATE_ID, " +
+		                            "SHORTCUT_KEY, SHORTCUT_NAME, SHORTCUT_DESCRIPTION, SOURCE_COLUMN_INDEXES, " +
+		                            "AUTO_EXECUTE, IS_ACTIVE, CREATED_TIMESTAMP) " +
+		                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT TIMESTAMP)";
+
+		if (Boolean.TRUE.equals(isShortcutIdIdentity)) {
+			for (SqlTemplateShortcut shortcut : shortcuts) {
+				jdbcTemplate.update(sqlWithIdentity,
+					templateId,
+					shortcut.getTargetTemplateId(),
+					shortcut.getShortcutKey(),
+					shortcut.getShortcutName(),
+					shortcut.getShortcutDescription(),
+					shortcut.getSourceColumnIndexes(),
+					shortcut.getAutoExecute(),
+					shortcut.getIsActive());
+			}
+			return;
+		}
+
+		if (Boolean.FALSE.equals(isShortcutIdIdentity)) {
+			insertShortcutsWithManualId(templateId, shortcuts, sqlWithoutIdentity);
+			return;
+		}
+
+		// 메타 조회 실패 시: identity 방식 시도 후, PK NULL 패턴일 때만 수동 ID로 재시도
+		try {
+			for (SqlTemplateShortcut shortcut : shortcuts) {
+				jdbcTemplate.update(sqlWithIdentity,
+					templateId,
+					shortcut.getTargetTemplateId(),
+					shortcut.getShortcutKey(),
+					shortcut.getShortcutName(),
+					shortcut.getShortcutDescription(),
+					shortcut.getSourceColumnIndexes(),
+					shortcut.getAutoExecute(),
+					shortcut.getIsActive());
+			}
+		} catch (DataIntegrityViolationException e) {
+			if (!isNullPrimaryKeyError(e)) {
+				throw e;
+			}
+			insertShortcutsWithManualId(templateId, shortcuts, sqlWithoutIdentity);
+		}
+	}
+
+	private void insertShortcutsWithManualId(String templateId, List<SqlTemplateShortcut> shortcuts, String sqlWithoutIdentity) {
+		long nextShortcutId = getNextIdWithTableLock("SQL_TEMPLATE_SHORTCUT", "SHORTCUT_ID");
 		for (SqlTemplateShortcut shortcut : shortcuts) {
-			jdbcTemplate.update(sql,
+			jdbcTemplate.update(sqlWithoutIdentity,
+				nextShortcutId++,
 				templateId,
 				shortcut.getTargetTemplateId(),
 				shortcut.getShortcutKey(),
