@@ -1300,42 +1300,27 @@
         // 차트 개수에 따라 줄 구성 계산
         function computeChartRowSizes(totalCount) {
             if (totalCount <= 0) return [];
-            if (totalCount <= 4) return [totalCount];
-            if (totalCount === 5) return [5];
-            if (totalCount === 6) return [3, 3];
+            if (totalCount <= 6) return [totalCount];
 
             var rows = [];
-            var q = Math.floor(totalCount / 4);
-            var r = totalCount % 4;
+            var fullRows = Math.floor(totalCount / 6);
+            var remain = totalCount % 6;
 
-            if (r === 0) {
-                for (var i = 0; i < q; i++) rows.push(4);
+            for (var i = 0; i < fullRows; i++) {
+                rows.push(6);
+            }
+
+            // 마지막 줄이 1개만 남는 경우, 이전 줄과 재분배해서 5+2로 구성
+            if (remain === 1 && rows.length > 0) {
+                rows[rows.length - 1] = 5;
+                rows.push(2);
                 return rows;
             }
 
-            if (r === 3) {
-                for (var j = 0; j < q; j++) rows.push(4);
-                rows.push(3);
-                return rows;
+            if (remain > 0) {
+                rows.push(remain);
             }
 
-            if (r === 1) {
-                // 9 같은 케이스는 4+5
-                if (totalCount === 9) return [4, 5];
-
-                // ... + 4 + 4 + 4 + 1  ->  ... + 5 + 5 + 3
-                for (var k = 0; k < q - 3; k++) rows.push(4);
-                rows.push(5, 5, 3);
-                return rows;
-            }
-
-            // r === 2
-            // 10 같은 케이스는 5+5
-            if (totalCount === 10) return [5, 5];
-
-            // ... + 4 + 4 + 2  ->  ... + 5 + 5
-            for (var m = 0; m < q - 2; m++) rows.push(4);
-            rows.push(5, 5);
             return rows;
         }
 
@@ -1346,7 +1331,8 @@
             if (rowSize === 3) return 'col-md-4';
             if (rowSize === 4) return 'col-md-3';
             if (rowSize === 5) return 'col-md-2 chart-col-5'; // 20%는 CSS로 보정
-            return 'col-md-3';
+            if (rowSize === 6) return 'col-md-2 chart-col-6'; // 16.666%는 CSS로 보정
+            return 'col-md-2 chart-col-6';
         }
 
         // 차트 HTML 생성
@@ -2717,6 +2703,12 @@
             width: 20% !important;
             flex: 0 0 20% !important;
             max-width: 20% !important;
+        }
+
+        .chart-col-6 {
+            width: 16.66666667% !important;
+            flex: 0 0 16.66666667% !important;
+            max-width: 16.66666667% !important;
         }
     }
     </style>
