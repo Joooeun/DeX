@@ -23,6 +23,7 @@ import kr.Windmill.util.VersionUtil;
 import kr.Windmill.service.UserService;
 import kr.Windmill.service.PermissionService;
 import kr.Windmill.service.SystemConfigService;
+import kr.Windmill.service.PasswordPolicyService;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @Controller
@@ -34,14 +35,17 @@ public class LoginController {
 	private final UserService userService;
 	private final PermissionService permissionService;
 	private final SystemConfigService systemConfigService;
+	private final PasswordPolicyService passwordPolicyService;
 
 	@Autowired
-	public LoginController(Common common, Log log, UserService userService, PermissionService permissionService, SystemConfigService systemConfigService) {
+	public LoginController(Common common, Log log, UserService userService, PermissionService permissionService,
+			SystemConfigService systemConfigService, PasswordPolicyService passwordPolicyService) {
 		this.com = common;
 		this.cLog = log;
 		this.userService = userService;
 		this.permissionService = permissionService;
 		this.systemConfigService = systemConfigService;
+		this.passwordPolicyService = passwordPolicyService;
 	}
 
 	@RequestMapping(path = "/", method = RequestMethod.GET)
@@ -73,15 +77,15 @@ public class LoginController {
 			Map<String, Object> loginResult = userService.login(userId, password, ipAddress, userAgent);
 
 			if ((Boolean) loginResult.get("success")) {
-				// 로그인 성공
 				session.setAttribute("memberId", userId);
 				session.setAttribute("sessionId", loginResult.get("sessionId"));
 
-				// 임시 비밀번호 여부 확인 (로그인 결과에서 가져옴)
-				boolean isTempPassword = (Boolean) loginResult.get("isTempPassword");
-				session.setAttribute("changePW", isTempPassword);
+				boolean passwordChangeRequired = Boolean.TRUE.equals(loginResult.get("passwordChangeRequired"));
+				String passwordChangeReason = (String) loginResult.get("passwordChangeReason");
+				session.setAttribute("changePW", passwordChangeRequired);
+				session.setAttribute("passwordChangeReason", passwordChangeReason);
 
-				cLog.userLog(userId, ipAddress, " 로그인 성공" + (isTempPassword ? " (임시 비밀번호)" : ""));
+				cLog.userLog(userId, ipAddress, " 로그인 성공" + (passwordChangeRequired ? " (비밀번호 변경 필요)" : ""));
 
 				response.setHeader("Cache-Control", "no-cache, no-store");
 				response.setHeader("Pragma", "no-cache");
@@ -138,6 +142,14 @@ public class LoginController {
 
 		// admin 권한 확인을 위한 사용자 ID 추가
 		String memberId = (String) session.getAttribute("memberId");
+		if (memberId != null) {
+			boolean mustChange = passwordPolicyService.mustChangePassword(memberId);
+			String reason = mustChange ? passwordPolicyService.resolveChangeReason(memberId) : null;
+			session.setAttribute("changePW", mustChange);
+			session.setAttribute("passwordChangeReason", reason);
+			mv.addObject("changePW", mustChange);
+			mv.addObject("passwordChangeReason", reason);
+		}
 		mv.addObject("memberId", memberId);
 		mv.addObject("isAdmin", permissionService.isAdmin(memberId));
 		

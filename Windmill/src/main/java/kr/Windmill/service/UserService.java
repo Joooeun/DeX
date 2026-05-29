@@ -25,6 +25,9 @@ public class UserService {
     
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private PasswordPolicyService passwordPolicyService;
     
     // 사용자 목록 조회 (페이징 포함, statusFilter 추가)
     public Map<String, Object> getUserList(String searchKeyword, String groupFilter, String statusFilter, int page, int pageSize) {
@@ -329,7 +332,7 @@ public class UserService {
                             logMessage += " (시작일: " + accountStartDate + ", 아직 시작 전)";
                         }
                     } else {
-                        userMessage = "로그인 실패 횟수 초과로 계정이 잠겼습니다. 관리자에게 문의하세요.";
+                        userMessage = "계정이 잠겼습니다. 관리자에게 문의해 주세요.";
                         logMessage = "계정 잠금 상태";
                     }
                 } else if ("INACTIVE".equals(status)) {
@@ -405,7 +408,7 @@ public class UserService {
                 if (currentFailCount != null && currentFailCount >= 5) {
                     String lockSql = "UPDATE USERS SET STATUS = 'LOCKED' WHERE USER_ID = ?";
                     jdbcTemplate.update(lockSql, userId);
-                    userMessage = "로그인 실패 횟수 초과로 계정이 잠겼습니다. 관리자에게 문의하세요.";
+                    userMessage = "계정이 잠겼습니다. 관리자에게 문의해 주세요.";
                     logMessage = "비밀번호 불일치 - 계정 잠금 (실패 횟수: " + currentFailCount + ")";
                 } else {
                     logMessage = "비밀번호 불일치 (실패 횟수: " + currentFailCount + ")";
@@ -423,9 +426,6 @@ public class UserService {
             // 로그인 성공 처리 - 나노초 + 랜덤으로 중복 방지
             String sessionId = "SESS_" + System.nanoTime() + "_" + (int)(Math.random() * 1000) + "_" + userId;
             
-            // 임시 비밀번호로 로그인했는지 확인
-            boolean isTempPasswordLogin = (tempPassword != null && tempPassword.equals(encryptedPassword));
-            
             // 로그인 실패 횟수 초기화 및 마지막 로그인 시간 업데이트
             String successSql = "UPDATE USERS SET LOGIN_FAIL_COUNT = 0, LAST_LOGIN_TIMESTAMP = CURRENT TIMESTAMP WHERE USER_ID = ?";
             jdbcTemplate.update(successSql, userId);
@@ -434,15 +434,19 @@ public class UserService {
             String sessionSql = "INSERT INTO USER_SESSIONS (SESSION_ID, USER_ID, IP_ADDRESS, USER_AGENT) VALUES (?, ?, ?, ?)";
             jdbcTemplate.update(sessionSql, sessionId, userId, ipAddress, userAgent);
             
-            // 감사 로그 기록
-            String auditMessage = isTempPasswordLogin ? "임시 비밀번호로 로그인 성공" : "로그인 성공";
+            boolean passwordChangeRequired = passwordPolicyService.mustChangePassword(userId);
+            String passwordChangeReason = passwordPolicyService.resolveChangeReason(userId);
+            String auditMessage = passwordChangeRequired ? "로그인 성공 (비밀번호 변경 필요)" : "로그인 성공";
             String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, IP_ADDRESS, USER_AGENT, SESSION_ID, STATUS, ERROR_MESSAGE) VALUES (?, 'LOGIN', 'USER', ?, ?, ?, 'SUCCESS', ?)";
             jdbcTemplate.update(auditSql, userId, ipAddress, userAgent, sessionId, auditMessage);
             
             result.put("success", true);
             result.put("sessionId", sessionId);
             result.put("message", "로그인 성공");
-            result.put("isTempPassword", isTempPasswordLogin);
+            result.put("passwordChangeRequired", passwordChangeRequired);
+            result.put("passwordChangeReason", passwordChangeReason);
+            // 하위 호환
+            result.put("isTempPassword", passwordChangeRequired);
             
         } catch (Exception e) {
             logger.error("로그인 처리 중 오류 발생", e);
@@ -629,19 +633,22 @@ public class UserService {
     @Transactional
     public boolean changePassword(String userId, String oldPassword, String newPassword) {
         try {
-            // 현재 비밀번호 확인
             String currentPasswordSql = "SELECT PASSWORD FROM USERS WHERE USER_ID = ?";
             String currentPassword = jdbcTemplate.queryForObject(currentPasswordSql, String.class, userId);
             
             if (!currentPassword.equals(Crypto.crypt(oldPassword))) {
-                return false; // 현재 비밀번호가 틀림
+                return false;
             }
+
+            passwordPolicyService.validateNewPassword(userId, newPassword, currentPassword);
+            passwordPolicyService.recordPasswordHistory(userId, currentPassword);
             
-            // 새 비밀번호로 업데이트
-            String updateSql = "UPDATE USERS SET PASSWORD = ?, PASSWORD_CHANGE_DATE = CURRENT DATE WHERE USER_ID = ?";
+            String updateSql = "UPDATE USERS SET PASSWORD = ?, TEMP_PASSWORD = NULL, PASSWORD_CHANGE_DATE = CURRENT DATE WHERE USER_ID = ?";
             jdbcTemplate.update(updateSql, Crypto.crypt(newPassword), userId);
             
             return true;
+        } catch (PasswordPolicyException e) {
+            throw e;
         } catch (Exception e) {
             logger.error("비밀번호 변경 중 오류 발생", e);
             return false;
@@ -685,44 +692,43 @@ public class UserService {
         }
     }
     
-    // 임시 비밀번호에서 새 비밀번호로 변경
+    // 임시/강제 비밀번호에서 새 비밀번호로 변경
     @Transactional
-    public boolean changePasswordFromTemp(String userId, String newPassword) {
-        try {
-            String sql = "UPDATE USERS SET PASSWORD = ?, TEMP_PASSWORD = NULL, PASSWORD_CHANGE_DATE = CURRENT DATE WHERE USER_ID = ?";
-            jdbcTemplate.update(sql, Crypto.crypt(newPassword), userId);
-            
-            // 감사 로그 기록
-            String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, RESOURCE_ID, STATUS, ERROR_MESSAGE) " +
-                            "VALUES (?, 'CHANGE_PASSWORD', 'USER', ?, 'SUCCESS', ?)";
-            jdbcTemplate.update(auditSql, userId, userId, "임시 비밀번호에서 정상 비밀번호로 변경됨");
-            
-            return true;
-        } catch (Exception e) {
-            logger.error("임시 비밀번호에서 새 비밀번호로 변경 중 오류 발생", e);
-            return false;
-        }
+    public void changePasswordFromTemp(String userId, String newPassword) {
+        String currentPasswordSql = "SELECT PASSWORD FROM USERS WHERE USER_ID = ?";
+        String currentPassword = jdbcTemplate.queryForObject(currentPasswordSql, String.class, userId);
+
+        passwordPolicyService.validateNewPassword(userId, newPassword, currentPassword);
+        passwordPolicyService.recordPasswordHistory(userId, currentPassword);
+
+        String sql = "UPDATE USERS SET PASSWORD = ?, TEMP_PASSWORD = NULL, PASSWORD_CHANGE_DATE = CURRENT DATE WHERE USER_ID = ?";
+        jdbcTemplate.update(sql, Crypto.crypt(newPassword), userId);
+        
+        String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, RESOURCE_ID, STATUS, ERROR_MESSAGE) " +
+                        "VALUES (?, 'CHANGE_PASSWORD', 'USER', ?, 'SUCCESS', ?)";
+        jdbcTemplate.update(auditSql, userId, userId, "비밀번호 변경 완료");
     }
     
-    // 사용자 비밀번호 초기화
+    // 사용자 비밀번호 초기화 (관리자: 정책 검증 제외, 로그인 후 변경 강제)
     @Transactional
     public boolean resetUserPassword(String userId, String defaultPassword, String resetBy) {
         try {
-            // 사용자 존재 여부 확인
-            String checkSql = "SELECT COUNT(*) FROM USERS WHERE USER_ID = ?";
-            int userCount = jdbcTemplate.queryForObject(checkSql, Integer.class, userId);
+            String checkSql = "SELECT PASSWORD FROM USERS WHERE USER_ID = ?";
+            List<Map<String, Object>> users = jdbcTemplate.queryForList(checkSql, userId);
             
-            if (userCount == 0) {
+            if (users.isEmpty()) {
                 return false;
             }
-            
-            // 비밀번호 초기화
-            String resetSql = "UPDATE USERS SET PASSWORD = ?, PASSWORD_CHANGE_DATE = CURRENT DATE, " +
-                            "LOGIN_FAIL_COUNT = 0, MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " +
+
+            String currentPassword = (String) users.get(0).get("PASSWORD");
+            passwordPolicyService.recordPasswordHistory(userId, currentPassword);
+
+            String encrypted = Crypto.crypt(defaultPassword);
+            String resetSql = "UPDATE USERS SET PASSWORD = ?, TEMP_PASSWORD = ?, PASSWORD_CHANGE_DATE = CURRENT DATE, " +
+                            "LOGIN_FAIL_COUNT = 0, STATUS = 'ACTIVE', MODIFIED_BY = ?, MODIFIED_TIMESTAMP = CURRENT TIMESTAMP " +
                             "WHERE USER_ID = ?";
-            jdbcTemplate.update(resetSql, Crypto.crypt(defaultPassword), resetBy, userId);
+            jdbcTemplate.update(resetSql, encrypted, encrypted, resetBy, userId);
             
-            // 감사 로그 기록
             String auditSql = "INSERT INTO AUDIT_LOGS (USER_ID, ACTION_TYPE, RESOURCE_TYPE, RESOURCE_ID, GRANTED_BY, STATUS) " +
                             "VALUES (?, 'RESET_PASSWORD', 'USER', ?, ?, 'SUCCESS')";
             jdbcTemplate.update(auditSql, userId, userId, resetBy);

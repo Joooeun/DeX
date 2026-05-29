@@ -16,9 +16,14 @@
 
 	<script>
 	$(document).ready(function() {
-		// 비밀번호 변경 모달 처리
 		var changePW = '${changePW}' === 'true';
+		var passwordChangeReason = '${passwordChangeReason}';
 		if (changePW) {
+			if (passwordChangeReason === 'EXPIRED') {
+				$('#passwordChangeReasonText').text('비밀번호 사용 기간(90일)이 만료되어 변경이 필요합니다.');
+			} else {
+				$('#passwordChangeReasonText').text('보안 정책에 따라 비밀번호 변경이 필요합니다.');
+			}
 			$('#changePWModal').modal({backdrop: 'static', keyboard: false});
 			$('#changePWModal').modal('show');
 		}
@@ -245,11 +250,11 @@
 		</div>
 		
 		<!-- 비번 변경 Modal -->
-		<div class="modal fade" id="changePWModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+		<div class="modal fade" id="changePWModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" data-backdrop="static" data-keyboard="false">
 			<div class="modal-dialog" role="document">
 				<div class="modal-content">
 					<div class="modal-header">
-						<c:if test=" ${changePW==true}">
+						<c:if test="${changePW != true}">
 							<button type="button" class="close" data-dismiss="modal" aria-label="Close">
 								<span aria-hidden="true">&times;</span>
 							</button>
@@ -257,16 +262,20 @@
 						<h4 class="modal-title" id="myModalLabel">비밀번호 변경</h4>
 					</div>
 					<div class="modal-body">
+						<c:if test="${changePW == true}">
+							<p id="passwordChangeReasonText" class="text-warning"></p>
+						</c:if>
+						<p class="text-muted" id="passwordPolicyHint">8~20자, 영문·숫자·특수문자 각 1개 이상 포함</p>
 						<div class="form-group">
-							<label for="PW">새 비밀번호</label> <input type="password" class="form-control" id="PW" placeholder="새 비밀번호" maxlength="16">
+							<label for="PW">새 비밀번호</label> <input type="password" class="form-control" id="PW" placeholder="새 비밀번호" maxlength="20">
 						</div>
 
 						<div class="form-group">
-							<label for="PW">새 비밀번호 확인</label> <input type="password" class="form-control" id="newPW" placeholder="새 비밀번호 확인" maxlength="16">
+							<label for="newPW">새 비밀번호 확인</label> <input type="password" class="form-control" id="newPW" placeholder="새 비밀번호 확인" maxlength="20">
 						</div>
 					</div>
 					<div class="modal-footer">
-						<c:if test=" ${changePW==true}">
+						<c:if test="${changePW != true}">
 							<button type="button" class="btn btn-default" data-dismiss="modal">취소</button>
 						</c:if>
 

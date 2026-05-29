@@ -21,6 +21,7 @@ import org.springframework.web.servlet.ModelAndView;
 
 import kr.Windmill.service.PermissionService;
 import kr.Windmill.service.UserService;
+import kr.Windmill.service.PasswordPolicyException;
 import kr.Windmill.util.Common;
 import kr.Windmill.util.Log;
 
@@ -569,13 +570,13 @@ public class UserController {
 				return result;
 			}
 
-			// 기본 비밀번호 설정 (제공되지 않은 경우 "1234" 사용)
-			String password = (defaultPassword != null && !defaultPassword.trim().isEmpty()) ? defaultPassword : "1234";
+			// 기본 비밀번호: 사용자 ID (정책 검증 제외, 로그인 후 변경 강제)
+			String password = (defaultPassword != null && !defaultPassword.trim().isEmpty()) ? defaultPassword : userId;
 
 			boolean success = userService.resetUserPassword(userId, password, currentUserId);
 			if (success) {
 				result.put("success", true);
-				result.put("message", "비밀번호가 초기화되었습니다. (새 비밀번호: " + password + ")");
+				result.put("message", "비밀번호가 초기화되었습니다. 사용자는 로그인 후 비밀번호 변경이 필요합니다.");
 			} else {
 				result.put("success", false);
 				result.put("message", "비밀번호 초기화에 실패했습니다.");
@@ -733,18 +734,15 @@ public class UserController {
 				return result;
 			}
 			
-			// 임시 비밀번호를 새 비밀번호로 변경하고 임시 비밀번호 플래그 해제
-			boolean success = userService.changePasswordFromTemp(userId, PW);
-			if (success) {
-				// 세션에서 changePW 플래그 제거
-				session.removeAttribute("changePW");
-				result.put("success", true);
-				result.put("message", "비밀번호가 성공적으로 변경되었습니다.");
-			} else {
-				result.put("success", false);
-				result.put("message", "비밀번호 변경에 실패했습니다.");
-			}
+			userService.changePasswordFromTemp(userId, PW);
+			session.removeAttribute("changePW");
+			session.removeAttribute("passwordChangeReason");
+			result.put("success", true);
+			result.put("message", "비밀번호가 성공적으로 변경되었습니다.");
 			
+		} catch (PasswordPolicyException e) {
+			result.put("success", false);
+			result.put("message", e.getMessage());
 		} catch (Exception e) {
 			logger.error("비밀번호 변경 중 오류 발생", e);
 			result.put("success", false);

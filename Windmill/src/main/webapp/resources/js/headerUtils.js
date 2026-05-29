@@ -5,6 +5,32 @@
 (function(window, $) {
 	'use strict';
 
+	var PASSWORD_MIN = 8;
+	var PASSWORD_MAX = 20;
+	var PASSWORD_FORBIDDEN = /[<>\"'|\\]/;
+
+	function validatePassword(value) {
+		if (!value) {
+			return '비밀번호는 필수입니다.';
+		}
+		if (value.length < PASSWORD_MIN || value.length > PASSWORD_MAX) {
+			return '비밀번호는 ' + PASSWORD_MIN + '~' + PASSWORD_MAX + '자여야 합니다.';
+		}
+		if (PASSWORD_FORBIDDEN.test(value)) {
+			return '허용되지 않는 문자: < > " \' \\ |';
+		}
+		if (!/[A-Za-z]/.test(value) || !/\d/.test(value) || !/[^A-Za-z0-9]/.test(value)) {
+			return '영문, 숫자, 특수문자를 각각 1개 이상 포함해야 합니다.';
+		}
+		return null;
+	}
+
+	$(document).ajaxComplete(function(_event, xhr) {
+		if (xhr.getResponseHeader('PASSWORD_CHANGE_REQUIRED') === 'true') {
+			window.location.href = '/index';
+		}
+	});
+
 	/**
 	 * 비밀번호 확인 모달 표시
 	 */
@@ -16,21 +42,15 @@
 	 * 비밀번호 변경 저장
 	 */
 	function save() {
-		if ($('#PW').val() !== $('#newPW').val()) {
+		var password = $('#PW').val();
+		if (password !== $('#newPW').val()) {
 			alert("비밀번호가 일치하지 않습니다.");
 			return;
 		}
 
-		var lowerCaseLetters = /[a-z]|[A-Z]/g;
-		var numbers = /[0-9]/g;
-
-		if (!$('#PW').val().match(lowerCaseLetters) || !$('#PW').val().match(numbers)) {
-			alert("비밀번호는 영문, 숫자를 포함해야 합니다.");
-			return;
-		}
-
-		if ($('#PW').val().length < 8) {
-			alert("비밀번호는 최소 8자리 이상입니다.");
+		var validationMessage = validatePassword(password);
+		if (validationMessage) {
+			alert(validationMessage);
 			return;
 		}
 
@@ -38,15 +58,24 @@
 			type: 'post',
 			url: '/User/changePW',
 			data: {
-				PW: $('#PW').val()
+				PW: password
 			},
 			success: function(result) {
-				alert("저장 되었습니다.");
-				$('#changePWModal').modal('hide');
-				$('#PW').val("");
-				$('#newPW').val("");
+				if (result && result.success) {
+					alert("저장 되었습니다.");
+					$('#changePWModal').modal('hide');
+					$('#PW').val("");
+					$('#newPW').val("");
+					window.location.reload();
+				} else {
+					alert((result && result.message) ? result.message : "저장되지 않았습니다.");
+				}
 			},
-			error: function() {
+			error: function(xhr) {
+				if (xhr.getResponseHeader('PASSWORD_CHANGE_REQUIRED') === 'true') {
+					window.location.href = '/index';
+					return;
+				}
 				alert("저장되지 않았습니다.");
 			}
 		});
@@ -81,23 +110,19 @@
 	 * 공지사항 로드
 	 */
 	function loadNotice() {
-		// 오늘 하루 열지 않기 체크
 		try {
 			var closedDate = localStorage.getItem('noticeClosedDate');
 			var today = new Date().toDateString();
 			if (closedDate === today) {
-				// 오늘 이미 닫았으면 표시하지 않음
 				return;
 			}
 		} catch (e) {
-			// localStorage 오류 시 계속 진행
 		}
 		
 		$.ajax({
 			url: '/SystemConfig/getNotice',
 			type: 'GET',
 			success: function(response) {
-				// noticeEnabled가 정확히 'true' 문자열이고, noticeContent가 있을 때만 표시
 				if (response.success && 
 				    response.noticeEnabled === 'true' && 
 				    response.noticeContent && 
@@ -106,17 +131,11 @@
 				}
 			},
 			error: function() {
-				// 에러 시 아무것도 하지 않음
 			}
 		});
 	}
 
-	/**
-	 * 공지사항 표시
-	 * @param {string} content - 공지사항 내용
-	 */
 	function showNotice(content) {
-		// 내용이 비어있으면 표시하지 않음
 		if (!content || content.trim() === '') {
 			return;
 		}
@@ -125,23 +144,12 @@
 		$('#noticeModal').modal('show');
 	}
 
-	/**
-	 * 글꼴 변경 함수
-	 * @param {string} fontFamily - 변경할 글꼴 이름
-	 */
 	function changeFont(fontFamily) {
-		// 로컬 스토리지에 선택한 글꼴 저장
 		localStorage.setItem('selectedFont', fontFamily);
-		
-		// 현재 페이지의 모든 요소에 글꼴 적용
 		document.documentElement.style.setProperty('--selected-font', fontFamily);
-		
-		// 드롭다운 버튼 텍스트 업데이트
 		updateFontDropdownText(fontFamily);
 		
-		// 현재 페이지의 Ace Editor들에 폰트 적용
 		if (typeof ace !== 'undefined') {
-			// 전역 에디터들에 폰트 적용
 			if (window.sqlEditors) {
 				Object.values(window.sqlEditors).forEach(function(editor) {
 					if (editor && typeof editor.setOptions === 'function') {
@@ -152,7 +160,6 @@
 				});
 			}
 			
-			// SqlTemplateState 에디터들에 폰트 적용
 			if (window.SqlTemplateState && window.SqlTemplateState.sqlEditors) {
 				Object.values(window.SqlTemplateState.sqlEditors).forEach(function(editor) {
 					if (editor && typeof editor.setOptions === 'function') {
@@ -164,7 +171,6 @@
 			}
 		}
 		
-		// 모든 iframe에도 글꼴 적용
 		var iframes = document.querySelectorAll('iframe');
 		iframes.forEach(function(iframe) {
 			try {
@@ -172,26 +178,21 @@
 					var iframeDoc = iframe.contentDocument;
 					var iframeWindow = iframe.contentWindow;
 					
-					// CSS 변수 설정
 					iframeDoc.documentElement.style.setProperty('--selected-font', fontFamily);
 					
-					// iframe 전체에 폰트 적용 (모든 요소)
 					if (iframeWindow.$) {
 						iframeWindow.$('*').css('font-family', fontFamily);
 					} else {
-						// jQuery가 없는 경우 직접 DOM 조작
 						var allElements = iframeDoc.querySelectorAll('*');
 						for (var i = 0; i < allElements.length; i++) {
 							allElements[i].style.fontFamily = fontFamily;
 						}
 					}
 					
-					// iframe 내부의 changeFont 함수 호출 (있는 경우)
 					if (iframeWindow && typeof iframeWindow.changeFont === 'function') {
 						iframeWindow.changeFont(fontFamily);
 					}
 					
-					// postMessage로 폰트 변경 이벤트 전송
 					if (iframeWindow) {
 						iframeWindow.postMessage({
 							type: 'FONT_CHANGE',
@@ -199,9 +200,7 @@
 						}, '*');
 					}
 					
-					// iframe 내부의 에디터들에 직접 폰트 적용
 					if (iframeWindow) {
-						// FileUpload.jsp의 에디터들
 						if (iframeWindow.contentEditor && typeof iframeWindow.contentEditor.setOptions === 'function') {
 							iframeWindow.contentEditor.setOptions({
 								fontFamily: fontFamily
@@ -211,7 +210,6 @@
 							iframeWindow.$('#contentTextarea').css('font-family', fontFamily);
 						}
 						
-						// FileRead.jsp의 에디터들
 						if (iframeWindow.resultEditor && typeof iframeWindow.resultEditor.setOptions === 'function') {
 							iframeWindow.resultEditor.setOptions({
 								fontFamily: fontFamily
@@ -221,16 +219,12 @@
 							iframeWindow.$('#resultTextarea').css('font-family', fontFamily);
 						}
 						
-						// SQLExecute.jsp의 textarea들 및 Ace Editor들
 						if (iframeWindow.$) {
 							iframeWindow.$('.formtextarea').css('font-family', fontFamily);
 						}
 						
-						// SQLExecute.jsp의 Ace Editor들 (전역에서 찾기)
 						if (typeof iframeWindow.ace !== 'undefined') {
-							// 모든 Ace Editor 인스턴스 찾기
 							if (iframeWindow.ace.edit) {
-								// Ace Editor 컨테이너들을 찾아서 폰트 적용
 								var aceContainers = iframeDoc.querySelectorAll('[id*="_ace"], #sql_text');
 								for (var j = 0; j < aceContainers.length; j++) {
 									try {
@@ -241,13 +235,11 @@
 											});
 										}
 									} catch (e) {
-										// 개별 에디터 적용 실패는 무시
 									}
 								}
 							}
 						}
 						
-						// SQLTemplate.jsp의 에디터들
 						if (iframeWindow.sqlEditors) {
 							Object.values(iframeWindow.sqlEditors).forEach(function(editor) {
 								if (editor && typeof editor.setOptions === 'function') {
@@ -269,38 +261,28 @@
 					}
 				}
 			} catch (e) {
-				// Cross-origin 에러 무시
 			}
 		});
 		
-		// 드롭다운 메뉴 닫기 (안전하게 처리)
 		try {
-			// 부모 창의 dropdown이 있는 경우 (iframe 내부에서 호출되는 경우)
 			if (window.parent && window.parent !== window) {
 				var parentDropdown = window.parent.$('.dropdown-toggle');
 				if (parentDropdown.length > 0 && typeof parentDropdown.dropdown === 'function') {
 					parentDropdown.dropdown('hide');
 				}
 			} else {
-				// 현재 창의 dropdown
 				var dropdownToggle = $('.dropdown-toggle');
 				if (dropdownToggle.length > 0 && typeof dropdownToggle.dropdown === 'function') {
 					dropdownToggle.dropdown('hide');
 				}
 			}
 		} catch (e) {
-			// 드롭다운 닫기 실패 시 무시 (iframe 내부에서 호출되는 경우 등)
 			console.debug('드롭다운 닫기 실패:', e);
 		}
 	}
 
-	/**
-	 * 드롭다운 버튼 텍스트 업데이트 함수
-	 * @param {string} fontFamily - 글꼴 이름
-	 */
 	function updateFontDropdownText(fontFamily) {
 		try {
-			// 부모 창의 dropdown이 있는 경우 (iframe 내부에서 호출되는 경우)
 			var dropdownToggle;
 			if (window.parent && window.parent !== window) {
 				dropdownToggle = window.parent.$('.dropdown-toggle');
@@ -309,17 +291,14 @@
 			}
 			
 			if (dropdownToggle.length > 0) {
-				// 기존 아이콘과 caret은 유지하고 텍스트만 변경
 				var newText = '<i class="fa fa-font"></i> ' + fontFamily + ' <span class="caret"></span>';
 				dropdownToggle.html(newText);
 			}
 		} catch (e) {
-			// 드롭다운 텍스트 업데이트 실패 시 무시
 			console.debug('드롭다운 텍스트 업데이트 실패:', e);
 		}
 	}
 
-	// 전역 네임스페이스에 등록
 	window.HeaderUtils = {
 		checkPWModal: checkPWModal,
 		save: save,
@@ -330,11 +309,9 @@
 		updateFontDropdownText: updateFontDropdownText
 	};
 
-	// 전역 함수로도 등록 (하위 호환성)
 	window.checkPWModal = checkPWModal;
 	window.save = save;
 	window.checkPW = checkPW;
 	window.changeFont = changeFont;
 
 })(window, jQuery);
-
