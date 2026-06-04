@@ -33,6 +33,7 @@ public class LoginInterceptor implements HandlerInterceptor {
 		"/index",
 		"/index2",
 		"/logout",
+		"/User/checkPW",
 		"/User/changePW",
 		"/resources/"
 	);

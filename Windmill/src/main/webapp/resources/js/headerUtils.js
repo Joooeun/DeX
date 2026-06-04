@@ -26,9 +26,14 @@
 	}
 
 	$(document).ajaxComplete(function(_event, xhr) {
-		if (xhr.getResponseHeader('PASSWORD_CHANGE_REQUIRED') === 'true') {
-			window.location.href = '/index';
+		if (xhr.getResponseHeader('PASSWORD_CHANGE_REQUIRED') !== 'true') {
+			return;
 		}
+		var path = window.location.pathname;
+		if (path === '/index' || path === '/index/') {
+			return;
+		}
+		window.location.href = '/index';
 	});
 
 	/**

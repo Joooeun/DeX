@@ -471,7 +471,10 @@ window.enableAceHeightResize = function(editorHostDiv, editor, initialHeightPx) 
 				sidebar.append(child);
 
 			},
-			error: function() {
+			error: function(xhr) {
+				if (xhr.status === 403 && xhr.getResponseHeader('PASSWORD_CHANGE_REQUIRED') === 'true') {
+					return;
+				}
 				alert("시스템 에러");
 			}
 		});

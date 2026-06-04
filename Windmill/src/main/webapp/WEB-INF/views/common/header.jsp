@@ -26,9 +26,9 @@
 			}
 			$('#changePWModal').modal({backdrop: 'static', keyboard: false});
 			$('#changePWModal').modal('show');
+		} else {
+			getMenu();
 		}
-		
-		getMenu();
 
 		// admin인 경우에만 대시보드 관련 기능 활성화
 		var isAdmin = '${isAdmin}' === 'true';
@@ -129,17 +129,20 @@
 			}
 		});
 
-		// 대시보드 탭 초기화 (관리자만 기본 탭 설정)
-		var hasDashboardPermission = '${isAdmin}' === 'true';
-		window.tabManager.initDashboardTab(hasDashboardPermission);
+		// 비밀번호 변경 강제 중에는 탭/메뉴 API 호출 생략 (403 방지)
+		if (!changePW) {
+			var hasDashboardPermission = '${isAdmin}' === 'true';
+			window.tabManager.initDashboardTab(hasDashboardPermission);
+		}
 	});
 </script>
 
 <script>
 	// 공지사항 관련 초기화
 	$(document).ready(function() {
-		// 공지사항 로드 (내부에서 localStorage 체크 수행)
-		window.HeaderUtils.loadNotice();
+		if ('${changePW}' !== 'true') {
+			window.HeaderUtils.loadNotice();
+		}
 	});
 	
 	// 페이지 로드 시 저장된 글꼴 복원
