@@ -361,8 +361,11 @@ public class DynamicJdbcManager implements Closeable {
 	/** 대시보드 차트 전용 커넥션 풀 (일반 풀과 분리하여 스케줄러 쿼리가 사용자 쿼리에 영향을 주지 않도록 함) */
 	private final ConcurrentMap<String, IsolatedPool> dashboardPools = new ConcurrentHashMap<>();
 
-	/** 대시보드 풀 최대 커넥션 수 (스케줄러 동시 실행 수 이하로 유지) */
-	private static final int DASHBOARD_POOL_SIZE = 3;
+	/** 대시보드 풀 최소 커넥션 수 */
+	public static final int MIN_DASHBOARD_POOL_SIZE = 3;
+
+	/** 대시보드 풀 최대 커넥션 수 (차트 스케줄러 수에 따라 동적 조정) */
+	private volatile int dashboardPoolSize = MIN_DASHBOARD_POOL_SIZE;
 
 	private final ScheduledExecutorService cleanupExecutor = Executors.newSingleThreadScheduledExecutor();
 
@@ -482,7 +485,7 @@ public class DynamicJdbcManager implements Closeable {
 
 	/**
 	 * 대시보드 차트 전용 커넥션 풀을 초기화합니다.
-	 * 일반 풀과 동일한 접속 정보를 사용하되, 풀 크기를 DASHBOARD_POOL_SIZE로 제한합니다.
+	 * 일반 풀과 동일한 접속 정보를 사용하되, 풀 크기를 dashboardPoolSize로 제한합니다.
 	 */
 	private void initializeDashboardPoolForConnection(Map<String, Object> connInfo) throws Exception {
 		String connectionId = (String) connInfo.get("CONNECTION_ID");
@@ -511,10 +514,50 @@ public class DynamicJdbcManager implements Closeable {
 
 		PoolKey poolKey = new PoolKey("[dashboard]" + connectionId, Paths.get(jarPath), driverClassName, jdbcUrl, props);
 		IsolatedDriver isoDriver = IsolatedDriver.load(Paths.get(jarPath), driverClassName);
-		IsolatedPool pool = new IsolatedPool(poolKey, isoDriver, DASHBOARD_POOL_SIZE, connectionTimeoutMs, maxLifetimeMs, idleTimeoutMs);
+		IsolatedPool pool = new IsolatedPool(poolKey, isoDriver, dashboardPoolSize, connectionTimeoutMs, maxLifetimeMs, idleTimeoutMs);
 
 		dashboardPools.put(connectionId, pool);
-		logger.info("대시보드 커넥션 풀 초기화 완료: {} (maxSize={})", connectionId, DASHBOARD_POOL_SIZE);
+		logger.info("대시보드 커넥션 풀 초기화 완료: {} (maxSize={})", connectionId, dashboardPoolSize);
+	}
+
+	public int getDashboardPoolSize() {
+		return dashboardPoolSize;
+	}
+
+	/**
+	 * 차트 스케줄러 수에 맞춰 대시보드 풀 크기를 갱신하고 모든 활성 연결의 대시보드 풀을 재초기화합니다.
+	 * 일반 풀(사용자 SQL 실행용)은 영향을 받지 않습니다.
+	 *
+	 * @param newPoolSize 새 풀 크기 (최소 MIN_DASHBOARD_POOL_SIZE)
+	 */
+	public synchronized void reinitializeDashboardPools(int newPoolSize) throws Exception {
+		int targetSize = Math.max(MIN_DASHBOARD_POOL_SIZE, newPoolSize);
+		logger.info("대시보드 커넥션 풀 재초기화 시작 (targetSize={}, currentSize={})", targetSize, dashboardPoolSize);
+
+		dashboardPoolSize = targetSize;
+
+		for (String connectionId : new HashSet<>(dashboardPools.keySet())) {
+			IsolatedPool dashPool = dashboardPools.remove(connectionId);
+			if (dashPool != null) {
+				try {
+					dashPool.close();
+				} catch (Exception e) {
+					logger.warn("기존 대시보드 풀 정리 중 오류: {} - {}", connectionId, e.getMessage());
+				}
+			}
+		}
+
+		String sql = "SELECT * FROM DATABASE_CONNECTION WHERE STATUS = 'ACTIVE' ORDER BY CONNECTION_ID";
+		List<Map<String, Object>> connections = jdbcTemplate.queryForList(sql);
+		for (Map<String, Object> connInfo : connections) {
+			try {
+				initializeDashboardPoolForConnection(connInfo);
+			} catch (Exception e) {
+				logger.error("대시보드 커넥션 풀 재초기화 실패: {} - {}", connInfo.get("CONNECTION_ID"), e.getMessage(), e);
+			}
+		}
+
+		logger.info("대시보드 커넥션 풀 재초기화 완료 ({}개 풀, maxSize={})", dashboardPools.size(), dashboardPoolSize);
 	}
 
 	/**

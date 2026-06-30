@@ -250,11 +250,11 @@ public class SystemConfigController {
         }
         
         try {
-            dashboardSchedulerService.resetAllErrorStatus();
+            dashboardSchedulerService.reinitializeDashboardPoolsForRefresh();
             
             result.put("success", true);
-            result.put("message", "모든 차트의 에러 상태가 리셋되었습니다.");
-            logger.info("차트 에러 상태 리셋 완료 - 사용자: {}", memberId);
+            result.put("message", "차트 에러 상태가 리셋되고 대시보드 커넥션 풀이 재초기화되었습니다.");
+            logger.info("차트 에러 상태 리셋 및 대시보드 풀 재초기화 완료 - 사용자: {}", memberId);
         } catch (Exception e) {
             logger.error("차트 에러 상태 리셋 중 오류 발생", e);
             result.put("success", false);

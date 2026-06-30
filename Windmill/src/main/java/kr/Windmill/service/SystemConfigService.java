@@ -7,7 +7,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import kr.Windmill.util.DynamicJdbcManager;
 
 @Service
 public class SystemConfigService {
@@ -177,6 +184,50 @@ public class SystemConfigService {
      */
     public boolean saveDashboardMonitoringTemplateConfig(String monitoringConfig) {
         return updateConfigValue("DASHBOARD_MONITORING_TEMPLATE_CONFIG", monitoringConfig);
+    }
+
+    /**
+     * 대시보드 차트/모니터링 스케줄러 수에 맞는 대시보드 커넥션 풀 크기를 계산합니다.
+     * 동시 실행되는 templateId 스케줄러 수 = 필요한 최소 풀 크기입니다.
+     */
+    public int calculateDashboardPoolSize() {
+        int schedulerCount = 0;
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+
+            String chartConfig = getDashboardChartConfig();
+            if (chartConfig != null && !chartConfig.trim().isEmpty() && !chartConfig.equals("{}")) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> config = mapper.readValue(chartConfig, Map.class);
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> charts = (List<Map<String, Object>>) config.get("charts");
+                if (charts != null) {
+                    Set<String> templateIds = new HashSet<>();
+                    for (Map<String, Object> chart : charts) {
+                        String templateId = (String) chart.get("templateId");
+                        if (templateId != null && !templateId.trim().isEmpty()) {
+                            templateIds.add(templateId);
+                        }
+                    }
+                    schedulerCount = templateIds.size();
+                }
+            }
+
+            String monitoringConfig = getDashboardMonitoringTemplateConfig();
+            if (monitoringConfig != null && !monitoringConfig.trim().isEmpty() && !monitoringConfig.equals("{}")) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> monitoring = mapper.readValue(monitoringConfig, Map.class);
+                String templateId = (String) monitoring.get("templateId");
+                if (templateId != null && !templateId.trim().isEmpty()) {
+                    schedulerCount += 1;
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("대시보드 풀 크기 계산 실패, 기본값 사용: {}", e.getMessage());
+        }
+
+        return Math.max(DynamicJdbcManager.MIN_DASHBOARD_POOL_SIZE, schedulerCount);
     }
     
     /**

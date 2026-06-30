@@ -91,6 +91,9 @@ public class DashboardSchedulerService {
                 cleanupExecutor.schedule(this::initializeSchedulers, 5, TimeUnit.SECONDS);
                 return;
             }
+
+            // 차트 수에 맞춰 대시보드 풀 크기 동기화
+            syncDashboardPoolSize(false);
             
             // 동적 차트 설정에서 각 차트의 템플릿 정보를 참조하여 간격 설정
             initializeDynamicSchedulers();
@@ -725,17 +728,16 @@ public class DashboardSchedulerService {
     public void refreshSchedulers() {
         try {
             System.out.println("🔄 스케줄러 갱신 시작...");
-            
-            // 1. 기존 스케줄러 모두 중지
+
+            // 1. 기존 스케줄러 중지 (캐시/에러카운터 정리 포함)
             shutdownSchedulers();
-            
-            // 2. 캐시 초기화
-            chartDataCache.clear();
-            chartConsecutiveFailures.clear();
-            
+
+            // 2. 차트 수에 맞춰 대시보드 풀 재생성 (스케줄러 중지 후)
+            syncDashboardPoolSize(true);
+
             // 3. 새로운 설정으로 재시작
             initializeDynamicSchedulers();
-            
+
             System.out.println("✅ 스케줄러 갱신 완료");
         } catch (Exception e) {
             System.err.println("❌ 스케줄러 갱신 실패: " + e.getMessage());
@@ -759,6 +761,33 @@ public class DashboardSchedulerService {
             System.err.println("❌ 에러 상태 리셋 실패: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 차트 설정에 맞춰 대시보드 풀 크기를 동기화합니다.
+     *
+     * @param forceReinitialize true이면 크기가 같아도 풀을 재초기화합니다 (새로고침 시)
+     */
+    public void syncDashboardPoolSize(boolean forceReinitialize) {
+        try {
+            int requiredSize = systemConfigService.calculateDashboardPoolSize();
+            int currentSize = dynamicJdbcManager.getDashboardPoolSize();
+
+            if (forceReinitialize || requiredSize != currentSize) {
+                dynamicJdbcManager.reinitializeDashboardPools(requiredSize);
+                logger.info("대시보드 풀 크기 동기화 완료: {} -> {}", currentSize, requiredSize);
+            }
+        } catch (Exception e) {
+            logger.error("대시보드 풀 크기 동기화 실패: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 대시보드 새로고침 시 대시보드 풀 재초기화 및 에러 상태 리셋
+     */
+    public void reinitializeDashboardPoolsForRefresh() {
+        syncDashboardPoolSize(true);
+        chartConsecutiveFailures.clear();
     }
 }
 
